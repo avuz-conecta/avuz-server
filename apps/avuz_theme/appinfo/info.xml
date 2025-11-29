@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>avuz_theme</id>
+    <name>Avuz Theme</name>
+    <summary>Custom Avuz branding and login layout</summary>
+    <description><![CDATA[Provides custom company branding with split-screen login layout featuring network diagram on the left and login form on the right.]]></description>
+    <version>1.0.0</version>
+    <licence>agpl</licence>
+    <author mail="your-email@avuz.com">Avuz Team</author>
+    <namespace>AvuzTheme</namespace>
+    <category>customization</category>
+    <bugs>https://github.com/avuz-conecta/avuz-server/issues</bugs>
+    <dependencies>
+        <nextcloud min-version="28" max-version="35"/>
+    </dependencies>
+</info>

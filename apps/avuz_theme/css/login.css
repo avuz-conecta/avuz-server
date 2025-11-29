@@ -1,0 +1,301 @@
+/**
+ * Avuz Custom Login Layout
+ * Split-screen design: Network diagram (left) + Login form with logos (right)
+ * 3 images: network-diagram.png (left), logo.png (top), logo2.png (bottom)
+ */
+
+/* Override default body centering to create split-screen layout */
+body#body-login {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: flex-end !important;
+    align-items: stretch !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 100vh;
+    height: 100vh;
+    position: relative;
+    overflow: hidden !important;
+    background: none !important;
+    background-image: none !important;
+    background-color: #ffffff !important;
+}
+
+/* Remove all default Nextcloud backgrounds */
+body#body-login::after {
+    display: none !important;
+}
+
+/* Left panel: Network diagram background */
+body#body-login::before {
+    content: '';
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 70%;
+    background-color: #f2f6fb !important;
+    background-image: url('../img/network-diagram.png');
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 60%;
+    z-index: 0;
+}
+
+/* Right panel: Login area */
+body#body-login .wrapper {
+    width: 30% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    margin-left: auto !important;
+    padding: 0rem 3rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative;
+    z-index: 1;
+    background-color: #f2f6fb !important;
+    background: #f2f6fb !important;
+    min-height: 100vh;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Logo 1 at top of login form */
+body#body-login .wrapper .v-align::before {
+    content: '';
+    display: block;
+    width: 160px;
+    height: 50px;
+    background-image: url('../img/logo.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    margin: 3rem auto 1rem;
+    flex-shrink: 0;
+}
+
+/* Login box styling */
+body#body-login .login-box {
+    width: 100% !important;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-color: transparent !important;
+    padding: 0 !important;
+    border-radius: 0;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+body#body-login .login-box h2 {
+  color: #767676 !important;
+}
+
+body#body-login .login-box input {
+  background-color: #f2f6fb !important;
+  color: #767676 !important;
+  border: none !important;
+  border-radius: 35px !important;
+  padding: 1.5rem 1rem !important;
+  outline: none !important;
+  box-shadow: none !important;
+  width: 100% !important;
+  min-width: 280px !important;
+  margin-bottom: 1rem !important;
+}
+
+body#body-login .login-box input:focus,
+body#body-login .login-box input:active {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+body#body-login .login-box label {
+  color: #767676 !important;
+  display: flex !important;
+  align-items: center !important;
+  height: 100% !important;
+}
+
+/* Center the password toggle eye icon */
+body#body-login .login-box .password-toggle,
+body#body-login .login-box button[type="button"] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+  margin: 0.2rem 0.5rem 0 0 !important;
+}
+
+/* Hide label when input is focused or has content */
+body#body-login .login-box input:focus + label,
+body#body-login .login-box input:not(:placeholder-shown) + label {
+  display: none !important;
+}
+
+body#body-login .login-box form {
+  padding: 0 1rem;
+}
+
+/* Add spacing between input field containers */
+body#body-login form .input-field,
+body#body-login form [class*="input"],
+body#body-login form fieldset > div,
+body#body-login form > fieldset > div {
+  margin-bottom: 0.3rem !important;
+}
+
+/* Login button styling - match logo blue */
+body#body-login .login-box input[type="submit"],
+body#body-login .login-box button[type="submit"],
+body#body-login .login-box .submit-wrapper input,
+body#body-login .login-box #submit-wrapper input {
+  background-color: #2bb5e3 !important;
+  border: none !important;
+  border-radius: 35px !important;
+  color: #ffffff !important;
+  padding: 0.5rem 1.5rem !important;
+  font-weight: 500 !important;
+}
+
+body#body-login .login-box input[type="submit"]:hover,
+body#body-login .login-box button[type="submit"]:hover {
+  background-color: #3d8fb5 !important;
+}
+
+/* Style checkbox to match button blue */
+body#body-login input[type="checkbox"] {
+  accent-color: #2bb5e3 !important;
+}
+
+body#body-login .checkbox-content input[type="checkbox"]:checked {
+  background-color: #2bb5e3 !important;
+  border-color: #2bb5e3 !important;
+}
+
+/* Remember me text color */
+body#body-login .checkbox-content,
+body#body-login label.checkbox-content,
+body#body-login .login-box .checkbox label {
+  color: #767676 !important;
+}
+
+/* Fix hover color on Remember me */
+body#body-login .checkbox-content:hover,
+body#body-login label.checkbox-content:hover,
+body#body-login .login-box .checkbox label:hover {
+  color: #767676 !important;
+  background-color: transparent !important;
+}
+
+/* Remove hover color from links and buttons */
+body#body-login button:hover,
+body#body-login a:hover {
+  background-color: transparent !important;
+}
+
+/* Style "Log in with a device" and "Forgot password?" links */
+body#body-login button,
+body#body-login a {
+  color: #767676 !important;
+}
+
+/* Hide default footer and header elements */
+body#body-login footer,
+body#body-login .footer,
+body#body-login #header,
+body#body-login header {
+    display: none !important;
+}
+
+/* Make v-align take full height and add white background for unified box */
+body#body-login .wrapper .v-align {
+    width: 100%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: auto;
+    padding: 2rem 2rem 2rem 2rem;
+    overflow: hidden;
+    background-color: #ffffff !important;
+    border-radius: 35px;
+    margin: auto;
+}
+
+/* Logo 2 at bottom of login form */
+body#body-login .wrapper .v-align::after {
+    content: '';
+    display: block;
+    width: 400px;
+    height: 128px;
+    background-image: url('../img/logo2.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    margin: 2rem auto 0;
+    flex-shrink: 0;
+}
+
+/* Mobile responsive: Stack vertically, hide left panel */
+@media only screen and (max-width: 768px) {
+    body#body-login {
+        flex-direction: column !important;
+        justify-content: center !important;
+    }
+
+    /* Hide network diagram on mobile */
+    body#body-login::before {
+        display: none;
+    }
+
+    body#body-login .wrapper {
+        width: 100% !important;
+        padding: 2rem !important;
+        min-height: auto !important;
+    }
+
+    /* Adjust top logo on mobile */
+    body#body-login .wrapper::before {
+        width: 140px;
+        height: 50px;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Adjust bottom logo on mobile */
+    body#body-login .wrapper::after {
+        width: 120px;
+        height: 40px;
+        margin-top: 1.5rem;
+    }
+}
+
+/* Tablet responsive */
+@media only screen and (min-width: 769px) and (max-width: 1024px) {
+    body#body-login::before {
+        width: 50%;
+        padding: 2rem;
+    }
+
+    body#body-login .wrapper {
+        width: 50% !important;
+        padding: 2rem 3rem !important;
+    }
+
+    /* Adjust logo sizes on tablet */
+    body#body-login .wrapper::before {
+        width: 160px;
+        height: 55px;
+    }
+
+    body#body-login .wrapper::after {
+        width: 130px;
+        height: 45px;
+    }
+}
