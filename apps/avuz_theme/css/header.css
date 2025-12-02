@@ -1,7 +1,14 @@
 /**
  * Header Customization
- * Centralizes header app menu icons
+ * Centralizes header app menu icons and adjusts logo size
  */
+
+/* Increase logo size */
+#header #nextcloud .logo {
+    width: 150px !important;
+    background-size: 120px auto !important;
+    top: 5px !important;
+}
 
 /* Center the app menu icons in the header */
 #header {
