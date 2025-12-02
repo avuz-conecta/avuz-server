@@ -1,0 +1,30 @@
+/**
+ * Header Customization
+ * Centralizes header app menu icons
+ */
+
+/* Center the app menu icons in the header */
+#header {
+    display: flex !important;
+}
+
+#header .header-start {
+    display: flex !important;
+    flex: 1 !important;
+}
+
+#header .header-start .app-menu {
+    flex: 1 !important;
+    display: flex !important;
+    justify-content: center !important;
+    opacity: 0 !important;
+    transition: opacity 0.2s ease-in-out !important;
+}
+
+#header .header-start .app-menu.centered {
+    opacity: 1 !important;
+}
+
+#header .header-end {
+    display: flex !important;
+}

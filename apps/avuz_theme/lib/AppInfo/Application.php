@@ -10,6 +10,7 @@ use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\AppFramework\Http\Events\BeforeLoginTemplateRenderedEvent;
+use OCP\Util;
 
 class Application extends App implements IBootstrap {
 	public const APP_ID = 'avuz_theme';
@@ -26,6 +27,10 @@ class Application extends App implements IBootstrap {
 	}
 
 	public function boot(IBootContext $context): void {
-		// Nothing needed here
+		// Inject header CSS on all pages
+		Util::addStyle(self::APP_ID, 'header');
+
+		// Inject header centering JS
+		Util::addScript(self::APP_ID, 'center-header');
 	}
 }
