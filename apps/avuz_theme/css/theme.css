@@ -1,0 +1,32 @@
+/**
+ * Theme Customization
+ * Card colors and app backgrounds
+ */
+
+/* Dashboard page - solid gray background */
+body:has(.app-dashboard) {
+    background: #f2f6fb !important;
+}
+
+/* Dashboard widget cards */
+#app-dashboard .panel {
+    background-color: rgba(140, 160, 170, 0.8) !important;
+    border: 1px solid rgba(120, 140, 150, 0.6) !important;
+}
+
+/* General app content containers */
+#app-content,
+.app-content-wrapper,
+#app-navigation {
+    background-color: rgba(140, 140, 140, 0.85) !important;
+}
+
+/* File list and table rows */
+#app-content table,
+#app-content tbody tr {
+    background-color: transparent !important;
+}
+
+#app-content tbody tr:hover {
+    background-color: rgba(140, 160, 170, 0.35) !important;
+}
