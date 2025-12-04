@@ -24,8 +24,14 @@ function initializeLucideIcons() {
 		settings: "settings",
 	};
 
+	// Flag to prevent infinite observer loops
+	let isProcessing = false;
+
 	// Function to replace icons
 	function replaceIcons() {
+		if (isProcessing) return;
+		isProcessing = true;
+
 		const appLinks = document.querySelectorAll(".app-menu-entry__link");
 
 		appLinks.forEach((link) => {
@@ -58,6 +64,11 @@ function initializeLucideIcons() {
 
 		// Initialize Lucide icons
 		lucide.createIcons();
+
+		// Reset flag after a delay
+		setTimeout(() => {
+			isProcessing = false;
+		}, 100);
 	}
 
 	// Wait for app menu to appear in DOM
@@ -85,6 +96,38 @@ function initializeLucideIcons() {
 
 	// Start waiting for app menu
 	waitForAppMenu();
+
+	// Function to replace contacts icon
+	function replaceContactsIcon() {
+		const iconContainer = document.querySelector("#contactsmenu .contactsmenu__trigger-icon");
+		if (iconContainer && !iconContainer.hasAttribute("data-lucide")) {
+			const svg = iconContainer.querySelector("svg");
+			if (svg) svg.remove();
+			iconContainer.setAttribute("data-lucide", "square-user");
+			lucide.createIcons();
+		}
+	}
+
+	// Watch for contacts menu to appear
+	const headerObserver = new MutationObserver(() => {
+		const contactsMenu = document.querySelector("#contactsmenu");
+		if (contactsMenu) {
+			replaceContactsIcon();
+			// Keep watching in case it gets recreated
+		}
+	});
+
+	// Start observing the header for contacts menu
+	const header = document.querySelector("#header");
+	if (header) {
+		headerObserver.observe(header, {
+			childList: true,
+			subtree: true,
+		});
+	}
+
+	// Also try immediately in case it's already there
+	replaceContactsIcon();
 }
 
 // Start initialization

@@ -12,7 +12,7 @@ body {
 /* Increase logo size */
 #header #nextcloud .logo {
     width: 150px !important;
-    background-size: 62px auto !important;
+    background-size: 32px auto !important;
     top: 5px !important;
     background-position: left center !important;
 }

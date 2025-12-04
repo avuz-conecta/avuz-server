@@ -35,8 +35,8 @@ php occ app:enable avuz_theme || true
 
 # Configure Nextcloud logo
 echo "Configuring Nextcloud logo..."
-if [ -f /var/www/html/apps/avuz_theme/img/logo.png ]; then
-    php occ theming:config logo /var/www/html/apps/avuz_theme/img/logo.png || echo "Logo configuration skipped (might need manual upload)"
+if [ -f /var/www/html/apps/avuz_theme/img/house-logo.svg ]; then
+    php occ theming:config logo /var/www/html/apps/avuz_theme/img/house-logo.svg || echo "Logo configuration skipped (might need manual upload)"
 fi
 
 # Execute the original command
