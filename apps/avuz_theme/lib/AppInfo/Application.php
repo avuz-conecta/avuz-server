@@ -30,6 +30,18 @@ class Application extends App implements IBootstrap {
 		// Inject header CSS on all pages
 		Util::addStyle(self::APP_ID, 'header');
 
+		// Inject theme CSS for cards and backgrounds
+		Util::addStyle(self::APP_ID, 'theme');
+
+		// Inject icon CSS for Lucide integration
+		Util::addStyle(self::APP_ID, 'icons');
+
+		// Inject Lucide library
+		Util::addScript(self::APP_ID, 'lucide');
+
+		// Inject Lucide icons initialization
+		Util::addScript(self::APP_ID, 'lucide-icons');
+
 		// Inject header centering JS
 		Util::addScript(self::APP_ID, 'center-header');
 	}

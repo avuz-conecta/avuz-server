@@ -1,0 +1,18 @@
+/**
+ * Icon Customization
+ * Lucide Icons integration via JavaScript library
+ */
+
+/* Hide default Nextcloud icons */
+.app-menu-icon__icon {
+    display: none !important;
+}
+
+/* Style Lucide SVG icons */
+.app-menu-entry__icon svg {
+    width: 20px !important;
+    height: 20px !important;
+    stroke: currentColor !important;
+    stroke-width: 2 !important;
+    fill: none !important;
+}

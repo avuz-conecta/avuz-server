@@ -3,11 +3,18 @@
  * Centralizes header app menu icons and adjusts logo size
  */
 
+/* Dashboard gradient background */
+body {
+    background: linear-gradient(180deg, #f2f6fb 0%, #f2f6fb 50%, #6acae0 75%, #dde852 100%) !important;
+    background-attachment: fixed !important;
+}
+
 /* Increase logo size */
 #header #nextcloud .logo {
     width: 150px !important;
-    background-size: 120px auto !important;
+    background-size: 62px auto !important;
     top: 5px !important;
+    background-position: left center !important;
 }
 
 /* Center the app menu icons in the header */
