@@ -10,15 +10,18 @@ body:has(.app-dashboard) {
 
 /* Dashboard widget cards */
 #app-dashboard .panel {
-    background-color: rgba(140, 160, 170, 0.8) !important;
-    border: 1px solid rgba(120, 140, 150, 0.6) !important;
+    background-color: #ffffff !important;
+    border: none !important;
+    border-radius: 35px !important;
 }
 
 /* General app content containers */
 #app-content,
 .app-content-wrapper,
 #app-navigation {
-    background-color: rgba(140, 140, 140, 0.85) !important;
+    background-color: #ffffff !important;
+    border-radius: 35px !important;
+    border: none !important;
 }
 
 /* File list and table rows */

@@ -8,6 +8,11 @@
     display: none !important;
 }
 
+/* Hide original contacts menu icon */
+.contactsmenu__trigger-icon svg:not([data-lucide-rendered]) {
+    display: none !important;
+}
+
 /* Style Lucide SVG icons */
 .app-menu-entry__icon svg {
     width: 20px !important;
@@ -15,4 +20,24 @@
     stroke: currentColor !important;
     stroke-width: 2 !important;
     fill: none !important;
+}
+
+/* Style contacts menu Lucide icon - match app menu icons */
+#contactsmenu svg.contactsmenu__trigger-icon,
+#contactsmenu .contactsmenu__trigger-icon svg,
+#contactsmenu svg[data-lucide="square-user"] {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    max-width: 24px !important;
+    max-height: 24px !important;
+    stroke: currentColor !important;
+    stroke-width: 2 !important;
+    fill: none !important;
+}
+
+/* Override the CSS variable that controls icon size */
+#contactsmenu svg.contactsmenu__trigger-icon {
+    --0ceed50f: 24px !important;
 }
