@@ -1,6 +1,4 @@
-# SPDX-FileCopyrightText: 2018 Nextcloud GmbH and Nextcloud contributors
-# SPDX-License-Identifier: AGPL-3.0-or-later
-/dist/* binary
-/package-lock.json merge=binary
-/core/css/*.css* binary
-/.devcontainer/*.sh text eol=lf
+# Ensure shell scripts always use LF line endings
+*.sh text eol=lf
+docker/entrypoint.sh text eol=lf
+docker/*.sh text eol=lf

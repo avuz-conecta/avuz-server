@@ -22,6 +22,8 @@ function initializeLucideIcons() {
 		photos: "image",
 		spreed: "message-circle",
 		settings: "settings",
+		deck: "square-kanban",
+		forms: "layout-list",
 	};
 
 	// Flag to prevent infinite observer loops
@@ -99,7 +101,9 @@ function initializeLucideIcons() {
 
 	// Function to replace contacts icon
 	function replaceContactsIcon() {
-		const iconContainer = document.querySelector("#contactsmenu .contactsmenu__trigger-icon");
+		const iconContainer = document.querySelector(
+			"#contactsmenu .contactsmenu__trigger-icon"
+		);
 		if (iconContainer && !iconContainer.hasAttribute("data-lucide")) {
 			const svg = iconContainer.querySelector("svg");
 			if (svg) svg.remove();

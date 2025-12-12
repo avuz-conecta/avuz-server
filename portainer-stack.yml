@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  app:
+    image: 10.50.100.103:8080/admin/avuz-conecta:latest
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - nextcloud_data:/var/www/html/data
+      - nextcloud_config:/var/www/html/config
+      - nextcloud_apps:/var/www/html/custom_apps
+    environment:
+      # Database Configuration (update with your DB credentials)
+      - POSTGRES_HOST=your-db-host
+      - POSTGRES_DB=your-db-name
+      - POSTGRES_USER=your-db-user
+      - POSTGRES_PASSWORD=your-db-password
+
+      # Redis Configuration
+      # Leave empty or set to "localhost" to use internal Redis (default)
+      # Or set to external Redis host if you have one
+      - REDIS_HOST=
+
+      # Nextcloud Admin User
+      - NEXTCLOUD_ADMIN_USER=admin
+      - NEXTCLOUD_ADMIN_PASSWORD=ChangeThisPassword123
+
+      # Trusted Domains (update with your domain)
+      - NEXTCLOUD_TRUSTED_DOMAINS=your-domain.com
+      - OVERWRITEPROTOCOL=https
+
+      # SMTP Configuration (optional - leave empty to skip)
+      - SMTP_HOST=
+      - SMTP_PORT=587
+      - SMTP_SECURE=tls
+      - SMTP_NAME=
+      - SMTP_PASSWORD=
+      - SMTP_AUTHTYPE=LOGIN
+      - SMTP_FROM=
+
+      # OnlyOffice Configuration (optional - leave empty to skip)
+      - ONLYOFFICE_URL=
+      - ONLYOFFICE_SECRET=
+
+      # Notifications app from Git (branch name, default: stable32)
+      - NOTIFICATIONS_BRANCH=stable32
+
+volumes:
+  nextcloud_data:
+  nextcloud_config:
+  nextcloud_apps:
