@@ -18,6 +18,20 @@ class BeforeTemplateRenderedListener implements IEventListener {
 			return;
 		}
 
+		// Add login CSS
 		Util::addStyle('avuz_theme', 'login');
+
+		// Set custom favicon for login page
+		Util::addHeader('link', [
+			'rel' => 'icon',
+			'href' => '/apps/avuz_theme/img/logo.png',
+			'type' => 'image/png'
+		]);
+
+		Util::addHeader('link', [
+			'rel' => 'shortcut icon',
+			'href' => '/apps/avuz_theme/img/logo.png',
+			'type' => 'image/png'
+		]);
 	}
 }

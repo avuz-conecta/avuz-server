@@ -1,0 +1,54 @@
+# Node modules (will be installed inside container)
+node_modules/
+**/node_modules/
+
+# Build artifacts (keep build/ as it's needed for webpack)
+dist/
+
+# Git files
+.git/
+.gitignore
+.github/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files
+tests/
+cypress/
+.cypress/
+
+# Documentation
+*.md
+docs/
+.claude/
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Development files
+.devcontainer/
+.editorconfig
+.eslintrc*
+.prettierrc*
+
+# Cache and temp files
+.cache/
+tmp/
+*.log
+.npm/
+.composer/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Config (will be mounted as volume)
+config/
+data/

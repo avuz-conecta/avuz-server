@@ -37,7 +37,8 @@ body#body-login::before {
     background-color: #f2f6fb !important;
     background-image: url('../img/network-diagram.png');
     background-repeat: no-repeat;
-    background-position: center center;
+    /* Shift left by 1.5rem (half of 3rem) to visually compensate for login box padding */
+    background-position: calc(50% - 1.5rem) center;
     background-size: 60%;
     z-index: 0;
 }
