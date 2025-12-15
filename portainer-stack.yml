@@ -38,6 +38,7 @@ services:
       - SMTP_PASSWORD=
       - SMTP_AUTHTYPE=LOGIN
       - SMTP_FROM=
+      - SMTP_DOMAIN=
 
       # OnlyOffice Configuration (optional - leave empty to skip)
       - ONLYOFFICE_URL=

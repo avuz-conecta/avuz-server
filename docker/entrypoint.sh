@@ -133,6 +133,7 @@ fi
 # Configure trusted domains (always run, even for existing installations)
 echo "Configuring trusted domains..."
 php occ config:system:set trusted_domains 0 --value="$NEXTCLOUD_TRUSTED_DOMAINS"
+php occ config:system:set overwrite.cli.url --value="https://$NEXTCLOUD_TRUSTED_DOMAIN"
 
 # Configure overwrite protocol (http or https)
 if [ -n "$OVERWRITEPROTOCOL" ]; then
@@ -173,6 +174,7 @@ php occ config:app:set mail prefetch-messages --value='1'
 echo "Configuring trusted proxies..."
 php occ config:system:set trusted_proxies 0 --value='127.0.0.1'
 php occ config:system:set trusted_proxies 1 --value='::1'
+php occ config:system:set trusted_proxies 2 --value='10.50.100.100'
 
 # Configure SMTP if credentials are provided
 if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_NAME" ]; then
@@ -186,6 +188,7 @@ if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_NAME" ]; then
     php occ config:system:set mail_smtpname --value="$SMTP_NAME"
     php occ config:system:set mail_smtppassword --value="$SMTP_PASSWORD"
     php occ config:system:set mail_from_address --value="$SMTP_FROM"
+    php occ config:system:set mail_domain --value="$SMTP_DOMAIN"
     echo "✓ SMTP configured successfully"
 else
     echo "⊘ SMTP configuration skipped (credentials not provided)"
@@ -266,6 +269,12 @@ php occ app:enable notify_push 2>/dev/null || true
 echo "Setting notify_push binary permissions..."
 chmod +x /var/www/html/apps/notify_push/bin/x86_64/notify_push 2>/dev/null || true
 chmod +x /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push 2>/dev/null || true
+
+# Run database maintenance (add missing indices and repair mimetypes)
+echo "Running database maintenance..."
+php occ db:add-missing-indices --no-interaction 2>/dev/null || true
+php occ maintenance:repair --include-expensive 2>/dev/null || true
+echo "✓ Database maintenance completed"
 
 # Execute the original command
 exec "$@"
