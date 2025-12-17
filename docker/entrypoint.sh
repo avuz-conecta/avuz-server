@@ -154,6 +154,11 @@ php occ config:system:set filelocking.enabled --value=true --type=boolean
 echo "Setting default phone region..."
 php occ config:system:set default_phone_region --value='BR'
 
+# Set default language to Brazilian Portuguese
+echo "Setting default language to pt_BR..."
+php occ config:system:set default_language --value='pt_BR'
+php occ config:system:set default_locale --value='pt_BR'
+
 # Set maintenance window start time
 echo "Setting maintenance window start time to 1 AM UTC..."
 php occ config:system:set maintenance_window_start --value=1 --type=integer
@@ -172,6 +177,10 @@ php occ theming:config background_color "#d2e314"
 if [ -f /var/www/html/apps/avuz_theme/img/favicon-32.png ]; then
     php occ theming:config favicon /var/www/html/apps/avuz_theme/img/favicon-32.png || echo "Favicon configuration skipped"
 fi
+
+# Set custom theme for translation overrides (Files -> Drive, Deck -> Tarefas)
+echo "Setting custom theme for translation overrides..."
+php occ config:system:set theme --value='avuz'
 
 # Configure Mail app performance optimizations
 echo "Configuring Mail app optimizations..."
