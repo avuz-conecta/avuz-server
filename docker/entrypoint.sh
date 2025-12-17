@@ -154,21 +154,34 @@ php occ config:system:set filelocking.enabled --value=true --type=boolean
 echo "Setting default phone region..."
 php occ config:system:set default_phone_region --value='BR'
 
+# Set maintenance window start time
+echo "Setting maintenance window start time to 1 AM UTC..."
+php occ config:system:set maintenance_window_start --value=1 --type=integer
+
 # Force light mode as default theme
 echo "Setting light mode as default theme..."
 php occ config:system:set enforce_theme --value='light'
 
-# Configure theming colors
-echo "Setting default theming colors..."
+# Configure theming (name, colors, favicon)
+echo "Setting default theming..."
+php occ theming:config name "Avuz Conecta"
 php occ theming:config primary_color "#2bb5e3"
 php occ theming:config background_color "#d2e314"
 
+# Configure favicon via theming (uses properly sized favicon)
+if [ -f /var/www/html/apps/avuz_theme/img/favicon-32.png ]; then
+    php occ theming:config favicon /var/www/html/apps/avuz_theme/img/favicon-32.png || echo "Favicon configuration skipped"
+fi
+
 # Configure Mail app performance optimizations
 echo "Configuring Mail app optimizations..."
-php occ config:app:set mail background-sync --value='1'
-php occ config:app:set mail imap-timeout --value='20'
-php occ config:app:set mail cache-messages --value='1'
-php occ config:app:set mail prefetch-messages --value='1'
+# These settings go in config.php, not via occ config:app:set
+# The Mail app reads them via getSystemValueInt()
+php occ config:system:set app.mail.imap.timeout --value=20 --type=integer
+php occ config:system:set app.mail.smtp.timeout --value=20 --type=integer
+php occ config:system:set app.mail.sieve.timeout --value=5 --type=integer
+# Sync mailboxes more frequently for active users (default: 3600, minimum: 300)
+php occ config:system:set app.mail.background-sync-interval --value=600 --type=integer
 
 # Configure trusted proxies for push notifications
 echo "Configuring trusted proxies..."
@@ -235,10 +248,15 @@ if [ -n "$NOTIFICATIONS_BRANCH" ]; then
     php occ app:enable notifications 2>/dev/null || true
 fi
 
-# Configure Nextcloud logo
-echo "Configuring Nextcloud logo..."
+# Configure Nextcloud logos
+echo "Configuring Nextcloud logos..."
+# Main logo (login page, etc.)
+if [ -f /var/www/html/apps/avuz_theme/img/logo2.png ]; then
+    php occ theming:config logo /var/www/html/apps/avuz_theme/img/logo2.png || echo "Logo configuration skipped"
+fi
+# Header logo (small icon in top bar)
 if [ -f /var/www/html/apps/avuz_theme/img/house-logo.svg ]; then
-    php occ theming:config logo /var/www/html/apps/avuz_theme/img/house-logo.svg || echo "Logo configuration skipped (might need manual upload)"
+    php occ theming:config logoheader /var/www/html/apps/avuz_theme/img/house-logo.svg || echo "Header logo configuration skipped"
 fi
 
 # Configure OnlyOffice if credentials are provided
@@ -275,6 +293,19 @@ echo "Running database maintenance..."
 php occ db:add-missing-indices --no-interaction 2>/dev/null || true
 php occ maintenance:repair --include-expensive 2>/dev/null || true
 echo "✓ Database maintenance completed"
+
+# Pre-sync all mail accounts in the background to warm up the cache
+# This reduces first-load time when users access the Mail app
+echo "Triggering background mail sync for all accounts..."
+(
+    sleep 30  # Wait for services to stabilize
+    # Get all mail account IDs and sync them
+    for account_id in $(php occ mail:account:export 2>/dev/null | grep -oP 'Account \K\d+' || true); do
+        echo "Pre-syncing mail account $account_id..."
+        php occ mail:account:sync "$account_id" 2>/dev/null || true
+    done
+    echo "✓ Background mail pre-sync completed"
+) &
 
 # Execute the original command
 exec "$@"

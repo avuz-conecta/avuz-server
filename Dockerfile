@@ -2,9 +2,8 @@
 # App image - uses pre-built base image
 # Fast builds - only rebuilds when code changes
 # ============================================
-ARG REGISTRY=10.50.100.103:8080
-ARG ORG=admin
-FROM ${REGISTRY}/${ORG}/avuzconecta-base:latest AS builder
+ARG BASE_IMAGE=avuzconecta-base:latest
+FROM ${BASE_IMAGE} AS builder
 
 WORKDIR /var/www/html
 
@@ -28,12 +27,18 @@ RUN rm -rf node_modules/ /root/.npm /root/.cache /root/.composer .git
 # ============================================
 # Final runtime image
 # ============================================
-FROM ${REGISTRY}/${ORG}/avuzconecta-base:latest AS runtime
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS runtime
 
 WORKDIR /var/www/html
 
 # Copy built application
 COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
+
+# Override the default maintenance template with the Avuz theme's version.
+# This is necessary because the maintenance page is rendered before the full
+# theming app is loaded, so the standard template override mechanism fails.
+RUN cp -f apps/avuz_theme/templates/update.user.php core/templates/update.user.php
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /var/www/html/data \
