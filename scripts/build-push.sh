@@ -8,19 +8,54 @@ IMAGE_NAME="avuzconecta"
 BASE_IMAGE_NAME="avuzconecta-base"
 VERSION=${1:-latest}
 
-echo "Building ${REGISTRY}/${ORG}/${IMAGE_NAME}:${VERSION} for linux/amd64"
+# Environment: local (macOS/arm64) or staging (linux/amd64)
+ENV=${2:-local}
 
-# Build app image (uses base image from registry)
+case $ENV in
+  local)
+    PLATFORM="linux/arm64"
+    PUSH=false
+    IMAGE_TAG="${IMAGE_NAME}:${VERSION}"
+    IMAGE_TAG_LATEST="${IMAGE_NAME}:latest"
+    BASE_IMAGE="${BASE_IMAGE_NAME}:latest"
+    ;;
+  staging)
+    PLATFORM="linux/amd64"
+    PUSH=true
+    IMAGE_TAG="${REGISTRY}/${ORG}/${IMAGE_NAME}:${VERSION}"
+    IMAGE_TAG_LATEST="${REGISTRY}/${ORG}/${IMAGE_NAME}:latest"
+    BASE_IMAGE="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:latest"
+    ;;
+  *)
+    echo "Usage: $0 [version] [local|staging]"
+    echo "  local   - Build for macOS (arm64), no push"
+    echo "  staging - Build for Linux (amd64), push to registry"
+    exit 1
+    ;;
+esac
+
+echo "==========================================="
+echo "Building APP image"
+echo "  Image:    ${IMAGE_TAG}"
+echo "  Base:     ${BASE_IMAGE}"
+echo "  Platform: ${PLATFORM}"
+echo "  Push:     ${PUSH}"
+echo "==========================================="
+
+# Build app image
 docker buildx build \
-  --platform linux/amd64 \
-  --build-arg REGISTRY=${REGISTRY} \
-  --build-arg ORG=${ORG} \
-  -t ${REGISTRY}/${ORG}/${IMAGE_NAME}:${VERSION} \
-  -t ${REGISTRY}/${ORG}/${IMAGE_NAME}:latest \
+  --platform ${PLATFORM} \
+  --build-arg BASE_IMAGE=${BASE_IMAGE} \
+  -t ${IMAGE_TAG} \
+  -t ${IMAGE_TAG_LATEST} \
   --load \
   .
 
-echo "Pushing to registry..."
-docker push ${REGISTRY}/${ORG}/${IMAGE_NAME}:latest
+echo "✓ Build completed: ${IMAGE_TAG_LATEST}"
 
-echo "✓ Successfully pushed ${REGISTRY}/${ORG}/${IMAGE_NAME}:latest"
+if [ "$PUSH" = true ]; then
+  echo "Pushing to registry..."
+  docker push ${IMAGE_TAG}
+  docker push ${IMAGE_TAG_LATEST}
+  echo "✓ Successfully pushed ${IMAGE_TAG_LATEST}"
+fi

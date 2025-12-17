@@ -7,21 +7,54 @@ ORG="admin"
 BASE_IMAGE_NAME="avuzconecta-base"
 VERSION=${1:-latest}
 
-echo "Building BASE image ${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:${VERSION} for linux/amd64"
-echo "This includes PHP extensions and runtime packages - only rebuild when these change"
+# Environment: local (macOS/arm64) or staging (linux/amd64)
+ENV=${2:-local}
+
+case $ENV in
+  local)
+    PLATFORM="linux/arm64"
+    PUSH=false
+    IMAGE_TAG="${BASE_IMAGE_NAME}:${VERSION}"
+    IMAGE_TAG_LATEST="${BASE_IMAGE_NAME}:latest"
+    ;;
+  staging)
+    PLATFORM="linux/amd64"
+    PUSH=true
+    IMAGE_TAG="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:${VERSION}"
+    IMAGE_TAG_LATEST="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:latest"
+    ;;
+  *)
+    echo "Usage: $0 [version] [local|staging]"
+    echo "  local   - Build for macOS (arm64), no push"
+    echo "  staging - Build for Linux (amd64), push to registry"
+    exit 1
+    ;;
+esac
+
+echo "==========================================="
+echo "Building BASE image"
+echo "  Image:    ${IMAGE_TAG}"
+echo "  Platform: ${PLATFORM}"
+echo "  Push:     ${PUSH}"
+echo "==========================================="
 
 # Build base image
 docker buildx build \
-  --platform linux/amd64 \
+  --platform ${PLATFORM} \
   -f Dockerfile.base \
-  -t ${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:${VERSION} \
-  -t ${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:latest \
+  -t ${IMAGE_TAG} \
+  -t ${IMAGE_TAG_LATEST} \
   --load \
   .
 
-echo "Pushing to registry..."
-docker push ${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:latest
+echo "✓ Build completed: ${IMAGE_TAG_LATEST}"
 
-echo "✓ Successfully pushed ${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:latest"
+if [ "$PUSH" = true ]; then
+  echo "Pushing to registry..."
+  docker push ${IMAGE_TAG}
+  docker push ${IMAGE_TAG_LATEST}
+  echo "✓ Successfully pushed ${IMAGE_TAG_LATEST}"
+fi
+
 echo ""
-echo "Now you can run ./scripts/build-push.sh for fast app builds"
+echo "Now you can run: ./scripts/build-push.sh [version] ${ENV}"
