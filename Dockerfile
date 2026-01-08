@@ -40,6 +40,11 @@ COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 # theming app is loaded, so the standard template override mechanism fails.
 RUN cp -f apps/avuz_theme/templates/update.user.php core/templates/update.user.php
 
+# Merge original translations with Avuz theme overrides
+# This generates complete .json and .js files from theme overrides + original translations
+COPY scripts/merge-l10n.sh /tmp/merge-l10n.sh
+RUN chmod +x /tmp/merge-l10n.sh && /tmp/merge-l10n.sh /var/www/html /var/www/html/themes/avuz && rm /tmp/merge-l10n.sh
+
 # Create necessary directories with proper permissions
 RUN mkdir -p /var/www/html/data \
   /var/www/html/config \
@@ -49,7 +54,9 @@ RUN mkdir -p /var/www/html/data \
   && chmod -R 770 /var/www/html/config \
   && chmod -R 770 /var/www/html/custom_apps \
   && find /var/www/html/apps -type d -exec chmod 755 {} \; \
-  && find /var/www/html/apps -type f -exec chmod 644 {} \;
+  && find /var/www/html/apps -type f -exec chmod 644 {} \; \
+  && find /var/www/html/themes -type d -exec chmod 755 {} \; \
+  && find /var/www/html/themes -type f -exec chmod 644 {} \;
 
 # Copy configs
 COPY docker/nginx.conf /etc/nginx/nginx.conf

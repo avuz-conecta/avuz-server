@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace OCA\AvuzTheme\AppInfo;
 
 use OCA\AvuzTheme\Listener\BeforeTemplateRenderedListener;
+use OCA\AvuzTheme\Listener\UserCreatedListener;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\AppFramework\Http\Events\BeforeLoginTemplateRenderedEvent;
+use OCP\User\Events\UserCreatedEvent;
 use OCP\Util;
 
 class Application extends App implements IBootstrap {
@@ -24,6 +26,12 @@ class Application extends App implements IBootstrap {
 			BeforeLoginTemplateRenderedEvent::class,
 			BeforeTemplateRenderedListener::class
 		);
+
+		// Create custom Avuz welcome board for new users instead of default Nextcloud board
+		$context->registerEventListener(
+			UserCreatedEvent::class,
+			UserCreatedListener::class
+		);
 	}
 
 	public function boot(IBootContext $context): void {
@@ -35,6 +43,9 @@ class Application extends App implements IBootstrap {
 
 		// Inject icon CSS for Lucide integration
 		Util::addStyle(self::APP_ID, 'icons');
+
+		// Inject settings page CSS fixes
+		Util::addStyle(self::APP_ID, 'settings');
 
 		// Inject Lucide library
 		Util::addScript(self::APP_ID, 'lucide');

@@ -1,0 +1,35 @@
+/**
+ * Avuz Settings Page Customizations
+ * Fixes and adjustments for Nextcloud settings pages
+ */
+
+/* ========================================================================= */
+/* Fix sidebar width overflow from long text in account management button
+/* ========================================================================= */
+.account-management__settings-toggle {
+    max-width: 100% !important;
+    overflow: hidden !important;
+}
+
+.account-management__settings-toggle .button-vue__text {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+/* Show full text as tooltip on hover */
+.account-management__settings-toggle:hover::after {
+    content: "Configurações de gerenciamento de conta";
+    position: fixed;
+    bottom: 60px;
+    left: 16px;
+    padding: 8px 12px;
+    background-color: #333;
+    color: #fff;
+    font-size: 13px;
+    border-radius: 6px;
+    white-space: nowrap;
+    z-index: 10000;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
