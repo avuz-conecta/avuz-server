@@ -57,6 +57,7 @@ services:
       - NEXTCLOUD_ADMIN_USER=admin
       - NEXTCLOUD_ADMIN_PASSWORD=admin
       - NEXTCLOUD_TRUSTED_DOMAINS=localhost
+      - NEXTCLOUD_TRUSTED_DOMAIN=localhost
       - OVERWRITEPROTOCOL=http
       # SMTP Configuration (optional - leave empty to skip SMTP setup)
       - SMTP_HOST=

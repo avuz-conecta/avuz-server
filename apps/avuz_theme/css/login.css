@@ -74,7 +74,7 @@ body#body-login .wrapper .v-align::before {
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain;
-    margin: 3rem auto 1rem;
+    margin: 3rem auto 3rem;
     flex-shrink: 0;
 }
 
@@ -211,6 +211,11 @@ body#body-login footer,
 body#body-login .footer,
 body#body-login #header,
 body#body-login header {
+    display: none !important;
+}
+
+/* Hide "Faça login em Avuz Conecta" headline */
+body#body-login .login-form__headline {
     display: none !important;
 }
 

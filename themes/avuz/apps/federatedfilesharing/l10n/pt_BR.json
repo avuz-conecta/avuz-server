@@ -1,0 +1,8 @@
+{
+    "translations": {
+        "Couldn't establish a federated share, it looks like the server to federate with is too old (Nextcloud <= 9).": "Não foi possível estabelecer um compartilhamento federado, parece que o servidor a se federar é muito antigo (Avuz Conecta <= 9).",
+        "Share with me through my #Nextcloud Federated Cloud ID, see {url}": "Compartilhe comigo por meio do meu ID de Nuvem Federada #AvuzConecta, consulte {url}",
+        "Share with me through my #Nextcloud Federated Cloud ID": "Compartilhe comigo por meio do meu ID de Nuvem Federada #AvuzConecta"
+    },
+    "pluralForm": "nplurals=2; plural=(n > 1);"
+}

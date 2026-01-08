@@ -158,6 +158,8 @@ php occ config:system:set default_phone_region --value='BR'
 echo "Setting default language to pt_BR..."
 php occ config:system:set default_language --value='pt_BR'
 php occ config:system:set default_locale --value='pt_BR'
+# Force pt_BR for all users including guests (ignores browser Accept-Language header)
+php occ config:system:set force_language --value='pt_BR'
 
 # Set maintenance window start time
 echo "Setting maintenance window start time to 1 AM UTC..."
@@ -167,11 +169,14 @@ php occ config:system:set maintenance_window_start --value=1 --type=integer
 echo "Setting light mode as default theme..."
 php occ config:system:set enforce_theme --value='light'
 
-# Configure theming (name, colors, favicon)
+# Configure theming (name, colors, favicon, url)
 echo "Setting default theming..."
 php occ theming:config name "Avuz Conecta"
-php occ theming:config primary_color "#2bb5e3"
+php occ theming:config url "https://$NEXTCLOUD_TRUSTED_DOMAIN"
+php occ theming:config primary_color "#1c7fa0"
 php occ theming:config background_color "#d2e314"
+# Set productName for {productName} placeholders in translations
+php occ config:app:set theming productName --value="Avuz Conecta"
 
 # Configure favicon via theming (uses properly sized favicon)
 if [ -f /var/www/html/apps/avuz_theme/img/favicon-32.png ]; then
@@ -181,6 +186,24 @@ fi
 # Set custom theme for translation overrides (Files -> Drive, Deck -> Tarefas)
 echo "Setting custom theme for translation overrides..."
 php occ config:system:set theme --value='avuz'
+
+# Clear imagePath cache to ensure theme icons are resolved correctly
+# This cache stores resolved icon paths and can return stale paths after theme changes
+echo "Clearing image path cache..."
+redis-cli -h "$REDIS_HOST" EVAL "local keys = redis.call('keys', '*imagePath*'); for i=1,#keys do redis.call('del', keys[i]) end; return #keys" 0 || true
+
+# Hide "Get your own free account" signup link on public share pages
+php occ config:system:set simpleSignUpLink.shown --type=boolean --value=false
+
+# Use custom email template class for custom email logo support
+php occ config:system:set mail_template_class --value='OCA\AvuzTheme\Mail\EMailTemplate'
+
+# Disable Talk default conversations for new users
+# - "Let's get started!" sample conversation
+# - "Talk updates" changelog conversation
+echo "Disabling Talk default conversations..."
+php occ config:app:set spreed create_samples --value="false"
+php occ config:app:set spreed changelog --value="no"
 
 # Configure Mail app performance optimizations
 echo "Configuring Mail app optimizations..."

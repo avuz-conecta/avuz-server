@@ -1,0 +1,82 @@
+{
+	"title": "Bem-vindo ao Tarefas!",
+	"color": "2bb5e3",
+	"addition_labels": [
+		{
+			"title": "Leia mais",
+			"color": "CC317C"
+		}
+	],
+	"stacks": [
+		{
+			"title": "Listas personalizadas - clique para renomear!",
+			"order": 0,
+			"cards": [
+				{
+					"title": "1. Abra para saber mais sobre quadros e cartões",
+					"description": "## Bem-vindo ao Tarefas!\n\nO Tarefas é um aplicativo de gerenciamento de projetos no estilo kanban que se integra perfeitamente ao ecossistema Avuz Conecta. Aqui, você pode criar e gerenciar quadros para organizar seus projetos e visualizar tarefas usando cartões. Uma ferramenta versátil, o Tarefas ajudará você a manter a eficiência em configurações pessoais e colaborativas!\n\n### 📌 Como configurar um novo quadro?\n\nAdicione um novo quadro através do botão \"+\" ou \"Adicionar quadro\". Nomeie seu quadro e adicione uma descrição para esclarecer seu propósito, se desejar.\n\nAdicione listas de tarefas ao seu quadro através de \"Adicionar Lista\" (ex: \"A Fazer\"). Adicione cartões a essas listas para representar tarefas ou itens individuais. Organize seus cartões visualmente atribuindo etiquetas ou cores.\n\nGerencie sua lista de quadros: No menu do quadro ao lado do nome, você pode editar, clonar, arquivar e exportar seus quadros.\n\n### 🗂️ Como criar e editar cartões de tarefas?\n\nAdicione cartões através do botão \"+\" no topo da lista de sua escolha. Nomeie seu cartão e adicione uma descrição usando os instrumentos de formatação de texto disponíveis.\n\nDefina uma data de vencimento para acompanhar prazos e adicione membros responsáveis da equipe. Rotule seus cartões com tags para melhor navegação. Você pode criar e gerenciar tags na barra lateral, acessível através do botão da barra de ferramentas.\n\n### 💡 Dicas úteis para o Tarefas\n\n- Integre o Tarefas com o Calendário do Avuz Conecta e acompanhe os prazos dos cartões.\n- Use comentários para manter discussões sobre uma tarefa dentro de seu cartão dedicado.\n- Ative as notificações do Tarefas para sempre ficar atualizado sobre mudanças em seus quadros.",
+					"labels": [
+						"Leia mais"
+					],
+					"type": "text",
+					"order": 0
+				}
+			]
+		},
+		{
+			"title": "A Fazer",
+			"order": 1,
+			"cards": [
+				{
+					"title": "2. Arraste cartões para esquerda, direita, cima e baixo",
+					"description": "## 🚦 Gerencie seus quadros e cartões\n\nArraste seus cartões pelo quadro para mudar a posição na lista ou movê-los para outras listas.\n\nArquive cartões para removê-los do quadro sem perder seu conteúdo. Você sempre pode acessar cartões arquivados e colocá-los de volta em \"Mostrar cartões arquivados\" no menu do quadro.\n\nUse tags para atribuir tipos, status e outros atributos especiais aos seus cartões para auxiliar a navegação visual. Abra a aba \"Tags\" na barra lateral do Tarefas para gerenciar tags que você pode adicionar aos seus cartões.\n\n## 👓 Mude como você visualiza seus quadros\n\nPara navegar em quadros grandes facilmente, você pode filtrar seus cartões por tags, membros da equipe, status e datas de vencimento. Abra o menu de filtro através da barra de ferramentas do Tarefas.\n\nAtive o modo de exibição compacta no menu do Quadro através do menu de três pontos na barra de ferramentas. No mesmo menu, você pode desativar e ativar imagens de capa.",
+					"labels": [
+						"Leia mais"
+					],
+					"type": "text",
+					"order": 0
+				},
+				{
+					"title": "Crie seu primeiro cartão!",
+					"description": "",
+					"labels": [
+						"Ação necessária"
+					],
+					"type": "text",
+					"order": 1
+				}
+			]
+		},
+		{
+			"title": "Em Progresso",
+			"order": 2,
+			"cards": [
+				{
+					"title": "3. Aplique formatação rica e vincule conteúdo",
+					"description": "## 🎨 Aproveite a formatação rica nas descrições dos cartões\n\nVocê pode usar vários instrumentos para tornar seu conteúdo mais estruturado e informativo. Experimente todos os instrumentos você mesmo - use esta checklist!\n\n- [ ] Aplique títulos de diferentes hierarquias (H1-H6).\n- [ ] Use formatação de texto **negrito** *itálico* __sublinhado__ e ~~tachado~~.\n- [ ] Crie listas não ordenadas, ordenadas e de tarefas.\n- [ ] Destaque código e citações, adicione vários callouts ilustrados.\n- [ ] Crie e formate tabelas\n- [ ] Adicione detalhes\n- [ ] Adicione links, por exemplo para [o site do Avuz Conecta](https://avuz.com.br/)\n- [ ] Insira anexos\n- [ ] Adicione emojis 🕶️\n\n## 🔗 Anexe arquivos aos cartões\n\nVocê pode enviar quaisquer arquivos do seu computador ou escolher dos seus Arquivos do Avuz Conecta, como documentos, apresentações, imagens, videoclipes e qualquer outra coisa. Adicione arquivos através da aba \"Anexos\".\n\n## 🌄 Ilustre cartões com imagens\n\nAnexe imagens aos seus cartões - elas funcionarão automaticamente como capas de cartão.",
+					"labels": [
+						"Leia mais"
+					],
+					"type": "text",
+					"order": 0,
+					"has_example_attachment": true
+				}
+			]
+		},
+		{
+			"title": "Concluído",
+			"order": 3,
+			"cards": [
+				{
+					"title": "4. Compartilhe, comente e colabore!",
+					"description": "## 🤝 Como colaborar no seu quadro?\n\nCompartilhe seus cartões e quadros com outras pessoas. Em muitos aplicativos do Avuz Conecta, itens vinculados do Tarefas aparecerão como widgets ricos e interativos. Quando você atribui alguém a um cartão, essa pessoa receberá uma notificação.\n\nEdite cartões juntos, deixe notas para seus colegas de equipe, compartilhe arquivos relacionados a tarefas adicionando anexos e discuta suas tarefas usando comentários nos cartões.",
+					"labels": [
+						"Leia mais"
+					],
+					"type": "text",
+					"order": 0
+				}
+			]
+		}
+	]
+}

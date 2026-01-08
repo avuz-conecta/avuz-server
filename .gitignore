@@ -63,7 +63,7 @@
 
 # ignore themes except the example and the README
 /themes/*
-!/themes/example
+!/themes/avuz
 !/themes/README
 
 # Love to people that develop the updater

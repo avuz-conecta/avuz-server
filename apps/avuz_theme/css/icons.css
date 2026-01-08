@@ -1,43 +1,93 @@
 /**
  * Icon Customization
- * Lucide Icons integration via JavaScript library
+ * Theme SVG icons with Lucide styling
  */
 
-/* Hide default Nextcloud icons */
+/* ========================================================================= */
+/* FIX: Force icon colors to be visible on light header backgrounds.
+/*
+/* Nextcloud's default theme can set header text/icon color to white.
+/* This override forces a dark, contrasting color for the icons.
+/* ========================================================================= */
+
+/* Force a contrasting color on the links/buttons that contain the icons */
+#header .app-menu .app-menu-entry__link,
+#header .header-end .actions > div > a,
+#header .header-end .actions > div > .menutoggle,
+#header .header-end .actions > div > button {
+    color: #00679e !important; /* A darker, legible blue for contrast */
+}
+
+/* Highlight the active app icon with the brand's primary blue */
+#header .app-menu .app-menu-entry__link--active,
+#header .app-menu .app-menu-entry__link--active:hover,
+#header .app-menu .app-menu-entry__link--active:focus {
+    color: #2bb5e3 !important; /* Avuz Blue */
+}
+
+
+/* The icons themselves inherit the color from the parent link via `currentColor`. */
+/* These rules just confirm the basic SVG styling. */
+.app-menu-entry__icon svg,
 .app-menu-icon__icon {
-    display: none !important;
-}
-
-/* Hide original contacts menu icon */
-.contactsmenu__trigger-icon svg:not([data-lucide-rendered]) {
-    display: none !important;
-}
-
-/* Style Lucide SVG icons */
-.app-menu-entry__icon svg {
     width: 20px !important;
     height: 20px !important;
     stroke: currentColor !important;
     stroke-width: 2 !important;
     fill: none !important;
+    /* FIX: Disable the problematic filter and mask */
+    filter: none !important;
+    mask: none !important;
 }
 
-/* Style contacts menu Lucide icon - match app menu icons */
-#contactsmenu svg.contactsmenu__trigger-icon,
-#contactsmenu .contactsmenu__trigger-icon svg,
-#contactsmenu svg[data-lucide="square-user"] {
+/* Style contacts menu icon */
+#contactsmenu .contactsmenu__trigger-icon svg {
     width: 24px !important;
     height: 24px !important;
-    min-width: 24px !important;
-    min-height: 24px !important;
-    max-width: 24px !important;
-    max-height: 24px !important;
-    stroke: currentColor !important;
+    stroke: currentColor !important; /* Inherits from parent `a` or `button` tag */
     stroke-width: 2 !important;
     fill: none !important;
+    /* FIX: Disable the problematic filter and mask */
+    filter: none !important;
+    mask: none !important;
 }
 
-/* Override the CSS variable that controls icon size */
-#contactsmenu svg.contactsmenu__trigger-icon {
-    --0ceed50f: 24px !important;
+/* Hide development notice in settings footer */
+.development-notice {
+    display: none !important;
+}
+
+/* ========================================================================= */
+/* Override dashboard widget icon classes to use Lucide-style themed icons.
+/* This ensures icons display correctly immediately on page load,
+/* before the async API fetch replaces them with icon_url.
+/* ========================================================================= */
+
+/* Deck widget */
+.icon-deck {
+    background-image: url('/themes/avuz/apps/deck/img/deck-dark.svg') !important;
+}
+
+.icon-deck-white, .icon-deck.icon-white {
+    background-image: url('/themes/avuz/apps/deck/img/deck.svg') !important;
+}
+
+/* Activity widget */
+.icon-activity {
+    background-image: url('/themes/avuz/apps/activity/img/activity-dark.svg') !important;
+}
+
+/* Calendar widget */
+.app-icon-calendar {
+    background-image: url('/themes/avuz/apps/calendar/img/calendar-dark.svg') !important;
+}
+
+/* Mail widget */
+.icon-mail {
+    background-image: url('/themes/avuz/apps/mail/img/mail-dark.svg') !important;
+}
+
+/* Spreed/Talk widget */
+.dashboard-talk-icon {
+    background-image: url('/themes/avuz/apps/spreed/img/app-dark.svg') !important;
 }
