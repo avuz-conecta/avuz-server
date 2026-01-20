@@ -161,6 +161,10 @@ php occ config:system:set default_locale --value='pt_BR'
 # Force pt_BR for all users including guests (ignores browser Accept-Language header)
 php occ config:system:set force_language --value='pt_BR'
 
+# Disable skeleton files (welcome.txt) for new users
+echo "Disabling skeleton files for new users..."
+php occ config:system:set skeletondirectory --value=''
+
 # Set maintenance window start time
 echo "Setting maintenance window start time to 1 AM UTC..."
 php occ config:system:set maintenance_window_start --value=1 --type=integer
