@@ -1,0 +1,16 @@
+{ "translations": {
+    "Deck": "Tarefas",
+    "Changes in the <strong>Deck app</strong>": "Mudanças no <strong>aplicativo Tarefas</strong>",
+    "Welcome to Nextcloud Deck!": "Bem-vindo ao Tarefas!",
+    "Deck board": "Painel de Tarefas",
+    "Deck boards, cards and comments": "Painéis, cartões e comentários de Tarefas",
+    "Create a new deck card": "Criar um novo cartão",
+    "Deck boards and cards": "Painéis e cartões de Tarefas",
+    "Deck settings": "Configurações de Tarefas",
+    "Note: Only the JSON format is supported for importing back into the Deck app.": "Observação: somente o formato JSON é compatível com a importação de volta para o aplicativo Tarefas.",
+    "Deck board {name}\n* Last modified on {lastMod}": "Painel de Tarefas {name}\n* Última modificação em {lastMod}",
+    "Share with a Deck card": "Compartilhar com um cartão de Tarefas",
+    "Share {file} with a Deck card": "Compartilhar {file} com um cartão de Tarefas",
+    "Boost your productivity using Deck with keyboard shortcuts.": "Aumente sua produtividade usando o Tarefas com atalhos de teclado.",
+    "Deck is a kanban style organization tool aimed at personal planning and project organization for teams integrated with Nextcloud.\n\n\n- 📥 Add your tasks to cards and put them in order\n- 📄 Write down additional notes in Markdown\n- 🔖 Assign labels for even better organization\n- 👥 Share with your team, friends or family\n- 📎 Attach files and embed them in your Markdown description\n- 💬 Discuss with your team using comments\n- ⚡ Keep track of changes in the activity stream\n- 🚀 Get your project organized": "Tarefas é uma ferramenta de organização ao estilo kanban voltada para o planejamento pessoal e para a organização de projetos para equipes.\n\n\n- 📥 Adicione suas tarefas aos cartões e coloque-os em ordem\n- 📄 Escreva notas adicionais formatadas em Markdown\n- 🔖 Atribua rótulos para uma organização ainda melhor\n- 👥 Compartilhe com sua equipe, seus amigos ou sua família\n- 📎 Anexe arquivos e incorpore-os à sua descrição em Markdown\n- 💬 Discuta com sua equipe usando comentários\n- ⚡ Acompanhe as alterações no fluxo de atividades\n- 🚀 Organize seu projeto"
+}, "pluralForm": "nplurals=2; plural=(n > 1);" }
