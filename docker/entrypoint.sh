@@ -4,6 +4,7 @@ set -e
 # Define app lists (used for both disabling during upgrade and enabling after)
 BUNDLED_APPS=(
     "avuz_theme"
+    "avuz_pdf_converter"
     "admin_audit"
     "activity"
     "calendar"
@@ -26,18 +27,18 @@ BUNDLED_APPS=(
     "weather_status"
     "files_trashbin"
     "theming"
-    "mail"
+    "viewer"
+    "bruteforcesettings"
+    "files_downloadlimit"
+    "twofactor_totp"
+    "suspicious_login"
+    "logreader"
+    "password_policy"
 )
 
 APPSTORE_APPS=(
     "deck"
     "forms"
-    "suspicious_login"
-    "logreader"
-    "bruteforcesettings"
-    "files_downloadlimit"
-    "mindmaps"
-    "password_policy"
     "quota_warning"
     "files_retention"
     "onlyoffice"
@@ -73,8 +74,20 @@ until PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER"
     sleep 2
 done
 
-# Install Nextcloud if not already installed
-if [ ! -f /var/www/html/config/config.php ]; then
+# Check if Nextcloud is installed
+echo "Checking Nextcloud installation status..."
+if [ -f /var/www/html/config/config.php ] && grep -q "'installed' => true" /var/www/html/config/config.php 2>/dev/null; then
+    echo "✓ Nextcloud is already installed (config.php found)"
+    NC_INSTALLED=1
+elif php occ status 2>/dev/null | grep -q "installed: true"; then
+    echo "✓ Nextcloud is already installed"
+    NC_INSTALLED=1
+else
+    echo "Nextcloud is not installed yet"
+    NC_INSTALLED=0
+fi
+
+if [ "$NC_INSTALLED" -eq 0 ]; then
     echo "Installing Nextcloud..."
     php occ maintenance:install \
         --database=pgsql \
@@ -95,13 +108,29 @@ if [ ! -f /var/www/html/config/config.php ]; then
 
     # Fix permissions after installation
     echo "Fixing permissions after installation..."
-    chown -R www-data:www-data /var/www/html/config
-    chmod -R 770 /var/www/html/config
+    chown -R www-data:www-data /var/www/html/config /var/www/html/data
+    chmod -R 770 /var/www/html/config /var/www/html/data
 else
     # Ensure permissions are correct on existing installation
     echo "Fixing permissions on existing installation..."
     chown -R www-data:www-data /var/www/html/config
     chmod -R 770 /var/www/html/config
+
+    # Force disable maintenance mode via config.php (before any occ commands)
+    echo "Forcing maintenance mode off..."
+    sed -i "s/'maintenance' => true/'maintenance' => false/g" /var/www/html/config/config.php 2>/dev/null || true
+
+    # Fix potentially corrupted viewer app by downloading fresh copy
+    echo "Checking viewer app integrity..."
+    if [ ! -f /var/www/html/apps/viewer/appinfo/info.xml ]; then
+        echo "Viewer app missing or corrupted, downloading fresh copy..."
+        rm -rf /var/www/html/apps/viewer 2>/dev/null || true
+        cd /var/www/html/apps
+        curl -sL https://github.com/nextcloud/viewer/archive/refs/heads/stable32.tar.gz | tar xz
+        mv viewer-stable32 viewer
+        chown -R www-data:www-data /var/www/html/apps/viewer
+        echo "✓ Viewer app restored"
+    fi
 
     # Check if upgrade is needed and run it
     echo "Checking if Nextcloud needs upgrade..."
@@ -128,6 +157,13 @@ else
     else
         echo "✓ Nextcloud is up to date"
     fi
+fi
+
+# Verify Nextcloud is installed before continuing with configuration
+if ! php occ status 2>/dev/null | grep -q "installed: true"; then
+    echo "ERROR: Nextcloud is not installed. Cannot continue with configuration."
+    echo "Check the database connection and installation logs above."
+    exit 1
 fi
 
 # Configure trusted domains (always run, even for existing installations)
@@ -161,9 +197,17 @@ php occ config:system:set default_locale --value='pt_BR'
 # Force pt_BR for all users including guests (ignores browser Accept-Language header)
 php occ config:system:set force_language --value='pt_BR'
 
+# Hide "Help & privacy" from user menu (knowledgebase)
+echo "Hiding Help & privacy menu..."
+php occ config:system:set knowledgebaseenabled --type=boolean --value=false
+
 # Disable skeleton files (welcome.txt) for new users
 echo "Disabling skeleton files for new users..."
 php occ config:system:set skeletondirectory --value=''
+
+# Custom client download URL for welcome email
+echo "Setting custom client download URL..."
+php occ config:system:set customclient_desktop --value='https://app3.avuz.cloud/index.php/s/m3KWdzQ5iAFTYXe'
 
 # Set maintenance window start time
 echo "Setting maintenance window start time to 1 AM UTC..."
@@ -184,7 +228,10 @@ php occ config:app:set theming productName --value="Avuz Conecta"
 
 # Configure favicon via theming (uses properly sized favicon)
 if [ -f /var/www/html/apps/avuz_theme/img/favicon-32.png ]; then
-    php occ theming:config favicon /var/www/html/apps/avuz_theme/img/favicon-32.png || echo "Favicon configuration skipped"
+    echo "→ Setting favicon..."
+    php occ theming:config favicon /var/www/html/apps/avuz_theme/img/favicon-32.png && echo "✓ Favicon configured" || echo "✗ Favicon configuration failed"
+else
+    echo "✗ Favicon file not found: /var/www/html/apps/avuz_theme/img/favicon-32.png"
 fi
 
 # Set custom theme for translation overrides (Files -> Drive, Deck -> Tarefas)
@@ -243,56 +290,97 @@ else
     echo "⊘ SMTP configuration skipped (credentials not provided)"
 fi
 
-# Enable bundled apps
-echo "Enabling bundled apps..."
-for app in "${BUNDLED_APPS[@]}"; do
-    echo "Enabling $app..."
-    php occ app:enable "$app" || echo "Could not enable $app (might not be installed)"
-done
+# Enable/install apps only on fresh install to respect admin's app preferences.
+# On existing installations, apps stay in whatever state the admin set them to.
+if [ "$NC_INSTALLED" -eq 0 ]; then
+    echo "Enabling bundled apps..."
+    for app in "${BUNDLED_APPS[@]}"; do
+        echo "Enabling $app..."
+        php occ app:enable "$app" || echo "Could not enable $app (might not be installed)"
+    done
 
-# Install apps from App Store (only if not already installed)
-echo "Installing apps from App Store..."
-for app in "${APPSTORE_APPS[@]}"; do
-    # Check if app is already installed (appears in app:list output)
-    if php occ app:list | grep -q "  - $app:"; then
-        echo "✓ $app already installed"
-        # Make sure it's enabled
-        php occ app:enable "$app" 2>/dev/null || true
-    else
-        echo "→ Installing $app from App Store..."
-        if php occ app:install "$app" 2>/dev/null; then
-            echo "✓ $app installed successfully"
+    echo "Installing apps from App Store..."
+    for app in "${APPSTORE_APPS[@]}"; do
+        if php occ app:list | grep -q "  - $app:"; then
+            echo "✓ $app already installed"
+            php occ app:enable "$app" 2>/dev/null || true
         else
-            echo "✗ Could not install $app (might not be available in App Store)"
+            echo "→ Installing $app from App Store..."
+            if php occ app:install "$app" 2>/dev/null; then
+                echo "✓ $app installed successfully"
+            else
+                echo "✗ Could not install $app (might not be available in App Store)"
+            fi
         fi
-    fi
-done
+    done
+else
+    # On existing installs, get enabled and disabled app lists separately
+    ENABLED_APPS=$(php occ app:list --enabled 2>/dev/null)
+    ALL_APPS=$(php occ app:list 2>/dev/null)
 
-# Install notifications app from Git (if branch specified)
-NOTIFICATIONS_BRANCH="${NOTIFICATIONS_BRANCH:-stable32}"
-if [ -n "$NOTIFICATIONS_BRANCH" ]; then
-    echo "Installing notifications app from Git (branch: $NOTIFICATIONS_BRANCH)..."
-    if [ ! -d /var/www/html/apps/notifications ]; then
-        echo "→ Cloning notifications app..."
-        git clone --depth 1 --branch "$NOTIFICATIONS_BRANCH" https://github.com/nextcloud/notifications.git /var/www/html/apps/notifications
-        chown -R www-data:www-data /var/www/html/apps/notifications
-        chmod -R 755 /var/www/html/apps/notifications
-        echo "✓ notifications app cloned successfully"
-    else
-        echo "✓ notifications app already exists"
-    fi
-    php occ app:enable notifications 2>/dev/null || true
+    # Enable bundled apps if not already enabled (respects admin disabling App Store apps,
+    # but bundled apps should always be enabled since they're part of our image)
+    echo "Checking bundled apps..."
+    for app in "${BUNDLED_APPS[@]}"; do
+        if ! echo "$ENABLED_APPS" | grep -q "  - $app:"; then
+            echo "→ Enabling bundled app $app..."
+            php occ app:enable "$app" || echo "✗ Could not enable $app"
+        fi
+    done
+
+    # Install missing App Store apps (don't re-enable disabled ones)
+    echo "Checking for missing App Store apps..."
+    for app in "${APPSTORE_APPS[@]}"; do
+        if ! echo "$ALL_APPS" | grep -q "  - $app:"; then
+            echo "→ Installing missing app $app from App Store..."
+            php occ app:install "$app" 2>/dev/null || echo "✗ Could not install $app"
+        fi
+    done
 fi
+
+# Install apps from Git (not available in App Store)
+# Format: "app_name:github_org/repo"
+GIT_APPS_BRANCH="${GIT_APPS_BRANCH:-stable32}"
+GIT_APPS=(
+    "notifications:nextcloud/notifications"
+    "text:nextcloud/text"
+)
+
+echo "Installing apps from Git (branch: $GIT_APPS_BRANCH)..."
+for entry in "${GIT_APPS[@]}"; do
+    app_name="${entry%%:*}"
+    repo="${entry#*:}"
+
+    if [ ! -d "/var/www/html/apps/$app_name" ]; then
+        echo "→ Cloning $app_name..."
+        if git clone --depth 1 --branch "$GIT_APPS_BRANCH" "https://github.com/$repo.git" "/var/www/html/apps/$app_name" 2>/dev/null; then
+            chown -R www-data:www-data "/var/www/html/apps/$app_name"
+            chmod -R 755 "/var/www/html/apps/$app_name"
+            echo "✓ $app_name cloned successfully"
+        else
+            echo "✗ Could not clone $app_name (check branch $GIT_APPS_BRANCH)"
+        fi
+    else
+        echo "✓ $app_name already exists"
+    fi
+    php occ app:enable "$app_name" 2>/dev/null || true
+done
 
 # Configure Nextcloud logos
 echo "Configuring Nextcloud logos..."
 # Main logo (login page, etc.)
 if [ -f /var/www/html/apps/avuz_theme/img/logo2.png ]; then
-    php occ theming:config logo /var/www/html/apps/avuz_theme/img/logo2.png || echo "Logo configuration skipped"
+    echo "→ Setting main logo..."
+    php occ theming:config logo /var/www/html/apps/avuz_theme/img/logo2.png && echo "✓ Main logo configured" || echo "✗ Logo configuration failed"
+else
+    echo "✗ Logo file not found: /var/www/html/apps/avuz_theme/img/logo2.png"
 fi
 # Header logo (small icon in top bar)
 if [ -f /var/www/html/apps/avuz_theme/img/house-logo.svg ]; then
-    php occ theming:config logoheader /var/www/html/apps/avuz_theme/img/house-logo.svg || echo "Header logo configuration skipped"
+    echo "→ Setting header logo..."
+    php occ theming:config logoheader /var/www/html/apps/avuz_theme/img/house-logo.svg && echo "✓ Header logo configured" || echo "✗ Header logo configuration failed"
+else
+    echo "✗ Header logo file not found: /var/www/html/apps/avuz_theme/img/house-logo.svg"
 fi
 
 # Configure OnlyOffice if credentials are provided
@@ -311,6 +399,14 @@ if [ -n "$ONLYOFFICE_URL" ] && [ -n "$ONLYOFFICE_SECRET" ]; then
 else
     echo "⊘ OnlyOffice configuration skipped (credentials not provided)"
 fi
+
+# Configure PDF Converter app
+PDF_CONVERTER_FRONTEND_URL="${PDF_CONVERTER_FRONTEND_URL:-http://pdf-to-excel-frontend:80}"
+PDF_CONVERTER_BACKEND_URL="${PDF_CONVERTER_BACKEND_URL:-http://pdf-to-excel-backend:8000}"
+echo "Configuring PDF Converter app..."
+php occ config:app:set avuz_pdf_converter frontend_url --value="$PDF_CONVERTER_FRONTEND_URL"
+php occ config:app:set avuz_pdf_converter backend_url --value="$PDF_CONVERTER_BACKEND_URL"
+echo "✓ PDF Converter configured (frontend: $PDF_CONVERTER_FRONTEND_URL, backend: $PDF_CONVERTER_BACKEND_URL)"
 
 # Install and configure notify_push for real-time notifications
 echo "Installing notify_push app..."
@@ -336,12 +432,18 @@ echo "Triggering background mail sync for all accounts..."
 (
     sleep 30  # Wait for services to stabilize
     # Get all mail account IDs and sync them
-    for account_id in $(php occ mail:account:export 2>/dev/null | grep -oP 'Account \K\d+' || true); do
+    for account_id in $(php occ mail:account:export 2>/dev/null | sed -n 's/.*Account \([0-9]*\).*/\1/p' || true); do
         echo "Pre-syncing mail account $account_id..."
         php occ mail:account:sync "$account_id" 2>/dev/null || true
     done
     echo "✓ Background mail pre-sync completed"
 ) &
+
+# Final permissions fix before starting services
+echo "Final permissions check..."
+chown -R www-data:www-data /var/www/html/data /var/www/html/config /var/www/html/custom_apps
+chmod -R 770 /var/www/html/data /var/www/html/config /var/www/html/custom_apps
+echo "✓ Permissions set"
 
 # Execute the original command
 exec "$@"
