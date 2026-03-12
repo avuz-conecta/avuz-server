@@ -57,6 +57,11 @@
     display: none !important;
 }
 
+/* Hide WebDAV settings section in Files app settings */
+#webdav {
+    display: none !important;
+}
+
 /* ========================================================================= */
 /* Override dashboard widget icon classes to use Lucide-style themed icons.
 /* This ensures icons display correctly immediately on page load,
