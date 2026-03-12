@@ -18,7 +18,7 @@ RUN npm ci
 # Copy source files
 COPY . /var/www/html/
 
-# Build frontend
+# Clean old compiled bundles and rebuild frontend
 RUN npm run build
 
 # Clean up build artifacts
@@ -40,10 +40,10 @@ COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 # theming app is loaded, so the standard template override mechanism fails.
 RUN cp -f apps/avuz_theme/templates/update.user.php core/templates/update.user.php
 
-# Merge original translations with Avuz theme overrides
-# This generates complete .json and .js files from theme overrides + original translations
-COPY scripts/merge-l10n.sh /tmp/merge-l10n.sh
-RUN chmod +x /tmp/merge-l10n.sh && /tmp/merge-l10n.sh /var/www/html /var/www/html/themes/avuz && rm /tmp/merge-l10n.sh
+# Merge bundled app translations with Avuz theme overrides (apps/ and core/)
+# App Store apps (custom_apps/) are merged at runtime in entrypoint.sh after installation
+COPY scripts/merge-l10n.sh /usr/local/bin/merge-l10n.sh
+RUN chmod +x /usr/local/bin/merge-l10n.sh && /usr/local/bin/merge-l10n.sh /var/www/html /var/www/html/themes/avuz
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /var/www/html/data \
