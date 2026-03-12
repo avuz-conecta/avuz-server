@@ -23,13 +23,21 @@ case $ENV in
     PLATFORM="linux/amd64"
     PUSH=true
     IMAGE_TAG="${REGISTRY}/${ORG}/${IMAGE_NAME}:${VERSION}"
+    IMAGE_TAG_LATEST="${REGISTRY}/${ORG}/${IMAGE_NAME}:staging"
+    BASE_IMAGE="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:latest"
+    ;;
+  prod)
+    PLATFORM="linux/amd64"
+    PUSH=true
+    IMAGE_TAG="${REGISTRY}/${ORG}/${IMAGE_NAME}:${VERSION}"
     IMAGE_TAG_LATEST="${REGISTRY}/${ORG}/${IMAGE_NAME}:latest"
     BASE_IMAGE="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:latest"
     ;;
   *)
-    echo "Usage: $0 [version] [local|staging]"
+    echo "Usage: $0 [version] [local|staging|prod]"
     echo "  local   - Build for macOS (arm64), no push"
-    echo "  staging - Build for Linux (amd64), push to registry"
+    echo "  staging - Build for Linux (amd64), push as :staging"
+    echo "  prod    - Build for Linux (amd64), push as :latest"
     exit 1
     ;;
 esac

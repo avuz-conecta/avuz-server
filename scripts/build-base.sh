@@ -21,12 +21,19 @@ case $ENV in
     PLATFORM="linux/amd64"
     PUSH=true
     IMAGE_TAG="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:${VERSION}"
+    IMAGE_TAG_LATEST="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:staging"
+    ;;
+  prod)
+    PLATFORM="linux/amd64"
+    PUSH=true
+    IMAGE_TAG="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:${VERSION}"
     IMAGE_TAG_LATEST="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:latest"
     ;;
   *)
-    echo "Usage: $0 [version] [local|staging]"
+    echo "Usage: $0 [version] [local|staging|prod]"
     echo "  local   - Build for macOS (arm64), no push"
-    echo "  staging - Build for Linux (amd64), push to registry"
+    echo "  staging - Build for Linux (amd64), push as :staging"
+    echo "  prod    - Build for Linux (amd64), push as :latest"
     exit 1
     ;;
 esac
@@ -57,4 +64,4 @@ if [ "$PUSH" = true ]; then
 fi
 
 echo ""
-echo "Now you can run: ./scripts/build-push.sh [version] ${ENV}"
+echo "Now you can run: ./scripts/build-push.sh [version] [local|staging|prod]"
