@@ -1,28 +1,48 @@
 #!/bin/sh
-# Merge original Nextcloud translations with Avuz theme overrides
-# Run this during Docker build after copying theme files
+# Merge original Nextcloud translations with Avuz theme overrides.
+#
+# This script runs at BUILD TIME in the Dockerfile for bundled apps (apps/ and core/).
+# App Store apps (custom_apps/) are handled separately at runtime in entrypoint.sh.
+#
+# Nextcloud has two translation layers:
+#   - PHP backend loads .json from theme path mirroring the real app location
+#   - JS frontend loads .js from themes/{theme}/apps/ (hardcoded in JSResourceLocator)
+#
+# The merge takes the original app's full translation file and overlays our overrides,
+# so all strings remain in pt_BR instead of falling back to English.
 
 NEXTCLOUD_ROOT="${1:-/var/www/html}"
 THEME_ROOT="${2:-/var/www/html/themes/avuz}"
 
 echo "Merging l10n translations (original + theme overrides)..."
 
-# Process all JSON files in the theme l10n directories
 find "$THEME_ROOT" -path "*/l10n/*.json" -type f | while read theme_json; do
-    # Get relative path from theme root (e.g., apps/dashboard/l10n/pt_BR.json or core/l10n/pt_BR.json)
     relative_path="${theme_json#$THEME_ROOT/}"
 
-    # Determine the original file path and app name
     case "$relative_path" in
+        custom_apps/*)
+            # Skip custom_apps — they don't exist at build time.
+            # Handled at runtime in entrypoint.sh.
+            continue
+            ;;
+        apps/core/*)
+            # core lives at $NEXTCLOUD_ROOT/core/, not $NEXTCLOUD_ROOT/apps/core/
+            app_name="core"
+            locale=$(basename "$theme_json" .json)
+            original_json="$NEXTCLOUD_ROOT/core/l10n/$locale.json"
+            js_output_dir="$THEME_ROOT/apps/core/l10n"
+            ;;
         apps/*)
-            # e.g., apps/dashboard/l10n/pt_BR.json -> app_name=dashboard
             app_name=$(echo "$relative_path" | cut -d'/' -f2)
-            original_json="$NEXTCLOUD_ROOT/$relative_path"
+            locale=$(basename "$theme_json" .json)
+            original_json="$NEXTCLOUD_ROOT/apps/$app_name/l10n/$locale.json"
+            js_output_dir="$THEME_ROOT/apps/$app_name/l10n"
             ;;
         core/*)
-            # e.g., core/l10n/pt_BR.json -> app_name=core
             app_name="core"
-            original_json="$NEXTCLOUD_ROOT/$relative_path"
+            locale=$(basename "$theme_json" .json)
+            original_json="$NEXTCLOUD_ROOT/core/l10n/$locale.json"
+            js_output_dir="$THEME_ROOT/core/l10n"
             ;;
         *)
             echo "  Skipping unknown path: $relative_path"
@@ -30,58 +50,51 @@ find "$THEME_ROOT" -path "*/l10n/*.json" -type f | while read theme_json; do
             ;;
     esac
 
-    locale=$(basename "$theme_json" .json)
-
     if [ ! -f "$original_json" ]; then
-        echo "  Skipping $app_name/$locale (no original file at $original_json)"
+        echo "  Skipping $app_name/$locale (original not found at $original_json)"
         continue
     fi
 
     echo "  Merging $app_name/$locale..."
+    mkdir -p "$js_output_dir"
 
-    # Merge: start with original, overlay theme overrides
     python3 -c "
 import json
-import sys
 
-# Read original translations
 with open('$original_json', 'r') as f:
     original = json.load(f)
 
-# Read theme overrides
 with open('$theme_json', 'r') as f:
     theme = json.load(f)
 
-# Merge: original + theme overrides
 merged = original.copy()
 merged['translations'].update(theme.get('translations', {}))
 
-# Write merged JSON back to theme
+# Write merged JSON back to the theme override location (for PHP backend)
 with open('$theme_json', 'w') as f:
     json.dump(merged, f, indent=4, ensure_ascii=False)
 
-# Generate JS file
-js_file = '$theme_json'.replace('.json', '.js')
+# Generate JS file (for frontend)
 entries = []
 for key, value in merged['translations'].items():
     key_escaped = key.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"').replace('\\n', '\\\\n')
-    # Handle both string and list values (pluralization)
     if isinstance(value, list):
-        value_escaped = json.dumps(value, ensure_ascii=False)
-        entries.append(f'    \"{key_escaped}\": {value_escaped}')
+        value_js = json.dumps(value, ensure_ascii=False)
+        entries.append(f'    \"{key_escaped}\": {value_js}')
     else:
         value_escaped = value.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"').replace('\\n', '\\\\n')
         entries.append(f'    \"{key_escaped}\": \"{value_escaped}\"')
 
 plural_form = merged.get('pluralForm', 'nplurals=2; plural=(n != 1);')
+js_file = '$js_output_dir/$locale.js'
 
 with open(js_file, 'w') as f:
-    f.write('OC.L10N.register(\\n')
-    f.write(f'    \"$app_name\",\\n')
-    f.write('    {\\n')
-    f.write(',\\n'.join(entries))
-    f.write('\\n},\\n')
-    f.write(f'\"{plural_form}\");\\n')
+    f.write('OC.L10N.register(\n')
+    f.write(f'    \"$app_name\",\n')
+    f.write('    {\n')
+    f.write(',\n'.join(entries))
+    f.write('\n},\n')
+    f.write(f'\"{plural_form}\");\n')
 
 print(f'    -> {len(merged[\"translations\"])} translations')
 "
