@@ -13,7 +13,8 @@ import FilesAppSettingsGeneral from '../components/FilesAppSettings/FilesAppSett
 import FilesAppSettingsLegacyApi from '../components/FilesAppSettings/FilesAppSettingsLegacyApi.vue'
 import FilesAppSettingsShortcuts from '../components/FilesAppSettings/FilesAppSettingsShortcuts.vue'
 import FilesAppSettingsWarnings from '../components/FilesAppSettings/FilesAppSettingsWarnings.vue'
-import FilesAppSettingsWebDav from '../components/FilesAppSettings/FilesAppSettingsWebDav.vue'
+// Avuz: WebDAV settings hidden for cleaner UX
+// import FilesAppSettingsWebDav from '../components/FilesAppSettings/FilesAppSettingsWebDav.vue'
 
 defineProps<{
 	open: boolean
@@ -56,7 +57,7 @@ async function showKeyboardShortcuts() {
 		<FilesAppSettingsAppearance />
 		<FilesAppSettingsLegacyApi />
 		<FilesAppSettingsWarnings />
-		<FilesAppSettingsWebDav />
+		<!-- Avuz: WebDAV settings hidden for cleaner UX -->
 		<FilesAppSettingsShortcuts />
 	</NcAppSettingsDialog>
 </template>
