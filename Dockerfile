@@ -7,9 +7,10 @@ FROM ${BASE_IMAGE} AS builder
 
 WORKDIR /var/www/html
 
-# Copy dependency files first for better caching
+# Copy dependency files and build scripts for better caching
 COPY composer.json composer.lock ./
 COPY package.json package-lock.json ./
+COPY build/ build/
 
 # Install dependencies
 RUN composer install --no-dev --optimize-autoloader --no-scripts
