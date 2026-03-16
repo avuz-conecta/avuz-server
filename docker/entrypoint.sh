@@ -24,20 +24,15 @@ BUNDLED_APPS=(
 )
 
 APPSTORE_APPS=(
-    "activity"
     "calendar"
     "contacts"
     "deck"
     "external"
     "forms"
     "spreed"
-    "twofactor_totp"
     "viewer"
     "bruteforcesettings"
     "files_downloadlimit"
-    "suspicious_login"
-    "logreader"
-    "password_policy"
     "quota_warning"
     "files_retention"
     "onlyoffice"
@@ -342,6 +337,11 @@ GIT_APPS_BRANCH="${GIT_APPS_BRANCH:-stable33}"
 GIT_APPS=(
     "notifications:nextcloud/notifications"
     "text:nextcloud/text"
+    "activity:nextcloud/activity"
+    "twofactor_totp:nextcloud/twofactor_totp"
+    "suspicious_login:nextcloud/suspicious_login"
+    "logreader:nextcloud/logreader"
+    "password_policy:nextcloud/password_policy"
 )
 
 echo "Installing apps from Git (branch: $GIT_APPS_BRANCH)..."
