@@ -12,7 +12,7 @@ RUN chmod +x /usr/local/bin/install-php-extensions
 RUN install-php-extensions \
   gd zip intl pdo pdo_pgsql pgsql opcache bcmath \
   gmp bz2 exif pcntl ldap sysvsem \
-  redis imagick
+  redis imagick apcu
 
 # Install runtime packages
 RUN apk add --no-cache \
