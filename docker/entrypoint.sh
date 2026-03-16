@@ -126,8 +126,8 @@ else
         echo "Viewer app missing or corrupted, downloading fresh copy..."
         rm -rf /var/www/html/apps/viewer 2>/dev/null || true
         cd /var/www/html/apps
-        curl -sL https://github.com/nextcloud/viewer/archive/refs/heads/stable32.tar.gz | tar xz
-        mv viewer-stable32 viewer
+        curl -sL https://github.com/nextcloud/viewer/archive/refs/heads/stable33.tar.gz | tar xz
+        mv viewer-stable33 viewer
         chown -R www-data:www-data /var/www/html/apps/viewer
         echo "✓ Viewer app restored"
     fi
@@ -340,7 +340,7 @@ fi
 
 # Install apps from Git (not available in App Store)
 # Format: "app_name:github_org/repo"
-GIT_APPS_BRANCH="${GIT_APPS_BRANCH:-stable32}"
+GIT_APPS_BRANCH="${GIT_APPS_BRANCH:-stable33}"
 GIT_APPS=(
     "notifications:nextcloud/notifications"
     "text:nextcloud/text"

@@ -1,7 +1,7 @@
 {
-  "base_version": "32.0.2",
-  "target_version": "33.0.0",
-  "custom_commit_range": "upstream/stable32..HEAD",
+  "base_version": "33.0.0",
+  "target_version": "34.0.0",
+  "custom_commit_range": "upstream/stable33..HEAD",
   "source_branch": "avuz-customization",
   "entries": [
     {
@@ -201,11 +201,11 @@
       "id": "core-patch-hide-webdav",
       "type": "core",
       "paths": [
-        "apps/files/src/views/Settings.vue"
+        "apps/files/src/views/FilesAppSettings.vue"
       ],
       "description": "Hides WebDAV settings section from Files app settings dialog",
       "risk": "high",
-      "notes": "Direct modification of upstream Vue component. This file changes frequently. The patch comments out the WebDAV import and template usage. Must be manually re-applied on v33."
+      "notes": "Direct modification of upstream Vue component. Renamed from Settings.vue in v33. The patch comments out the WebDAV import and template usage."
     },
     {
       "id": "dist-rebuild",
