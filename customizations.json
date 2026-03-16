@@ -1,0 +1,300 @@
+{
+  "base_version": "32.0.2",
+  "target_version": "33.0.0",
+  "custom_commit_range": "upstream/stable32..HEAD",
+  "source_branch": "avuz-customization",
+  "entries": [
+    {
+      "id": "avuz-theme-app",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/appinfo/info.xml",
+        "apps/avuz_theme/lib/AppInfo/Application.php",
+        "apps/avuz_theme/lib/Listener/BeforeTemplateRenderedListener.php",
+        "apps/avuz_theme/lib/Listener/UserCreatedListener.php",
+        "apps/avuz_theme/lib/Service/CustomBoardService.php",
+        "apps/avuz_theme/lib/Service/fixtures/default-board.json",
+        "apps/avuz_theme/lib/Mail/EMailTemplate.php",
+        "apps/avuz_theme/templates/update.user.php",
+        "apps/avuz_theme/README.md"
+      ],
+      "description": "Avuz Theme app: event listeners for login page and user creation, custom Deck welcome board, custom email template with Avuz logo",
+      "risk": "low",
+      "notes": "Fully custom app, no upstream counterpart. EMailTemplate extends OC\\Mail\\EMailTemplate — check if parent class API changed in v33."
+    },
+    {
+      "id": "avuz-theme-css",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/css/login.css",
+        "apps/avuz_theme/css/theme.css",
+        "apps/avuz_theme/css/header.css",
+        "apps/avuz_theme/css/icons.css",
+        "apps/avuz_theme/css/settings.css"
+      ],
+      "description": "CSS: split-screen login, dashboard card styling, header gradient/logo centering, icon colors, settings text overflow fix",
+      "risk": "low",
+      "notes": "CSS selectors target upstream DOM classes. If Nextcloud changes class names or HTML structure in v33, these may silently break without merge conflicts."
+    },
+    {
+      "id": "avuz-theme-js",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/js/lucide.js",
+        "apps/avuz_theme/js/lucide-icons.js",
+        "apps/avuz_theme/js/center-header.js"
+      ],
+      "description": "JS: Lucide icon library, dynamic favicon per-app, header centering script",
+      "risk": "low",
+      "notes": "lucide-icons.js wraps history.pushState and references /themes/avuz/apps/*/img/ paths. center-header.js targets #header DOM structure."
+    },
+    {
+      "id": "avuz-theme-images",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/img/logo.png",
+        "apps/avuz_theme/img/logo2.png",
+        "apps/avuz_theme/img/network-diagram.png",
+        "apps/avuz_theme/img/house-logo.svg",
+        "apps/avuz_theme/img/favicon-16.png",
+        "apps/avuz_theme/img/favicon-32.png",
+        "apps/avuz_theme/img/favicon-touch.png"
+      ],
+      "description": "Brand assets: logos for login/email, network diagram for split-screen, favicons",
+      "risk": "low",
+      "notes": "Binary files, no conflict risk."
+    },
+    {
+      "id": "theme-icon-overrides",
+      "type": "theme",
+      "paths": [
+        "themes/avuz/apps/activity/img/activity.svg",
+        "themes/avuz/apps/activity/img/activity-dark.svg",
+        "themes/avuz/apps/calendar/img/calendar.svg",
+        "themes/avuz/apps/calendar/img/calendar-dark.svg",
+        "themes/avuz/apps/contacts/img/app.svg",
+        "themes/avuz/apps/dashboard/img/dashboard.svg",
+        "themes/avuz/apps/deck/img/deck.svg",
+        "themes/avuz/apps/deck/img/deck-dark.svg",
+        "themes/avuz/apps/files/img/app.svg",
+        "themes/avuz/apps/files/img/app-dark.svg",
+        "themes/avuz/apps/forms/img/forms.svg",
+        "themes/avuz/apps/forms/img/forms-dark.svg",
+        "themes/avuz/apps/mail/img/mail.svg",
+        "themes/avuz/apps/mail/img/mail-dark.svg",
+        "themes/avuz/apps/settings/img/app.svg",
+        "themes/avuz/apps/spreed/img/app.svg",
+        "themes/avuz/apps/spreed/img/app-dark.svg",
+        "themes/avuz/apps/spreed/img/dashboard/mentions.png",
+        "themes/avuz/apps/spreed/img/dashboard/meetings.png",
+        "themes/avuz/apps/spreed/img/dashboard/reminders.png"
+      ],
+      "description": "Lucide-style SVG icon overrides for navigation menu (light + dark variants) and spreed dashboard PNGs",
+      "risk": "low",
+      "notes": "Uses Nextcloud theme layer. Risk only if upstream renames icon filenames (e.g. deck.svg -> app.svg)."
+    },
+    {
+      "id": "theme-favicon-overrides",
+      "type": "theme",
+      "paths": [
+        "themes/avuz/core/img/favicon.ico",
+        "themes/avuz/core/img/favicon.png",
+        "themes/avuz/core/img/favicon.svg",
+        "themes/avuz/core/img/favicon-mask.svg",
+        "themes/avuz/core/img/favicon-touch.png"
+      ],
+      "description": "Favicon overrides via Nextcloud theme layer",
+      "risk": "low",
+      "notes": "Binary/SVG files in theme directory. No conflict risk unless favicon naming changes."
+    },
+    {
+      "id": "theme-custom-apps-icons",
+      "type": "theme",
+      "paths": [
+        "themes/avuz/custom_apps/deck/img/deck.svg",
+        "themes/avuz/custom_apps/deck/img/deck-dark.svg",
+        "themes/avuz/custom_apps/forms/img/forms.svg",
+        "themes/avuz/custom_apps/forms/img/forms-dark.svg"
+      ],
+      "description": "Icon overrides for App Store apps (deck, forms) installed to custom_apps/",
+      "risk": "low",
+      "notes": "Duplicates of themes/avuz/apps/ icons, needed because App Store apps live in custom_apps/ at runtime."
+    },
+    {
+      "id": "translation-files-rename",
+      "type": "translation",
+      "paths": [
+        "themes/avuz/apps/files/l10n/pt_BR.json"
+      ],
+      "description": "Files -> Drive rename (1 key)",
+      "risk": "low",
+      "notes": "Single key override. Check if upstream changed the source string 'Files' in v33."
+    },
+    {
+      "id": "translation-deck",
+      "type": "translation",
+      "paths": [
+        "themes/avuz/apps/deck/l10n/pt_BR.json",
+        "themes/avuz/apps/deck/l10n/pt_BR.js",
+        "themes/avuz/custom_apps/deck/l10n/pt_BR.json",
+        "themes/avuz/custom_apps/deck/l10n/pt_BR.overrides.json"
+      ],
+      "description": "Deck -> Tarefas rename + 416 activity log translations for board/card/list operations",
+      "risk": "medium",
+      "notes": "Large translation set. Deck v33 may add/remove/rename activity strings. The overrides.json contains 15 key overrides merged at build time."
+    },
+    {
+      "id": "translation-core",
+      "type": "translation",
+      "paths": [
+        "themes/avuz/apps/core/l10n/pt_BR.json",
+        "themes/avuz/apps/core/l10n/pt_BR.js"
+      ],
+      "description": "Core branding: 6 keys replacing 'Nextcloud' with 'Avuz Conecta' in login/instance text",
+      "risk": "medium",
+      "notes": "Core strings may change between releases. merge-l10n.sh handles merging, but source strings must still match."
+    },
+    {
+      "id": "translation-settings",
+      "type": "translation",
+      "paths": [
+        "themes/avuz/apps/settings/l10n/pt_BR.json"
+      ],
+      "description": "Settings app: 20 keys replacing Nextcloud references with Avuz Conecta",
+      "risk": "medium",
+      "notes": "Settings strings change frequently between releases. Check for renamed/removed keys."
+    },
+    {
+      "id": "translation-notifications",
+      "type": "translation",
+      "paths": [
+        "themes/avuz/apps/notifications/l10n/pt_BR.json",
+        "themes/avuz/apps/notifications/l10n/pt_BR.js",
+        "themes/avuz/apps/notifications/l10n/pt_BR.overrides.json"
+      ],
+      "description": "Notifications: 53 keys for push/email/sound settings + 1 override for Talk call sound",
+      "risk": "medium",
+      "notes": "Notifications is a git-installed app (not bundled). Check if v33 branch exists for notifications repo."
+    },
+    {
+      "id": "translation-dashboard",
+      "type": "translation",
+      "paths": [
+        "themes/avuz/apps/dashboard/l10n/pt_BR.json"
+      ],
+      "description": "Dashboard: 2 keys replacing Nextcloud with Avuz Conecta in intro text",
+      "risk": "low",
+      "notes": "Minimal override, unlikely to conflict."
+    },
+    {
+      "id": "translation-federated",
+      "type": "translation",
+      "paths": [
+        "themes/avuz/apps/federatedfilesharing/l10n/pt_BR.json",
+        "themes/avuz/apps/files_sharing/l10n/pt_BR.json"
+      ],
+      "description": "Federated sharing: 5 keys total for sharing UI text with Avuz branding",
+      "risk": "low",
+      "notes": "Minimal overrides."
+    },
+    {
+      "id": "core-patch-hide-webdav",
+      "type": "core",
+      "paths": [
+        "apps/files/src/views/Settings.vue"
+      ],
+      "description": "Hides WebDAV settings section from Files app settings dialog",
+      "risk": "high",
+      "notes": "Direct modification of upstream Vue component. This file changes frequently. The patch comments out the WebDAV import and template usage. Must be manually re-applied on v33."
+    },
+    {
+      "id": "dist-rebuild",
+      "type": "core",
+      "paths": [
+        "dist/core-common.js",
+        "dist/core-common.js.map",
+        "dist/dav-settings-example-content.js",
+        "dist/dav-settings-example-content.js.map",
+        "dist/files-main.js",
+        "dist/files-main.js.map",
+        "dist/settings-users-3239.js",
+        "dist/settings-users-3239.js.map",
+        "dist/settings-vue-settings-apps-users-management.js",
+        "dist/settings-vue-settings-apps-users-management.js.map"
+      ],
+      "description": "Rebuilt dist bundles from Settings.vue patch",
+      "risk": "high",
+      "notes": "Generated files. Will conflict on every upgrade. Should be rebuilt via 'npm run build' after rebase, not carried forward. Consider adding dist/ to .gitignore."
+    },
+    {
+      "id": "docker-base",
+      "type": "docker",
+      "paths": [
+        "Dockerfile",
+        "Dockerfile.base"
+      ],
+      "description": "Two-stage Docker build: base image (PHP/nginx/supervisor/redis) + app image (source + deps + build)",
+      "risk": "low",
+      "notes": "Custom files. Dockerfile copies avuz_theme assets and runs merge-l10n.sh at build time. Update any version-specific references (stable32) on upgrade."
+    },
+    {
+      "id": "docker-runtime",
+      "type": "docker",
+      "paths": [
+        "docker/entrypoint.sh",
+        "docker/nginx.conf",
+        "docker/supervisor.conf",
+        "docker/cron.conf"
+      ],
+      "description": "Container runtime: entrypoint (install/upgrade/configure NC), nginx (webserver), supervisor (process manager), cron",
+      "risk": "low",
+      "notes": "entrypoint.sh has GIT_APPS_BRANCH defaulting to stable32 — must update to stable33. Also hardcodes viewer app download from stable32.tar.gz."
+    },
+    {
+      "id": "docker-compose",
+      "type": "docker",
+      "paths": [
+        "docker-compose.yml",
+        "portainer-stack.yml"
+      ],
+      "description": "Compose files for local dev and Portainer staging deployment",
+      "risk": "low",
+      "notes": "Custom files, no upstream counterpart."
+    },
+    {
+      "id": "build-scripts",
+      "type": "docker",
+      "paths": [
+        "scripts/build-base.sh",
+        "scripts/build-push.sh",
+        "scripts/merge-l10n.sh",
+        "scripts/update-translations.sh"
+      ],
+      "description": "Build scripts: base image, app image push, translation merging, translation update from upstream",
+      "risk": "low",
+      "notes": "Version-agnostic scripts. merge-l10n.sh is critical for translation overrides."
+    },
+    {
+      "id": "git-config",
+      "type": "config",
+      "paths": [
+        ".gitignore",
+        ".gitattributes",
+        ".dockerignore"
+      ],
+      "description": "Git and Docker ignore rules, git attributes for line endings",
+      "risk": "low",
+      "notes": "May have trivial conflicts if upstream also modifies .gitignore."
+    },
+    {
+      "id": "project-docs",
+      "type": "config",
+      "paths": [
+        "CLAUDE.md"
+      ],
+      "description": "Project context documentation for Claude Code",
+      "risk": "low",
+      "notes": "Custom file, no upstream counterpart."
+    }
+  ]
+}
