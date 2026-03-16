@@ -125,9 +125,8 @@ else
     if [ ! -f /var/www/html/apps/viewer/appinfo/info.xml ]; then
         echo "Viewer app missing or corrupted, downloading fresh copy..."
         rm -rf /var/www/html/apps/viewer 2>/dev/null || true
-        cd /var/www/html/apps
-        curl -sL https://github.com/nextcloud/viewer/archive/refs/heads/stable33.tar.gz | tar xz
-        mv viewer-stable33 viewer
+        curl -sL https://github.com/nextcloud/viewer/archive/refs/heads/stable33.tar.gz | tar xz -C /var/www/html/apps
+        mv /var/www/html/apps/viewer-stable33 /var/www/html/apps/viewer
         chown -R www-data:www-data /var/www/html/apps/viewer
         echo "✓ Viewer app restored"
     fi
