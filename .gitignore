@@ -15,6 +15,7 @@ node_modules/
 /translationfiles
 /translationtool.phar
 .claude/*
+!.claude/commands/
 
 # ignore all apps except core ones
 /apps*/*
