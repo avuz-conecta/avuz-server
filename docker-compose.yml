@@ -73,8 +73,8 @@ services:
       # OnlyOffice Configuration (optional - leave empty to skip)
       - ONLYOFFICE_URL=
       - ONLYOFFICE_SECRET=
-      # Git apps branch (notifications, text - default: stable32)
-      - GIT_APPS_BRANCH=stable32
+      # Git apps branch (notifications, text - default: stable33)
+      - GIT_APPS_BRANCH=stable33
     depends_on:
       db:
         condition: service_healthy

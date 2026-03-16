@@ -44,8 +44,8 @@ services:
       - ONLYOFFICE_URL=
       - ONLYOFFICE_SECRET=
 
-      # Notifications app from Git (branch name, default: stable32)
-      - NOTIFICATIONS_BRANCH=stable32
+      # Notifications app from Git (branch name, default: stable33)
+      - NOTIFICATIONS_BRANCH=stable33
 
 volumes:
   nextcloud_data:
