@@ -213,8 +213,6 @@
       "paths": [
         "dist/core-common.js",
         "dist/core-common.js.map",
-        "dist/dav-settings-example-content.js",
-        "dist/dav-settings-example-content.js.map",
         "dist/files-main.js",
         "dist/files-main.js.map",
         "dist/settings-users-3239.js",

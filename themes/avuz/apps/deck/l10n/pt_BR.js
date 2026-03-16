@@ -413,7 +413,6 @@ OC.L10N.register(
     "Save": "Salvar",
     "Today": "Hoje",
     "Tomorrow": "Amanhã",
-    "No due": "Sem vencimento",
-    "Boost your productivity using Deck with keyboard shortcuts.": "Aumente sua produtividade usando o Tarefas com atalhos de teclado."
+    "No due": "Sem vencimento"
 },
 "nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;");
