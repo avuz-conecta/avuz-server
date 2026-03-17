@@ -29,29 +29,29 @@ BUNDLED_APPS=(
 )
 
 APPSTORE_APPS=(
-    "calendar"
     "contacts"
-    "deck"
-    "external"
-    "forms"
-    "spreed"
     "viewer"
     "bruteforcesettings"
     "files_downloadlimit"
-    "quota_warning"
-    "files_retention"
-    "onlyoffice"
 )
 
-GIT_APPS_BRANCH="${GIT_APPS_BRANCH:-stable33}"
 GIT_APPS=(
-    "notifications:nextcloud/notifications"
-    "text:nextcloud/text"
-    "activity:nextcloud/activity"
-    "twofactor_totp:nextcloud/twofactor_totp"
-    "suspicious_login:nextcloud/suspicious_login"
-    "logreader:nextcloud/logreader"
-    "password_policy:nextcloud/password_policy"
+    "notifications:nextcloud/notifications:stable33"
+    "text:nextcloud/text:stable33"
+    "activity:nextcloud/activity:stable33"
+    "twofactor_totp:nextcloud/twofactor_totp:stable33"
+    "suspicious_login:nextcloud/suspicious_login:stable33"
+    "logreader:nextcloud/logreader:stable33"
+    "password_policy:nextcloud/password_policy:stable33"
+    "deck:nextcloud/deck:stable33"
+    "external:nextcloud/external:stable33"
+    "spreed:nextcloud/spreed:stable33"
+    "files_retention:nextcloud/files_retention:stable33"
+    "calendar:nextcloud/calendar:main"
+    "forms:nextcloud/forms:main"
+    "quota_warning:nextcloud/quota_warning:main"
+    "notify_push:nextcloud/notify_push:main"
+    "onlyoffice:ONLYOFFICE/onlyoffice-nextcloud:master"
 )
 
 # ──────────────────────────────────────────────
@@ -289,6 +289,9 @@ else
         for app in "${BUNDLED_APPS[@]}" "${APPSTORE_APPS[@]}"; do
             php occ app:disable "$app" 2>/dev/null || true
         done
+        for entry in "${GIT_APPS[@]}"; do
+            php occ app:disable "${entry%%:*}" 2>/dev/null || true
+        done
 
         php occ upgrade --no-interaction
         php occ maintenance:mode --off
@@ -376,30 +379,37 @@ else
     done
 fi
 
-# Git apps — clone only if missing, enable always
-echo "Checking Git apps (branch: $GIT_APPS_BRANCH)..."
+# Git apps — clone if missing, pull if existing, enable always
+echo "Checking Git apps..."
 for entry in "${GIT_APPS[@]}"; do
     app_name="${entry%%:*}"
-    repo="${entry#*:}"
+    remainder="${entry#*:}"
+    repo="${remainder%%:*}"
+    branch="${remainder##*:}"
 
-    if [ ! -d "/var/www/html/apps/$app_name" ]; then
-        echo "→ Cloning $app_name..."
-        if git clone --depth 1 --branch "$GIT_APPS_BRANCH" "https://github.com/$repo.git" "/var/www/html/apps/$app_name" 2>/dev/null; then
-            chown -R www-data:www-data "/var/www/html/apps/$app_name"
-            chmod -R 755 "/var/www/html/apps/$app_name"
+    app_dir="/var/www/html/apps/$app_name"
+
+    if [ ! -d "$app_dir" ]; then
+        echo "→ Cloning $app_name ($branch)..."
+        if git clone --depth 1 --branch "$branch" "https://github.com/$repo.git" "$app_dir" 2>/dev/null; then
+            chown -R www-data:www-data "$app_dir"
+            chmod -R 755 "$app_dir"
             echo "✓ $app_name cloned"
         else
-            echo "✗ Could not clone $app_name (check branch $GIT_APPS_BRANCH)"
+            echo "✗ Could not clone $app_name (branch: $branch)"
         fi
+    elif [ -d "$app_dir/.git" ]; then
+        echo "→ Updating $app_name ($branch)..."
+        git -C "$app_dir" fetch --depth 1 origin "$branch" 2>/dev/null \
+            && git -C "$app_dir" checkout FETCH_HEAD 2>/dev/null \
+            && chown -R www-data:www-data "$app_dir" \
+            && echo "✓ $app_name updated" \
+            || echo "✗ Could not update $app_name"
     fi
-    php occ app:enable "$app_name" 2>/dev/null || true
+    php occ app:enable "$app_name" 2>/dev/null || echo "✗ Could not enable $app_name"
 done
 
-# notify_push — install if missing
-if ! php occ app:list | grep -q "  - notify_push:"; then
-    php occ app:install notify_push 2>/dev/null || echo "✗ Could not install notify_push"
-fi
-php occ app:enable notify_push 2>/dev/null || true
+# notify_push binary permissions
 chmod +x /var/www/html/apps/notify_push/bin/x86_64/notify_push 2>/dev/null || true
 chmod +x /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push 2>/dev/null || true
 
