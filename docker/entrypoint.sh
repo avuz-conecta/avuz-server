@@ -36,22 +36,22 @@ APPSTORE_APPS=(
 )
 
 GIT_APPS=(
-    "notifications:nextcloud/notifications:stable33"
-    "text:nextcloud/text:stable33"
-    "activity:nextcloud/activity:stable33"
-    "twofactor_totp:nextcloud/twofactor_totp:stable33"
-    "suspicious_login:nextcloud/suspicious_login:stable33"
-    "logreader:nextcloud/logreader:stable33"
-    "password_policy:nextcloud/password_policy:stable33"
-    "deck:nextcloud/deck:stable33"
-    "external:nextcloud/external:stable33"
-    "spreed:nextcloud/spreed:stable33"
-    "files_retention:nextcloud/files_retention:stable33"
-    "calendar:nextcloud/calendar:main"
-    "forms:nextcloud/forms:main"
-    "quota_warning:nextcloud/quota_warning:main"
-    "notify_push:nextcloud/notify_push:main"
-    "onlyoffice:ONLYOFFICE/onlyoffice-nextcloud:master"
+    "notifications:nextcloud/notifications:v33.0.0rc4"
+    "text:nextcloud/text:v33.0.0rc4"
+    "activity:nextcloud/activity:v33.0.0rc4"
+    "twofactor_totp:nextcloud/twofactor_totp:v33.0.0rc4"
+    "suspicious_login:nextcloud/suspicious_login:v33.0.0rc4"
+    "logreader:nextcloud/logreader:v33.0.0rc4"
+    "password_policy:nextcloud/password_policy:v33.0.0rc4"
+    "deck:nextcloud/deck:v1.17.0"
+    "external:nextcloud/external:v8.0.0"
+    "spreed:nextcloud/spreed:v23.0.1"
+    "files_retention:nextcloud/files_retention:v4.0.0"
+    "calendar:nextcloud/calendar:v6.2.1"
+    "forms:nextcloud/forms:v5.2.5"
+    "quota_warning:nextcloud/quota_warning:v1.23.0"
+    "notify_push:nextcloud/notify_push:v1.3.1"
+    "onlyoffice:ONLYOFFICE/onlyoffice-nextcloud:v10.0.0"
 )
 
 # ──────────────────────────────────────────────
