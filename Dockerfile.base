@@ -37,6 +37,7 @@ RUN { \
   echo 'pm.process_idle_timeout = 10s'; \
   echo 'catch_workers_output = yes'; \
   echo 'clear_env = no'; \
+  echo 'php_admin_value[error_reporting] = E_ALL & ~E_WARNING'; \
   } > /usr/local/etc/php-fpm.d/www.conf
 
 # Configure PHP for Nextcloud
@@ -60,6 +61,7 @@ RUN { \
   echo 'max_input_time=3600'; \
   echo 'date.timezone=UTC'; \
   echo 'expose_php=Off'; \
+  echo 'error_reporting=E_ALL & ~E_WARNING'; \
   } > /usr/local/etc/php/conf.d/nextcloud.ini
 
 # Create directories
