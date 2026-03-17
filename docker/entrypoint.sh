@@ -28,30 +28,27 @@ BUNDLED_APPS=(
     "theming"
 )
 
-APPSTORE_APPS=(
+ENABLE_APPS=(
     "contacts"
     "viewer"
     "bruteforcesettings"
     "files_downloadlimit"
-)
-
-GIT_APPS=(
-    "notifications:nextcloud/notifications:v33.0.0rc4"
-    "text:nextcloud/text:v33.0.0rc4"
-    "activity:nextcloud/activity:v33.0.0rc4"
-    "twofactor_totp:nextcloud/twofactor_totp:v33.0.0rc4"
-    "suspicious_login:nextcloud/suspicious_login:v33.0.0rc4"
-    "logreader:nextcloud/logreader:v33.0.0rc4"
-    "password_policy:nextcloud/password_policy:v33.0.0rc4"
-    "deck:nextcloud/deck:v1.17.0"
-    "external:nextcloud/external:v8.0.0"
-    "spreed:nextcloud/spreed:v23.0.1"
-    "files_retention:nextcloud/files_retention:v4.0.0"
-    "calendar:nextcloud/calendar:v6.2.1"
-    "forms:nextcloud/forms:v5.2.5"
-    "quota_warning:nextcloud/quota_warning:v1.23.0"
-    "notify_push:nextcloud/notify_push:v1.3.1"
-    "onlyoffice:ONLYOFFICE/onlyoffice-nextcloud:v10.0.0"
+    "notifications"
+    "text"
+    "activity"
+    "twofactor_totp"
+    "suspicious_login"
+    "logreader"
+    "password_policy"
+    "deck"
+    "external"
+    "spreed"
+    "files_retention"
+    "calendar"
+    "forms"
+    "quota_warning"
+    "notify_push"
+    "onlyoffice"
 )
 
 # ──────────────────────────────────────────────
@@ -286,11 +283,8 @@ else
 
         # Disable all managed apps before upgrade
         echo "Disabling apps for safe upgrade..."
-        for app in "${BUNDLED_APPS[@]}" "${APPSTORE_APPS[@]}"; do
+        for app in "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"; do
             php occ app:disable "$app" 2>/dev/null || true
-        done
-        for entry in "${GIT_APPS[@]}"; do
-            php occ app:disable "${entry%%:*}" 2>/dev/null || true
         done
 
         php occ upgrade --no-interaction
@@ -341,72 +335,10 @@ fi
 # PHASE 4: Apps (only when needed)
 # ──────────────────────────────────────────────
 
-if [ "$NC_INSTALLED" -eq 0 ]; then
-    # Fresh install — enable bundled apps, install App Store apps
-    echo "Enabling bundled apps..."
-    for app in "${BUNDLED_APPS[@]}"; do
-        php occ app:enable "$app" || echo "Could not enable $app (might not be installed)"
-    done
-
-    echo "Installing apps from App Store..."
-    for app in "${APPSTORE_APPS[@]}"; do
-        if php occ app:list | grep -q "  - $app:"; then
-            php occ app:enable "$app" 2>/dev/null || true
-        else
-            echo "→ Installing $app from App Store..."
-            php occ app:install "$app" 2>/dev/null || echo "✗ Could not install $app"
-        fi
-    done
-else
-    # Existing install — only ensure bundled apps are enabled and missing apps are installed
-    ENABLED_APPS=$(php occ app:list --enabled 2>/dev/null)
-    ALL_APPS=$(php occ app:list 2>/dev/null)
-
-    echo "Checking bundled apps..."
-    for app in "${BUNDLED_APPS[@]}"; do
-        if ! echo "$ENABLED_APPS" | grep -q "  - $app:"; then
-            echo "→ Enabling bundled app $app..."
-            php occ app:enable "$app" || echo "✗ Could not enable $app"
-        fi
-    done
-
-    echo "Checking for missing App Store apps..."
-    for app in "${APPSTORE_APPS[@]}"; do
-        if ! echo "$ALL_APPS" | grep -q "  - $app:"; then
-            echo "→ Installing missing app $app from App Store..."
-            php occ app:install "$app" 2>/dev/null || echo "✗ Could not install $app"
-        fi
-    done
-fi
-
-# Git apps — clone if missing, pull if existing, enable always
-echo "Checking Git apps..."
-for entry in "${GIT_APPS[@]}"; do
-    app_name="${entry%%:*}"
-    remainder="${entry#*:}"
-    repo="${remainder%%:*}"
-    branch="${remainder##*:}"
-
-    app_dir="/var/www/html/apps/$app_name"
-
-    if [ ! -d "$app_dir" ]; then
-        echo "→ Cloning $app_name ($branch)..."
-        if git clone --depth 1 --branch "$branch" "https://github.com/$repo.git" "$app_dir" 2>/dev/null; then
-            chown -R www-data:www-data "$app_dir"
-            chmod -R 755 "$app_dir"
-            echo "✓ $app_name cloned"
-        else
-            echo "✗ Could not clone $app_name (branch: $branch)"
-        fi
-    elif [ -d "$app_dir/.git" ]; then
-        echo "→ Updating $app_name ($branch)..."
-        git -C "$app_dir" fetch --depth 1 origin "$branch" 2>/dev/null \
-            && git -C "$app_dir" checkout FETCH_HEAD 2>/dev/null \
-            && chown -R www-data:www-data "$app_dir" \
-            && echo "✓ $app_name updated" \
-            || echo "✗ Could not update $app_name"
-    fi
-    php occ app:enable "$app_name" 2>/dev/null || echo "✗ Could not enable $app_name"
+# Enable bundled + managed apps (all ship inside apps/)
+echo "Enabling apps..."
+for app in "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"; do
+    php occ app:enable "$app" 2>/dev/null || echo "✗ Could not enable $app"
 done
 
 # notify_push binary permissions
