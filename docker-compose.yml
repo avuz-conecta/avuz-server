@@ -44,7 +44,6 @@ services:
       - nextcloud_data:/var/www/html/data
       - nextcloud_config:/var/www/html/config
       - nextcloud_apps:/var/www/html/custom_apps
-      - ./apps:/var/www/html/apps
       - ./core:/var/www/html/core:ro
       - ./lib:/var/www/html/lib:ro
       - ./dist:/var/www/html/dist:ro
