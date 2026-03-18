@@ -332,14 +332,16 @@ else
 fi
 
 # ──────────────────────────────────────────────
-# PHASE 4: Apps (only when needed)
+# PHASE 4: Apps (fresh install only)
 # ──────────────────────────────────────────────
 
-# Enable bundled + managed apps (all ship inside apps/)
-echo "Enabling apps..."
-for app in "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"; do
-    php occ app:enable "$app" 2>/dev/null || echo "✗ Could not enable $app"
-done
+# Only enable apps on fresh install — on restarts, respect whatever the admin set
+if [ "$NC_INSTALLED" -eq 0 ]; then
+    echo "Enabling apps..."
+    for app in "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"; do
+        php occ app:enable "$app" 2>/dev/null || echo "✗ Could not enable $app"
+    done
+fi
 
 # notify_push binary permissions
 chmod +x /var/www/html/apps/notify_push/bin/x86_64/notify_push 2>/dev/null || true
