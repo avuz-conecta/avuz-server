@@ -110,6 +110,15 @@ run_avuz_configuration() {
         php occ theming:config logoheader /var/www/html/apps/avuz_theme/img/house-logo.svg || true
     fi
 
+    # Roundcube webmail integration
+    if [ -n "$ROUNDCUBE_URL" ]; then
+        echo "Configuring Roundcube integration..."
+        php occ config:app:set roundcube roundcube_url --value="$ROUNDCUBE_URL"
+        php occ config:app:set roundcube sso_secret --value="$ROUNDCUBE_SSO_SECRET"
+        php occ config:app:set roundcube credential_key --value="$ROUNDCUBE_CREDENTIAL_KEY"
+        echo "✓ Roundcube configured"
+    fi
+
     # Talk defaults
     php occ config:app:set spreed create_samples --value="false"
     php occ config:app:set spreed changelog --value="no"

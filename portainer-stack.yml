@@ -44,6 +44,11 @@ services:
       - ONLYOFFICE_URL=
       - ONLYOFFICE_SECRET=
 
+      # Roundcube webmail integration (optional - leave empty to skip)
+      - ROUNDCUBE_URL=
+      - ROUNDCUBE_SSO_SECRET=
+      - ROUNDCUBE_CREDENTIAL_KEY=
+
       # Notifications app from Git (branch name, default: stable33)
       - NOTIFICATIONS_BRANCH=stable33
 
