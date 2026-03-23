@@ -21,6 +21,7 @@ node_modules/
 # ignore all apps except core ones
 /apps*/*
 !/apps/avuz_theme
+!/apps/roundcube
 !/apps/cloud_federation_api
 !/apps/comments
 !/apps/contactsinteraction

@@ -1,0 +1,9 @@
+#app-content {
+    padding: 0;
+    overflow: hidden;
+}
+
+#roundcube-frame {
+    border: none;
+    display: block;
+}
