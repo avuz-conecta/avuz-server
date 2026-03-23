@@ -5,6 +5,26 @@
   "source_branch": "avuz-customization",
   "entries": [
     {
+      "id": "roundcube-app",
+      "type": "app",
+      "paths": [
+        "apps/roundcube/appinfo/info.xml",
+        "apps/roundcube/appinfo/routes.php",
+        "apps/roundcube/lib/AppInfo/Application.php",
+        "apps/roundcube/lib/Controller/PageController.php",
+        "apps/roundcube/lib/Service/CredentialService.php",
+        "apps/roundcube/lib/Listener/UserLoggedInListener.php",
+        "apps/roundcube/lib/Listener/UserLoggedOutListener.php",
+        "apps/roundcube/templates/index.php",
+        "apps/roundcube/js/resize.js",
+        "apps/roundcube/css/style.css",
+        "apps/roundcube/img/mail.svg"
+      ],
+      "description": "Roundcube webmail integration app. Embeds avuz-conecta/roundcube-webmail via iframe. Stores encrypted credentials on NC login and generates HMAC-signed SSO tokens passed via ?nc_token=.",
+      "risk": "low",
+      "notes": "Requires ROUNDCUBE_SSO_SECRET and ROUNDCUBE_CREDENTIAL_KEY env vars on both NC and Roundcube containers. roundcube_url must be set via occ config:app:set roundcube roundcube_url --value='https://...'."
+    },
+    {
       "id": "avuz-theme-app",
       "type": "app",
       "paths": [
