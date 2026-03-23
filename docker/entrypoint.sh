@@ -113,6 +113,7 @@ run_avuz_configuration() {
     # Roundcube webmail integration
     if [ -n "$ROUNDCUBE_URL" ]; then
         echo "Configuring Roundcube integration..."
+        php occ app:enable roundcube 2>/dev/null || true
         php occ config:app:set roundcube roundcube_url --value="$ROUNDCUBE_URL"
         php occ config:app:set roundcube sso_secret --value="$ROUNDCUBE_SSO_SECRET"
         php occ config:app:set roundcube credential_key --value="$ROUNDCUBE_CREDENTIAL_KEY"
