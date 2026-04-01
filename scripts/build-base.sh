@@ -20,7 +20,7 @@ case $ENV in
   staging)
     PLATFORM="linux/amd64"
     PUSH=true
-    IMAGE_TAG="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:${VERSION}"
+    IMAGE_TAG="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:staging"
     IMAGE_TAG_LATEST="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:staging"
     ;;
   prod)
