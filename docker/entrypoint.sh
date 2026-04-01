@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-2"
+AVUZ_CONFIG_VERSION="33.0.0-3"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 
@@ -185,6 +185,17 @@ run_avuz_configuration() {
     echo "Running database maintenance..."
     php occ db:add-missing-indices --no-interaction 2>/dev/null || true
     php occ maintenance:repair --include-expensive 2>/dev/null || true
+
+    # Update App Store apps (custom_apps/) to latest compatible versions
+    echo "Updating App Store apps..."
+    php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
+
+    # Ensure all managed apps are enabled — use --allow-unstable for apps that
+    # haven't declared support for this NC version yet (bruteforcesettings, notifications, text)
+    echo "Ensuring managed apps are enabled..."
+    for app in "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"; do
+        php occ app:enable --allow-unstable "$app" 2>/dev/null || echo "✗ Could not enable $app"
+    done
 
     # Write stamp so we skip this on plain restarts
     echo "$AVUZ_CONFIG_VERSION" > "$CONFIG_STAMP_FILE"
