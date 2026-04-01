@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-3"
+AVUZ_CONFIG_VERSION="33.0.0-4"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 
@@ -190,11 +190,11 @@ run_avuz_configuration() {
     echo "Updating App Store apps..."
     php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
 
-    # Ensure all managed apps are enabled — use --allow-unstable for apps that
+    # Ensure all managed apps are enabled — use --force for apps that
     # haven't declared support for this NC version yet (bruteforcesettings, notifications, text)
     echo "Ensuring managed apps are enabled..."
     for app in "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"; do
-        php occ app:enable --allow-unstable "$app" 2>/dev/null || echo "✗ Could not enable $app"
+        php occ app:enable --force "$app" 2>/dev/null || echo "✗ Could not enable $app"
     done
 
     # Write stamp so we skip this on plain restarts
@@ -329,7 +329,7 @@ else
         # --allow-unstable is required for apps that haven't declared NC33 support yet
         echo "Re-enabling apps..."
         while IFS= read -r app; do
-            php occ app:enable --allow-unstable "$app" 2>/dev/null || echo "✗ Could not re-enable $app"
+            php occ app:enable --force "$app" 2>/dev/null || echo "✗ Could not re-enable $app"
         done < "$UPGRADE_STATE_FILE"
         rm -f "$UPGRADE_STATE_FILE"
 
@@ -375,7 +375,7 @@ fi
 if [ "$NC_INSTALLED" -eq 0 ]; then
     echo "Enabling apps..."
     for app in "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"; do
-        php occ app:enable --allow-unstable "$app" 2>/dev/null || echo "✗ Could not enable $app"
+        php occ app:enable --force "$app" 2>/dev/null || echo "✗ Could not enable $app"
     done
 fi
 
