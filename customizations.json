@@ -5,6 +5,17 @@
   "source_branch": "avuz-customization",
   "entries": [
     {
+      "id": "oidc-app",
+      "type": "docker",
+      "paths": [
+        "docker/entrypoint.sh",
+        "docker/nginx.conf"
+      ],
+      "description": "OIDC Identity Provider app (community, H2CK/oidc). Installed from NC App Store at first boot via occ app:install oidc into custom_apps/. Nginx rules redirect .well-known/openid-configuration and .well-known/webfinger to the app endpoints.",
+      "risk": "low",
+      "notes": "App updates independently via NC App Store/updater — no Docker rebuild needed. On first boot requires internet access. nginx redirect for webfinger preserves query string ($is_args$args)."
+    },
+    {
       "id": "roundcube-app",
       "type": "app",
       "paths": [

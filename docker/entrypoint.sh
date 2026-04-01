@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-1"
+AVUZ_CONFIG_VERSION="33.0.0-2"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 
@@ -109,6 +109,16 @@ run_avuz_configuration() {
     if [ -f /var/www/html/apps/avuz_theme/img/house-logo.svg ]; then
         php occ theming:config logoheader /var/www/html/apps/avuz_theme/img/house-logo.svg || true
     fi
+
+    # OIDC Identity Provider — install from App Store on first boot
+    if ! php occ app:list --enabled 2>/dev/null | grep -q "oidc" && \
+       ! [ -d /var/www/html/custom_apps/oidc ]; then
+        echo "Installing OIDC Identity Provider from App Store..."
+        php occ app:install oidc 2>/dev/null && echo "✓ OIDC app installed" || echo "✗ OIDC app install failed (no internet?)"
+    else
+        echo "✓ OIDC app already present"
+    fi
+    php occ app:enable oidc 2>/dev/null || true
 
     # Roundcube webmail integration
     if [ -n "$ROUNDCUBE_URL" ]; then
