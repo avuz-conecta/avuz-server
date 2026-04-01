@@ -310,10 +310,15 @@ else
         php occ upgrade --no-interaction
         php occ maintenance:mode --off
 
+        # Update custom_apps (App Store apps) now that NC core is upgraded
+        echo "Updating App Store apps..."
+        php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
+
         # Re-enable apps that were enabled before the upgrade
+        # --allow-unstable is required for apps that haven't declared NC33 support yet
         echo "Re-enabling apps..."
         while IFS= read -r app; do
-            php occ app:enable "$app" 2>/dev/null || echo "✗ Could not re-enable $app"
+            php occ app:enable --allow-unstable "$app" 2>/dev/null || echo "✗ Could not re-enable $app"
         done < "$UPGRADE_STATE_FILE"
         rm -f "$UPGRADE_STATE_FILE"
 
@@ -359,7 +364,7 @@ fi
 if [ "$NC_INSTALLED" -eq 0 ]; then
     echo "Enabling apps..."
     for app in "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"; do
-        php occ app:enable "$app" 2>/dev/null || echo "✗ Could not enable $app"
+        php occ app:enable --allow-unstable "$app" 2>/dev/null || echo "✗ Could not enable $app"
     done
 fi
 
