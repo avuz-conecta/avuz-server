@@ -3,13 +3,17 @@
 namespace OCA\Roundcube\Service;
 
 use OCP\IConfig;
+use OCP\IUserManager;
 
 class CredentialService
 {
     private const APP_ID = 'roundcube';
     private const TOKEN_TTL = 60;
 
-    public function __construct(private IConfig $config) {}
+    public function __construct(
+        private IConfig $config,
+        private IUserManager $userManager,
+    ) {}
 
     public function storeCredentials(string $userId, string $password): void
     {
@@ -20,6 +24,24 @@ class CredentialService
     public function clearCredentials(string $userId): void
     {
         $this->config->deleteUserValue($userId, self::APP_ID, 'enc_password');
+        $this->config->deleteUserValue($userId, self::APP_ID, 'email_enc_password');
+    }
+
+    public function storeEmailPassword(string $userId, string $password): void
+    {
+        $encrypted = $this->encryptPassword($password);
+        $this->config->setUserValue($userId, self::APP_ID, 'email_enc_password', $encrypted);
+    }
+
+    public function getRoundcubeOrigin(): string
+    {
+        $baseUrl = rtrim($this->config->getAppValue(self::APP_ID, 'roundcube_url', ''), '/');
+        $parsed = parse_url($baseUrl);
+        $origin = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
+        if (!empty($parsed['port'])) {
+            $origin .= ':' . $parsed['port'];
+        }
+        return $origin;
     }
 
     public function buildIframeUrl(string $userId): string
@@ -29,12 +51,19 @@ class CredentialService
             return '';
         }
 
-        $encryptedPassword = $this->config->getUserValue($userId, self::APP_ID, 'enc_password', '');
+        $encryptedPassword = $this->config->getUserValue($userId, self::APP_ID, 'email_enc_password', '');
+        if (empty($encryptedPassword)) {
+            $encryptedPassword = $this->config->getUserValue($userId, self::APP_ID, 'enc_password', '');
+        }
         if (empty($encryptedPassword)) {
             return $baseUrl . '/';
         }
 
         $email = $this->resolveEmail($userId);
+        if (!str_contains($email, '@')) {
+            return $baseUrl . '/';
+        }
+
         $token = $this->buildToken($email, $encryptedPassword);
 
         return $baseUrl . '/?nc_token=' . urlencode($token);
@@ -43,7 +72,14 @@ class CredentialService
     private function resolveEmail(string $userId): string
     {
         $customEmail = $this->config->getUserValue($userId, self::APP_ID, 'email', '');
-        return $customEmail ?: $userId;
+        if ($customEmail) {
+            return $customEmail;
+        }
+
+        $user = $this->userManager->get($userId);
+        $email = $user?->getEMailAddress();
+
+        return $email ?: '';
     }
 
     private function buildToken(string $email, string $encryptedPassword): string

@@ -5,7 +5,7 @@
     <name>Conecta Mail</name>
     <summary>Roundcube webmail integration</summary>
     <description><![CDATA[Access your email directly from Avuz Conecta.]]></description>
-    <version>1.0.0</version>
+    <version>1.0.2</version>
     <licence>agpl</licence>
     <author mail="dev@avuz.com">Avuz Team</author>
     <namespace>Roundcube</namespace>
