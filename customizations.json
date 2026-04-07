@@ -63,7 +63,7 @@
         "apps/avuz_theme/css/icons.css",
         "apps/avuz_theme/css/settings.css"
       ],
-      "description": "CSS: split-screen login, dashboard card styling, header gradient/logo centering, icon colors, settings text overflow fix",
+      "description": "CSS: centered card login, dashboard card styling, header gradient/logo centering, icon colors, settings text overflow fix",
       "risk": "low",
       "notes": "CSS selectors target upstream DOM classes. If Nextcloud changes class names or HTML structure in v33, these may silently break without merge conflicts."
     },
@@ -73,9 +73,10 @@
       "paths": [
         "apps/avuz_theme/js/lucide.js",
         "apps/avuz_theme/js/lucide-icons.js",
-        "apps/avuz_theme/js/center-header.js"
+        "apps/avuz_theme/js/center-header.js",
+        "apps/avuz_theme/js/login-icons.js"
       ],
-      "description": "JS: Lucide icon library, dynamic favicon per-app, header centering script",
+      "description": "JS: Lucide icon library, dynamic favicon per-app, header centering script, login icon row injector",
       "risk": "low",
       "notes": "lucide-icons.js wraps history.pushState and references /themes/avuz/apps/*/img/ paths. center-header.js targets #header DOM structure."
     },
@@ -85,13 +86,19 @@
       "paths": [
         "apps/avuz_theme/img/logo.png",
         "apps/avuz_theme/img/logo2.png",
+        "apps/avuz_theme/img/logo-login.png",
         "apps/avuz_theme/img/network-diagram.png",
         "apps/avuz_theme/img/house-logo.svg",
         "apps/avuz_theme/img/favicon-16.png",
         "apps/avuz_theme/img/favicon-32.png",
-        "apps/avuz_theme/img/favicon-touch.png"
+        "apps/avuz_theme/img/favicon-touch.png",
+        "apps/avuz_theme/img/login-icon-1.png",
+        "apps/avuz_theme/img/login-icon-2.png",
+        "apps/avuz_theme/img/login-icon-3.png",
+        "apps/avuz_theme/img/login-icon-4.png",
+        "apps/avuz_theme/img/login-icon-5.png"
       ],
-      "description": "Brand assets: logos for login/email, network diagram for split-screen, favicons",
+      "description": "Brand assets: logos for login/email, network diagram, login card icons, favicons",
       "risk": "low",
       "notes": "Binary files, no conflict risk."
     },

@@ -20,5 +20,8 @@ class BeforeTemplateRenderedListener implements IEventListener {
 
 		// Add login CSS
 		Util::addStyle('avuz_theme', 'login');
+
+		// Add login icon row injector
+		Util::addScript('avuz_theme', 'login-icons');
 	}
 }
