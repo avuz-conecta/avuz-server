@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-4"
+AVUZ_CONFIG_VERSION="33.0.0-5"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 
@@ -129,6 +129,12 @@ run_avuz_configuration() {
         php occ config:app:set roundcube credential_key --value="$ROUNDCUBE_CREDENTIAL_KEY"
         echo "✓ Roundcube configured"
     fi
+
+    # Password policy — 8 char minimum, all complexity rules enabled
+    php occ config:app:set password_policy minLength --value="8"
+    php occ config:app:set password_policy enforceUpperLowerCase --value="1"
+    php occ config:app:set password_policy enforceNumericCharacters --value="1"
+    php occ config:app:set password_policy enforceSpecialCharacters --value="1"
 
     # Talk defaults
     php occ config:app:set spreed create_samples --value="false"

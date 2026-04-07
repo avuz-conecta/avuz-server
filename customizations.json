@@ -324,6 +324,16 @@
       "description": "Project context documentation for Claude Code",
       "risk": "low",
       "notes": "Custom file, no upstream counterpart."
+    },
+    {
+      "id": "password-policy-config",
+      "type": "docker",
+      "paths": [
+        "docker/entrypoint.sh"
+      ],
+      "description": "Pre-configure password_policy app: 8 char minimum, enforce uppercase/lowercase, numeric, and special characters.",
+      "risk": "low",
+      "notes": "Uses occ config:app:set — no core file changes. Settings stored in NC database. password_policy app must be enabled (it is in ENABLE_APPS)."
     }
   ]
 }
