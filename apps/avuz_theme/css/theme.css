@@ -5,7 +5,7 @@
 
 /* Dashboard page - solid gray background */
 body:has(.app-dashboard) {
-    background: #f2f6fb !important;
+    background: #f1f1f1 !important;
 }
 
 /* Dashboard widget cards */

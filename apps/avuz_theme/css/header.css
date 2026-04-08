@@ -3,10 +3,18 @@
  * Centralizes header app menu icons and adjusts logo size
  */
 
-/* Dashboard gradient background */
+/* Avuz: Questrial font via Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Questrial&display=swap');
+
+/* Avuz: Global font and background for all app pages */
 body {
-    background: linear-gradient(180deg, #f2f6fb 0%, #f2f6fb 50%, #6acae0 75%, #dde852 100%) !important;
+    background: #f1f1f1 !important;
     background-attachment: fixed !important;
+    font-family: 'Questrial', sans-serif !important;
+}
+
+* {
+    font-family: 'Questrial', sans-serif !important;
 }
 
 /* Increase logo size */

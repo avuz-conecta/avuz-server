@@ -14,7 +14,7 @@ body#body-login {
     margin: 0 !important;
     background: none !important;
     background-image: none !important;
-    background-color: #e8e8e8 !important;
+    background-color: #f1f1f1 !important;
     overflow: auto !important;
 }
 
@@ -27,9 +27,9 @@ body#body-login::after {
 /* ── Wrapper = the card ─────────────────────────────────────────── */
 body#body-login .wrapper {
     width: 100% !important;
-    max-width: 420px !important;
+    max-width: 360px !important;
     margin: auto !important;
-    padding: 2.5rem 2.5rem 2rem !important;
+    padding: 2rem 2rem 1.5rem !important;
     background-color: #ffffff !important;
     border-radius: 20px !important;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08) !important;
@@ -46,13 +46,13 @@ body#body-login .wrapper {
 body#body-login .wrapper .v-align::before {
     content: '';
     display: block;
-    width: 180px;
-    height: 68px;
+    width: 100%;
+    height: 90px;
     background-image: url('../img/logo-login.png');
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain;
-    margin: 0 auto 1.8rem;
+    margin: 1.5rem auto 1.5rem;
     flex-shrink: 0;
 }
 
@@ -101,43 +101,42 @@ body#body-login .login-box form {
 }
 
 body#body-login form .input-field,
-body#body-login form [class*="input"],
 body#body-login form fieldset > div,
 body#body-login form > fieldset > div {
     margin-bottom: 0.6rem !important;
 }
 
-/* ── Input fields — pill shape ──────────────────────────────────── */
-body#body-login .login-box input[type="text"],
-body#body-login .login-box input[type="email"],
-body#body-login .login-box input[type="password"],
-body#body-login .login-box input:not([type="submit"]):not([type="checkbox"]):not([type="button"]) {
-    background-color: #f2f2f2 !important;
-    color: #333333 !important;
-    border: none !important;
-    border-radius: 50px !important;
-    padding: 0.85rem 1.2rem !important;
-    outline: none !important;
+/* ── Input fields — pill shape via CSS variables ─────────────────── */
+/* Use NC's own --input-border-radius variable — no DOM changes needed */
+body#body-login .login-box .input-field {
+    --input-border-radius: 50px;
+    --color-main-background: #f1f1f1;
+}
+
+/* Kill the bottom-shadow border NC draws on the input */
+body#body-login .login-box .input-field__input {
     box-shadow: none !important;
-    width: 100% !important;
-    min-width: 0 !important;
+    color: #333333 !important;
     font-size: 0.95rem !important;
 }
 
-body#body-login .login-box input:focus,
-body#body-login .login-box input:active {
-    border: none !important;
-    outline: none !important;
-    box-shadow: 0 0 0 2px rgba(0, 153, 204, 0.25) !important;
+body#body-login .login-box .input-field__input:hover:not([disabled]) {
+    box-shadow: none !important;
 }
 
-/* ── Labels ─────────────────────────────────────────────────────── */
-body#body-login .login-box label {
-    color: #999999 !important;
-    display: flex !important;
-    align-items: center !important;
-    height: 100% !important;
-    font-size: 0.9rem !important;
+body#body-login .login-box .input-field__input:active:not([disabled]),
+body#body-login .login-box .input-field__input:focus:not([disabled]) {
+    border: none !important;
+    box-shadow: 0 0 0 2px rgba(0, 153, 204, 0.35) !important;
+}
+
+/* ── Labels (floating placeholder) ─────────────────────────────── */
+/* NC label is position:absolute inside __main-wrapper, centered via inset-block-start */
+/* We just center the text horizontally */
+body#body-login .login-box .input-field__label {
+    color: #aaaaaa !important;
+    text-align: center !important;
+    width: calc(100% - 2 * var(--border-radius-large, 1.5rem)) !important;
 }
 
 body#body-login .login-box input:focus + label,
@@ -145,14 +144,11 @@ body#body-login .login-box input:not(:placeholder-shown) + label {
     display: none !important;
 }
 
-/* ── Password toggle button ─────────────────────────────────────── */
-body#body-login .login-box .password-toggle,
-body#body-login .login-box button[type="button"] {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    height: 100% !important;
-    margin: 0.2rem 0.5rem 0 0 !important;
+/* ── Password toggle button — leave NC's absolute positioning alone ── */
+/* Only reset margins/height that were breaking the layout */
+body#body-login .login-box .input-field__trailing-button {
+    margin: 0 !important;
+    height: auto !important;
 }
 
 /* ── Remember me checkbox ───────────────────────────────────────── */
@@ -197,14 +193,14 @@ body#body-login .login-box button[type="submit"]:hover {
 }
 
 /* ── Secondary links (device login / forgot password) ───────────── */
-body#body-login button,
-body#body-login a {
+body#body-login a,
+body#body-login .login-box button:not(.input-field__trailing-button):not([type="submit"]) {
     color: #333333 !important;
     font-size: 0.88rem !important;
 }
 
-body#body-login button:hover,
-body#body-login a:hover {
+body#body-login a:hover,
+body#body-login .login-box button:not(.input-field__trailing-button):not([type="submit"]):hover {
     background-color: transparent !important;
     text-decoration: underline !important;
 }
