@@ -15,7 +15,12 @@ body#body-login {
     background: none !important;
     background-image: none !important;
     background-color: #f1f1f1 !important;
-    overflow: auto !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+html {
+    overflow: hidden !important;
 }
 
 /* Remove all default Nextcloud overlay layers */
@@ -47,7 +52,7 @@ body#body-login .wrapper .v-align::before {
     content: '';
     display: block;
     width: 100%;
-    height: 90px;
+    height: 75px;
     background-image: url('../img/logo-login.png');
     background-repeat: no-repeat;
     background-position: center;
@@ -192,6 +197,12 @@ body#body-login .login-box button[type="submit"]:hover {
     background-color: #222222 !important;
 }
 
+/* Hide the ArrowRight icon from the Entrar button */
+body#body-login .login-box .submit-wrapper__icon,
+body#body-login .login-box button[type="submit"] .button-vue__icon {
+    display: none !important;
+}
+
 /* ── Secondary links (device login / forgot password) ───────────── */
 body#body-login a,
 body#body-login .login-box button:not(.input-field__trailing-button):not([type="submit"]) {
@@ -217,19 +228,11 @@ body#body-login .login-box button:not(.input-field__trailing-button):not([type="
     width: 100%;
 }
 
-.avuz-login-icons a {
+.avuz-login-icons span {
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0.45;
-    transition: opacity 0.2s;
-    text-decoration: none !important;
-}
-
-.avuz-login-icons a:hover {
-    opacity: 0.85;
-    background-color: transparent !important;
-    text-decoration: none !important;
 }
 
 .avuz-login-icons img {

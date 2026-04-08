@@ -14,11 +14,11 @@
     }
 
     var icons = [
-        { img: imgUrl('login-icon-1.png'), alt: 'Arquivos',   href: '#' },
-        { img: imgUrl('login-icon-2.png'), alt: 'E-mail',     href: '#' },
-        { img: imgUrl('login-icon-3.png'), alt: 'Vídeo',      href: '#' },
-        { img: imgUrl('login-icon-4.png'), alt: 'Chat',       href: '#' },
-        { img: imgUrl('login-icon-5.png'), alt: 'Calendário', href: '#' },
+        { img: imgUrl('login-icon-1.png'), alt: 'Arquivos'   },
+        { img: imgUrl('login-icon-2.png'), alt: 'E-mail'     },
+        { img: imgUrl('login-icon-3.png'), alt: 'Vídeo'      },
+        { img: imgUrl('login-icon-4.png'), alt: 'Chat'       },
+        { img: imgUrl('login-icon-5.png'), alt: 'Calendário' },
     ];
 
     function inject() {
@@ -29,9 +29,8 @@
         row.className = 'avuz-login-icons';
 
         icons.forEach(function (icon) {
-            var a = document.createElement('a');
-            a.href = icon.href;
-            a.title = icon.alt;
+            var span = document.createElement('span');
+            span.title = icon.alt;
 
             var img = document.createElement('img');
             img.src = icon.img;
@@ -39,8 +38,8 @@
             img.width = 28;
             img.height = 28;
 
-            a.appendChild(img);
-            row.appendChild(a);
+            span.appendChild(img);
+            row.appendChild(span);
         });
 
         wrapper.appendChild(row);
