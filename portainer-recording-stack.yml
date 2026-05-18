@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  nextcloud-talk-recording:
+    image: nextcloud/aio-talk-recording:latest
+    container_name: nextcloud-talk-recording
+    init: true
+    restart: unless-stopped
+    shm_size: 2gb
+    # WebRTC needs unrestricted UDP back from Janus (port range 20000-40000).
+    # Docker bridge NAT drops returning UDP and the bot ends up stuck on the
+    # loading spinner with no remote streams. Use host networking so the
+    # recording API listens on the host's :1234 directly and media flows.
+    network_mode: host
+    environment:
+      - NC_DOMAIN=${NC_DOMAIN}
+      - NC_PROTOCOL=${NC_PROTOCOL:-https}
+      - HPB_DOMAIN=${HPB_DOMAIN}
+      - HPB_PROTOCOL=${HPB_PROTOCOL:-http}
+      - HPB_PATH=${HPB_PATH:-/}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
+      - RECORDING_SECRET=${RECORDING_SECRET}
+      - TZ=${TIMEZONE:-America/Sao_Paulo}
+      - SKIP_VERIFY=${SKIP_VERIFY:-false}
+      - ALLOW_ALL=false
+    volumes:
+      - recording_tmp:/tmp
+
+volumes:
+  recording_tmp:

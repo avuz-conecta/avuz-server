@@ -26,8 +26,12 @@ services:
       - NEXTCLOUD_ADMIN_USER=admin
       - NEXTCLOUD_ADMIN_PASSWORD=ChangeThisPassword123
 
-      # Trusted Domains (update with your domain)
-      - NEXTCLOUD_TRUSTED_DOMAINS=your-domain.com
+      # Trusted Domains — comma-separated list for multi-host serving.
+      # NEXTCLOUD_TRUSTED_DOMAIN (singular) = primary, used for overwrite.cli.url + theming.
+      # NEXTCLOUD_TRUSTED_DOMAINS (plural) = full list, each entry gets its own trusted_domains index.
+      # Include the recording upload domain (DNS-only, CF-bypassed) so NC accepts those requests.
+      - NEXTCLOUD_TRUSTED_DOMAIN=app3.avuz.app
+      - NEXTCLOUD_TRUSTED_DOMAINS=app3.avuz.app,recording.avuz.app
       - OVERWRITEPROTOCOL=https
 
       # SMTP Configuration (optional - leave empty to skip)
@@ -51,6 +55,24 @@ services:
 
       # Notifications app from Git (branch name, default: stable33)
       - NOTIFICATIONS_BRANCH=stable33
+
+      # Talk Recording backend (optional)
+      # URL + secret of the recording server deployed via portainer-recording-stack.yml
+      - TALK_RECORDING_URL=             # e.g. https://recording.avuz.internal or http://10.x.x.x:1234
+      - TALK_RECORDING_SECRET=          # must match RECORDING_SECRET in recording stack
+      - TALK_RECORDING_VERIFY=true      # false if recording cert is self-signed
+
+      # AI transcription + summary via integration_openai (optional)
+      # Leave AI_API_KEY empty to skip AI setup. Split providers:
+      #   LLM (summary) → OpenRouter → Anthropic Claude Haiku 4.5
+      #   STT (transcription) → Fireworks AI → whisper-large-v3
+      - AI_API_KEY=                                    # OpenRouter API key
+      - AI_BASE_URL=https://openrouter.ai/api/v1
+      - AI_LLM_MODEL=anthropic/claude-haiku-4-5
+      - AI_STT_API_KEY=                                # Fireworks AI API key
+      - AI_STT_BASE_URL=https://api.fireworks.ai/inference/v1
+      - AI_STT_MODEL=whisper-v3
+      - AI_STT_LANGUAGE=pt
 
 volumes:
   nextcloud_data:

@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-5"
+AVUZ_CONFIG_VERSION="33.0.0-9"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 
@@ -49,6 +49,7 @@ ENABLE_APPS=(
     "quota_warning"
     "notify_push"
     "onlyoffice"
+    "integration_openai"
 )
 
 # ──────────────────────────────────────────────
@@ -59,8 +60,16 @@ run_avuz_configuration() {
     echo "═══ Running Avuz Conecta configuration ═══"
 
     # Trusted domains & protocol
+    # NEXTCLOUD_TRUSTED_DOMAINS accepts comma-separated list, each goes to its
+    # own trusted_domains index. Required when serving NC under multiple host
+    # names (e.g. public CF-proxied + DNS-only for Talk recording uploads).
     echo "Configuring trusted domains..."
-    php occ config:system:set trusted_domains 0 --value="$NEXTCLOUD_TRUSTED_DOMAINS"
+    IFS=',' read -ra _avuz_trusted_domains <<< "$NEXTCLOUD_TRUSTED_DOMAINS"
+    for _i in "${!_avuz_trusted_domains[@]}"; do
+        _domain="${_avuz_trusted_domains[$_i]// /}"
+        [ -z "$_domain" ] && continue
+        php occ config:system:set trusted_domains "$_i" --value="$_domain"
+    done
     php occ config:system:set overwrite.cli.url --value="https://$NEXTCLOUD_TRUSTED_DOMAIN"
     if [ -n "$OVERWRITEPROTOCOL" ]; then
         php occ config:system:set overwriteprotocol --value="$OVERWRITEPROTOCOL"
@@ -139,6 +148,84 @@ run_avuz_configuration() {
     # Talk defaults
     php occ config:app:set spreed create_samples --value="false"
     php occ config:app:set spreed changelog --value="no"
+    # Disable AI summary until M2 (LLM provider not deployed yet).
+    # Transcription still runs if a Speech-to-Text provider is registered.
+    php occ config:app:set spreed call_recording_summary --value="no"
+
+    # ── Talk recording backend ──
+    # Gated on TALK_RECORDING_URL + TALK_RECORDING_SECRET. Stored as
+    # JSON in spreed:recording_servers (see Config::getRecordingServers()).
+    if [ -n "$TALK_RECORDING_URL" ] && [ -n "$TALK_RECORDING_SECRET" ]; then
+        echo "Configuring Talk recording backend..."
+        TALK_RECORDING_VERIFY="${TALK_RECORDING_VERIFY:-true}"
+        # Build JSON without jq (not present in image)
+        php -r '
+            $cfg = [
+                "servers" => [[
+                    "server" => $argv[1],
+                    "verify" => filter_var($argv[2], FILTER_VALIDATE_BOOLEAN),
+                ]],
+                "secret" => $argv[3],
+            ];
+            echo json_encode($cfg);
+        ' "$TALK_RECORDING_URL" "$TALK_RECORDING_VERIFY" "$TALK_RECORDING_SECRET" \
+          | xargs -0 -I{} php occ config:app:set spreed recording_servers --value="{}"
+        php occ config:app:set spreed call_recording --value="yes"
+        echo "✓ Talk recording backend configured"
+    else
+        echo "→ TALK_RECORDING_URL/SECRET not set, skipping recording backend config"
+    fi
+
+    # ── AI providers via integration_openai (Groq / OpenAI / compatible) ──
+    # integration_openai is a pure-PHP NC app (no Docker, no HaRP) that
+    # implements core:audio2text (STT) and core:text2text:* (LLM) providers
+    # against any OpenAI-compatible API. We point it at Groq for the pilot:
+    # cheap (~$5/mo for 3h audio/day), high quality (whisper-large-v3 +
+    # Llama 3.3 70B). Pivot-friendly: swap base URL + key to OpenAI / Azure /
+    # OpenRouter without code changes.
+    if [ -n "$AI_API_KEY" ]; then
+        echo "Configuring AI provider (integration_openai)..."
+
+        if ! php occ app:list --enabled 2>/dev/null | grep -q "  - integration_openai"; then
+            echo "Installing integration_openai from App Store..."
+            php occ app:install integration_openai 2>/dev/null && echo "✓ integration_openai installed" \
+                || echo "✗ integration_openai install failed (no internet?)"
+        else
+            echo "✓ integration_openai already present"
+        fi
+        php occ app:enable --force integration_openai 2>/dev/null || true
+
+        # Pilot defaults: LLM via OpenRouter (Anthropic Claude Haiku) + STT
+        # via Fireworks AI (whisper-large-v3). Two providers via the split
+        # AI_*/AI_STT_* env vars below. Override any of them to swap stacks.
+        AI_BASE_URL="${AI_BASE_URL:-https://openrouter.ai/api/v1}"
+        AI_LLM_MODEL="${AI_LLM_MODEL:-anthropic/claude-haiku-4-5}"
+        AI_STT_BASE_URL="${AI_STT_BASE_URL:-https://api.fireworks.ai/inference/v1}"
+        AI_STT_MODEL="${AI_STT_MODEL:-whisper-v3}"
+        AI_STT_LANGUAGE="${AI_STT_LANGUAGE:-pt}"
+
+        # Text/chat completions (used by core:text2text:summary etc.)
+        php occ config:app:set integration_openai url --value="$AI_BASE_URL"
+        php occ config:app:set integration_openai api_key --value="$AI_API_KEY"
+        php occ config:app:set integration_openai default_completion_model_id --value="$AI_LLM_MODEL"
+        php occ config:app:set integration_openai chat_endpoint_enabled --value="1"
+
+        # Speech-to-text (used by core:audio2text). Independent provider:
+        # AI_STT_BASE_URL + AI_STT_API_KEY required (Fireworks key, distinct
+        # from the OpenRouter key used for AI_API_KEY above).
+        php occ config:app:set integration_openai stt_url --value="$AI_STT_BASE_URL"
+        php occ config:app:set integration_openai stt_api_key --value="${AI_STT_API_KEY:-$AI_API_KEY}"
+        php occ config:app:set integration_openai default_stt_model_id --value="$AI_STT_MODEL"
+        php occ config:app:set integration_openai stt_provider_enabled --value="1"
+        php occ config:app:set integration_openai stt_language --value="$AI_STT_LANGUAGE"
+
+        # Re-enable Talk AI summary now that LLM is wired up.
+        php occ config:app:set spreed call_recording_summary --value="yes"
+
+        echo "✓ AI provider configured (base=$AI_BASE_URL llm=$AI_LLM_MODEL stt=$AI_STT_MODEL)"
+    else
+        echo "→ AI_API_KEY not set, skipping AI provider config (Talk transcription disabled)"
+    fi
 
     # Mail app optimizations
     php occ config:system:set app.mail.imap.timeout --value=20 --type=integer

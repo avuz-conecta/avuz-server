@@ -1,0 +1,56 @@
+version: '3.8'
+
+# ⚠ PARKED — not in active use.
+# Pilot path uses Groq API via integration_openai (no Docker, no HaRP).
+# Keep this file for the future "fully local" / privacy-only path:
+# bring up HaRP, deploy stt_whisper2 ExApp, then switch the entrypoint
+# AI block back to AppAPI-based registration.
+#
+# Avuz Whisper / AI ExApps stack.
+# Deploy on the apps environment in Portainer.
+#
+# This stack runs HaRP (Nextcloud AppAPI HaProxy Reversed Proxy). HaRP is the
+# component that AppAPI uses to deploy and route requests to ExApps such as
+# stt_whisper2 (Speech-to-Text) and llm2 (summary/LLM). HaRP needs the host
+# Docker socket because it spins up ExApp containers itself.
+#
+# After deploying this stack, the Avuz Conecta entrypoint will:
+#   1. install/enable the app_api Nextcloud app
+#   2. register this HaRP instance as a "docker-install" deploy daemon
+#   3. deploy + register the stt_whisper2 ExApp via that daemon
+#
+# Required env vars (configure in Portainer stack UI):
+#   - HP_SHARED_KEY         long random string, must match HARP_SHARED_KEY in NC stack
+#   - NC_INSTANCE_URL       public URL of Avuz Conecta (e.g. https://avuz.example.com)
+#   - APPS_NETWORK          external Docker network shared with NC (defaults to "apps")
+#
+# Network: the NC container and HaRP must share a Docker network so NC can
+# reach `appapi-harp:8780`. Create it once on the host:
+#   docker network create apps
+# Then add `networks: [apps]` (and `external: true`) to your NC stack as well.
+
+services:
+  appapi-harp:
+    image: ghcr.io/nextcloud/nextcloud-appapi-harp:release
+    container_name: appapi-harp
+    hostname: appapi-harp
+    restart: unless-stopped
+    environment:
+      - HP_SHARED_KEY=${HP_SHARED_KEY}
+      - NC_INSTANCE_URL=${NC_INSTANCE_URL}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - harp_certs:/certs
+    ports:
+      - "8780:8780"   # ExApps reverse proxy
+      - "8782:8782"   # FRP control
+    networks:
+      - apps
+
+networks:
+  apps:
+    external: true
+    name: ${APPS_NETWORK:-apps}
+
+volumes:
+  harp_certs:
