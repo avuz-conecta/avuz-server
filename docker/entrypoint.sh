@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-10"
+AVUZ_CONFIG_VERSION="33.0.0-11"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 
@@ -71,6 +71,10 @@ verify_avuz_patches() {
 run_avuz_configuration() {
     echo "═══ Running Avuz Conecta configuration ═══"
 
+    # Re-enable the in-app store for the duration of this run so the
+    # app:install/update calls below can query the store. Re-disabled at the end.
+    php occ config:system:set appstoreenabled --value=true --type=boolean
+
     # Trusted domains & protocol
     # NEXTCLOUD_TRUSTED_DOMAINS accepts comma-separated list, each goes to its
     # own trusted_domains index. Required when serving NC under multiple host
@@ -86,11 +90,6 @@ run_avuz_configuration() {
     if [ -n "$OVERWRITEPROTOCOL" ]; then
         php occ config:system:set overwriteprotocol --value="$OVERWRITEPROTOCOL"
     fi
-
-    # Avuz owns the app upgrade cycle via image rebuilds. Disable the in-app store
-    # so admins cannot overwrite our patched spreed (which carries the chunked
-    # upload endpoints).
-    php occ config:system:set appstoreenabled --value=false --type=boolean
 
     # Redis cache
     echo "Configuring Redis cache..."
@@ -314,6 +313,11 @@ PHPINI
     for app in "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"; do
         php occ app:enable --force "$app" 2>/dev/null || echo "✗ Could not enable $app"
     done
+
+    # Lock down the in-app store AFTER all installs/updates above have run.
+    # Avuz owns the app upgrade cycle via image rebuilds; this prevents admins
+    # (or NC's auto-update) from overwriting our patched spreed.
+    php occ config:system:set appstoreenabled --value=false --type=boolean
 
     # Write stamp so we skip this on plain restarts
     echo "$AVUZ_CONFIG_VERSION" > "$CONFIG_STAMP_FILE"
