@@ -52,6 +52,18 @@ ENABLE_APPS=(
     "integration_openai"
 )
 
+verify_avuz_patches() {
+    local sentinel="AVUZ-CHUNKED-UPLOAD-V1"
+    local target="/var/www/html/apps/spreed/lib/Controller/RecordingController.php"
+    if ! grep -q "$sentinel" "$target" 2>/dev/null; then
+        echo "✗ AVUZ PATCH MISSING: sentinel '$sentinel' not found in $target"
+        echo "  Refusing to boot — image may be corrupted or an admin reinstalled spreed."
+        echo "  Recover: redeploy from the latest avuz-server image."
+        exit 1
+    fi
+    echo "✓ Avuz spreed patches present"
+}
+
 # ──────────────────────────────────────────────
 # Avuz configuration — runs on fresh install, after upgrade, or when config version changes
 # All settings here are persisted in config.php or the DB, so they only need to run once.
@@ -74,6 +86,11 @@ run_avuz_configuration() {
     if [ -n "$OVERWRITEPROTOCOL" ]; then
         php occ config:system:set overwriteprotocol --value="$OVERWRITEPROTOCOL"
     fi
+
+    # Avuz owns the app upgrade cycle via image rebuilds. Disable the in-app store
+    # so admins cannot overwrite our patched spreed (which carries the chunked
+    # upload endpoints).
+    php occ config:system:set appstoreenabled --value=false --type=boolean
 
     # Redis cache
     echo "Configuring Redis cache..."
@@ -462,6 +479,7 @@ echo "✓ Nextcloud verified"
 # - after upgrade (NEEDS_CONFIGURATION=1)
 # - config version changed (new image deployed)
 CURRENT_STAMP=$(cat "$CONFIG_STAMP_FILE" 2>/dev/null || echo "")
+verify_avuz_patches
 if [ "$NEEDS_CONFIGURATION" -eq 1 ] || [ "$CURRENT_STAMP" != "$AVUZ_CONFIG_VERSION" ]; then
     run_avuz_configuration
 else
