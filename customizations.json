@@ -341,6 +341,29 @@
       "description": "Pre-configure password_policy app: 8 char minimum, enforce uppercase/lowercase, numeric, and special characters.",
       "risk": "low",
       "notes": "Uses occ config:app:set — no core file changes. Settings stored in NC database. password_policy app must be enabled (it is in ENABLE_APPS)."
+    },
+    {
+      "id": "spreed-chunked-recording-upload",
+      "type": "overlay",
+      "paths": [
+        "docker/overlays/spreed/lib/Capabilities.php",
+        "docker/overlays/spreed/lib/Controller/RecordingController.php",
+        "docker/overlays/spreed/lib/Service/RecordingChunkedUploadService.php",
+        "Dockerfile"
+      ],
+      "description": "Spreed overlay (full-file replacements applied at Docker build time) that adds POST /store-chunked/{init,put,finalize} endpoints and the 'recording-chunked-v1' capability so Talk recordings >100MB succeed through Cloudflare (free plan 100MB body cap). Reuses the existing Talk-Recording HMAC signature scheme. Finalize hands off to RecordingService::store() so AI summary + chat attachment flows are untouched.",
+      "risk": "medium",
+      "notes": "Overlay applied via Dockerfile builder stage: `RUN cp -R docker/overlays/spreed/. /var/www/html/apps/spreed/`. Sentinel 'AVUZ-CHUNKED-UPLOAD-V1' in RecordingController.php; entrypoint verify_avuz_patches() fails boot if missing. Requires the matching avuz/talk-recording bot image. On upstream spreed bumps, re-derive each overlay file from the new base; rebase guide in docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md."
+    },
+    {
+      "id": "recording-bot-chunked-upload",
+      "type": "external-fork",
+      "paths": [
+        "portainer-recording-stack.yml"
+      ],
+      "description": "Fork of nextcloud/nextcloud-talk-recording maintained in the separate repo github.com/avuz-conecta/talk-recording. BackendNotifier.uploadRecording branches on the 'recording-chunked-v1' capability and uploads files >50MB in 50MB chunks via the new spreed endpoints. Image published as avuz/talk-recording, referenced from portainer-recording-stack.yml; replaces nextcloud/aio-talk-recording.",
+      "risk": "medium",
+      "notes": "Source + Dockerfile + build script live in github.com/avuz-conecta/talk-recording. Upstream pin tracked in that repo's AVUZ_FORK.md. Rebase = pull next upstream tag in avuz-conecta/talk-recording, cherry-pick chunked-upload commits, rebuild, redeploy."
     }
   ]
 }
