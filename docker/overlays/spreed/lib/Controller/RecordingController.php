@@ -26,6 +26,7 @@ use OCA\Talk\Room;
 use OCA\Talk\Service\CertificateService;
 use OCA\Talk\Service\ChecksumVerificationService;
 use OCA\Talk\Service\ParticipantService;
+use OCA\Talk\Service\RecordingChunkedUploadService;
 use OCA\Talk\Service\RecordingService;
 use OCA\Talk\Service\RoomService;
 use OCA\Talk\Vendor\CuyZ\Valinor\Mapper\MappingError;
@@ -56,6 +57,7 @@ class RecordingController extends AEnvironmentAwareOCSController {
 		private CertificateService $certificateService,
 		private ParticipantService $participantService,
 		private RecordingService $recordingService,
+		private RecordingChunkedUploadService $chunkedService,
 		private RoomService $roomService,
 		private ITimeFactory $timeFactory,
 		private ChecksumVerificationService $checksumVerificationService,
@@ -439,6 +441,140 @@ class RecordingController extends AEnvironmentAwareOCSController {
 			$this->recordingService->store($this->getRoom(), $owner, $file);
 		} catch (InvalidArgumentException $e) {
 			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
+		return new DataResponse(null);
+	}
+
+	/**
+	 * Initialize a chunked recording upload.
+	 *
+	 * @param ?string $owner User that will own the recording file.
+	 * @param ?string $fileName Final file name (basename only).
+	 * @param ?int $totalSize Total recording size in bytes.
+	 * @return DataResponse<Http::STATUS_OK, array{uploadId: string}, array{}>|DataResponse<Http::STATUS_BAD_REQUEST, array{error: string}, array{}>|DataResponse<Http::STATUS_UNAUTHORIZED, array{type: string, error: array{code: string, message: string}}, array{}>
+	 *
+	 * 200: Upload initialised
+	 * 400: Bad parameters
+	 * 401: Signature invalid
+	 */
+	#[PublicPage]
+	#[BruteForceProtection(action: 'talkRecordingSecret')]
+	#[OpenAPI(scope: 'backend-recording')]
+	#[RequireRoom]
+	#[RequestHeader(name: 'talk-recording-random', description: 'Random seed used to generate the request checksum', indirect: true)]
+	#[RequestHeader(name: 'talk-recording-checksum', description: 'Checksum over the request body to verify authenticity from the recording backend', indirect: true)]
+	#[ApiRoute(verb: 'POST', url: '/api/{apiVersion}/recording/{token}/store-chunked/init', requirements: [
+		'apiVersion' => '(v1)',
+		'token' => '[a-z0-9]{4,30}',
+	])]
+	public function storeChunkedInit(?string $owner, ?string $fileName, ?int $totalSize): DataResponse {
+		if (!$this->validateBackendRequest($this->room->getToken())) {
+			$response = new DataResponse([
+				'type' => 'error',
+				'error' => ['code' => 'invalid_request', 'message' => 'The request could not be authenticated.'],
+			], Http::STATUS_UNAUTHORIZED);
+			$response->throttle(['action' => 'talkRecordingSecret']);
+			return $response;
+		}
+		if ($owner === null || $fileName === null || $totalSize === null) {
+			return new DataResponse(['error' => 'params'], Http::STATUS_BAD_REQUEST);
+		}
+		try {
+			$uploadId = $this->chunkedService->init($this->room, $fileName, $totalSize);
+		} catch (InvalidArgumentException $e) {
+			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
+		return new DataResponse(['uploadId' => $uploadId]);
+	}
+
+	/**
+	 * Upload one chunk of a recording.
+	 *
+	 * Body is the raw chunk bytes. Signature checksum is computed over
+	 * the string "{token}:{uploadId}:{index}".
+	 *
+	 * @param string $uploadId Identifier returned by store-chunked/init.
+	 * @param int $index Zero-based chunk index.
+	 * @return DataResponse<Http::STATUS_OK, null, array{}>|DataResponse<Http::STATUS_BAD_REQUEST, array{error: string}, array{}>|DataResponse<Http::STATUS_UNAUTHORIZED, array{type: string, error: array{code: string, message: string}}, array{}>
+	 *
+	 * 200: Chunk stored
+	 * 400: Bad parameters
+	 * 401: Signature invalid
+	 */
+	#[PublicPage]
+	#[BruteForceProtection(action: 'talkRecordingSecret')]
+	#[OpenAPI(scope: 'backend-recording')]
+	#[RequireRoom]
+	#[RequestHeader(name: 'talk-recording-random', description: 'Random seed used to generate the request checksum', indirect: true)]
+	#[RequestHeader(name: 'talk-recording-checksum', description: 'Checksum over "{token}:{uploadId}:{index}" to verify authenticity', indirect: true)]
+	#[ApiRoute(verb: 'POST', url: '/api/{apiVersion}/recording/{token}/store-chunked/{uploadId}/{index}', requirements: [
+		'apiVersion' => '(v1)',
+		'token' => '[a-z0-9]{4,30}',
+		'uploadId' => '[a-f0-9]{32}',
+		'index' => '\d+',
+	])]
+	public function storeChunkedPut(string $uploadId, int $index): DataResponse {
+		$sigData = $this->room->getToken() . ':' . $uploadId . ':' . $index;
+		if (!$this->validateBackendRequest($sigData)) {
+			$response = new DataResponse([
+				'type' => 'error',
+				'error' => ['code' => 'invalid_request', 'message' => 'The request could not be authenticated.'],
+			], Http::STATUS_UNAUTHORIZED);
+			$response->throttle(['action' => 'talkRecordingSecret']);
+			return $response;
+		}
+		try {
+			$this->chunkedService->writeChunk($this->room, $uploadId, $index, $this->getInputStream());
+		} catch (InvalidArgumentException $e) {
+			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
+		return new DataResponse(null);
+	}
+
+	/**
+	 * Finalise a chunked recording upload — reassemble and hand off to RecordingService::store().
+	 *
+	 * @param string $uploadId Identifier returned by store-chunked/init.
+	 * @param ?string $owner User that will own the recording file.
+	 * @return DataResponse<Http::STATUS_OK, null, array{}>|DataResponse<Http::STATUS_BAD_REQUEST, array{error: string}, array{}>|DataResponse<Http::STATUS_UNAUTHORIZED, array{type: string, error: array{code: string, message: string}}, array{}>
+	 *
+	 * 200: Recording stored
+	 * 400: Reassembly failed
+	 * 401: Signature invalid
+	 */
+	#[PublicPage]
+	#[BruteForceProtection(action: 'talkRecordingSecret')]
+	#[OpenAPI(scope: 'backend-recording')]
+	#[RequireRoom]
+	#[RequestHeader(name: 'talk-recording-random', description: 'Random seed used to generate the request checksum', indirect: true)]
+	#[RequestHeader(name: 'talk-recording-checksum', description: 'Checksum over "{token}:{uploadId}:finalize" to verify authenticity', indirect: true)]
+	#[ApiRoute(verb: 'POST', url: '/api/{apiVersion}/recording/{token}/store-chunked/{uploadId}/finalize', requirements: [
+		'apiVersion' => '(v1)',
+		'token' => '[a-z0-9]{4,30}',
+		'uploadId' => '[a-f0-9]{32}',
+	])]
+	public function storeChunkedFinalize(string $uploadId, ?string $owner): DataResponse {
+		$sigData = $this->room->getToken() . ':' . $uploadId . ':finalize';
+		if (!$this->validateBackendRequest($sigData)) {
+			$response = new DataResponse([
+				'type' => 'error',
+				'error' => ['code' => 'invalid_request', 'message' => 'The request could not be authenticated.'],
+			], Http::STATUS_UNAUTHORIZED);
+			$response->throttle(['action' => 'talkRecordingSecret']);
+			return $response;
+		}
+		if ($owner === null) {
+			return new DataResponse(['error' => 'owner'], Http::STATUS_BAD_REQUEST);
+		}
+		try {
+			$file = $this->chunkedService->finalize($this->room, $uploadId);
+			$this->recordingService->store($this->getRoom(), $owner, $file);
+		} catch (InvalidArgumentException $e) {
+			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		} finally {
+			if (isset($file['tmp_name']) && is_file($file['tmp_name'])) {
+				@unlink($file['tmp_name']);
+			}
 		}
 		return new DataResponse(null);
 	}
