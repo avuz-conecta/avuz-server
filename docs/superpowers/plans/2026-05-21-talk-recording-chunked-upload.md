@@ -5,9 +5,10 @@
 **Goal:** Add chunked upload to the Talk recording upload pipeline so recordings >100 MB succeed through Cloudflare (free plan, 100 MB body cap). Patch happens entirely in the Avuz fork — spreed PHP + a forked Python recording bot — with no upstream PR dependency.
 
 **Architecture:**
-- spreed (`apps/spreed`) gains three new OCS endpoints for chunked store: `init`, `chunk PUT`, `finalize`. Each reuses the existing HMAC-SHA256 signature scheme (`validateBackendRequest`). Finalize reassembles chunks on disk then calls the existing `RecordingService::store()` path so AI summary + chat attachment flows are untouched.
+- The Avuz fork does **not** vendor `apps/spreed/` in git (it is `.gitignore`d — the fork only tracks an allowlist of customised apps). Our patched spreed files live as an overlay at `docker/overlays/spreed/...` and are layered onto the base image's spreed tree during the Docker build (`RUN cp -R docker/overlays/spreed/. /var/www/html/apps/spreed/` in the builder stage, after the main `COPY . /var/www/html/`).
+- spreed (via the overlay) gains three new OCS endpoints for chunked store: `init`, `chunk PUT`, `finalize`. Each reuses the existing HMAC-SHA256 signature scheme (`validateBackendRequest`). Finalize reassembles chunks on disk then calls the existing `RecordingService::store()` path so AI summary + chat attachment flows are untouched.
 - Recording bot (Python) is forked into a **separate GitHub repo** `github.com/avuz-conecta/talk-recording`. When the NC backend advertises capability `recording-chunked-v1`, the bot splits the recording into 50 MB chunks and uploads via the new endpoints; otherwise it falls back to the existing single-multipart POST. The new repo owns its own Dockerfile + build script and publishes the image `avuz/talk-recording`, which replaces `nextcloud/aio-talk-recording` in this repo's `portainer-recording-stack.yml`. This repo does **not** vendor the bot source.
-- Entrypoint disables NC app store (`appstoreenabled=false`) so admins cannot overwrite our patched spreed, plus a boot-time sentinel check fails loud if our patch markers are missing from `RecordingController.php`.
+- Entrypoint disables NC app store (`appstoreenabled=false`) so admins cannot overwrite our patched spreed, plus a boot-time sentinel check fails loud if our patch markers are missing from the running `/var/www/html/apps/spreed/lib/Controller/RecordingController.php` (which is the overlay-applied file).
 
 **Tech Stack:** PHP 8.x (spreed), Python 3.13 (recording bot), Docker multi-arch (linux/amd64 staging + linux/arm64 local), Nextcloud 33, Portainer stacks.
 
@@ -15,11 +16,12 @@
 
 ## File Structure
 
-**spreed patch (`apps/spreed/`)**
-- Modify `lib/Controller/RecordingController.php` — add `storeChunkInit`, `storeChunkPut`, `storeChunkFinalize`. Insert `// AVUZ-CHUNKED-UPLOAD-V1` sentinel comment at top of class.
-- Create `lib/Service/RecordingChunkedUploadService.php` — chunk storage, reassembly, cleanup.
-- Modify `lib/Capabilities.php` — add `'recording-chunked-v1'` to features array.
-- Modify `appinfo/routes.php` — ensure new ApiRoute attributes register (they auto-register via attributes, so usually no change; verify).
+**spreed overlay (`docker/overlays/spreed/`)** — applied during Docker build, never replaces the gitignored on-disk `apps/spreed/`.
+- Create `docker/overlays/spreed/lib/Capabilities.php` — copy of the on-disk file with `'recording-chunked-v1'` added to features array.
+- Create `docker/overlays/spreed/lib/Controller/RecordingController.php` — copy of the on-disk file with: `AVUZ-CHUNKED-UPLOAD-V1` sentinel comment above the class; constructor injection of `RecordingChunkedUploadService`; three new methods `storeChunkedInit`, `storeChunkedPut`, `storeChunkedFinalize`.
+- Create `docker/overlays/spreed/lib/Service/RecordingChunkedUploadService.php` — net-new file (no original on-disk counterpart): chunk storage, reassembly, cleanup, sweepStale.
+
+The overlay is **not** a patch — each file in `docker/overlays/spreed/` is a full replacement for the same-path file in the base image's spreed tree. Net-new files (the new service) are simply added by the same `cp -R`.
 
 **Recording bot fork (separate repo, `github.com/avuz-conecta/talk-recording`)**
 - New GitHub repo under the `avuz-conecta` org, initialised from `github.com/nextcloud/nextcloud-talk-recording` at the version matching `nextcloud/aio-talk-recording:latest`.
@@ -38,15 +40,26 @@
 
 ---
 
-## Task 1: Capability flag + sentinel comment
+## Task 1: Overlay scaffold + capability flag + sentinel
 
 **Files:**
-- Modify: `apps/spreed/lib/Capabilities.php:86`
-- Modify: `apps/spreed/lib/Controller/RecordingController.php:1`
+- Create: `docker/overlays/spreed/lib/Capabilities.php` (copy of on-disk source + 1 line)
+- Create: `docker/overlays/spreed/lib/Controller/RecordingController.php` (copy of on-disk source + 1 line)
 
-- [ ] **Step 1: Add capability flag**
+- [ ] **Step 1: Copy the two originals into the overlay tree**
 
-Edit `apps/spreed/lib/Capabilities.php` near line 86 (the features list). Add the new entry **after** `'recording-v1'`:
+The on-disk source lives at `/Users/patrickrezende/work/avuz/avuz-server/apps/spreed/` (gitignored — present because NC base image extracted it). The worktree itself does **not** contain these files. Copy them across:
+
+```bash
+ORIGIN=/Users/patrickrezende/work/avuz/avuz-server/apps/spreed
+mkdir -p docker/overlays/spreed/lib/Controller docker/overlays/spreed/lib/Service
+cp "$ORIGIN/lib/Capabilities.php"                  docker/overlays/spreed/lib/Capabilities.php
+cp "$ORIGIN/lib/Controller/RecordingController.php" docker/overlays/spreed/lib/Controller/RecordingController.php
+```
+
+- [ ] **Step 2: Add capability flag**
+
+Edit `docker/overlays/spreed/lib/Capabilities.php` near line 86 (the features list). Add the new entry **after** `'recording-v1'`:
 
 ```php
 		'recording-v1',
@@ -54,30 +67,30 @@ Edit `apps/spreed/lib/Capabilities.php` near line 86 (the features list). Add th
 		'avatar',
 ```
 
-- [ ] **Step 2: Add sentinel comment to RecordingController**
+- [ ] **Step 3: Add sentinel comment to the overlay RecordingController**
 
-Open `apps/spreed/lib/Controller/RecordingController.php`. Immediately above the `class RecordingController` declaration, insert:
+Open `docker/overlays/spreed/lib/Controller/RecordingController.php`. Immediately above the `class RecordingController` declaration, insert:
 
 ```php
 // AVUZ-CHUNKED-UPLOAD-V1 — do not remove; entrypoint integrity check matches this string
 ```
 
-This sentinel is what `docker/entrypoint.sh` will grep for on boot (Task 9).
+This sentinel is what `docker/entrypoint.sh` will grep for on boot in `/var/www/html/apps/spreed/lib/Controller/RecordingController.php` (the overlay-applied path inside the running container — see Task 9).
 
-- [ ] **Step 3: Smoke test the PHP file still parses**
+- [ ] **Step 4: Syntax check**
 
 ```bash
-php -l apps/spreed/lib/Controller/RecordingController.php
-php -l apps/spreed/lib/Capabilities.php
+php -l docker/overlays/spreed/lib/Controller/RecordingController.php
+php -l docker/overlays/spreed/lib/Capabilities.php
 ```
 
 Expected: `No syntax errors detected ...` for both.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add apps/spreed/lib/Capabilities.php apps/spreed/lib/Controller/RecordingController.php
-git commit -m "avuz(spreed): add recording-chunked-v1 capability + sentinel"
+git add docker/overlays/spreed/lib/Capabilities.php docker/overlays/spreed/lib/Controller/RecordingController.php
+git commit -m "avuz(spreed): overlay scaffold + recording-chunked-v1 capability + sentinel"
 ```
 
 ---
@@ -85,7 +98,7 @@ git commit -m "avuz(spreed): add recording-chunked-v1 capability + sentinel"
 ## Task 2: Chunked upload service (PHP)
 
 **Files:**
-- Create: `apps/spreed/lib/Service/RecordingChunkedUploadService.php`
+- Create: `docker/overlays/spreed/lib/Service/RecordingChunkedUploadService.php`
 
 - [ ] **Step 1: Create the service class**
 
@@ -257,7 +270,7 @@ class RecordingChunkedUploadService {
 - [ ] **Step 2: Syntax check**
 
 ```bash
-php -l apps/spreed/lib/Service/RecordingChunkedUploadService.php
+php -l docker/overlays/spreed/lib/Service/RecordingChunkedUploadService.php
 ```
 
 Expected: `No syntax errors detected ...`.
@@ -265,7 +278,7 @@ Expected: `No syntax errors detected ...`.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/spreed/lib/Service/RecordingChunkedUploadService.php
+git add docker/overlays/spreed/lib/Service/RecordingChunkedUploadService.php
 git commit -m "avuz(spreed): add RecordingChunkedUploadService for chunked recording store"
 ```
 
@@ -274,7 +287,7 @@ git commit -m "avuz(spreed): add RecordingChunkedUploadService for chunked recor
 ## Task 3: Chunked upload controller endpoints (PHP)
 
 **Files:**
-- Modify: `apps/spreed/lib/Controller/RecordingController.php` (add three methods + constructor injection)
+- Modify: `docker/overlays/spreed/lib/Controller/RecordingController.php` (the overlay copy created in Task 1 — add three methods + constructor injection here)
 
 - [ ] **Step 1: Add the service dependency**
 
@@ -429,7 +442,7 @@ Insert these methods immediately **after** the existing `store(?string $owner)` 
 - [ ] **Step 3: Syntax check**
 
 ```bash
-php -l apps/spreed/lib/Controller/RecordingController.php
+php -l docker/overlays/spreed/lib/Controller/RecordingController.php
 ```
 
 Expected: `No syntax errors detected ...`.
@@ -437,7 +450,7 @@ Expected: `No syntax errors detected ...`.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add apps/spreed/lib/Controller/RecordingController.php
+git add docker/overlays/spreed/lib/Controller/RecordingController.php
 git commit -m "avuz(spreed): add storeChunked init/put/finalize endpoints"
 ```
 
@@ -573,12 +586,12 @@ Using the `gh` CLI (or the GitHub web UI):
 
 ```bash
 gh repo create avuz-conecta/talk-recording \
-  --public \
+  --private \
   --description "Avuz fork of nextcloud-talk-recording with chunked upload support for files >50MB" \
   --clone=false
 ```
 
-(If `--public` is wrong for the org, use `--private`. Confirm with the user before creating.)
+(Confirmed `--private` is the choice for this org.)
 
 - [ ] **Step 3: Seed the new repo from the pinned upstream tag**
 
@@ -889,13 +902,33 @@ No commit in the avuz-server repo for this task.
 
 ---
 
-## Task 8: Swap stack image + raise PHP limits
+## Task 8: Dockerfile overlay step + stack image + PHP limits
 
 **Files:**
-- Modify: `portainer-recording-stack.yml:5`
+- Modify: `Dockerfile` (apply spreed overlay in builder stage)
+- Modify: `portainer-recording-stack.yml`
 - Modify: `docker/entrypoint.sh` (PHP ini values + AVUZ_CONFIG_VERSION)
 
-- [ ] **Step 1: Swap image in recording stack**
+- [ ] **Step 1: Apply the spreed overlay in the Dockerfile builder stage**
+
+Open `Dockerfile`. Locate the builder stage's `COPY . /var/www/html/` line. **After** that line (so the overlay wins over anything the bare COPY would have placed) and **before** the `RUN npm run build` line, insert:
+
+```dockerfile
+# Apply Avuz spreed overlay (chunked recording upload patches).
+# Each file under docker/overlays/spreed/ is a full replacement for the same
+# relative path under apps/spreed/. Net-new files are added by the same cp -R.
+RUN cp -R /var/www/html/docker/overlays/spreed/. /var/www/html/apps/spreed/
+```
+
+Verify the existing builder permission step still picks up the new files:
+
+```bash
+grep -n "find /var/www/html/apps -type" Dockerfile
+```
+
+If that `find ... -exec chmod` line already runs **after** the overlay step (it does, given the standard ordering in this Dockerfile), no further change is needed. Otherwise, move it to run after.
+
+- [ ] **Step 2: Swap image in recording stack**
 
 In `portainer-recording-stack.yml`, change:
 
@@ -909,7 +942,7 @@ to:
     image: avuz/talk-recording:latest
 ```
 
-- [ ] **Step 2: Raise PHP per-request limits in entrypoint**
+- [ ] **Step 3: Raise PHP per-request limits in entrypoint**
 
 Open `docker/entrypoint.sh`. Inside `run_avuz_configuration()`, after the existing `php occ config:system:set` calls but before the Talk block, add:
 
@@ -925,7 +958,7 @@ PHPINI
 
 (If a similar file already exists, update it instead of overwriting.)
 
-- [ ] **Step 3: Bump version stamp**
+- [ ] **Step 4: Bump version stamp**
 
 In `docker/entrypoint.sh` line 5, change:
 
@@ -939,11 +972,11 @@ to:
 AVUZ_CONFIG_VERSION="33.0.0-10"
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add portainer-recording-stack.yml docker/entrypoint.sh
-git commit -m "avuz(docker): swap to avuz/talk-recording image, raise PHP upload limits to 64M"
+git add Dockerfile portainer-recording-stack.yml docker/entrypoint.sh
+git commit -m "avuz(docker): apply spreed overlay, swap recording image, raise PHP limits 64M"
 ```
 
 ---
@@ -1018,15 +1051,16 @@ Schema in this repo uses `id`, `type`, `paths` (array), `description`, `risk`, `
 ```json
 {
   "id": "spreed-chunked-recording-upload",
-  "type": "patch",
+  "type": "overlay",
   "paths": [
-    "apps/spreed/lib/Controller/RecordingController.php",
-    "apps/spreed/lib/Service/RecordingChunkedUploadService.php",
-    "apps/spreed/lib/Capabilities.php"
+    "docker/overlays/spreed/lib/Capabilities.php",
+    "docker/overlays/spreed/lib/Controller/RecordingController.php",
+    "docker/overlays/spreed/lib/Service/RecordingChunkedUploadService.php",
+    "Dockerfile"
   ],
-  "description": "Adds POST /store-chunked/{init,put,finalize} endpoints and the 'recording-chunked-v1' capability so Talk recordings >100MB succeed through Cloudflare (free plan 100MB body cap). Reuses the existing Talk-Recording HMAC signature scheme. Finalize hands off to RecordingService::store() so AI summary + chat attachment flows are untouched.",
+  "description": "Spreed overlay (full-file replacements applied at Docker build time) that adds POST /store-chunked/{init,put,finalize} endpoints and the 'recording-chunked-v1' capability so Talk recordings >100MB succeed through Cloudflare (free plan 100MB body cap). Reuses the existing Talk-Recording HMAC signature scheme. Finalize hands off to RecordingService::store() so AI summary + chat attachment flows are untouched.",
   "risk": "medium",
-  "notes": "Sentinel 'AVUZ-CHUNKED-UPLOAD-V1' in RecordingController.php; entrypoint verify_avuz_patches() fails boot if missing. Requires the matching avuz/talk-recording bot image. Rebase guide: docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md."
+  "notes": "Overlay applied via Dockerfile builder stage: `RUN cp -R docker/overlays/spreed/. /var/www/html/apps/spreed/`. Sentinel 'AVUZ-CHUNKED-UPLOAD-V1' in RecordingController.php; entrypoint verify_avuz_patches() fails boot if missing. Requires the matching avuz/talk-recording bot image. On upstream spreed bumps, re-derive each overlay file from the new base; rebase guide in docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md."
 },
 {
   "id": "recording-bot-chunked-upload",
@@ -1046,7 +1080,7 @@ Append under "Key Customizations" in `CLAUDE.md`:
 
 ```markdown
 ### Talk recording chunked upload
-- spreed patched with /store-chunked endpoints (`apps/spreed/lib/Controller/RecordingController.php`, sentinel `AVUZ-CHUNKED-UPLOAD-V1`).
+- spreed patched via overlay (`docker/overlays/spreed/lib/...`) applied during Docker build. Sentinel `AVUZ-CHUNKED-UPLOAD-V1` lives in the overlay's `RecordingController.php`; entrypoint verifies the running container's spreed has it.
 - Bot fork lives in the **separate repo** `github.com/avuz-conecta/talk-recording`; image `avuz/talk-recording` referenced from `portainer-recording-stack.yml`.
 - Lets recordings >100MB survive Cloudflare's 100MB body cap. See `docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md`.
 ```
