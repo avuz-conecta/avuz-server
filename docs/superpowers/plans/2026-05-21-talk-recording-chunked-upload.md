@@ -515,7 +515,7 @@ size = os.path.getsize(FILE)
 init = requests.post(
     f"{NC}/ocs/v2.php/apps/spreed/api/v1/recording/{TOKEN}/store-chunked/init",
     headers={**sign(TOKEN), "OCS-APIRequest": "true", "Accept": "application/json"},
-    json={"owner": OWNER, "fileName": os.path.basename(FILE), "totalSize": size},
+    json={"fileName": os.path.basename(FILE), "totalSize": size},
 ).json()
 upload_id = init["ocs"]["data"]["uploadId"]
 print("uploadId:", upload_id)
@@ -711,7 +711,7 @@ def uploadRecordingChunked(backend: str, secret: bytes, skipVerify: bool, token:
     init = requests.post(
         base + "/init",
         headers={**common, **_sign(secret, token)},
-        json={"owner": owner, "fileName": os.path.basename(fileName), "totalSize": size},
+        json={"fileName": os.path.basename(fileName), "totalSize": size},
         verify=not skipVerify,
         timeout=30,
     )
