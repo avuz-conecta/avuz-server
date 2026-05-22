@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-11"
+AVUZ_CONFIG_VERSION="33.0.0-12"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 
@@ -62,6 +62,20 @@ verify_avuz_patches() {
         exit 1
     fi
     echo "✓ Avuz spreed patches present"
+}
+
+# Reapply the spreed overlay onto /var/www/html/apps/spreed/.
+# Required after any 'occ app:update' or 'occ upgrade' run, which can pull a
+# fresh upstream spreed from the app store and wipe our patches.
+reapply_avuz_spreed_overlay() {
+    local overlay="/var/www/html/docker/overlays/spreed"
+    if [ -d "$overlay" ]; then
+        cp -R "$overlay/." /var/www/html/apps/spreed/
+        chown -R www-data:www-data /var/www/html/apps/spreed
+        echo "✓ Avuz spreed overlay reapplied"
+    else
+        echo "✗ Avuz overlay missing at $overlay — image may be corrupted"
+    fi
 }
 
 # ──────────────────────────────────────────────
@@ -303,9 +317,12 @@ PHPINI
     php occ db:add-missing-indices --no-interaction 2>/dev/null || true
     php occ maintenance:repair --include-expensive 2>/dev/null || true
 
-    # Update App Store apps (custom_apps/) to latest compatible versions
+    # Update App Store apps (custom_apps/) to latest compatible versions.
+    # Note: this also updates bundled apps and can overwrite our spreed overlay,
+    # so reapply the overlay immediately after.
     echo "Updating App Store apps..."
     php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
+    reapply_avuz_spreed_overlay
 
     # Ensure all managed apps are enabled — use --force for apps that
     # haven't declared support for this NC version yet (bruteforcesettings, notifications, text)
@@ -443,9 +460,15 @@ else
         php occ upgrade --no-interaction
         php occ maintenance:mode --off
 
-        # Update custom_apps (App Store apps) now that NC core is upgraded
+        # NC upgrade may have rewritten bundled apps; reapply overlay before
+        # the app:update --all below (which can overwrite again).
+        reapply_avuz_spreed_overlay
+
+        # Update custom_apps (App Store apps) now that NC core is upgraded.
+        # Reapply overlay afterwards because app:update may pull a fresh spreed.
         echo "Updating App Store apps..."
         php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
+        reapply_avuz_spreed_overlay
 
         # Re-enable apps that were enabled before the upgrade
         # --allow-unstable is required for apps that haven't declared NC33 support yet
