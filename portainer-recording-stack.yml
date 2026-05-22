@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   nextcloud-talk-recording:
-    image: nextcloud/aio-talk-recording:latest
+    image: avuz/talk-recording:latest
     container_name: nextcloud-talk-recording
     init: true
     restart: unless-stopped

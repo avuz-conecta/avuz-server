@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-9"
+AVUZ_CONFIG_VERSION="33.0.0-10"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 
@@ -144,6 +144,14 @@ run_avuz_configuration() {
     php occ config:app:set password_policy enforceUpperLowerCase --value="1"
     php occ config:app:set password_policy enforceNumericCharacters --value="1"
     php occ config:app:set password_policy enforceSpecialCharacters --value="1"
+
+    # Per-chunk PHP limits — must exceed CHUNK_SIZE (50MB) plus multipart envelope.
+    # The new chunked recording endpoint POSTs each chunk as raw bytes; this ceiling
+    # caps the largest single chunk we will accept.
+    cat > /usr/local/etc/php/conf.d/avuz-upload.ini <<'PHPINI'
+upload_max_filesize = 64M
+post_max_size = 64M
+PHPINI
 
     # Talk defaults
     php occ config:app:set spreed create_samples --value="false"
