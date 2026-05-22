@@ -75,8 +75,14 @@ class RecordingChunkedUploadService {
 		$totalWritten = 0;
 		foreach ($chunks as $chunk) {
 			$bytes = $chunk->getContent();
-			fwrite($out, $bytes);
-			$totalWritten += strlen($bytes);
+			$written = fwrite($out, $bytes);
+			if ($written === false || $written !== strlen($bytes)) {
+				fclose($out);
+				@unlink($tmpPath);
+				$this->cleanup($room->getToken(), $uploadId);
+				throw new InvalidArgumentException('write_failed');
+			}
+			$totalWritten += $written;
 		}
 		fclose($out);
 
