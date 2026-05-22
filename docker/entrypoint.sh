@@ -55,6 +55,14 @@ ENABLE_APPS=(
 verify_avuz_patches() {
     local sentinel="AVUZ-CHUNKED-UPLOAD-V1"
     local target="/var/www/html/apps/spreed/lib/Controller/RecordingController.php"
+    echo "--- verify_avuz_patches debug ---"
+    ls -la "$target" 2>&1 || echo "(ls failed)"
+    sha256sum "$target" 2>&1 || echo "(sha256sum failed)"
+    echo "first match attempt (no quotes):"
+    grep -c "$sentinel" "$target" 2>&1 || echo "(grep returned non-zero)"
+    echo "head of file lines 40-55:"
+    sed -n '40,55p' "$target" 2>&1 || echo "(sed failed)"
+    echo "--- end debug ---"
     if ! grep -q "$sentinel" "$target" 2>/dev/null; then
         echo "✗ AVUZ PATCH MISSING: sentinel '$sentinel' not found in $target"
         echo "  Refusing to boot — image may be corrupted or an admin reinstalled spreed."
