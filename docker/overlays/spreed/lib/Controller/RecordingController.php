@@ -448,7 +448,6 @@ class RecordingController extends AEnvironmentAwareOCSController {
 	/**
 	 * Initialize a chunked recording upload.
 	 *
-	 * @param ?string $owner User that will own the recording file.
 	 * @param ?string $fileName Final file name (basename only).
 	 * @param ?int $totalSize Total recording size in bytes.
 	 * @return DataResponse<Http::STATUS_OK, array{uploadId: string}, array{}>|DataResponse<Http::STATUS_BAD_REQUEST, array{error: string}, array{}>|DataResponse<Http::STATUS_UNAUTHORIZED, array{type: string, error: array{code: string, message: string}}, array{}>
@@ -467,7 +466,7 @@ class RecordingController extends AEnvironmentAwareOCSController {
 		'apiVersion' => '(v1)',
 		'token' => '[a-z0-9]{4,30}',
 	])]
-	public function storeChunkedInit(?string $owner, ?string $fileName, ?int $totalSize): DataResponse {
+	public function storeChunkedInit(?string $fileName, ?int $totalSize): DataResponse {
 		if (!$this->validateBackendRequest($this->room->getToken())) {
 			$response = new DataResponse([
 				'type' => 'error',
@@ -476,7 +475,7 @@ class RecordingController extends AEnvironmentAwareOCSController {
 			$response->throttle(['action' => 'talkRecordingSecret']);
 			return $response;
 		}
-		if ($owner === null || $fileName === null || $totalSize === null) {
+		if ($fileName === null || $totalSize === null) {
 			return new DataResponse(['error' => 'params'], Http::STATUS_BAD_REQUEST);
 		}
 		try {
