@@ -7,7 +7,7 @@
 **Architecture:**
 - The Avuz fork does **not** vendor `apps/spreed/` in git (it is `.gitignore`d — the fork only tracks an allowlist of customised apps). Our patched spreed files live as an overlay at `docker/overlays/spreed/...` and are layered onto the base image's spreed tree during the Docker build (`RUN cp -R docker/overlays/spreed/. /var/www/html/apps/spreed/` in the builder stage, after the main `COPY . /var/www/html/`).
 - spreed (via the overlay) gains three new OCS endpoints for chunked store: `init`, `chunk PUT`, `finalize`. Each reuses the existing HMAC-SHA256 signature scheme (`validateBackendRequest`). Finalize reassembles chunks on disk then calls the existing `RecordingService::store()` path so AI summary + chat attachment flows are untouched.
-- Recording bot (Python) is forked into a **separate GitHub repo** `github.com/avuz-conecta/talk-recording`. When the NC backend advertises capability `recording-chunked-v1`, the bot splits the recording into 50 MB chunks and uploads via the new endpoints; otherwise it falls back to the existing single-multipart POST. The new repo owns its own Dockerfile + build script and publishes the image `avuz/talk-recording`, which replaces `nextcloud/aio-talk-recording` in this repo's `portainer-recording-stack.yml`. This repo does **not** vendor the bot source.
+- Recording bot (Python) is forked into a **separate GitHub repo** `github.com/avuz-conecta/talk-recording`. When the NC backend advertises capability `recording-chunked-v1`, the bot splits the recording into 50 MB chunks and uploads via the new endpoints; otherwise it falls back to the existing single-multipart POST. The new repo owns its own Dockerfile + build script and publishes the image `10.50.100.103:8080/admin/talk-recording`, which replaces `nextcloud/aio-talk-recording` in this repo's `portainer-recording-stack.yml`. This repo does **not** vendor the bot source.
 - Entrypoint disables NC app store (`appstoreenabled=false`) so admins cannot overwrite our patched spreed, plus a boot-time sentinel check fails loud if our patch markers are missing from the running `/var/www/html/apps/spreed/lib/Controller/RecordingController.php` (which is the overlay-applied file).
 
 **Tech Stack:** PHP 8.x (spreed), Python 3.13 (recording bot), Docker multi-arch (linux/amd64 staging + linux/arm64 local), Nextcloud 33, Portainer stacks.
@@ -28,11 +28,11 @@ The overlay is **not** a patch — each file in `docker/overlays/spreed/` is a f
 - Modify `src/nextcloud/talk/recording/BackendNotifier.py` — branch on capability, add chunked upload path.
 - Keep upstream `Dockerfile`; adjust only if it pulls from PyPI instead of local source.
 - Add `scripts/build.sh` for image build + push (mirrors the avuz-server pattern).
-- Publish image `avuz/talk-recording:latest` to the same registry as the NC image.
+- Publish image `10.50.100.103:8080/admin/talk-recording:latest` to the same registry as the NC image.
 
 **Docker integration (this repo)**
 - Modify `docker/entrypoint.sh` — disable app store, bump `AVUZ_CONFIG_VERSION` to `33.0.0-10`, add sentinel check, raise `upload_max_filesize`/`post_max_size` to 64M (chunk size + envelope).
-- Modify `portainer-recording-stack.yml` — swap `image:` from `nextcloud/aio-talk-recording:latest` to `avuz/talk-recording:latest`.
+- Modify `portainer-recording-stack.yml` — swap `image:` from `nextcloud/aio-talk-recording:latest` to `10.50.100.103:8080/admin/talk-recording:latest`.
 
 **Docs**
 - Modify `customizations.json` — record spreed patch + recording bot fork entries.
@@ -826,7 +826,7 @@ set -euo pipefail
 
 TAG="${1:-latest}"
 TARGET="${2:-local}"   # local | staging
-IMAGE="avuz/talk-recording"
+IMAGE="10.50.100.103:8080/admin/talk-recording"
 
 case "$TARGET" in
     local)
@@ -877,12 +877,12 @@ cd /tmp/talk-recording-fork
 ./scripts/build.sh latest local
 ```
 
-Expected: `✓ Built avuz/talk-recording:latest for linux/arm64`.
+Expected: `✓ Built 10.50.100.103:8080/admin/talk-recording:latest for linux/arm64`.
 
 - [ ] **Step 4: Smoke run**
 
 ```bash
-docker run --rm avuz/talk-recording:latest --help 2>&1 | head
+docker run --rm 10.50.100.103:8080/admin/talk-recording:latest --help 2>&1 | head
 ```
 
 Expected: upstream help text (or absence of import errors).
@@ -896,7 +896,7 @@ cd /tmp/talk-recording-fork
 ./scripts/build.sh latest staging
 ```
 
-Expected: push success, `avuz/talk-recording:latest` pullable from staging hosts.
+Expected: push success, `10.50.100.103:8080/admin/talk-recording:latest` pullable from staging hosts.
 
 No commit in the avuz-server repo for this task.
 
@@ -939,7 +939,7 @@ In `portainer-recording-stack.yml`, change:
 to:
 
 ```yaml
-    image: avuz/talk-recording:latest
+    image: 10.50.100.103:8080/admin/talk-recording:latest
 ```
 
 - [ ] **Step 3: Raise PHP per-request limits in entrypoint**
@@ -1060,7 +1060,7 @@ Schema in this repo uses `id`, `type`, `paths` (array), `description`, `risk`, `
   ],
   "description": "Spreed overlay (full-file replacements applied at Docker build time) that adds POST /store-chunked/{init,put,finalize} endpoints and the 'recording-chunked-v1' capability so Talk recordings >100MB succeed through Cloudflare (free plan 100MB body cap). Reuses the existing Talk-Recording HMAC signature scheme. Finalize hands off to RecordingService::store() so AI summary + chat attachment flows are untouched.",
   "risk": "medium",
-  "notes": "Overlay applied via Dockerfile builder stage: `RUN cp -R docker/overlays/spreed/. /var/www/html/apps/spreed/`. Sentinel 'AVUZ-CHUNKED-UPLOAD-V1' in RecordingController.php; entrypoint verify_avuz_patches() fails boot if missing. Requires the matching avuz/talk-recording bot image. On upstream spreed bumps, re-derive each overlay file from the new base; rebase guide in docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md."
+  "notes": "Overlay applied via Dockerfile builder stage: `RUN cp -R docker/overlays/spreed/. /var/www/html/apps/spreed/`. Sentinel 'AVUZ-CHUNKED-UPLOAD-V1' in RecordingController.php; entrypoint verify_avuz_patches() fails boot if missing. Requires the matching 10.50.100.103:8080/admin/talk-recording bot image. On upstream spreed bumps, re-derive each overlay file from the new base; rebase guide in docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md."
 },
 {
   "id": "recording-bot-chunked-upload",
@@ -1068,7 +1068,7 @@ Schema in this repo uses `id`, `type`, `paths` (array), `description`, `risk`, `
   "paths": [
     "portainer-recording-stack.yml"
   ],
-  "description": "Fork of nextcloud/nextcloud-talk-recording maintained in the separate repo github.com/avuz-conecta/talk-recording. BackendNotifier.uploadRecording branches on the 'recording-chunked-v1' capability and uploads files >50MB in 50MB chunks via the new spreed endpoints. Image published as avuz/talk-recording, referenced from portainer-recording-stack.yml; replaces nextcloud/aio-talk-recording.",
+  "description": "Fork of nextcloud/nextcloud-talk-recording maintained in the separate repo github.com/avuz-conecta/talk-recording. BackendNotifier.uploadRecording branches on the 'recording-chunked-v1' capability and uploads files >50MB in 50MB chunks via the new spreed endpoints. Image published as 10.50.100.103:8080/admin/talk-recording, referenced from portainer-recording-stack.yml; replaces nextcloud/aio-talk-recording.",
   "risk": "medium",
   "notes": "Source + Dockerfile + build script live in github.com/avuz-conecta/talk-recording. Upstream pin tracked in that repo's AVUZ_FORK.md. Rebase = pull next upstream tag in avuz-conecta/talk-recording, cherry-pick chunked-upload commits, rebuild, redeploy."
 }
@@ -1081,7 +1081,7 @@ Append under "Key Customizations" in `CLAUDE.md`:
 ```markdown
 ### Talk recording chunked upload
 - spreed patched via overlay (`docker/overlays/spreed/lib/...`) applied during Docker build. Sentinel `AVUZ-CHUNKED-UPLOAD-V1` lives in the overlay's `RecordingController.php`; entrypoint verifies the running container's spreed has it.
-- Bot fork lives in the **separate repo** `github.com/avuz-conecta/talk-recording`; image `avuz/talk-recording` referenced from `portainer-recording-stack.yml`.
+- Bot fork lives in the **separate repo** `github.com/avuz-conecta/talk-recording`; image `10.50.100.103:8080/admin/talk-recording` referenced from `portainer-recording-stack.yml`.
 - Lets recordings >100MB survive Cloudflare's 100MB body cap. See `docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md`.
 ```
 
@@ -1116,7 +1116,7 @@ All three must succeed.
 
 In Portainer:
 1. Update the NC stack — `avuz-conecta-server:latest` (or whatever tag your push produced). Click "Update the stack" with re-pull enabled.
-2. Update the recording stack — confirm `image: avuz/talk-recording:latest` is in effect, re-pull, redeploy.
+2. Update the recording stack — confirm `image: 10.50.100.103:8080/admin/talk-recording:latest` is in effect, re-pull, redeploy.
 
 - [ ] **Step 3: Confirm both containers are healthy**
 
