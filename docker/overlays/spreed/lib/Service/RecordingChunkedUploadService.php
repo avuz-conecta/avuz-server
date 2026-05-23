@@ -51,7 +51,7 @@ class RecordingChunkedUploadService {
 	 * @return array{tmp_name: string, name: string, size: int, type: string, error: int}
 	 *         Same shape as $_FILES entry — caller hands to RecordingService::store().
 	 */
-	public function finalize(Room $room, string $uploadId): array {
+	public function finalize(Room $room, string $uploadId, ?int $actualSize = null): array {
 		$folder = $this->getUploadFolder($room->getToken(), $uploadId, create: false);
 		$meta = json_decode($folder->getFile('.meta')->getContent(), true, flags: JSON_THROW_ON_ERROR);
 
@@ -86,10 +86,16 @@ class RecordingChunkedUploadService {
 		}
 		fclose($out);
 
-		if ($totalWritten !== (int)$meta['totalSize']) {
+		// Source of truth for size: $actualSize from the bot if provided (it knows
+		// exactly how many bytes it streamed), else fall back to meta.totalSize
+		// (declared at init time, may be stale if the file grew during upload).
+		$expectedSize = $actualSize !== null && $actualSize > 0
+			? $actualSize
+			: (int)$meta['totalSize'];
+		if ($totalWritten !== $expectedSize) {
 			@unlink($tmpPath);
 			$this->cleanup($room->getToken(), $uploadId);
-			throw new InvalidArgumentException('size_mismatch');
+			throw new InvalidArgumentException(sprintf('size_mismatch:got=%d:expected=%d', $totalWritten, $expectedSize));
 		}
 
 		$this->cleanup($room->getToken(), $uploadId);

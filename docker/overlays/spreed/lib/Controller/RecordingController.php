@@ -552,7 +552,7 @@ class RecordingController extends AEnvironmentAwareOCSController {
 		'token' => '[a-z0-9]{4,30}',
 		'uploadId' => '[a-f0-9]{32}',
 	])]
-	public function storeChunkedFinalize(string $uploadId, ?string $owner): DataResponse {
+	public function storeChunkedFinalize(string $uploadId, ?string $owner, ?int $actualSize = null): DataResponse {
 		$sigData = $this->room->getToken() . ':' . $uploadId . ':finalize';
 		if (!$this->validateBackendRequest($sigData)) {
 			$response = new DataResponse([
@@ -566,7 +566,7 @@ class RecordingController extends AEnvironmentAwareOCSController {
 			return new DataResponse(['error' => 'owner'], Http::STATUS_BAD_REQUEST);
 		}
 		try {
-			$file = $this->chunkedService->finalize($this->room, $uploadId);
+			$file = $this->chunkedService->finalize($this->room, $uploadId, $actualSize);
 			$this->recordingService->store($this->getRoom(), $owner, $file);
 		} catch (InvalidArgumentException $e) {
 			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
