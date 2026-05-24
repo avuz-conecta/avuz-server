@@ -6,18 +6,14 @@ namespace OCA\Talk\Service;
 
 use InvalidArgumentException;
 use OCA\Talk\Room;
-use OCP\Files\IAppData;
-use OCP\Files\NotFoundException;
-use OCP\Files\SimpleFS\ISimpleFolder;
 use OCP\IConfig;
 use Psr\Log\LoggerInterface;
 
 class RecordingChunkedUploadService {
-	private const CHUNK_TTL_SECONDS = 3600; // 1h — clean stale uploads
-	private const MAX_CHUNKS = 200;          // hard cap: 200 × 50MB = 10GB
+	private const CHUNK_TTL_SECONDS = 3600;
+	private const MAX_CHUNKS = 200;
 
 	public function __construct(
-		private IAppData $appData,
 		private IConfig $config,
 		private LoggerInterface $logger,
 	) {
@@ -29,8 +25,8 @@ class RecordingChunkedUploadService {
 			throw new InvalidArgumentException('size');
 		}
 		$uploadId = bin2hex(random_bytes(16));
-		$folder = $this->getUploadFolder($room->getToken(), $uploadId, create: true);
-		$folder->newFile('.meta')->putContent(json_encode([
+		$dir = $this->getUploadDir($room->getToken(), $uploadId, create: true);
+		file_put_contents($dir . '/.meta', json_encode([
 			'token' => $room->getToken(),
 			'fileName' => $fileName,
 			'totalSize' => $totalSize,
@@ -43,17 +39,23 @@ class RecordingChunkedUploadService {
 		if ($index < 0 || $index >= self::MAX_CHUNKS) {
 			throw new InvalidArgumentException('chunk_index');
 		}
-		$folder = $this->getUploadFolder($room->getToken(), $uploadId, create: false);
-		$folder->newFile(sprintf('%04d.part', $index))->putContent($body);
+		$dir = $this->getUploadDir($room->getToken(), $uploadId, create: false);
+		$path = $dir . '/' . sprintf('%04d.part', $index);
+		if (file_put_contents($path, $body) === false) {
+			throw new InvalidArgumentException('chunk_write');
+		}
 	}
 
 	/**
 	 * @return array{tmp_name: string, name: string, size: int, type: string, error: int}
-	 *         Same shape as $_FILES entry — caller hands to RecordingService::store().
 	 */
 	public function finalize(Room $room, string $uploadId, ?int $actualSize = null): array {
-		$folder = $this->getUploadFolder($room->getToken(), $uploadId, create: false);
-		$meta = json_decode($folder->getFile('.meta')->getContent(), true, flags: JSON_THROW_ON_ERROR);
+		$dir = $this->getUploadDir($room->getToken(), $uploadId, create: false);
+		$metaRaw = @file_get_contents($dir . '/.meta');
+		if ($metaRaw === false) {
+			throw new InvalidArgumentException('meta_missing');
+		}
+		$meta = json_decode($metaRaw, true, flags: JSON_THROW_ON_ERROR);
 
 		$tmpPath = tempnam(sys_get_temp_dir(), 'avuz-rec-');
 		if ($tmpPath === false) {
@@ -64,38 +66,36 @@ class RecordingChunkedUploadService {
 			throw new InvalidArgumentException('tmp_open');
 		}
 
-		$chunks = [];
-		foreach ($folder->getDirectoryListing() as $file) {
-			if (str_ends_with($file->getName(), '.part')) {
-				$chunks[] = $file;
-			}
-		}
-		usort($chunks, fn($a, $b) => strcmp($a->getName(), $b->getName()));
+		$chunks = glob($dir . '/[0-9][0-9][0-9][0-9].part') ?: [];
+		sort($chunks);
 
 		$totalWritten = 0;
-		foreach ($chunks as $chunk) {
-			$bytes = $chunk->getContent();
+		foreach ($chunks as $chunkPath) {
+			$bytes = @file_get_contents($chunkPath);
+			if ($bytes === false) {
+				fclose($out);
+				@unlink($tmpPath);
+				throw new InvalidArgumentException('chunk_read');
+			}
 			$written = fwrite($out, $bytes);
 			if ($written === false || $written !== strlen($bytes)) {
 				fclose($out);
 				@unlink($tmpPath);
-				$this->cleanup($room->getToken(), $uploadId);
 				throw new InvalidArgumentException('write_failed');
 			}
 			$totalWritten += $written;
 		}
 		fclose($out);
 
-		// Source of truth for size: $actualSize from the bot if provided (it knows
-		// exactly how many bytes it streamed), else fall back to meta.totalSize
-		// (declared at init time, may be stale if the file grew during upload).
 		$expectedSize = $actualSize !== null && $actualSize > 0
 			? $actualSize
 			: (int)$meta['totalSize'];
 		if ($totalWritten !== $expectedSize) {
 			@unlink($tmpPath);
-			$this->cleanup($room->getToken(), $uploadId);
-			throw new InvalidArgumentException(sprintf('size_mismatch:got=%d:expected=%d', $totalWritten, $expectedSize));
+			throw new InvalidArgumentException(sprintf(
+				'size_mismatch:got=%d:expected=%d:chunks=%d',
+				$totalWritten, $expectedSize, count($chunks),
+			));
 		}
 
 		$this->cleanup($room->getToken(), $uploadId);
@@ -110,57 +110,68 @@ class RecordingChunkedUploadService {
 	}
 
 	public function cleanup(string $token, string $uploadId): void {
-		try {
-			$this->getUploadFolder($token, $uploadId, create: false)->delete();
-		} catch (NotFoundException) {
-			// nothing to clean
+		$this->validateIds($token, $uploadId);
+		$dir = $this->getRoot() . '/' . $token . '/' . $uploadId;
+		if (!is_dir($dir)) {
+			return;
+		}
+		foreach (glob($dir . '/*') ?: [] as $f) {
+			@unlink($f);
+		}
+		@unlink($dir . '/.meta');
+		@rmdir($dir);
+		// Drop the per-token parent dir if it's now empty.
+		$tokenDir = $this->getRoot() . '/' . $token;
+		if (is_dir($tokenDir) && count(glob($tokenDir . '/*') ?: []) === 0) {
+			@rmdir($tokenDir);
 		}
 	}
 
 	public function sweepStale(): void {
-		try {
-			$root = $this->appData->getFolder('recording-chunks');
-		} catch (NotFoundException) {
+		$root = $this->getRoot();
+		if (!is_dir($root)) {
 			return;
 		}
 		$now = time();
-		foreach ($root->getDirectoryListing() as $tokenFolder) {
-			if (!$tokenFolder instanceof ISimpleFolder) {
-				continue;
-			}
-			foreach ($tokenFolder->getDirectoryListing() as $uploadFolder) {
-				if (!$uploadFolder instanceof ISimpleFolder) {
-					continue;
-				}
+		foreach (glob($root . '/*', GLOB_ONLYDIR) ?: [] as $tokenDir) {
+			foreach (glob($tokenDir . '/*', GLOB_ONLYDIR) ?: [] as $uploadDir) {
 				try {
-					$meta = json_decode($uploadFolder->getFile('.meta')->getContent(), true);
-					if (($now - (int)$meta['createdAt']) > self::CHUNK_TTL_SECONDS) {
-						$uploadFolder->delete();
+					$meta = json_decode((string)@file_get_contents($uploadDir . '/.meta'), true);
+					if (is_array($meta) && ($now - (int)($meta['createdAt'] ?? 0)) > self::CHUNK_TTL_SECONDS) {
+						$token = basename($tokenDir);
+						$uploadId = basename($uploadDir);
+						$this->cleanup($token, $uploadId);
 					}
 				} catch (\Throwable $e) {
-					$this->logger->warning('Failed to sweep stale recording chunk dir', ['exception' => $e]);
+					$this->logger->warning('Failed to sweep stale chunk dir', ['exception' => $e, 'dir' => $uploadDir]);
 				}
 			}
 		}
 	}
 
-	private function getUploadFolder(string $token, string $uploadId, bool $create): ISimpleFolder {
+	private function getRoot(): string {
+		$dataDir = $this->config->getSystemValue('datadirectory', '/var/www/html/data');
+		return rtrim($dataDir, '/') . '/avuz-recording-chunks';
+	}
+
+	private function getUploadDir(string $token, string $uploadId, bool $create): string {
+		$this->validateIds($token, $uploadId);
+		$dir = $this->getRoot() . '/' . $token . '/' . $uploadId;
+		if (is_dir($dir)) {
+			return $dir;
+		}
+		if (!$create) {
+			throw new InvalidArgumentException('upload_unknown');
+		}
+		if (!mkdir($dir, 0770, true) && !is_dir($dir)) {
+			throw new InvalidArgumentException('mkdir');
+		}
+		return $dir;
+	}
+
+	private function validateIds(string $token, string $uploadId): void {
 		if (!preg_match('/^[a-z0-9]{4,30}$/', $token) || !preg_match('/^[a-f0-9]{32}$/', $uploadId)) {
 			throw new InvalidArgumentException('id_format');
-		}
-		try {
-			$root = $this->appData->getFolder('recording-chunks');
-		} catch (NotFoundException) {
-			$root = $this->appData->newFolder('recording-chunks');
-		}
-		$path = $token . '/' . $uploadId;
-		try {
-			return $root->getFolder($path);
-		} catch (NotFoundException) {
-			if (!$create) {
-				throw new InvalidArgumentException('upload_unknown');
-			}
-			return $root->newFolder($path);
 		}
 	}
 
