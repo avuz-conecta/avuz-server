@@ -522,8 +522,16 @@ class RecordingController extends AEnvironmentAwareOCSController {
 			$response->throttle(['action' => 'talkRecordingSecret']);
 			return $response;
 		}
+		$body = $this->getInputStream();
+		$bodyLen = strlen($body);
+		$contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+		$contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? -1);
+		$this->logger->info(
+			'storeChunkedPut: uploadId={uid} index={idx} bodyLen={bl} contentLen={cl} contentType={ct}',
+			['uid' => $uploadId, 'idx' => $index, 'bl' => $bodyLen, 'cl' => $contentLength, 'ct' => $contentType],
+		);
 		try {
-			$this->chunkedService->writeChunk($this->room, $uploadId, $index, $this->getInputStream());
+			$this->chunkedService->writeChunk($this->room, $uploadId, $index, $body);
 		} catch (InvalidArgumentException $e) {
 			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
 		}
