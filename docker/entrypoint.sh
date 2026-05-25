@@ -178,9 +178,13 @@ run_avuz_configuration() {
     # Per-chunk PHP limits — must exceed CHUNK_SIZE (50MB) plus multipart envelope.
     # The new chunked recording endpoint POSTs each chunk as raw bytes; this ceiling
     # caps the largest single chunk we will accept.
-    cat > /usr/local/etc/php/conf.d/avuz-upload.ini <<'PHPINI'
+    # memory_limit raised above stock 512M so FilesMetadata + heavy occ jobs don't
+    # trip the 300MB Nextcloud cron warning on large libraries.
+    PHP_MEMORY_LIMIT="${PHP_MEMORY_LIMIT:-3072M}"
+    cat > /usr/local/etc/php/conf.d/avuz-upload.ini <<PHPINI
 upload_max_filesize = 64M
 post_max_size = 64M
+memory_limit = ${PHP_MEMORY_LIMIT}
 PHPINI
 
     # Talk defaults
