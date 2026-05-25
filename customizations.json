@@ -250,7 +250,8 @@
       "type": "core",
       "paths": [
         "apps/files/src/init.ts",
-        "apps/files/src/views/FilesList.vue"
+        "apps/files/src/views/FilesList.vue",
+        "themes/avuz/apps/files/l10n/pt_BR.json"
       ],
       "description": "Warns users before navigating away from an in-flight upload. Nextcloud top-bar app switches are full page navigations (not SPA routes), so leaving Files mid-upload tears down the queue and orphans chunks under uploads/{user}/{transferId}/. Two additive layers: (1) a global beforeunload listener in apps/files/src/init.ts that calls event.preventDefault() when getUploader().queue contains any upload in INITIALIZED/UPLOADING/ASSEMBLING — browser shows its own generic confirm dialog; (2) a passive NcNoteCard banner in FilesList.vue (computed hasActiveUploads) shown above DragAndDropNotice while uploads are active.",
       "risk": "low",
