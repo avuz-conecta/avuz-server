@@ -72,6 +72,18 @@
 			</NcButton>
 		</div>
 
+		<!-- AVUZ: leaving the page (closing the tab or clicking another app
+		     in the top bar) cancels in-flight uploads — chunks orphaned on
+		     the server are eventually cleaned by UploadCleanup. Keep this
+		     banner passive: the beforeunload guard in init.ts handles the
+		     hard confirm. -->
+		<NcNoteCard
+			v-if="hasActiveUploads"
+			type="warning"
+			class="files-list__upload-warning">
+			{{ t('files', 'Upload in progress — do not close this tab or switch to another app until it finishes, or the transfer will be cancelled.') }}
+		</NcNoteCard>
+
 		<!-- Drag and drop notice -->
 		<DragAndDropNotice v-if="!loading && canUpload && currentFolder" :current-folder="currentFolder" />
 
@@ -179,6 +191,7 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
+import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import IconAlertCircleOutline from 'vue-material-design-icons/AlertCircleOutline.vue'
 import ListViewIcon from 'vue-material-design-icons/FormatListBulletedSquare.vue'
 import IconReload from 'vue-material-design-icons/Reload.vue'
@@ -221,6 +234,7 @@ export default defineComponent({
 		NcEmptyContent,
 		NcIconSvgWrapper,
 		NcLoadingIcon,
+		NcNoteCard,
 		Teleport,
 		UploadPicker,
 		ViewGridIcon,
@@ -431,6 +445,20 @@ export default defineComponent({
 		 */
 		canUpload() {
 			return this.currentFolder && (this.currentFolder.permissions & Permission.CREATE) !== 0
+		},
+
+		/**
+		 * AVUZ: True while at least one upload is initialized, in flight, or
+		 * being assembled server-side. Drives the persistent warning banner so
+		 * users know not to close the tab or switch apps mid-transfer (top-bar
+		 * app links are full page loads and kill the upload queue).
+		 */
+		hasActiveUploads(): boolean {
+			return this.uploaderStore.queue.some((upload) => (
+				upload.status === UploadStatus.INITIALIZED
+				|| upload.status === UploadStatus.UPLOADING
+				|| upload.status === UploadStatus.ASSEMBLING
+			))
 		},
 
 		isQuotaExceeded() {

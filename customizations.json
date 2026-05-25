@@ -246,6 +246,17 @@
       "notes": "Direct modification of upstream Vue component. Renamed from Settings.vue in v33. The patch comments out the WebDAV import and template usage."
     },
     {
+      "id": "files-upload-leave-warning",
+      "type": "core",
+      "paths": [
+        "apps/files/src/init.ts",
+        "apps/files/src/views/FilesList.vue"
+      ],
+      "description": "Warns users before navigating away from an in-flight upload. Nextcloud top-bar app switches are full page navigations (not SPA routes), so leaving Files mid-upload tears down the queue and orphans chunks under uploads/{user}/{transferId}/. Two additive layers: (1) a global beforeunload listener in apps/files/src/init.ts that calls event.preventDefault() when getUploader().queue contains any upload in INITIALIZED/UPLOADING/ASSEMBLING — browser shows its own generic confirm dialog; (2) a passive NcNoteCard banner in FilesList.vue (computed hasActiveUploads) shown above DragAndDropNotice while uploads are active.",
+      "risk": "low",
+      "notes": "Both patches are guarded by clear 'AVUZ:' comments. Banner copy is in English so future l10n can pick it up; both extraction points use the existing t('files', ...) helper. beforeunload custom messages have been ignored by browsers since 2016 — the listener only triggers the native confirm. Real fix for surviving navigation would be a Service Worker upload (e.g. tus-js-client + SW), deferred until upload-loss complaints justify the lift."
+    },
+    {
       "id": "dist-rebuild",
       "type": "core",
       "paths": [

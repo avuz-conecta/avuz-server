@@ -6,6 +6,7 @@
 import { addNewFileMenuEntry, getNewFileMenu, registerFileAction } from '@nextcloud/files'
 import { registerDavProperty } from '@nextcloud/files/dav'
 import { isPublicShare } from '@nextcloud/sharing/public'
+import { getUploader, UploadStatus } from '@nextcloud/upload'
 import { registerConvertActions } from './actions/convertAction.ts'
 import { action as deleteAction } from './actions/deleteAction.ts'
 import { action as downloadAction } from './actions/downloadAction.ts'
@@ -79,6 +80,26 @@ registerDavProperty('nc:is-mount-root', { nc: 'http://nextcloud.org/ns' })
 registerDavProperty('nc:metadata-blurhash', { nc: 'http://nextcloud.org/ns' })
 
 initLivePhotos()
+
+// AVUZ: warn before leaving the page while an upload is in-flight. Closing
+// the tab or navigating to another app (top-bar links are full page loads,
+// not SPA routes) tears down the upload queue and aborts the transfer with
+// only the partial chunks left orphaned on the server. The browser shows its
+// own generic confirmation — custom messages have been ignored since 2016.
+const ACTIVE_UPLOAD_STATUSES = new Set([
+	UploadStatus.INITIALIZED,
+	UploadStatus.UPLOADING,
+	UploadStatus.ASSEMBLING,
+])
+window.addEventListener('beforeunload', (event) => {
+	const hasActiveUploads = getUploader().queue.some(
+		(upload) => ACTIVE_UPLOAD_STATUSES.has(upload.status),
+	)
+	if (hasActiveUploads) {
+		event.preventDefault()
+		event.returnValue = ''
+	}
+})
 
 // TODO: REMOVE THIS ONCE THE UPLOAD LIBRARY IS MIGRATED TO THE NEW FILES LIBRARY
 window._nc_newfilemenu = new Proxy(getNewFileMenu(), {
