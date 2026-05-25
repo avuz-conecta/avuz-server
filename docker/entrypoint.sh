@@ -53,15 +53,31 @@ ENABLE_APPS=(
 )
 
 verify_avuz_patches() {
-    local sentinel="AVUZ-CHUNKED-UPLOAD-V1"
-    local target="/var/www/html/apps/spreed/lib/Controller/RecordingController.php"
-    if ! grep -q "$sentinel" "$target" 2>/dev/null; then
-        echo "✗ AVUZ PATCH MISSING: sentinel '$sentinel' not found in $target"
-        echo "  Refusing to boot — image may be corrupted or an admin reinstalled spreed."
-        echo "  Recover: redeploy from the latest avuz-server image."
+    # Each entry: "<sentinel>|<target-file>|<recovery-hint>". Sentinels are
+    # unique strings that must appear in the deployed artifact; missing one
+    # means the patch was lost (corrupted image, upstream restore, bad rebase)
+    # and we refuse to boot rather than serve a half-patched stack.
+    local checks=(
+        "AVUZ-CHUNKED-UPLOAD-V1|/var/www/html/apps/spreed/lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
+        "Upload in progress — do not close this tab|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
+    )
+    local failed=0
+    for entry in "${checks[@]}"; do
+        local sentinel="${entry%%|*}"
+        local rest="${entry#*|}"
+        local target="${rest%%|*}"
+        local hint="${rest#*|}"
+        if ! grep -q "$sentinel" "$target" 2>/dev/null; then
+            echo "✗ AVUZ PATCH MISSING: sentinel '$sentinel' not found in $target"
+            echo "  $hint"
+            failed=1
+        fi
+    done
+    if [ "$failed" -ne 0 ]; then
+        echo "  Refusing to boot — image may be corrupted."
         exit 1
     fi
-    echo "✓ Avuz spreed patches present"
+    echo "✓ Avuz patches present"
 }
 
 # Reapply the spreed overlay onto /var/www/html/apps/spreed/.
