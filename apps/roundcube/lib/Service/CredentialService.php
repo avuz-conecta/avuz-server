@@ -82,6 +82,12 @@ class CredentialService
         return $email ?: '';
     }
 
+    private function resolveProvider(): string
+    {
+        $value = $this->config->getAppValue(self::APP_ID, 'provider', (string) getenv('ROUNDCUBE_PROVIDER'));
+        return $value !== '' ? $value : 'zoho';
+    }
+
     private function buildToken(string $email, string $encryptedPassword): string
     {
         $payload = base64_encode((string) json_encode([
