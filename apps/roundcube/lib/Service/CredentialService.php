@@ -64,7 +64,7 @@ class CredentialService
             return $baseUrl . '/';
         }
 
-        $token = $this->buildToken($email, $encryptedPassword);
+        $token = $this->buildToken($email, $encryptedPassword, $this->resolveProvider());
 
         return $baseUrl . '/?nc_token=' . urlencode($token);
     }
@@ -82,12 +82,19 @@ class CredentialService
         return $email ?: '';
     }
 
-    private function buildToken(string $email, string $encryptedPassword): string
+    private function resolveProvider(): string
+    {
+        $value = $this->config->getAppValue(self::APP_ID, 'provider', (string) getenv('ROUNDCUBE_PROVIDER'));
+        return $value !== '' ? $value : 'zoho';
+    }
+
+    private function buildToken(string $email, string $encryptedPassword, string $provider): string
     {
         $payload = base64_encode((string) json_encode([
             'email' => $email,
             'enc_pass' => $encryptedPassword,
             'exp' => time() + self::TOKEN_TTL,
+            'provider' => $provider,
         ]));
         $secret = $this->getSsoSecret();
         $signature = hash_hmac('sha256', $payload, $secret);
