@@ -246,6 +246,18 @@
       "notes": "Direct modification of upstream Vue component. Renamed from Settings.vue in v33. The patch comments out the WebDAV import and template usage."
     },
     {
+      "id": "files-upload-leave-warning",
+      "type": "core",
+      "paths": [
+        "apps/files/src/init.ts",
+        "apps/files/src/views/FilesList.vue",
+        "themes/avuz/apps/files/l10n/pt_BR.json"
+      ],
+      "description": "Warns users before navigating away from an in-flight upload. Nextcloud top-bar app switches are full page navigations (not SPA routes), so leaving Files mid-upload tears down the queue and orphans chunks under uploads/{user}/{transferId}/. Two additive layers: (1) a global beforeunload listener in apps/files/src/init.ts that calls event.preventDefault() when getUploader().queue contains any upload in INITIALIZED/UPLOADING/ASSEMBLING — browser shows its own generic confirm dialog; (2) a passive NcNoteCard banner in FilesList.vue (computed hasActiveUploads) shown above DragAndDropNotice while uploads are active.",
+      "risk": "low",
+      "notes": "Both patches are guarded by clear 'AVUZ:' comments. Banner copy is in English so future l10n can pick it up; both extraction points use the existing t('files', ...) helper. beforeunload custom messages have been ignored by browsers since 2016 — the listener only triggers the native confirm. Boot-time sentinel: docker/entrypoint.sh::verify_avuz_patches() greps 'Upload in progress — do not close this tab' in /var/www/html/dist/files-main.js and fails fast if missing (catches a build that didn't pick up the source change). Real fix for surviving navigation would be a Service Worker upload (e.g. tus-js-client + SW), deferred until upload-loss complaints justify the lift."
+    },
+    {
       "id": "dist-rebuild",
       "type": "core",
       "paths": [
@@ -341,6 +353,30 @@
       "description": "Pre-configure password_policy app: 8 char minimum, enforce uppercase/lowercase, numeric, and special characters.",
       "risk": "low",
       "notes": "Uses occ config:app:set — no core file changes. Settings stored in NC database. password_policy app must be enabled (it is in ENABLE_APPS)."
+    },
+    {
+      "id": "spreed-chunked-recording-upload",
+      "type": "overlay",
+      "paths": [
+        "docker/overlays/spreed/lib/Capabilities.php",
+        "docker/overlays/spreed/lib/Controller/RecordingController.php",
+        "docker/overlays/spreed/lib/Service/RecordingChunkedUploadService.php",
+        "docker/entrypoint.sh",
+        "Dockerfile"
+      ],
+      "description": "Spreed overlay (full-file replacements applied at Docker build time) that adds POST /store-chunked/{init,put,finalize} endpoints and the 'recording-chunked-v1' capability so Talk recordings >100MB survive Cloudflare's 100MB body cap. Reuses the existing Talk-Recording HMAC signature scheme (random + checksum headers). Finalize accepts an actualSize from the bot (bytes actually streamed, not the stale init-time totalSize) to avoid races with ffmpeg still flushing, then hands the reassembled file to RecordingService::store() so AI summary + chat attachment flows are untouched. Chunk storage uses raw filesystem under data/avuz-recording-chunks/{token}/{uploadId}/ (not IAppData — NC's IAppData treats slashed folder names literally and breaks getDirectoryListing on nested paths).",
+      "risk": "medium",
+      "notes": "Overlay applied at build time via Dockerfile (RUN cp -R docker/overlays/spreed/. /var/www/html/apps/spreed/) and re-applied at runtime by entrypoint.sh::reapply_avuz_spreed_overlay() after every 'occ app:update --all' / 'occ upgrade' (which would otherwise re-download upstream spreed from the app store and wipe our patches). Sentinel 'AVUZ-CHUNKED-UPLOAD-V1' in RecordingController.php; entrypoint verify_avuz_patches() fails boot if missing. Entrypoint also toggles appstoreenabled=true around the configuration block (so app:install/update can reach the store) then sets appstoreenabled=false at the end (admins cannot reinstall spreed via UI). PHP per-chunk limits raised to 64M via /usr/local/etc/php/conf.d/avuz-upload.ini; same file also sets memory_limit from PHP_MEMORY_LIMIT env (default 3072M, overriding upstream 512M) so heavy occ jobs (FilesMetadata, scans) don't trip the 300MB cron warning. Requires matching 10.50.100.103:8080/admin/talk-recording bot image. Rebase guide: docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md."
+    },
+    {
+      "id": "recording-bot-chunked-upload",
+      "type": "external-fork",
+      "paths": [
+        "portainer-recording-stack.yml"
+      ],
+      "description": "Fork of nextcloud/nextcloud-talk-recording maintained in github.com/avuz-conecta/talk-recording (private). Pinned to upstream v0.2.1. BackendNotifier.uploadRecording branches on the spreed 'recording-chunked-v1' capability and, for files >CHUNK_SIZE (50MB), uploads via the new POST /store-chunked/{init,put,finalize} endpoints; falls back to upstream single-multipart POST otherwise. Sends actualSize at finalize so the server compares against bytes actually streamed (not the init-time os.path.getsize, which may be stale if ffmpeg is still flushing). Chunk POSTs include explicit Content-Type: application/octet-stream so PHP does not drain php://input trying to url-decode raw bytes. Image published as 10.50.100.103:8080/admin/talk-recording (built linux/amd64), referenced from portainer-recording-stack.yml; replaces nextcloud/aio-talk-recording.",
+      "risk": "medium",
+      "notes": "Source + Dockerfile + scripts/build.sh + avuz-entrypoint.sh live in github.com/avuz-conecta/talk-recording. avuz-entrypoint.sh renders /etc/nextcloud-talk-recording/server.conf from env vars at container start (NC_DOMAINS comma-separated for multiple NC backends sharing one bot, RECORDING_SECRET, INTERNAL_SECRET, HPB_*, SKIP_VERIFY, ALLOW_ALL; also accepts the legacy NC_DOMAIN single-host fallback). Upstream pin tracked in that repo's AVUZ_FORK.md. Rebase against newer upstream = pull next upstream tag in avuz-conecta/talk-recording, re-apply chunked-upload + entrypoint commits, rebuild, redeploy."
     }
   ]
 }

@@ -34,6 +34,11 @@ services:
       - NEXTCLOUD_TRUSTED_DOMAINS=app3.avuz.app,recording.avuz.app
       - OVERWRITEPROTOCOL=https
 
+      # PHP per-request ceiling (not pre-allocated). Stock is 512M; raised so heavy
+      # occ jobs (FilesMetadata, scans, previews) don't trip the 300MB cron warning
+      # or OOM mid-request. Override per-stack if host RAM is tight.
+      - PHP_MEMORY_LIMIT=3072M
+
       # SMTP Configuration (optional - leave empty to skip)
       - SMTP_HOST=
       - SMTP_PORT=587

@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-9"
+AVUZ_CONFIG_VERSION="33.0.0-12"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 
@@ -52,12 +52,58 @@ ENABLE_APPS=(
     "integration_openai"
 )
 
+verify_avuz_patches() {
+    # Each entry: "<sentinel>|<target-file>|<recovery-hint>". Sentinels are
+    # unique strings that must appear in the deployed artifact; missing one
+    # means the patch was lost (corrupted image, upstream restore, bad rebase)
+    # and we refuse to boot rather than serve a half-patched stack.
+    local checks=(
+        "AVUZ-CHUNKED-UPLOAD-V1|/var/www/html/apps/spreed/lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
+        "Upload in progress — do not close this tab|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
+    )
+    local failed=0
+    for entry in "${checks[@]}"; do
+        local sentinel="${entry%%|*}"
+        local rest="${entry#*|}"
+        local target="${rest%%|*}"
+        local hint="${rest#*|}"
+        if ! grep -q "$sentinel" "$target" 2>/dev/null; then
+            echo "✗ AVUZ PATCH MISSING: sentinel '$sentinel' not found in $target"
+            echo "  $hint"
+            failed=1
+        fi
+    done
+    if [ "$failed" -ne 0 ]; then
+        echo "  Refusing to boot — image may be corrupted."
+        exit 1
+    fi
+    echo "✓ Avuz patches present"
+}
+
+# Reapply the spreed overlay onto /var/www/html/apps/spreed/.
+# Required after any 'occ app:update' or 'occ upgrade' run, which can pull a
+# fresh upstream spreed from the app store and wipe our patches.
+reapply_avuz_spreed_overlay() {
+    local overlay="/var/www/html/docker/overlays/spreed"
+    if [ -d "$overlay" ]; then
+        cp -R "$overlay/." /var/www/html/apps/spreed/
+        chown -R www-data:www-data /var/www/html/apps/spreed
+        echo "✓ Avuz spreed overlay reapplied"
+    else
+        echo "✗ Avuz overlay missing at $overlay — image may be corrupted"
+    fi
+}
+
 # ──────────────────────────────────────────────
 # Avuz configuration — runs on fresh install, after upgrade, or when config version changes
 # All settings here are persisted in config.php or the DB, so they only need to run once.
 # ──────────────────────────────────────────────
 run_avuz_configuration() {
     echo "═══ Running Avuz Conecta configuration ═══"
+
+    # Re-enable the in-app store for the duration of this run so the
+    # app:install/update calls below can query the store. Re-disabled at the end.
+    php occ config:system:set appstoreenabled --value=true --type=boolean
 
     # Trusted domains & protocol
     # NEXTCLOUD_TRUSTED_DOMAINS accepts comma-separated list, each goes to its
@@ -144,6 +190,18 @@ run_avuz_configuration() {
     php occ config:app:set password_policy enforceUpperLowerCase --value="1"
     php occ config:app:set password_policy enforceNumericCharacters --value="1"
     php occ config:app:set password_policy enforceSpecialCharacters --value="1"
+
+    # Per-chunk PHP limits — must exceed CHUNK_SIZE (50MB) plus multipart envelope.
+    # The new chunked recording endpoint POSTs each chunk as raw bytes; this ceiling
+    # caps the largest single chunk we will accept.
+    # memory_limit raised above stock 512M so FilesMetadata + heavy occ jobs don't
+    # trip the 300MB Nextcloud cron warning on large libraries.
+    PHP_MEMORY_LIMIT="${PHP_MEMORY_LIMIT:-3072M}"
+    cat > /usr/local/etc/php/conf.d/avuz-upload.ini <<PHPINI
+upload_max_filesize = 64M
+post_max_size = 64M
+memory_limit = ${PHP_MEMORY_LIMIT}
+PHPINI
 
     # Talk defaults
     php occ config:app:set spreed create_samples --value="false"
@@ -279,9 +337,12 @@ run_avuz_configuration() {
     php occ db:add-missing-indices --no-interaction 2>/dev/null || true
     php occ maintenance:repair --include-expensive 2>/dev/null || true
 
-    # Update App Store apps (custom_apps/) to latest compatible versions
+    # Update App Store apps (custom_apps/) to latest compatible versions.
+    # Note: this also updates bundled apps and can overwrite our spreed overlay,
+    # so reapply the overlay immediately after.
     echo "Updating App Store apps..."
     php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
+    reapply_avuz_spreed_overlay
 
     # Ensure all managed apps are enabled — use --force for apps that
     # haven't declared support for this NC version yet (bruteforcesettings, notifications, text)
@@ -289,6 +350,11 @@ run_avuz_configuration() {
     for app in "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"; do
         php occ app:enable --force "$app" 2>/dev/null || echo "✗ Could not enable $app"
     done
+
+    # Lock down the in-app store AFTER all installs/updates above have run.
+    # Avuz owns the app upgrade cycle via image rebuilds; this prevents admins
+    # (or NC's auto-update) from overwriting our patched spreed.
+    php occ config:system:set appstoreenabled --value=false --type=boolean
 
     # Write stamp so we skip this on plain restarts
     echo "$AVUZ_CONFIG_VERSION" > "$CONFIG_STAMP_FILE"
@@ -414,9 +480,15 @@ else
         php occ upgrade --no-interaction
         php occ maintenance:mode --off
 
-        # Update custom_apps (App Store apps) now that NC core is upgraded
+        # NC upgrade may have rewritten bundled apps; reapply overlay before
+        # the app:update --all below (which can overwrite again).
+        reapply_avuz_spreed_overlay
+
+        # Update custom_apps (App Store apps) now that NC core is upgraded.
+        # Reapply overlay afterwards because app:update may pull a fresh spreed.
         echo "Updating App Store apps..."
         php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
+        reapply_avuz_spreed_overlay
 
         # Re-enable apps that were enabled before the upgrade
         # --allow-unstable is required for apps that haven't declared NC33 support yet
@@ -454,6 +526,7 @@ echo "✓ Nextcloud verified"
 # - after upgrade (NEEDS_CONFIGURATION=1)
 # - config version changed (new image deployed)
 CURRENT_STAMP=$(cat "$CONFIG_STAMP_FILE" 2>/dev/null || echo "")
+verify_avuz_patches
 if [ "$NEEDS_CONFIGURATION" -eq 1 ] || [ "$CURRENT_STAMP" != "$AVUZ_CONFIG_VERSION" ]; then
     run_avuz_configuration
 else

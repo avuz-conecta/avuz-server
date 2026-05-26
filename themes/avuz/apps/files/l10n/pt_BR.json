@@ -1,3 +1,4 @@
 { "translations": {
-    "Files": "Drive"
+    "Files": "Drive",
+    "Upload in progress — do not close this tab or switch to another app until it finishes, or the transfer will be cancelled.": "Envio em andamento — não feche esta aba nem troque de aplicativo até concluir, ou o envio será cancelado."
 }, "pluralForm": "nplurals=2; plural=(n > 1);" }

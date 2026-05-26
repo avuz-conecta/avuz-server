@@ -19,6 +19,11 @@ RUN npm ci
 # Copy source files
 COPY . /var/www/html/
 
+# Apply Avuz spreed overlay (chunked recording upload patches).
+# Each file under docker/overlays/spreed/ is a full replacement for the same
+# relative path under apps/spreed/. Net-new files are added by the same cp -R.
+RUN cp -R /var/www/html/docker/overlays/spreed/. /var/www/html/apps/spreed/
+
 # Clean old compiled bundles and rebuild frontend
 RUN npm run build
 
