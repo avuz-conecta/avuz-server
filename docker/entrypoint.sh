@@ -184,6 +184,21 @@ run_avuz_configuration() {
         php occ config:app:set conectamail roundcube_url --value="$ROUNDCUBE_URL"
         php occ config:app:set conectamail sso_secret --value="$ROUNDCUBE_SSO_SECRET"
         php occ config:app:set conectamail credential_key --value="$ROUNDCUBE_CREDENTIAL_KEY"
+
+        # One-shot migration: move per-user mail creds from old app id `roundcube`
+        # to `conectamail`. Idempotent — after first deploy the WHERE matches 0 rows.
+        # Bypasses NC's CLI migration system (missing in this build).
+        php -r '
+            require "/var/www/html/lib/base.php";
+            $db = \OC::$server->get(\OCP\IDBConnection::class);
+            $qb = $db->getQueryBuilder();
+            $qb->update("preferences")
+               ->set("appid", $qb->createNamedParameter("conectamail"))
+               ->where($qb->expr()->eq("appid", $qb->createNamedParameter("roundcube")));
+            $n = $qb->executeStatement();
+            echo "[conectamail] migrated " . $n . " preference row(s) from app id roundcube\n";
+        ' || echo "✗ conectamail preferences migration failed (check NC bootstrap)"
+
         echo "✓ Conecta Mail configured"
     fi
 
