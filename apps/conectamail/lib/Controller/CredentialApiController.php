@@ -14,7 +14,7 @@ class CredentialApiController extends Controller
         private CredentialService $credentialService,
         private string $userId,
     ) {
-        parent::__construct('roundcube', $request);
+        parent::__construct('conectamail', $request);
     }
 
     /**

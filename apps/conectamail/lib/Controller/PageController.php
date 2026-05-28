@@ -15,7 +15,7 @@ class PageController extends Controller
         private CredentialService $credentialService,
         private string $userId,
     ) {
-        parent::__construct('roundcube', $request);
+        parent::__construct('conectamail', $request);
     }
 
     /**
@@ -27,7 +27,7 @@ class PageController extends Controller
         $iframeUrl = $this->credentialService->buildIframeUrl($this->userId);
         $roundcubeOrigin = $this->credentialService->getRoundcubeOrigin();
 
-        $response = new TemplateResponse('roundcube', 'index', [
+        $response = new TemplateResponse('conectamail', 'index', [
             'iframe_url' => $iframeUrl,
         ]);
 

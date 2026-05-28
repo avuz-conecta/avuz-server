@@ -13,7 +13,7 @@ use OCP\User\Events\UserLoggedOutEvent;
 
 class Application extends App implements IBootstrap
 {
-    public const APP_ID = 'roundcube';
+    public const APP_ID = 'conectamail';
 
     public function __construct()
     {

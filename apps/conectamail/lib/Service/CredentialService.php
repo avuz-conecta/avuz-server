@@ -7,7 +7,7 @@ use OCP\IUserManager;
 
 class CredentialService
 {
-    private const APP_ID = 'roundcube';
+    private const APP_ID = 'conectamail';
     private const TOKEN_TTL = 60;
 
     public function __construct(
