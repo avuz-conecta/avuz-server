@@ -24,6 +24,11 @@ COPY . /var/www/html/
 # relative path under apps/spreed/. Net-new files are added by the same cp -R.
 RUN cp -R /var/www/html/docker/overlays/spreed/. /var/www/html/apps/spreed/
 
+# Apply Avuz files_downloadlimit overlay (restores templates/admin.php that
+# upstream 2.0.0 tarball drops — GH issue nextcloud/files_downloadlimit#421).
+# Without it the Sharing admin page returns 500 with TemplateNotFoundException.
+RUN cp -R /var/www/html/docker/overlays/files_downloadlimit/. /var/www/html/apps/files_downloadlimit/
+
 # Clean old compiled bundles and rebuild frontend
 RUN npm run build
 

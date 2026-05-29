@@ -60,6 +60,7 @@ verify_avuz_patches() {
     local checks=(
         "AVUZ-CHUNKED-UPLOAD-V1|/var/www/html/apps/spreed/lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
         "Upload in progress — do not close this tab|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
+        "admin-download-limit|/var/www/html/apps/files_downloadlimit/templates/admin.php|files_downloadlimit overlay missing — upstream 2.0.0 tarball drops this template (GH nextcloud/files_downloadlimit#421); redeploy or rerun reapply_avuz_files_downloadlimit_overlay"
     )
     local failed=0
     for entry in "${checks[@]}"; do
@@ -89,6 +90,22 @@ reapply_avuz_spreed_overlay() {
         cp -R "$overlay/." /var/www/html/apps/spreed/
         chown -R www-data:www-data /var/www/html/apps/spreed
         echo "✓ Avuz spreed overlay reapplied"
+    else
+        echo "✗ Avuz overlay missing at $overlay — image may be corrupted"
+    fi
+}
+
+# Reapply the files_downloadlimit overlay onto
+# /var/www/html/apps/files_downloadlimit/. The upstream 2.0.0 tarball ships
+# without templates/admin.php (GH nextcloud/files_downloadlimit#421), so every
+# 'occ app:update --all' against the store re-extracts the broken bundle and
+# wipes our restored template. Re-run this after every update.
+reapply_avuz_files_downloadlimit_overlay() {
+    local overlay="/var/www/html/docker/overlays/files_downloadlimit"
+    if [ -d "$overlay" ]; then
+        cp -R "$overlay/." /var/www/html/apps/files_downloadlimit/
+        chown -R www-data:www-data /var/www/html/apps/files_downloadlimit
+        echo "✓ Avuz files_downloadlimit overlay reapplied"
     else
         echo "✗ Avuz overlay missing at $overlay — image may be corrupted"
     fi
@@ -360,6 +377,7 @@ PHPINI
     echo "Updating App Store apps..."
     php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
     reapply_avuz_spreed_overlay
+    reapply_avuz_files_downloadlimit_overlay
 
     # Ensure all managed apps are enabled — use --force for apps that
     # haven't declared support for this NC version yet (bruteforcesettings, notifications, text)
@@ -497,15 +515,19 @@ else
         php occ upgrade --no-interaction
         php occ maintenance:mode --off
 
-        # NC upgrade may have rewritten bundled apps; reapply overlay before
+        # NC upgrade may have rewritten bundled apps; reapply overlays before
         # the app:update --all below (which can overwrite again).
         reapply_avuz_spreed_overlay
+        reapply_avuz_files_downloadlimit_overlay
 
         # Update custom_apps (App Store apps) now that NC core is upgraded.
-        # Reapply overlay afterwards because app:update may pull a fresh spreed.
+        # Reapply overlays afterwards because app:update may pull a fresh
+        # spreed and/or a fresh files_downloadlimit (whose 2.0.0 tarball drops
+        # templates/admin.php — GH issue 421).
         echo "Updating App Store apps..."
         php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
         reapply_avuz_spreed_overlay
+        reapply_avuz_files_downloadlimit_overlay
 
         # Re-enable apps that were enabled before the upgrade
         # --allow-unstable is required for apps that haven't declared NC33 support yet

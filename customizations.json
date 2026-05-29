@@ -355,6 +355,18 @@
       "notes": "Uses occ config:app:set — no core file changes. Settings stored in NC database. password_policy app must be enabled (it is in ENABLE_APPS)."
     },
     {
+      "id": "files-downloadlimit-template-restore",
+      "type": "overlay",
+      "paths": [
+        "docker/overlays/files_downloadlimit/templates/admin.php",
+        "docker/entrypoint.sh",
+        "Dockerfile"
+      ],
+      "description": "Restores apps/files_downloadlimit/templates/admin.php (a tiny mount-div the upstream JS bundle binds to). The 2.0.0 release tarball published to the Nextcloud App Store ships without this file — packaging bug tracked at https://github.com/nextcloud/files_downloadlimit/issues/421 (OPEN since Nov 2024, no movement). Symptom: GET /settings/admin/sharing → 500 TemplateNotFoundException 'template:admin', whole sharing settings page dies. Without the overlay our boot loop wipes the working template on every restart because entrypoint flips appstoreenabled=true and runs 'occ app:update --all', which re-fetches the broken tarball and overwrites apps/files_downloadlimit/.",
+      "risk": "low",
+      "notes": "Overlay applied at build time via Dockerfile (RUN cp -R docker/overlays/files_downloadlimit/. /var/www/html/apps/files_downloadlimit/) and re-applied at runtime by entrypoint.sh::reapply_avuz_files_downloadlimit_overlay() after every 'occ app:update --all' (same pattern as spreed). Sentinel 'admin-download-limit' in templates/admin.php; entrypoint verify_avuz_patches() fails boot if missing. Drop the overlay once GH issue 421 ships in an upstream release."
+    },
+    {
       "id": "spreed-chunked-recording-upload",
       "type": "overlay",
       "paths": [
