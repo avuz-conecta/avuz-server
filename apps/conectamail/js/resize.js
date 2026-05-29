@@ -14,7 +14,7 @@
         var password = event.data.password;
 
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', OC.generateUrl('/apps/roundcube/api/credentials'));
+        xhr.open('POST', OC.generateUrl('/apps/conectamail/api/credentials'));
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.setRequestHeader('requesttoken', OC.requestToken);
         xhr.onload = function () {

@@ -15,4 +15,4 @@
     </div>
 <?php endif; ?>
 </div>
-<?php OCP\Util::addScript('roundcube', 'resize'); ?>
+<?php OCP\Util::addScript('conectamail', 'resize'); ?>
