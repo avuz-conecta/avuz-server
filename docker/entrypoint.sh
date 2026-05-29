@@ -169,6 +169,11 @@ run_avuz_configuration() {
     php occ theming:config url "https://$NEXTCLOUD_TRUSTED_DOMAIN"
     php occ theming:config primary_color "#1c7fa0"
     php occ theming:config background_color "#d2e314"
+    # Force empty slogan — upstream default is "A safe home for all your data"
+    # (or its NC-l10n pt_BR rendering "Um lar seguro para todos os seus dados"),
+    # which clutters footers (e.g. public share pages) under our brand. Set
+    # explicitly on every boot so drifted instances reconverge.
+    php occ theming:config slogan ""
     php occ config:app:set theming productName --value="Avuz Conecta"
     php occ config:system:set theme --value='avuz'
 
