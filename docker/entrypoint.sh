@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-12"
+AVUZ_CONFIG_VERSION="33.0.0-13"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 
@@ -112,6 +112,74 @@ reapply_avuz_files_downloadlimit_overlay() {
 }
 
 # ──────────────────────────────────────────────
+# S3/MinIO object store — must run BEFORE maintenance:install on fresh stacks.
+# Writes config/s3.config.php with values interpolated from env vars at boot.
+# Avoids getenv() at request time because PHP-FPM strips Docker envs by default
+# (clear_env = yes). Secrets land on disk in the config file; access is gated by
+# file perms (640, www-data) and the volume's host perms.
+# Switching primary store after install is a one-way door: do not toggle envs on
+# an existing instance unless you understand the migration cost.
+# ──────────────────────────────────────────────
+configure_objectstore_s3() {
+    local config_file="/var/www/html/config/s3.config.php"
+
+    if [ -z "$OBJECTSTORE_S3_BUCKET" ] || [ -z "$OBJECTSTORE_S3_KEY" ] || \
+       [ -z "$OBJECTSTORE_S3_SECRET" ] || [ -z "$OBJECTSTORE_S3_HOSTNAME" ]; then
+        if [ -f "$config_file" ]; then
+            echo "✗ S3 envs missing but $config_file exists — refusing to remove."
+            echo "  Restore envs or delete the file manually if you really mean to disable S3."
+            return 1
+        fi
+        echo "S3 object store not configured (envs unset) — using local filesystem"
+        return 0
+    fi
+
+    local port="${OBJECTSTORE_S3_PORT:-443}"
+    local region="${OBJECTSTORE_S3_REGION:-us-east-1}"
+    local use_ssl="false"
+    [ "$OBJECTSTORE_S3_USE_SSL" = "true" ] && use_ssl="true"
+    local use_path_style="true"
+    [ "$OBJECTSTORE_S3_USE_PATH_STYLE" = "false" ] && use_path_style="false"
+    # verify_bucket_exists is NC's real switch for skipping the HeadBucket+CreateBucket
+    # path on connect. Default false here because the bucket must be pre-created on the
+    # MinIO appliance (NC's `autocreate` flag is Swift-only and a no-op for S3).
+    local verify_bucket_exists="false"
+    [ "$OBJECTSTORE_S3_VERIFY_BUCKET_EXISTS" = "true" ] && verify_bucket_exists="true"
+
+    echo "Configuring S3 object store: bucket=$OBJECTSTORE_S3_BUCKET host=$OBJECTSTORE_S3_HOSTNAME:$port ssl=$use_ssl verify_bucket=$verify_bucket_exists"
+
+    # Escape single quotes in secret/key in case of edge chars.
+    local key_esc="${OBJECTSTORE_S3_KEY//\'/\\\'}"
+    local secret_esc="${OBJECTSTORE_S3_SECRET//\'/\\\'}"
+
+    cat > "$config_file" <<PHPEOF
+<?php
+\$CONFIG = [
+    'objectstore' => [
+        'class' => '\\OC\\Files\\ObjectStore\\S3',
+        'arguments' => [
+            'bucket'         => '${OBJECTSTORE_S3_BUCKET}',
+            'key'            => '${key_esc}',
+            'secret'         => '${secret_esc}',
+            'hostname'       => '${OBJECTSTORE_S3_HOSTNAME}',
+            'port'           => ${port},
+            'use_ssl'        => ${use_ssl},
+            'use_path_style' => ${use_path_style},
+            'region'         => '${region}',
+            'verify_bucket_exists' => ${verify_bucket_exists},
+            'request_checksum_calculation' => 'when_required',
+            'response_checksum_validation' => 'when_required',
+        ],
+    ],
+];
+PHPEOF
+
+    chown www-data:www-data "$config_file"
+    chmod 640 "$config_file"
+    echo "✓ S3 object store config written to $config_file"
+}
+
+# ──────────────────────────────────────────────
 # Avuz configuration — runs on fresh install, after upgrade, or when config version changes
 # All settings here are persisted in config.php or the DB, so they only need to run once.
 # ──────────────────────────────────────────────
@@ -145,6 +213,11 @@ run_avuz_configuration() {
     php occ config:system:set redis timeout --value=0.0 --type=float
     php occ config:system:set memcache.local --value='\OC\Memcache\Redis'
     php occ config:system:set memcache.locking --value='\OC\Memcache\Redis'
+    # memcache.distributed unlocks DAV chunked-upload v2 (streams browser chunks
+    # straight into an S3 MultipartUpload session keyed in shared cache, instead
+    # of the legacy v1 path that downloads each chunk back from S3 and assembles
+    # through PHP). Required for sane big-file UX on S3 primary store.
+    php occ config:system:set memcache.distributed --value='\OC\Memcache\Redis'
     php occ config:system:set filelocking.enabled --value=true --type=boolean
 
     # Locale & language
@@ -432,6 +505,11 @@ echo "Waiting for database..."
 until PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c '\q' 2>/dev/null; do
     sleep 2
 done
+
+# ──────────────────────────────────────────────
+# PHASE 1.5: Object store (must precede maintenance:install on fresh stacks)
+# ──────────────────────────────────────────────
+configure_objectstore_s3
 
 # ──────────────────────────────────────────────
 # PHASE 2: Install or upgrade

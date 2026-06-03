@@ -53,6 +53,20 @@ services:
       - ONLYOFFICE_URL=
       - ONLYOFFICE_SECRET=
 
+      # S3/MinIO object store (optional — leave OBJECTSTORE_S3_BUCKET empty to use local filesystem)
+      # Must be set BEFORE first install on fresh stacks; switching later is a one-way door.
+      - OBJECTSTORE_S3_BUCKET=
+      - OBJECTSTORE_S3_KEY=
+      - OBJECTSTORE_S3_SECRET=
+      - OBJECTSTORE_S3_HOSTNAME=
+      - OBJECTSTORE_S3_PORT=9000
+      - OBJECTSTORE_S3_USE_SSL=false
+      - OBJECTSTORE_S3_USE_PATH_STYLE=true
+      - OBJECTSTORE_S3_REGION=us-east-1
+      # See docs/s3-deployment.md — false skips NC's HeadBucket/CreateBucket
+      # probe (NC's `autocreate` flag is Swift-only and a no-op for S3).
+      - OBJECTSTORE_S3_VERIFY_BUCKET_EXISTS=false
+
       # Roundcube webmail integration (optional - leave empty to skip)
       - ROUNDCUBE_URL=
       - ROUNDCUBE_SSO_SECRET=

@@ -1,0 +1,108 @@
+version: '3.8'
+
+# Avuz Conecta — S3/MinIO primary object store variant.
+#
+# Use this stack when the instance stores user files in an S3-compatible bucket
+# (MinIO, AWS S3, Wasabi, etc.) instead of local disk. Recommended for big
+# clients where local storage cost dominates.
+#
+# IMPORTANT:
+#   - All OBJECTSTORE_S3_* envs marked "required" MUST be set before first boot.
+#     Nextcloud writes config/s3.config.php from these on container start, BEFORE
+#     `occ maintenance:install` runs. Switching primary store after install is a
+#     one-way door (no clean migration path).
+#   - The `nextcloud_data_s3` volume is still required: chunked recording upload
+#     staging (data/avuz-recording-chunks/), appdata cache, logs, sessions all
+#     live there. Only user files go to S3.
+#   - Volume names are suffixed `_s3` so this stack can coexist alongside the
+#     canonical (local-disk) deployment on the same host.
+
+services:
+  app:
+    image: 10.50.100.103:8080/admin/avuzconecta:staging-s3
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - nextcloud_data_s3:/var/www/html/data
+      - nextcloud_config_s3:/var/www/html/config
+      - nextcloud_apps_s3:/var/www/html/custom_apps
+    environment:
+      # ── S3/MinIO object store (REQUIRED for this stack) ──────────────────
+      # Must be reachable from the app container. For MinIO over private net
+      # keep USE_SSL=false + USE_PATH_STYLE=true.
+      - OBJECTSTORE_S3_BUCKET=avuz-conecta
+      - OBJECTSTORE_S3_KEY=                          # MinIO access key
+      - OBJECTSTORE_S3_SECRET=                       # MinIO secret key
+      - OBJECTSTORE_S3_HOSTNAME=                     # e.g. minio.internal or 10.x.x.x
+      - OBJECTSTORE_S3_PORT=9000
+      - OBJECTSTORE_S3_USE_SSL=false
+      - OBJECTSTORE_S3_USE_PATH_STYLE=true
+      - OBJECTSTORE_S3_REGION=us-east-1
+      # See docs/s3-deployment.md — false skips NC's HeadBucket/CreateBucket
+      # probe. Required when the bucket exists but the endpoint returns 400
+      # on HeadBucket (some appliances). NC's `autocreate` flag is Swift-only.
+      - OBJECTSTORE_S3_VERIFY_BUCKET_EXISTS=false
+
+      # ── Database (update with your DB credentials) ───────────────────────
+      - POSTGRES_HOST=your-db-host
+      - POSTGRES_DB=your-db-name
+      - POSTGRES_USER=your-db-user
+      - POSTGRES_PASSWORD=your-db-password
+
+      # ── Redis ────────────────────────────────────────────────────────────
+      # Leave empty or set to "localhost" to use internal Redis (default).
+      - REDIS_HOST=
+
+      # ── Admin user ───────────────────────────────────────────────────────
+      - NEXTCLOUD_ADMIN_USER=admin
+      - NEXTCLOUD_ADMIN_PASSWORD=ChangeThisPassword123
+
+      # ── Trusted domains ──────────────────────────────────────────────────
+      - NEXTCLOUD_TRUSTED_DOMAIN=app3.avuz.app
+      - NEXTCLOUD_TRUSTED_DOMAINS=app3.avuz.app,recording.avuz.app
+      - OVERWRITEPROTOCOL=https
+
+      # PHP per-request ceiling (raised for heavy occ jobs).
+      - PHP_MEMORY_LIMIT=3072M
+
+      # ── SMTP (optional) ──────────────────────────────────────────────────
+      - SMTP_HOST=
+      - SMTP_PORT=587
+      - SMTP_SECURE=tls
+      - SMTP_NAME=
+      - SMTP_PASSWORD=
+      - SMTP_AUTHTYPE=LOGIN
+      - SMTP_FROM=
+      - SMTP_DOMAIN=
+
+      # ── OnlyOffice (optional) ────────────────────────────────────────────
+      - ONLYOFFICE_URL=
+      - ONLYOFFICE_SECRET=
+
+      # ── Roundcube webmail (optional) ─────────────────────────────────────
+      - ROUNDCUBE_URL=
+      - ROUNDCUBE_SSO_SECRET=
+      - ROUNDCUBE_CREDENTIAL_KEY=
+
+      # ── Notifications app from Git ───────────────────────────────────────
+      - NOTIFICATIONS_BRANCH=stable33
+
+      # ── Talk Recording backend (optional) ────────────────────────────────
+      - TALK_RECORDING_URL=
+      - TALK_RECORDING_SECRET=
+      - TALK_RECORDING_VERIFY=true
+
+      # ── AI transcription + summary (optional) ────────────────────────────
+      - AI_API_KEY=
+      - AI_BASE_URL=https://openrouter.ai/api/v1
+      - AI_LLM_MODEL=anthropic/claude-haiku-4-5
+      - AI_STT_API_KEY=
+      - AI_STT_BASE_URL=https://api.fireworks.ai/inference/v1
+      - AI_STT_MODEL=whisper-v3
+      - AI_STT_LANGUAGE=pt
+
+volumes:
+  nextcloud_data_s3:
+  nextcloud_config_s3:
+  nextcloud_apps_s3:

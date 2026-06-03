@@ -71,6 +71,21 @@ services:
       # OnlyOffice Configuration (optional - leave empty to skip)
       - ONLYOFFICE_URL=
       - ONLYOFFICE_SECRET=
+      # S3/MinIO object store (optional — leave OBJECTSTORE_S3_BUCKET empty to use local filesystem)
+      # Must be set BEFORE first install on fresh stacks; switching later is a one-way door.
+      - OBJECTSTORE_S3_BUCKET=
+      - OBJECTSTORE_S3_KEY=
+      - OBJECTSTORE_S3_SECRET=
+      - OBJECTSTORE_S3_HOSTNAME=
+      - OBJECTSTORE_S3_PORT=9000
+      - OBJECTSTORE_S3_USE_SSL=false
+      - OBJECTSTORE_S3_USE_PATH_STYLE=true
+      - OBJECTSTORE_S3_REGION=us-east-1
+      # Set to "true" only if your S3 endpoint correctly answers HeadBucket
+      # for an existing bucket. MinIO appliances behind some proxies return
+      # 400 on HeadBucket and NC then tries CreateBucket, which often also
+      # fails. Default "false" trusts that the bucket already exists.
+      - OBJECTSTORE_S3_VERIFY_BUCKET_EXISTS=false
     depends_on:
       db:
         condition: service_healthy

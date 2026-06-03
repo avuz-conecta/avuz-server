@@ -11,33 +11,44 @@ VERSION=${1:-latest}
 # Environment: local (macOS/arm64) or staging (linux/amd64)
 ENV=${2:-local}
 
+# Optional tag suffix — appended as "-<suffix>" to image tags. Use to isolate
+# experimental builds (e.g. "s3" → :latest-s3, :staging-s3) without overwriting
+# the canonical tags. Base image is NOT suffixed.
+TAG_SUFFIX=${3:-}
+SUFFIX=""
+if [ -n "$TAG_SUFFIX" ]; then
+  SUFFIX="-${TAG_SUFFIX}"
+fi
+
 case $ENV in
   local)
     PLATFORM="linux/arm64"
     PUSH=false
-    IMAGE_TAG="${IMAGE_NAME}:${VERSION}"
-    IMAGE_TAG_LATEST="${IMAGE_NAME}:latest"
+    IMAGE_TAG="${IMAGE_NAME}:${VERSION}${SUFFIX}"
+    IMAGE_TAG_LATEST="${IMAGE_NAME}:latest${SUFFIX}"
     BASE_IMAGE="${BASE_IMAGE_NAME}:latest"
     ;;
   staging)
     PLATFORM="linux/amd64"
     PUSH=true
-    IMAGE_TAG="${REGISTRY}/${ORG}/${IMAGE_NAME}:staging"
-    IMAGE_TAG_LATEST="${REGISTRY}/${ORG}/${IMAGE_NAME}:staging"
+    IMAGE_TAG="${REGISTRY}/${ORG}/${IMAGE_NAME}:staging${SUFFIX}"
+    IMAGE_TAG_LATEST="${REGISTRY}/${ORG}/${IMAGE_NAME}:staging${SUFFIX}"
     BASE_IMAGE="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:staging"
     ;;
   prod)
     PLATFORM="linux/amd64"
     PUSH=true
-    IMAGE_TAG="${REGISTRY}/${ORG}/${IMAGE_NAME}:${VERSION}"
-    IMAGE_TAG_LATEST="${REGISTRY}/${ORG}/${IMAGE_NAME}:latest"
+    IMAGE_TAG="${REGISTRY}/${ORG}/${IMAGE_NAME}:${VERSION}${SUFFIX}"
+    IMAGE_TAG_LATEST="${REGISTRY}/${ORG}/${IMAGE_NAME}:latest${SUFFIX}"
     BASE_IMAGE="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:latest"
     ;;
   *)
-    echo "Usage: $0 [version] [local|staging|prod]"
-    echo "  local   - Build for macOS (arm64), no push"
-    echo "  staging - Build for Linux (amd64), push as :staging"
-    echo "  prod    - Build for Linux (amd64), push as :latest"
+    echo "Usage: $0 [version] [local|staging|prod] [tag-suffix]"
+    echo "  local         - Build for macOS (arm64), no push"
+    echo "  staging       - Build for Linux (amd64), push as :staging"
+    echo "  prod          - Build for Linux (amd64), push as :latest"
+    echo "  tag-suffix    - Optional. Appends '-<suffix>' to image tags."
+    echo "                  Example: '$0 latest staging s3' → :staging-s3"
     exit 1
     ;;
 esac
