@@ -68,7 +68,63 @@ find /var/www/html/themes -type f -exec chmod 644 {} \;
 # Staging (amd64)
 ./scripts/build-base.sh latest staging
 ./scripts/build-push.sh latest staging
+
+# Optional 3rd arg = tag suffix (e.g. experimental S3 variant):
+./scripts/build-push.sh latest staging s3     # → :staging-s3
+./scripts/build-push.sh latest local   s3     # → :latest-s3
 ```
+
+## Fresh Checkout Setup (REQUIRED before first build)
+
+`.gitignore` line 22 (`/apps*/*`) excludes every NC app from version control.
+A fresh `git clone` ships with only a handful of force-added apps under `apps/`.
+The other ~20 bundled apps (notifications, text, activity, twofactor_totp,
+suspicious_login, logreader, password_policy, calendar, contacts, deck, spreed,
+forms, viewer, notify_push, onlyoffice, files_downloadlimit, files_retention,
+external, bruteforcesettings, quota_warning, integration_openai) live in their
+own GitHub repos and must be pulled in **before** `./scripts/build-push.sh`,
+otherwise the resulting image is missing them and `occ app:enable` fails with
+"not found on the appstore" at runtime.
+
+Two things to do on a fresh clone:
+
+```bash
+# 1. Init the 3rdparty Composer submodule (or the build fails with
+#    "Composer autoloader not found").
+git submodule update --init --recursive 3rdparty
+
+# 2. Populate apps/ with the bundled NC apps.
+#    Simplest: clone alongside an existing working checkout and rsync them in.
+for app in activity bruteforcesettings calendar contacts deck external \
+           files_downloadlimit files_retention forms logreader notifications \
+           notify_push onlyoffice password_policy quota_warning spreed \
+           suspicious_login text twofactor_totp viewer integration_openai; do
+  rsync -a /path/to/working/avuz-server/apps/$app/ apps/$app/
+done
+```
+
+Long-term TODO: replace the rsync hack with a per-app `git clone` step in
+the Dockerfile or a one-shot `scripts/fetch-apps.sh` so a fresh clone is
+self-sufficient. Until that lands, keep one "golden" checkout around for
+seeding new ones.
+
+## S3 Primary Object Store (optional path)
+
+See `docs/s3-deployment.md` for end-to-end deployment. Key points:
+
+- Entrypoint writes `config/s3.config.php` **before** `maintenance:install`
+  when `OBJECTSTORE_S3_BUCKET/KEY/SECRET/HOSTNAME` envs are all set.
+- Switching primary store after install is a one-way door — set envs on the
+  fresh stack, don't toggle them on an existing instance.
+- `memcache.distributed=Redis` is set in `run_avuz_configuration`. This is
+  required to unlock NC's chunked-upload v2 path (see
+  [nextcloud/server#27034](https://github.com/nextcloud/server/pull/27034)).
+  Without it NC silently falls back to v1 = downloads each chunk back from
+  S3 and assembles through PHP, doubling bandwidth on every big upload.
+- `verify_bucket_exists=false` is used because the NC `autocreate` flag
+  is Swift-only and a no-op for S3 (the sample doc is misleading).
+- Use `portainer-stack-s3.yml` as the deployment template — it has distinct
+  volume names so it can coexist with the local-disk stack on the same host.
 
 ## File Structure
 ```
