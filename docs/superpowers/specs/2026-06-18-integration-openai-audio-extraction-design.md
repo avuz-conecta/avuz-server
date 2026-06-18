@@ -50,15 +50,25 @@ provider.
 
 ## Approach
 
-Overlay `integration_openai`'s `OpenAiAPIService::transcribeFile()` to extract a
-compact audio file with ffmpeg before the upload, only when the input warrants
-it. Delivered through the same build-time-copy + runtime-reapply + sentinel
-mechanism already used for the `spreed` overlay.
+Maintain a **fork** of `integration_openai` (repo `avuz-conecta/integration_openai`,
+patch on a branch) and ship it to `avuz-server` as a **git submodule**, replacing
+the runtime App Store install. The patch itself is a one-method change to
+`OpenAiAPIService::transcribeFile()`: extract a compact mp3 with ffmpeg before
+the upload, only when the input warrants it.
 
-This was chosen over overlaying `spreed` because it has the smallest blast
-radius (one method, at the byte boundary just before the POST), produces no
-stray Nextcloud files in the user's Talk folder, and works regardless of which
-STT provider `AI_STT_*` points at.
+This was chosen over an overlay (the spreed pattern) after analysis. An overlay
+pins a single file against an app the store keeps moving, causing internal-API
+skew and silent reverts; the boot sentinel proves presence, not correctness. A
+fork keeps the whole app at one coherent version, turns our change into an
+auditable git diff that is PR-able upstream (NC issues #203/#205 — if merged we
+drop the fork), and matches an existing project workflow (the `talk-recording`
+fork). The cost — owning upstream rebases — is one already accepted for the bot
+fork and ~20 vendored apps, and this thin outbound-HTTPS connector has low
+security churn.
+
+The overlay pattern still fits `spreed` (a few files of a giant bundled app that
+is impractical to fork wholesale); it does not fit a small standalone connector
+we would be pinning in its entirety anyway.
 
 ## Design
 
@@ -126,19 +136,32 @@ NC) with arguments as an array — no shell string, no injection surface.
   than today: worst case is the same `413`, now clearly logged with the reason.
 - ffmpeg is confirmed present in the NC container (used directly this session).
 
-### Delivery (mirrors the existing spreed overlay)
+### Delivery (fork + submodule, version-pinned)
 
-- New overlay tree:
-  `docker/overlays/integration_openai/lib/Service/OpenAiAPIService.php`.
-- Sentinel comment in the overlaid file: `AVUZ-AUDIO-EXTRACT-V1`.
-- `integration_openai` is installed from the appstore at runtime
-  (`docker/entrypoint.sh:360`), so a build-time copy alone would be clobbered.
-  Add `reapply_avuz_openai_overlay()` (cp overlay tree → app dir), called:
-  - after the appstore install of `integration_openai`, and
-  - after `occ app:update` runs (same spots the spreed reapply already covers).
-- `verify_avuz_patches()` greps the running container's file for
-  `AVUZ-AUDIO-EXTRACT-V1` and fails fast if absent, exactly like the
-  `AVUZ-CHUNKED-UPLOAD-V1` check.
+- **Fork repo** `avuz-conecta/integration_openai`, forked from upstream at the
+  currently deployed version. Our changes live on a branch (e.g. `avuz`):
+  - the `transcribeFile` patch + private `extractAudioForWhisper` helper,
+  - sentinel comment `AVUZ-AUDIO-EXTRACT-V1` in the patched file,
+  - `appinfo/info.xml` `<version>` bumped to ≥ the store version (e.g. upstream
+    `4.5.1` → `4.5.1.1`) so `app:update` never replaces it.
+- **Submodule** in `avuz-server` pointing at the fork's branch, placed so the
+  app lands at `apps/integration_openai` in the image (via the existing
+  `COPY . /var/www/html/`). Fresh-checkout docs updated for the new submodule
+  (alongside the existing `3rdparty` submodule step).
+- **`docker/entrypoint.sh`:**
+  - Remove the App Store install of `integration_openai`
+    (`app:install integration_openai`, ~line 360-362). The app now ships in the
+    image.
+  - Add `integration_openai` to the bundled `app:enable --force` set so it is
+    enabled like the other vendored apps.
+  - Keep the existing `config:app:set` STT/LLM configuration untouched.
+- **Clobber protection:** the version pin is the primary guard — `app:update
+  --all` skips an app whose installed version is ≥ store. No `cp`/reapply needed.
+- **Sentinel:** `verify_avuz_patches()` greps the deployed
+  `apps/integration_openai/lib/Service/OpenAiAPIService.php` for
+  `AVUZ-AUDIO-EXTRACT-V1` and fails fast if absent — now meaning "the fork was
+  clobbered / not shipped" rather than "overlay missing". This entry is required
+  (the app always ships in the image), unlike the optional store-install case.
 
 ## Verification
 
@@ -147,14 +170,24 @@ NC) with arguments as an array — no shell string, no injection surface.
 - **Trigger off:** a small `.mp3` (non-video, under 24MB) passes through
   untouched — ffmpeg is not invoked.
 - **Trigger on:** a video input invokes extraction and sends `audio.ogg`.
-- **Sentinel:** `verify_avuz_patches()` passes on a fresh container build and
-  after an app update.
+- **Sentinel + clobber:** `verify_avuz_patches()` passes on a fresh build; after
+  an `occ app:update --all` the version pin holds and the
+  `AVUZ-AUDIO-EXTRACT-V1` marker is still present (proves the fork was not
+  replaced by the store version).
 
 ## Risks
 
-- **Appstore app update changes the method signature.** Mitigation: the overlay
-  pins a known-good `OpenAiAPIService.php`; the sentinel check surfaces drift on
-  every boot. Pin the integration_openai version if updates prove disruptive.
+- **Falling behind upstream (incl. security fixes).** The fork freezes the app
+  until we rebase. Mitigation: periodically rebase the `avuz` branch onto new
+  upstream tags, re-bump the version, rebuild. Low churn for a thin connector;
+  same workflow as the `talk-recording` fork.
+- **Version pin fails and `app:update --all` clobbers the fork.** Mitigation:
+  the boot sentinel (`AVUZ-AUDIO-EXTRACT-V1`, required) fails the boot if the
+  marker is gone; implementation verifies the pin empirically after an
+  `app:update --all` run.
+- **Submodule not initialized on a fresh checkout** → app missing from the
+  image. Mitigation: document the `git submodule update --init` step alongside
+  the existing `3rdparty` submodule instruction in CLAUDE.md.
 - **Very long calls (>~2h) still exceed 24MB even at 24k mp3.** Mitigation: the
   worst case is the same `413` as today, now logged with the audio size. A
   duration-aware bitrate is deliberately out of scope (YAGNI) until a real call
