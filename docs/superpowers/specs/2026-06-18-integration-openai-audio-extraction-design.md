@@ -92,20 +92,27 @@ If `extract` is false: behave exactly as today (send `$file->getContent()`).
 
 ### Extraction
 
+Output format is **mp3**, not ogg. integration_openai's `transcribe()` sends the
+multipart upload with a hardcoded filename `file.mp3`, and OpenAI's validator
+rejects by extension (proven: a `.opus` extension returns 400). Sending ogg
+bytes labeled `file.mp3` risks a 400, so we re-encode to mp3 to match. This
+costs the stream-copy shortcut, but re-encoding a single call's audio is a few
+seconds and removes the filename-mismatch risk. (If the deployed source turns
+out to let the filename follow the input — verified in implementation Task 1 —
+ogg stream-copy can be restored as a faster path.)
+
 1. Write `$file->getContent()` to a unique temp input file in
    `sys_get_temp_dir()`.
-2. Stream-copy the audio track (no re-encode — Talk audio is already Opus):
+2. Re-encode audio only, mono, to mp3:
    ```
-   ffmpeg -nostdin -y -i <in> -vn -map 0:a:0 -c:a copy <out>.ogg
+   ffmpeg -nostdin -y -i <in> -vn -ac 1 -c:a libmp3lame -b:a 48k <out>.mp3
    ```
-   Proven to return `200 OK` from OpenAI on the real recording.
-3. If `<out>.ogg` is still > 24MB (very long call), re-encode as a safety net:
+3. If `<out>.mp3` is still > 24MB (very long call), re-encode lower:
    ```
-   ffmpeg -nostdin -y -i <in> -vn -ac 1 -c:a libopus -b:a 24k <out>.ogg
+   ffmpeg -nostdin -y -i <in> -vn -ac 1 -c:a libmp3lame -b:a 24k <out>.mp3
    ```
-4. Read `<out>.ogg` bytes and pass them to `transcribe()`. The multipart
-   filename sent to the API is `audio.ogg` (OpenAI accepts ogg/oga/mp3/mp4/
-   mpeg/mpga/wav/webm/flac/m4a; `.opus` is rejected with 400, so `.ogg` is used).
+4. Read `<out>.mp3` bytes and pass them to `transcribe()` in place of
+   `$file->getContent()`. Filename stays `file.mp3` (unchanged from upstream).
 
 ffmpeg is invoked via `Symfony\Component\Process\Process` (already available in
 NC) with arguments as an array — no shell string, no injection surface.
@@ -148,6 +155,10 @@ NC) with arguments as an array — no shell string, no injection surface.
 - **Appstore app update changes the method signature.** Mitigation: the overlay
   pins a known-good `OpenAiAPIService.php`; the sentinel check surfaces drift on
   every boot. Pin the integration_openai version if updates prove disruptive.
-- **A future input is video but not Opus-audio**, so stream-copy yields a
-  format Whisper rejects. Mitigation: the >24MB re-encode branch produces a
-  clean Opus ogg; if needed, broaden the re-encode trigger to any copy failure.
+- **Very long calls (>~2h) still exceed 24MB even at 24k mp3.** Mitigation: the
+  worst case is the same `413` as today, now logged with the audio size. A
+  duration-aware bitrate is deliberately out of scope (YAGNI) until a real call
+  hits it.
+- **Hardcoded `file.mp3` filename assumption is wrong** in the deployed source.
+  Mitigation: implementation Task 1 reads the deployed `transcribe()` to confirm
+  the filename before finalizing the output format.
