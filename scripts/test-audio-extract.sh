@@ -2,6 +2,7 @@
 # AVUZ-AUDIO-EXTRACT-V1 — regression test for the Whisper audio-extraction recipe.
 # Usage: scripts/test-audio-extract.sh <input-media-file>
 # Asserts: produces a non-empty mp3, <= 24MB, decodable by ffprobe.
+# Uses GNU coreutils (mktemp --suffix, stat -c) — run in the Linux build/CI image.
 set -euo pipefail
 
 IN="${1:?usage: test-audio-extract.sh <input-media-file>}"
@@ -13,11 +14,11 @@ extract() { # $1 = bitrate
     ffmpeg -nostdin -y -i "$IN" -vn -ac 1 -c:a libmp3lame -b:a "$1" "$OUT" >/dev/null 2>&1
 }
 
-extract 48k
+extract 48k || { echo "FAIL: ffmpeg extraction at 48k failed"; exit 1; }
 SIZE=$(stat -c %s "$OUT")
 if [ "$SIZE" -gt "$LIMIT" ]; then
     echo "48k output ${SIZE}B > limit, retrying at 24k"
-    extract 24k
+    extract 24k || { echo "FAIL: ffmpeg extraction at 24k failed"; exit 1; }
     SIZE=$(stat -c %s "$OUT")
 fi
 

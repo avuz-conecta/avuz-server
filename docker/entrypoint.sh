@@ -358,8 +358,9 @@ PHPINI
         echo "Configuring AI provider (integration_openai)..."
 
         # integration_openai ships as a version-pinned fork submodule (apps/),
-        # not from the App Store (see docker/overlays note + .gitmodules). Just
-        # enable it; the files are already in the image.
+        # not from the App Store (see .gitmodules). The files are already in the
+        # image. Enable it here so it's on before the config:app:set calls below;
+        # it is also enabled via the BUNDLED_APPS loops (keep both).
         php occ app:enable --force integration_openai 2>/dev/null || true
 
         # Pilot defaults: LLM via OpenRouter (Anthropic Claude Haiku) + STT
