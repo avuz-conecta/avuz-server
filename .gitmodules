@@ -4,3 +4,7 @@
 [submodule "3rdparty"]
 	path = 3rdparty
 	url = https://github.com/nextcloud/3rdparty.git
+[submodule "apps/integration_openai"]
+	path = apps/integration_openai
+	url = git@github.com:avuz-conecta/integration_openai.git
+	branch = avuz
