@@ -19,6 +19,12 @@ RUN npm ci
 # Copy source files
 COPY . /var/www/html/
 
+# NB: integration_openai is a version-pinned fork shipped as a git submodule at
+# apps/integration_openai (NOT an App Store app, NOT an overlay). It arrives via
+# the COPY above; the version pin in its appinfo/info.xml keeps
+# `occ app:update --all` from replacing it. Submodules must be initialized in the
+# working tree before build (see CLAUDE.md).
+
 # Apply Avuz spreed overlay (chunked recording upload patches).
 # Each file under docker/overlays/spreed/ is a full replacement for the same
 # relative path under apps/spreed/. Net-new files are added by the same cp -R.

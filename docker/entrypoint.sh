@@ -61,6 +61,7 @@ verify_avuz_patches() {
         "AVUZ-CHUNKED-UPLOAD-V1|/var/www/html/apps/spreed/lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
         "Upload in progress — do not close this tab|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
         "admin-download-limit|/var/www/html/apps/files_downloadlimit/templates/admin.php|files_downloadlimit overlay missing — upstream 2.0.0 tarball drops this template (GH nextcloud/files_downloadlimit#421); redeploy or rerun reapply_avuz_files_downloadlimit_overlay"
+        "AVUZ-AUDIO-EXTRACT-V1|/var/www/html/apps/integration_openai/lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
     )
     local failed=0
     for entry in "${checks[@]}"; do
@@ -356,13 +357,9 @@ PHPINI
     if [ -n "$AI_API_KEY" ]; then
         echo "Configuring AI provider (integration_openai)..."
 
-        if ! php occ app:list --enabled 2>/dev/null | grep -q "  - integration_openai"; then
-            echo "Installing integration_openai from App Store..."
-            php occ app:install integration_openai 2>/dev/null && echo "✓ integration_openai installed" \
-                || echo "✗ integration_openai install failed (no internet?)"
-        else
-            echo "✓ integration_openai already present"
-        fi
+        # integration_openai ships as a version-pinned fork submodule (apps/),
+        # not from the App Store (see docker/overlays note + .gitmodules). Just
+        # enable it; the files are already in the image.
         php occ app:enable --force integration_openai 2>/dev/null || true
 
         # Pilot defaults: LLM via OpenRouter (Anthropic Claude Haiku) + STT

@@ -81,24 +81,29 @@ A fresh `git clone` ships with only a handful of force-added apps under `apps/`.
 The other ~20 bundled apps (notifications, text, activity, twofactor_totp,
 suspicious_login, logreader, password_policy, calendar, contacts, deck, spreed,
 forms, viewer, notify_push, onlyoffice, files_downloadlimit, files_retention,
-external, bruteforcesettings, quota_warning, integration_openai) live in their
+external, bruteforcesettings, quota_warning) live in their
 own GitHub repos and must be pulled in **before** `./scripts/build-push.sh`,
 otherwise the resulting image is missing them and `occ app:enable` fails with
 "not found on the appstore" at runtime.
 
+`integration_openai` is the exception: it is a **version-pinned fork**
+(`avuz-conecta/integration_openai`, branch `avuz`) shipped as a git submodule at
+`apps/integration_openai` — NOT rsync'd and NOT App Store-installed. Do not add
+it to the rsync loop below; init it as a submodule instead.
+
 Two things to do on a fresh clone:
 
 ```bash
-# 1. Init the 3rdparty Composer submodule (or the build fails with
-#    "Composer autoloader not found").
-git submodule update --init --recursive 3rdparty
+# 1. Init submodules: 3rdparty (Composer autoloader) + the integration_openai
+#    fork (or the build is missing them).
+git submodule update --init --recursive 3rdparty apps/integration_openai
 
 # 2. Populate apps/ with the bundled NC apps.
 #    Simplest: clone alongside an existing working checkout and rsync them in.
 for app in activity bruteforcesettings calendar contacts deck external \
            files_downloadlimit files_retention forms logreader notifications \
            notify_push onlyoffice password_policy quota_warning spreed \
-           suspicious_login text twofactor_totp viewer integration_openai; do
+           suspicious_login text twofactor_totp viewer; do
   rsync -a /path/to/working/avuz-server/apps/$app/ apps/$app/
 done
 ```
