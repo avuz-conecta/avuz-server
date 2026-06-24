@@ -1,14 +1,14 @@
 # Zammad support backend — Portainer stack
 # Adapted from github.com/zammad/zammad-docker-compose (master), pinned + trimmed.
 #
-# TLS is terminated at Nginx Proxy Manager (NPM). zammad-nginx joins NPM's docker
-# network so NPM proxies to it by container name (http://zammad-nginx:8080).
+# TLS is terminated at Nginx Proxy Manager (NPM), which runs on the HOST (not docker).
+# So zammad-nginx publishes to host port 8033; point NPM's proxy host at
+# http://<host-ip>:8033 (or 127.0.0.1:8033 if NPM is on the same box).
 #
 # BEFORE DEPLOY:
-#   1. Find NPM's docker network name:  docker network ls
-#      Put it in the `networks.proxy.name` field below (default guess: npm_default).
-#   2. Change POSTGRES_PASS to a strong value.
-#   3. Host needs ~2GB free RAM for Elasticsearch.
+#   1. Change POSTGRES_PASS to a strong value (both places).
+#   2. Host needs ~2GB free RAM for Elasticsearch.
+#   3. If port 8033 is taken, change the left side of "8033:8080".
 #
 # Pinned versions (bump deliberately, see upstream .env.dist):
 #   zammad 7.1.0-0017 · elasticsearch 9.4.2 · postgres 17.10 · redis 8.8 · memcached 1.6.42
@@ -74,14 +74,14 @@ services:
   zammad-nginx:
     <<: *zammad-service
     command: ["zammad-nginx"]
-    expose:
-      - "8080"
+    # NPM runs on the host → publish to a host port; NPM forwards here.
+    ports:
+      - "8033:8080"
     depends_on:
       zammad-railsserver:
         condition: service_healthy
     networks:
       - default
-      - proxy   # so NPM can reach it as http://zammad-nginx:8080
 
   zammad-postgresql:
     image: postgres:17.10-alpine
@@ -148,6 +148,3 @@ volumes:
 
 networks:
   default:
-  proxy:
-    external: true
-    name: npm_default   # <-- set to YOUR NPM network (docker network ls)
