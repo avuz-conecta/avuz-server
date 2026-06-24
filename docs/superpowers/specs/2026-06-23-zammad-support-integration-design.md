@@ -91,25 +91,40 @@ Zammad chat widget safe in a multi-tenant deployment.
 ## Components
 
 ### Surface 1 — Floating chat widget (Full / Avuz Conecta profile)
-- Native Zammad chat JS snippet, injected on every NC page via `avuz_theme` — same mechanism
-  as the existing `apps/avuz_theme/js/lucide-icons.js`.
-- New file `apps/avuz_theme/js/zammad-chat.js`; reads config from a global the entrypoint
-  writes (`window.AVUZ_ZAMMAD`).
-- Floating button styled to the Avuz palette (`#2bb5e3`).
-- Prefills the logged-in NC user's name/email as a *convenience* (not a security control —
-  agents verify identity).
+- Native Zammad chat (`chat-no-jquery` build, loaded from the Zammad host), injected on
+  every NC page via `avuz_theme` — same mechanism as the existing
+  `apps/avuz_theme/js/lucide-icons.js`.
+- New file `apps/avuz_theme/js/zammad-chat.js`; reads config via `IInitialState`
+  (`OCP.InitialState.loadState('avuz_theme', 'zammad')`) — *not* a window global, and *not*
+  `getenv` (PHP-FPM strips Docker env). Config = `{url, chatId}`.
+- The no-jQuery build does **not** auto-create a launcher; our JS creates a branded floating
+  button (`#2bb5e3`) and passes it to `ZammadChat`.
+- **No identity prefill** — Zammad live chat is anonymous (no `prefilledName`/`prefilledEmail`
+  option). Identity in chat is established by the agent (verify before acting), per the
+  trust-split model. The widget passes no user/org data (the native widget can't carry it).
+- Requires a **CSP exception** (see below) — without it NC blocks the external script + `wss`.
 
-### Surface 2 — "Suporte" menu icon (both profiles; primary for Slim)
-- `nextcloud/external` app (already shipped in the bundled apps).
-- Admin-config: menu entry "Suporte", Lucide icon, target = Zammad customer portal.
-- Embed via iframe **or** new-tab link. Iframe requires Zammad to allow framing
-  (X-Frame-Options / CSP). Build decides; both paths documented.
+### Surface 2 — "Suporte" menu entry (both profiles; primary for Slim)
+- **Not** the `external` app: NC ≥29 drops the `href` for external/absolute URLs in the
+  app-menu (known regression), and `external` has no occ automation (DB-seeded).
+- Instead, `avuz_theme` registers an **internal** route `/apps/avuz_theme/support` and a nav
+  entry pointing at it. The route issues a 302 redirect to the Zammad portal URL. Internal
+  href renders correctly; the redirect sends the user out. Code + env-driven, no DB seeding.
+
+### CSP (required for the chat widget)
+- NC enforces strict CSP (`script-src 'self'`, `connect-src 'self'`). The widget loads an
+  external script and opens a `wss://` socket — both blocked by default.
+- `avuz_theme` registers a CSP via `AddContentSecurityPolicyEvent`:
+  `addAllowedScriptDomain` + `addAllowedConnectDomain` (+ img/style/font as needed) for the
+  Zammad host. Applied only when chat is enabled.
 
 ### Config delivery (entrypoint)
-- New envs: `ZAMMAD_URL`, `ZAMMAD_ORG`, `ZAMMAD_CHAT_ENABLED`, `ZAMMAD_CHAT_ID`.
-- Entrypoint writes a small JS config (`window.AVUZ_ZAMMAD = {...}`) and configures
-  External Sites via `occ` if the entry is not already present.
-- `ZAMMAD_CHAT_ENABLED=false` → no floating widget (Slim profile); menu icon still works.
+- New envs: `ZAMMAD_URL`, `ZAMMAD_PORTAL_URL`, `ZAMMAD_ORG`, `ZAMMAD_CHAT_ID`,
+  `ZAMMAD_CHAT_ENABLED`.
+- Entrypoint persists them via `occ config:app:set avuz_theme zammad_*`; PHP reads them via
+  `IAppConfig` at request time.
+- `ZAMMAD_CHAT_ENABLED=false` → no floating widget + no CSP exception (Slim profile); the
+  "Suporte" entry still works.
 
 ## Org / tenant mapping
 
@@ -121,7 +136,7 @@ Zammad chat widget safe in a multi-tenant deployment.
 
 ## Delivery profiles (one image, env-gated — same pattern as the S3 toggle)
 
-| Profile | `ZAMMAD_CHAT_ENABLED` | External Sites "Suporte" | Use |
+| Profile | `ZAMMAD_CHAT_ENABLED` | "Suporte" entry | Use |
 |---|---|---|---|
 | **Full (Avuz Conecta)** | `true` | yes | branded NC + floating chat + portal |
 | **Slim (support-only)** | `false` | yes | minimal NC, just the Suporte portal |
@@ -129,22 +144,21 @@ Zammad chat widget safe in a multi-tenant deployment.
 ## Error handling / fallback
 
 - Zammad down / no agent online → chat widget hides itself (native Zammad behavior).
-  "Suporte" menu → portal ticket form still works (async path).
-- `ZAMMAD_URL`/`ZAMMAD_CHAT_ID` unset → widget no-ops, no JS error (guard the global).
-- iframe blocked by CSP → fall back to new-tab link.
-- Entrypoint verifies the External Sites app is enabled; logs a clear message if the `occ`
-  step fails (existing entrypoint convention).
+  "Suporte" entry → portal ticket form still works (async path).
+- `zammad_url`/`zammad_chat_id` unset → widget no-ops, no JS error (`loadState` guard).
+- `zammad_portal_url` unset → no "Suporte" nav entry, no error.
+- CSP exception scoped to chat-enabled pages only.
 
 ## Testing / rollout
 
 1. Stand up the Zammad stack on staging; create one test Organization + one chat widget.
-2. Build the Full-profile image pointed at staging Zammad; verify the widget appears,
-   prefills the NC user, and chat→ticket works.
-3. Verify portal: log in as a test user, confirm only that Organization's tickets are
-   visible; confirm time accounting CSV exports per org.
-4. Build the Slim profile (`ZAMMAD_CHAT_ENABLED=false`); verify only the menu icon shows,
-   no widget.
-5. Verify fallback: stop Zammad → no JS errors; the portal link degrades gracefully.
+2. Build the Full-profile image pointed at staging Zammad; verify the widget's branded button
+   appears, opens the chat, and chat→ticket works (no CSP errors in console).
+3. Verify portal: the "Suporte" entry redirects to the portal; log in as a test user; confirm
+   only that Organization's tickets are visible; confirm time accounting CSV exports per org.
+4. Build the Slim profile (`ZAMMAD_CHAT_ENABLED=false`); verify only the "Suporte" entry shows,
+   no widget, no CSP exception.
+5. Verify fallback: stop Zammad → no JS errors; the "Suporte" entry still resolves.
 
 ## Phase B (later, out of scope)
 

@@ -105,11 +105,12 @@ git commit -m "docs: Zammad deployment + per-tenant onboarding runbook"
 - Create: `apps/avuz_theme/lib/Service/ZammadConfig.php`
 
 **Interfaces:**
-- Consumes: NC app config keys `avuz_theme.zammad_url`, `avuz_theme.zammad_chat_id`, `avuz_theme.zammad_org`, `avuz_theme.zammad_portal_url`, `avuz_theme.zammad_chat_enabled` (written by entrypoint in Task 1.4).
+- Consumes: NC app config keys `avuz_theme.zammad_url`, `avuz_theme.zammad_chat_id`, `avuz_theme.zammad_portal_url`, `avuz_theme.zammad_chat_enabled` (written by entrypoint in Task 1.5).
 - Produces: `OCA\AvuzTheme\Service\ZammadConfig` with:
   - `isChatEnabled(): bool` — true only if `zammad_chat_enabled === '1'` AND `zammad_url` AND `zammad_chat_id` are non-empty.
   - `portalUrl(): string` — `zammad_portal_url`, or `''` if unset.
-  - `initialState(): array{url: string, chatId: int, org: string, userName: string, userEmail: string}` — values for the JS widget, with the logged-in user's display name/email filled from `IUserSession` (prefill convenience, not a security control).
+  - `host(): string` — the Zammad origin (scheme+host, no trailing slash), for CSP allow-listing.
+  - `initialState(): array{url: string, chatId: int}` — values for the JS widget. **No user/org data:** Zammad live chat is anonymous, has no prefill option, and the native widget can't carry an org var. Chat identity is established by the agent (trust-split model).
 
 - [ ] **Step 1: Write `ZammadConfig`**
 
@@ -121,15 +122,12 @@ declare(strict_types=1);
 namespace OCA\AvuzTheme\Service;
 
 use OCP\IAppConfig;
-use OCP\IUserSession;
-use OCP\IUser;
 
 class ZammadConfig {
 	private const APP_ID = 'avuz_theme';
 
 	public function __construct(
 		private IAppConfig $appConfig,
-		private IUserSession $userSession,
 	) {
 	}
 
@@ -144,17 +142,17 @@ class ZammadConfig {
 		return $this->get('zammad_portal_url');
 	}
 
+	public function host(): string {
+		return rtrim($this->get('zammad_url'), '/');
+	}
+
 	/**
-	 * @return array{url: string, chatId: int, org: string, userName: string, userEmail: string}
+	 * @return array{url: string, chatId: int}
 	 */
 	public function initialState(): array {
-		$user = $this->userSession->getUser();
 		return [
-			'url' => $this->get('zammad_url'),
+			'url' => $this->host(),
 			'chatId' => (int)$this->get('zammad_chat_id'),
-			'org' => $this->get('zammad_org'),
-			'userName' => $user instanceof IUser ? $user->getDisplayName() : '',
-			'userEmail' => $user instanceof IUser ? (string)$user->getEMailAddress() : '',
 		];
 	}
 
@@ -166,7 +164,7 @@ class ZammadConfig {
 
 - [ ] **Step 2: Wire injection in `Application::boot()`**
 
-Add the chat script + initial state when chat is enabled. Insert after the existing `center-header` script injection (Application.php:57).
+Add the chat script + initial state when chat is enabled. Insert after the existing `center-header` script injection (Application.php:57). (The CSP listener is registered in Task 1.2; the nav entry in Task 1.4.)
 
 ```php
 // in boot(), after Util::addScript(self::APP_ID, 'center-header');
@@ -185,7 +183,7 @@ if ($zammad->isChatEnabled()) {
 Run:
 ```bash
 ./scripts/build-base.sh latest local && ./scripts/build-push.sh latest local
-# run the container with chat envs set (Task 1.4 adds env handling; for now set app config by hand):
+# run the container with chat envs set (Task 1.5 adds env handling; for now set app config by hand):
 docker exec <container> php occ config:app:set avuz_theme zammad_chat_enabled --value=1
 docker exec <container> php occ config:app:set avuz_theme zammad_url --value=https://support.avuz.com.br
 docker exec <container> php occ config:app:set avuz_theme zammad_chat_id --value=1
@@ -206,18 +204,109 @@ git add apps/avuz_theme/lib/Service/ZammadConfig.php apps/avuz_theme/lib/AppInfo
 git commit -m "feat: avuz_theme reads Zammad config and injects chat when enabled"
 ```
 
-### Task 1.2: Floating Zammad chat widget (JS)
+### Task 1.2: CSP exception for the Zammad host
+
+NC enforces a strict CSP (`script-src 'self'`, `connect-src 'self'`). The widget loads an external script from the Zammad host and opens a `wss://` socket — both are blocked without this. The listener must run for *all* page responses (not just our controller), so register it on `AddContentSecurityPolicyEvent`.
+
+**Files:**
+- Create: `apps/avuz_theme/lib/Listener/ZammadCspListener.php`
+- Modify: `apps/avuz_theme/lib/AppInfo/Application.php`
+
+**Interfaces:**
+- Consumes: `ZammadConfig::isChatEnabled()`, `ZammadConfig::host()` from Task 1.1.
+- Produces: a registered `OCA\AvuzTheme\Listener\ZammadCspListener` that adds the Zammad host to `script-src`, `connect-src` (both `https:` and the derived `wss:`), `img-src`, `style-src`, `font-src` when chat is enabled.
+
+- [ ] **Step 1: Write the CSP listener**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace OCA\AvuzTheme\Listener;
+
+use OCA\AvuzTheme\Service\ZammadConfig;
+use OCP\AppFramework\Http\ContentSecurityPolicy;
+use OCP\EventDispatcher\Event;
+use OCP\EventDispatcher\IEventListener;
+use OCP\Security\CSP\AddContentSecurityPolicyEvent;
+
+/**
+ * @template-implements IEventListener<AddContentSecurityPolicyEvent>
+ */
+class ZammadCspListener implements IEventListener {
+	public function __construct(
+		private ZammadConfig $zammad,
+	) {
+	}
+
+	public function handle(Event $event): void {
+		if (!($event instanceof AddContentSecurityPolicyEvent)) {
+			return;
+		}
+		if (!$this->zammad->isChatEnabled()) {
+			return;
+		}
+
+		$https = $this->zammad->host();
+		$wss = preg_replace('/^http/', 'ws', $https);
+
+		$policy = new ContentSecurityPolicy();
+		$policy->addAllowedScriptDomain($https);
+		$policy->addAllowedConnectDomain($https);
+		$policy->addAllowedConnectDomain($wss);
+		$policy->addAllowedImageDomain($https);
+		$policy->addAllowedStyleDomain($https);
+		$policy->addAllowedFontDomain($https);
+
+		$event->addPolicy($policy);
+	}
+}
+```
+
+- [ ] **Step 2: Register the listener in `Application::register()`**
+
+Add alongside the existing `registerEventListener` calls (Application.php:24-34).
+
+```php
+$context->registerEventListener(
+	\OCP\Security\CSP\AddContentSecurityPolicyEvent::class,
+	\OCA\AvuzTheme\Listener\ZammadCspListener::class
+);
+```
+
+- [ ] **Step 3: Rebuild and verify the CSP header**
+
+Run: `./scripts/build-push.sh latest local`, then with chat enabled (Task 1.1 Step 3 config):
+```bash
+curl -sSI -b <authenticated-cookie> https://<nc-host>/apps/dashboard/ | grep -i content-security-policy
+```
+Expected: the `content-security-policy` header lists `support.avuz.com.br` under `script-src` and both `https://support.avuz.com.br` and `wss://support.avuz.com.br` under `connect-src`.
+
+- [ ] **Step 4: Verify it is absent when chat disabled**
+
+Run: `php occ config:app:set avuz_theme zammad_chat_enabled --value=0`; repeat the curl.
+Expected: no `support.avuz.com.br` in the CSP header.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/avuz_theme/lib/Listener/ZammadCspListener.php apps/avuz_theme/lib/AppInfo/Application.php
+git commit -m "feat: CSP exception for Zammad chat host (script + wss)"
+```
+
+### Task 1.3: Floating Zammad chat widget (JS)
 
 **Files:**
 - Create: `apps/avuz_theme/js/zammad-chat.js`
 
 **Interfaces:**
-- Consumes: initial state `avuz_theme-zammad` = `{url, chatId, org, userName, userEmail}` from Task 1.1.
-- Produces: a floating chat button on every page, styled to `#2bb5e3`, that opens the native Zammad chat.
+- Consumes: initial state `avuz_theme-zammad` = `{url, chatId}` from Task 1.1; CSP from Task 1.2.
+- Produces: a branded floating button (`#2bb5e3`) on every page that opens the native Zammad chat.
 
 - [ ] **Step 1: Write `zammad-chat.js`**
 
-Loads Zammad's no-jQuery chat build from the Zammad host (avoids depending on a global jQuery in NC), then initializes it. The exact init options come from the snippet Zammad generated in Task 0.2 Step 2 — keep `chatId`, `host`, `background` in sync with it.
+The `chat-no-jquery` build does **not** auto-create a launcher (Zammad issues #2561/#2881) — it requires an existing button element. So we create our own branded floating button and pass it via `show: false` + `target`. Keep `chatId`/`host` in sync with the snippet Zammad generated in Task 0.2 Step 2.
 
 ```js
 (function () {
@@ -228,10 +317,24 @@ Loads Zammad's no-jQuery chat build from the Zammad host (avoids depending on a 
 		return; // guarded: misconfig must not throw
 	}
 
-	const host = state.url.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws';
+	const host = state.url.replace(/^http/, 'ws') + '/ws';
+
+	const button = document.createElement('div');
+	button.className = 'avuz-zammad-launcher open-zammad-chat';
+	button.setAttribute('role', 'button');
+	button.setAttribute('tabindex', '0');
+	button.setAttribute('aria-label', 'Abrir suporte');
+	button.textContent = 'Suporte';
+	Object.assign(button.style, {
+		position: 'fixed', right: '20px', bottom: '20px', zIndex: '1000',
+		background: '#2bb5e3', color: '#fff', padding: '10px 16px',
+		borderRadius: '20px', cursor: 'pointer', fontSize: '14px',
+		boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+	});
+	document.body.appendChild(button);
 
 	const script = document.createElement('script');
-	script.src = state.url.replace(/\/$/, '') + '/assets/chat/chat-no-jquery.min.js';
+	script.src = state.url + '/assets/chat/chat-no-jquery.min.js';
 	script.onload = function () {
 		new window.ZammadChat({
 			background: '#2bb5e3',
@@ -239,9 +342,8 @@ Loads Zammad's no-jQuery chat build from the Zammad host (avoids depending on a 
 			chatId: state.chatId,
 			host: host,
 			title: 'Suporte Avuz',
-			show: true,
-			prefilledName: state.userName,
-			prefilledEmail: state.userEmail,
+			show: false,
+			target: button, // our branded button toggles the chat
 		});
 	};
 	document.body.appendChild(script);
@@ -250,56 +352,113 @@ Loads Zammad's no-jQuery chat build from the Zammad host (avoids depending on a 
 
 - [ ] **Step 2: Rebuild and verify the widget renders**
 
-Run: `./scripts/build-push.sh latest local` then, with chat enabled (Task 1.1 Step 3 config), open a logged-in NC page.
-Expected: the Zammad chat launcher appears bottom-right in `#2bb5e3`; clicking opens the chat; the name/email are prefilled.
+Run: `./scripts/build-push.sh latest local`, then with chat enabled open a logged-in NC page.
+Expected: a `#2bb5e3` "Suporte" button bottom-right; clicking opens the Zammad chat; **no CSP errors** in the browser console.
 
 - [ ] **Step 3: Verify the safe-fail path**
 
-Run: set `zammad_url` to empty (`php occ config:app:set avuz_theme zammad_url --value=""`) but leave the script injected (`zammad_chat_enabled=1`, `zammad_chat_id=1`). Reload.
-Expected: no chat widget, no console error (the `loadState` guard returns early). Note: with the Task 1.1 `isChatEnabled()` gate this combination won't occur in production, but the JS guard must still hold.
+Run: set `zammad_url` empty (`php occ config:app:set avuz_theme zammad_url --value=""`) while `zammad_chat_enabled=1`, `zammad_chat_id=1`. Reload.
+Expected: no button, no console error (the `loadState` guard returns early). With Task 1.1's `isChatEnabled()` gate this combo won't occur in production, but the JS guard must still hold.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add apps/avuz_theme/js/zammad-chat.js
-git commit -m "feat: floating Zammad chat widget injected via avuz_theme"
+git commit -m "feat: branded floating Zammad chat button injected via avuz_theme"
 ```
 
-### Task 1.3: "Suporte" portal nav entry
+### Task 1.4: "Suporte" portal entry via internal redirect route
+
+NC ≥29 drops the `href` for external/absolute URLs in the app-menu (known regression), so a nav entry pointing straight at the portal won't be clickable. Instead the nav entry points at an **internal** route that 302-redirects to the portal.
 
 **Files:**
+- Create: `apps/avuz_theme/lib/Controller/SupportController.php`
+- Create/Modify: `apps/avuz_theme/appinfo/routes.php`
 - Modify: `apps/avuz_theme/lib/AppInfo/Application.php`
 - Create: `apps/avuz_theme/img/support.svg`
 
 **Interfaces:**
 - Consumes: `ZammadConfig::portalUrl()` from Task 1.1.
-- Produces: a top-bar app-menu entry "Suporte" → Zammad portal, present in both profiles whenever `zammad_portal_url` is set.
+- Produces: route `avuz_theme.support.redirect` at `/apps/avuz_theme/support`; a nav entry "Suporte" (id `avuz_support`) pointing at it, present in both profiles whenever `zammad_portal_url` is set.
 
-- [ ] **Step 1: Add a Lucide "life-buoy" icon**
+- [ ] **Step 1: Add the life-buoy icon**
 
-Create `apps/avuz_theme/img/support.svg` (Lucide `life-buoy`, stroke-based, `currentColor` — matches the existing icon-override style in `themes/avuz/apps/*/img`).
+Create `apps/avuz_theme/img/support.svg` (Lucide `life-buoy`, stroke-based, `currentColor`).
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="9.17" y1="14.83" x2="4.93" y2="19.07"/></svg>
 ```
 
-- [ ] **Step 2: Register the nav entry in `boot()`**
-
-Add after the chat-injection block from Task 1.1 Step 2.
+- [ ] **Step 2: Write the redirect controller**
 
 ```php
-/** @var \OCA\AvuzTheme\Service\ZammadConfig $zammad */ // already fetched above; reuse it
+<?php
+
+declare(strict_types=1);
+
+namespace OCA\AvuzTheme\Controller;
+
+use OCA\AvuzTheme\Service\ZammadConfig;
+use OCP\AppFramework\Controller;
+use OCP\AppFramework\Http\RedirectResponse;
+use OCP\AppFramework\Http\NotFoundResponse;
+use OCP\IRequest;
+
+class SupportController extends Controller {
+	public function __construct(
+		string $appName,
+		IRequest $request,
+		private ZammadConfig $zammad,
+	) {
+		parent::__construct($appName, $request);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 * @NoCSRFRequired
+	 */
+	public function redirect(): RedirectResponse|NotFoundResponse {
+		$url = $this->zammad->portalUrl();
+		if ($url === '') {
+			return new NotFoundResponse();
+		}
+		return new RedirectResponse($url);
+	}
+}
+```
+
+- [ ] **Step 3: Register the route**
+
+In `apps/avuz_theme/appinfo/routes.php` (create if absent; if present, add to the `routes` array):
+
+```php
+<?php
+
+declare(strict_types=1);
+
+return [
+	'routes' => [
+		['name' => 'support#redirect', 'url' => '/support', 'verb' => 'GET'],
+	],
+];
+```
+
+- [ ] **Step 4: Register the nav entry in `boot()`**
+
+Add after the chat-injection block. Reuse the `$zammad` already fetched in Task 1.1 Step 2.
+
+```php
 $portalUrl = $zammad->portalUrl();
 if ($portalUrl !== '') {
 	/** @var \OCP\INavigationManager $nav */
 	$nav = $context->getAppContainer()->get(\OCP\INavigationManager::class);
 	/** @var \OCP\IURLGenerator $urlGenerator */
 	$urlGenerator = $context->getAppContainer()->get(\OCP\IURLGenerator::class);
-	$nav->add(static function () use ($portalUrl, $urlGenerator): array {
+	$nav->add(static function () use ($urlGenerator): array {
 		return [
 			'id' => 'avuz_support',
 			'order' => 80,
-			'href' => $portalUrl,
+			'href' => $urlGenerator->linkToRoute('avuz_theme.support.redirect'),
 			'icon' => $urlGenerator->imagePath('avuz_theme', 'support.svg'),
 			'name' => 'Suporte',
 		];
@@ -307,28 +466,28 @@ if ($portalUrl !== '') {
 }
 ```
 
-- [ ] **Step 3: Rebuild and verify the entry appears (both profiles)**
+- [ ] **Step 5: Rebuild and verify redirect + entry (both profiles)**
 
 Run:
 ```bash
 ./scripts/build-push.sh latest local
 docker exec <container> php occ config:app:set avuz_theme zammad_portal_url --value=https://support.avuz.com.br
 ```
-Open NC. Expected: "Suporte" with the life-buoy icon in the app menu; clicking opens the Zammad portal. Set `zammad_chat_enabled=0` (Slim) and confirm "Suporte" still shows while the floating widget does not.
+Open NC. Expected: "Suporte" with the life-buoy icon in the app menu; clicking it (internal href `/apps/avuz_theme/support`) 302-redirects to the Zammad portal. Set `zammad_chat_enabled=0` (Slim) and confirm "Suporte" still shows while the floating button does not.
 
-- [ ] **Step 4: Verify absence when portal URL unset**
+- [ ] **Step 6: Verify absence when portal URL unset**
 
 Run: `php occ config:app:set avuz_theme zammad_portal_url --value=""`; reload.
-Expected: no "Suporte" entry, no error.
+Expected: no "Suporte" entry; hitting `/apps/avuz_theme/support` directly returns 404.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add apps/avuz_theme/lib/AppInfo/Application.php apps/avuz_theme/img/support.svg
-git commit -m "feat: Suporte nav entry to Zammad portal (both profiles)"
+git add apps/avuz_theme/lib/Controller/SupportController.php apps/avuz_theme/appinfo/routes.php apps/avuz_theme/lib/AppInfo/Application.php apps/avuz_theme/img/support.svg
+git commit -m "feat: Suporte nav entry via internal redirect route to Zammad portal"
 ```
 
-### Task 1.4: Entrypoint env wiring
+### Task 1.5: Entrypoint env wiring
 
 **Files:**
 - Modify: `docker/entrypoint.sh` (the `run_avuz_configuration` occ block, near lines 226-252)
@@ -388,7 +547,7 @@ git add docker/entrypoint.sh
 git commit -m "feat: entrypoint wires ZAMMAD_* env into avuz_theme app config"
 ```
 
-### Task 1.5: Document the integration
+### Task 1.6: Document the integration
 
 **Files:**
 - Modify: `CLAUDE.md` (add a "Zammad support integration" subsection under Key Customizations)
@@ -417,14 +576,17 @@ git commit -m "docs: Zammad NC-side env reference and profiles"
 
 **Spec coverage:**
 - One Zammad, orgs → Task 0.1, 0.2. ✅
-- Chat widget (native, theme-injected, `#2bb5e3`, conversation-only) → Task 1.2. ✅
-- Suporte portal entry (both profiles) → Task 1.3. ✅
+- Chat widget (native, branded floating button, `#2bb5e3`, conversation-only) → Task 1.3. ✅
+- CSP exception so the widget isn't blocked → Task 1.2. ✅
+- Suporte portal entry, both profiles, NC-29-safe internal redirect → Task 1.4. ✅
 - Time accounting / per-org billing → Task 0.2 Step 3. ✅
-- One image, env-gated profiles → Task 1.4. ✅
-- PHP reads app config not env → Task 1.1 + 1.4. ✅
-- Security trust-split documented → Task 1.5. ✅
+- One image, env-gated profiles → Task 1.5. ✅
+- PHP reads app config not env → Task 1.1 + 1.5. ✅
+- Security trust-split documented → Task 1.6. ✅
+- No fictitious chat prefill (Zammad chat is anonymous) → removed from Task 1.1/1.3. ✅
 - SSO Phase B excluded. ✅
 
 **Open verification at execution time:**
-- Confirm the exact `ZammadChat` no-jQuery init keys (`prefilledName`/`prefilledEmail`, `host`) against the snippet Zammad generates in Task 0.2 — adjust Task 1.2 Step 1 to match the running Zammad version.
-- Confirm `INavigationManager->add()` renders an absolute external `href` in the app menu on the deployed NC version; if the version restricts external hrefs, fall back to the `external` app (manual one-time admin config) for the Suporte entry.
+- Confirm the exact `ZammadChat` no-jQuery init keys (`show`, `target`, `host`) against the snippet Zammad generates in Task 0.2 — the `target`/button contract varies across Zammad versions (#2561/#2881); adjust Task 1.3 Step 1 to match the running version.
+- Confirm the Zammad chat asset path (`/assets/chat/chat-no-jquery.min.js`) and websocket path (`/ws`) on the deployed Zammad version.
+- Confirm `addAllowedConnectDomain` accepts the `wss://` scheme form on the deployed NC version; if it strips the scheme, add the bare host instead.
