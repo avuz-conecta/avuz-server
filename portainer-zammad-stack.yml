@@ -1,0 +1,153 @@
+# Zammad support backend — Portainer stack
+# Adapted from github.com/zammad/zammad-docker-compose (master), pinned + trimmed.
+#
+# TLS is terminated at Nginx Proxy Manager (NPM). zammad-nginx joins NPM's docker
+# network so NPM proxies to it by container name (http://zammad-nginx:8080).
+#
+# BEFORE DEPLOY:
+#   1. Find NPM's docker network name:  docker network ls
+#      Put it in the `networks.proxy.name` field below (default guess: npm_default).
+#   2. Change POSTGRES_PASS to a strong value.
+#   3. Host needs ~2GB free RAM for Elasticsearch.
+#
+# Pinned versions (bump deliberately, see upstream .env.dist):
+#   zammad 7.1.0-0017 · elasticsearch 9.4.2 · postgres 17.10 · redis 8.8 · memcached 1.6.42
+
+x-shared:
+  zammad-service: &zammad-service
+    image: ghcr.io/zammad/zammad:7.1.0-0017
+    restart: always
+    environment: &zammad-environment
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      REDIS_URL: redis://zammad-redis:6379
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_PORT: "5432"
+      POSTGRESQL_DB: zammad_production
+      POSTGRESQL_USER: zammad
+      POSTGRESQL_PASS: CHANGE_ME_STRONG_DB_PASS
+      POSTGRESQL_OPTIONS: "?pool=50"
+      # Reverse-proxy awareness (NPM terminates TLS):
+      ZAMMAD_HTTP_TYPE: https
+      ZAMMAD_FQDN: support.avuz.com.br
+      RAILS_TRUSTED_PROXIES: "127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+      TZ: America/Sao_Paulo
+    volumes:
+      - zammad-storage:/opt/zammad/storage
+    depends_on:
+      zammad-memcached:
+        condition: service_healthy
+      zammad-postgresql:
+        condition: service_healthy
+      zammad-redis:
+        condition: service_healthy
+    networks:
+      - default
+
+services:
+  zammad-init:
+    <<: *zammad-service
+    command: ["zammad-init"]
+    restart: on-failure
+    user: 0:0
+    depends_on:
+      zammad-postgresql:
+        condition: service_healthy
+
+  zammad-railsserver:
+    <<: *zammad-service
+    command: ["zammad-railsserver"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:3000"]
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
+
+  zammad-scheduler:
+    <<: *zammad-service
+    command: ["zammad-scheduler"]
+
+  zammad-websocket:
+    <<: *zammad-service
+    command: ["zammad-websocket"]
+
+  zammad-nginx:
+    <<: *zammad-service
+    command: ["zammad-nginx"]
+    expose:
+      - "8080"
+    depends_on:
+      zammad-railsserver:
+        condition: service_healthy
+    networks:
+      - default
+      - proxy   # so NPM can reach it as http://zammad-nginx:8080
+
+  zammad-postgresql:
+    image: postgres:17.10-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: zammad_production
+      POSTGRES_USER: zammad
+      POSTGRES_PASSWORD: CHANGE_ME_STRONG_DB_PASS
+    volumes:
+      - postgresql-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    networks:
+      - default
+
+  zammad-redis:
+    image: redis:8.8-alpine
+    restart: always
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+    networks:
+      - default
+
+  zammad-memcached:
+    image: memcached:1.6.42-alpine
+    command: memcached -m 256M
+    restart: always
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "11211"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+    networks:
+      - default
+
+  zammad-elasticsearch:
+    image: elasticsearch:9.4.2
+    restart: always
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - default
+
+volumes:
+  zammad-storage:
+  postgresql-data:
+  redis-data:
+  elasticsearch-data:
+
+networks:
+  default:
+  proxy:
+    external: true
+    name: npm_default   # <-- set to YOUR NPM network (docker network ls)
