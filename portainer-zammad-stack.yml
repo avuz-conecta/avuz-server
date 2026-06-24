@@ -26,9 +26,13 @@ x-shared:
       POSTGRESQL_USER: zammad
       POSTGRESQL_PASS: CHANGE_ME_STRONG_DB_PASS
       POSTGRESQL_OPTIONS: "?pool=50"
-      # Reverse-proxy awareness (NPM terminates TLS):
+      # Reverse-proxy awareness (NPM terminates TLS, forwards plain http to :8033):
+      # NGINX_SERVER_SCHEME=https makes Zammad's bundled nginx forward
+      # X-Forwarded-Proto=https to puma instead of its own $scheme (=http).
+      # Without it: browser=https but Rails sees http → Origin mismatch → CSRF.
+      NGINX_SERVER_SCHEME: https
       ZAMMAD_HTTP_TYPE: https
-      ZAMMAD_FQDN: support.avuz.com.br
+      ZAMMAD_FQDN: supporthml.avuz.app
       RAILS_TRUSTED_PROXIES: "127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
       TZ: America/Sao_Paulo
     volumes:
