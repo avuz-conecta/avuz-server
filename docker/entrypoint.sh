@@ -261,6 +261,20 @@ run_avuz_configuration() {
         php occ theming:config logoheader /var/www/html/apps/avuz_theme/img/house-logo.svg || true
     fi
 
+    # ── Zammad support integration ──
+    # PHP-FPM strips Docker env at request time, so persist into app config here;
+    # avuz_theme reads these via IAppConfig. Unset envs default to empty/off, so
+    # tenants not yet onboarded ship with no chat widget and no Suporte entry.
+    php occ config:app:set avuz_theme zammad_url        --value="${ZAMMAD_URL:-}"
+    php occ config:app:set avuz_theme zammad_portal_url --value="${ZAMMAD_PORTAL_URL:-${ZAMMAD_URL:-}}"
+    php occ config:app:set avuz_theme zammad_org        --value="${ZAMMAD_ORG:-}"
+    php occ config:app:set avuz_theme zammad_chat_id    --value="${ZAMMAD_CHAT_ID:-}"
+    case "${ZAMMAD_CHAT_ENABLED:-false}" in
+        true|1|yes|TRUE|True) _zammad_chat='1' ;;
+        *) _zammad_chat='0' ;;
+    esac
+    php occ config:app:set avuz_theme zammad_chat_enabled --value="$_zammad_chat"
+
     # OIDC Identity Provider — install from App Store on first boot
     if ! php occ app:list --enabled 2>/dev/null | grep -q "oidc" && \
        ! [ -d /var/www/html/custom_apps/oidc ]; then
