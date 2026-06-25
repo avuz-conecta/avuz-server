@@ -37,6 +37,13 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 - Bot fork lives in the **separate repo** `github.com/avuz-conecta/talk-recording`; image `10.50.100.103:8080/admin/talk-recording` referenced from `portainer-recording-stack.yml`.
 - Lets recordings >100MB survive Cloudflare's 100MB body cap. See `docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md`.
 
+### Zammad support integration
+- In-NC support via self-hosted Zammad (live chat widget + ticket portal), replacing Milldesk + Lero/WhatsApp.
+- `avuz_theme` injects a branded floating chat launcher + a "Suporte" nav entry (internal `/support` route → 302 to the Zammad portal). Gated by `ZAMMAD_*` envs (entrypoint → app config).
+- Backend stack: `portainer-zammad-stack.yml`. One Zammad serves all tenants as Organizations.
+- Security = trust split: chat is conversation-only/agent-verified; portal is the authenticated, org-scoped boundary.
+- See `docs/zammad-deployment.md` and `docs/superpowers/specs/2026-06-23-zammad-support-integration-design.md`.
+
 ## Important Configs
 
 ### Nginx (`docker/nginx.conf`)
