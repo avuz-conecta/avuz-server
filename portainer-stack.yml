@@ -93,6 +93,16 @@ services:
       - AI_STT_MODEL=whisper-v3
       - AI_STT_LANGUAGE=pt
 
+      # Zammad support integration (optional — leave ZAMMAD_URL empty to skip)
+      # Backend: portainer-zammad-stack.yml. See docs/zammad-deployment.md.
+      #   ZAMMAD_URL/PORTAL_URL/CHAT_ID are shared across tenants;
+      #   ZAMMAD_ORG + ZAMMAD_CHAT_ENABLED are per-tenant (per-instance).
+      - ZAMMAD_URL=https://supporthml.avuz.app
+      - ZAMMAD_PORTAL_URL=https://supporthml.avuz.app
+      - ZAMMAD_ORG=                       # this tenant's Zammad Organization slug, e.g. consulttagro
+      - ZAMMAD_CHAT_ID=1                  # chat widget id from Zammad → Channels → Chat
+      - ZAMMAD_CHAT_ENABLED=true         # true = Full profile (floating chat); false = Slim (portal only)
+
 volumes:
   nextcloud_data:
   nextcloud_config:
