@@ -231,7 +231,7 @@ run_avuz_configuration() {
     # UI preferences
     php occ config:system:set knowledgebaseenabled --type=boolean --value=false
     php occ config:system:set skeletondirectory --value=''
-    php occ config:system:set customclient_desktop --value='https://app3.avuz.cloud/index.php/s/m3KWdzQ5iAFTYXe'
+    php occ config:system:set customclient_desktop --value="${CUSTOMCLIENT_DESKTOP_URL:-https://app3.avuz.app/s/G3EEqzDrMtrMYPE}"
     php occ config:system:set maintenance_window_start --value=1 --type=integer
     php occ config:system:set enforce_theme --value='light'
     php occ config:system:set simpleSignUpLink.shown --type=boolean --value=false
