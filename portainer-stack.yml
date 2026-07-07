@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    image: 10.50.100.103:8080/admin/avuz-conecta:latest
+    image: registry.avuz.app/admin/avuz-conecta:latest
     restart: unless-stopped
     ports:
       - "8080:80"

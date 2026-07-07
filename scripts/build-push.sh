@@ -10,7 +10,7 @@ if [ -z "$DOCKER_MANAGED_EXTERNALLY" ]; then
 fi
 
 # Configuration
-REGISTRY="10.50.100.103:8080"
+REGISTRY="registry.avuz.app"
 ORG="admin"
 IMAGE_NAME="avuzconecta"
 BASE_IMAGE_NAME="avuzconecta-base"

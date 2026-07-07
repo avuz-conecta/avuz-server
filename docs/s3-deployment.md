@@ -13,7 +13,7 @@ painful) migration not covered here.
   Docker host that will run the app container.
 - MinIO instance reachable from the same Docker host. Admin credentials to
   create a bucket + service account.
-- App image pushed: `10.50.100.103:8080/admin/avuzconecta:staging-s3` (or a
+- App image pushed: `registry.avuz.app/admin/avuzconecta:staging-s3` (or a
   promoted tag — see "Promoting builds" below).
 - Portainer access on the target Docker host.
 

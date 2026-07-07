@@ -34,7 +34,7 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 
 ### Talk recording chunked upload
 - spreed patched via overlay (`docker/overlays/spreed/lib/...`) applied during Docker build. Sentinel `AVUZ-CHUNKED-UPLOAD-V1` lives in the overlay's `RecordingController.php`; entrypoint verifies the running container's spreed has it.
-- Bot fork lives in the **separate repo** `github.com/avuz-conecta/talk-recording`; image `10.50.100.103:8080/admin/talk-recording` referenced from `portainer-recording-stack.yml`.
+- Bot fork lives in the **separate repo** `github.com/avuz-conecta/talk-recording`; image `registry.avuz.app/admin/talk-recording` referenced from `portainer-recording-stack.yml`.
 - Lets recordings >100MB survive Cloudflare's 100MB body cap. See `docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md`.
 
 ## Important Configs
