@@ -401,10 +401,20 @@ PHPINI
     php occ config:system:set app.mail.sieve.timeout --value=5 --type=integer
     php occ config:system:set app.mail.background-sync-interval --value=600 --type=integer
 
-    # Trusted proxies
+    # Trusted proxies — NPM (openresty) fronts this container. nginx already rewrites
+    # REMOTE_ADDR to the real client via CF-Connecting-IP (see docker/nginx.conf), so
+    # NC only needs to trust the loopback socket + the NPM hop(s). TRUSTED_PROXIES is a
+    # comma-separated list of NPM IPs/CIDRs, set per stack (staging vs prod differ).
     php occ config:system:set trusted_proxies 0 --value='127.0.0.1'
     php occ config:system:set trusted_proxies 1 --value='::1'
-    php occ config:system:set trusted_proxies 2 --value='10.50.100.100'
+    IFS=',' read -ra _avuz_trusted_proxies <<< "$TRUSTED_PROXIES"
+    _avuz_proxy_index=2
+    for _proxy in "${_avuz_trusted_proxies[@]}"; do
+        _proxy="${_proxy// /}"
+        [ -z "$_proxy" ] && continue
+        php occ config:system:set trusted_proxies "$_avuz_proxy_index" --value="$_proxy"
+        _avuz_proxy_index=$((_avuz_proxy_index + 1))
+    done
 
     # SMTP (conditional on env vars)
     if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_NAME" ]; then
@@ -677,5 +687,25 @@ echo "Final permissions check..."
 chown -R www-data:www-data /var/www/html/data /var/www/html/config /var/www/html/custom_apps
 chmod -R 770 /var/www/html/data /var/www/html/config /var/www/html/custom_apps
 echo "✓ Permissions set"
+
+# ──────────────────────────────────────────────
+# Real client IP for nginx — regenerated every boot (nginx fs is ephemeral).
+# Clients reach us via Cloudflare (proxied *.avuz.app) -> NPM -> this container.
+# Take the true client from CF-Connecting-IP, trusting only the NPM hop(s) in
+# TRUSTED_PROXIES. Without it, Nextcloud brute-force buckets every user under the
+# CF edge (or the NPM IP) -> false "too many login attempts" on password set.
+# ──────────────────────────────────────────────
+mkdir -p /etc/nginx/conf.d
+{
+    echo "real_ip_header CF-Connecting-IP;"
+    echo "real_ip_recursive on;"
+    IFS=',' read -ra _avuz_trusted_proxies <<< "$TRUSTED_PROXIES"
+    for _proxy in "${_avuz_trusted_proxies[@]}"; do
+        _proxy="${_proxy// /}"
+        [ -z "$_proxy" ] && continue
+        echo "set_real_ip_from $_proxy;"
+    done
+} > /etc/nginx/conf.d/avuz-realip.conf
+echo "✓ nginx real-ip trust written for: ${TRUSTED_PROXIES:-<none>}"
 
 exec "$@"
