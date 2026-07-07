@@ -74,6 +74,11 @@ find /var/www/html/themes -type f -exec chmod 644 {} \;
 ./scripts/build-push.sh latest local   s3     # → :latest-s3
 ```
 
+On macOS the build scripts auto-launch Docker Desktop if it's down (`scripts/lib-docker.sh`)
+and, at the end, prompt `Stop it now? [y/N]` whenever Docker is running (default: keep).
+Skip the prompt with `STOP_DOCKER_AFTER_BUILD=1` (auto-stop) or `KEEP_DOCKER=1` (auto-keep);
+non-interactive shells never prompt. Linux just requires the daemon to be up.
+
 ## Fresh Checkout Setup (REQUIRED before first build)
 
 `.gitignore` line 22 (`/apps*/*`) excludes every NC app from version control.

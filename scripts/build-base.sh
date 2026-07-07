@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib-docker.sh"
+# self-manage Docker unless a wrapper is orchestrating base+push together
+if [ -z "$DOCKER_MANAGED_EXTERNALLY" ]; then
+  ensure_docker
+  trap cleanup_docker EXIT
+fi
+
 # Configuration
 REGISTRY="10.50.100.103:8080"
 ORG="admin"
