@@ -86,6 +86,9 @@ COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
 COPY docker/entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh
+# Placeholder so nginx.conf's include never dangles; entrypoint regenerates it at
+# boot from TRUSTED_PROXIES (real client IP behind Cloudflare -> NPM).
+RUN mkdir -p /etc/nginx/conf.d && printf 'real_ip_header CF-Connecting-IP;\nreal_ip_recursive on;\n' > /etc/nginx/conf.d/avuz-realip.conf
 
 EXPOSE 80
 
