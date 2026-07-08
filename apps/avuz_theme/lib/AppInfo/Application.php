@@ -55,5 +55,8 @@ class Application extends App implements IBootstrap {
 
 		// Inject header centering JS
 		Util::addScript(self::APP_ID, 'center-header');
+
+		// Add hover tooltip to read-only Deck stack titles
+		Util::addScript(self::APP_ID, 'deck-stack-title');
 	}
 }

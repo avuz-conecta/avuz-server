@@ -96,3 +96,17 @@
 .dashboard-talk-icon {
     background-image: url('/themes/avuz/apps/spreed/img/app-dark.svg') !important;
 }
+
+/* Deck: read-only stacks (viewer permission) render a bare <h3> without the
+   .stack__title class, so long list titles wrap out of the fixed-height header
+   and overlap the cards below. Deck styles that h3 as display:flex, where
+   text-overflow:ellipsis clips but never draws the "…" glyph. Force display:block
+   so the ellipsis renders; line-height keeps the single line vertically centered
+   in the header. Scoped with :not(.stack__title) to leave the editable title untouched. */
+.stack__header h3:not(.stack__title) {
+    display: block !important;
+    line-height: var(--default-clickable-area);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
