@@ -35,6 +35,11 @@ RUN cp -R /var/www/html/docker/overlays/spreed/. /var/www/html/apps/spreed/
 # Without it the Sharing admin page returns 500 with TemplateNotFoundException.
 RUN cp -R /var/www/html/docker/overlays/files_downloadlimit/. /var/www/html/apps/files_downloadlimit/
 
+# Apply Avuz deck overlay (board-copy column/card shift fix). Upstream loose
+# `== null` on stack order treats the leftmost stack (order 0) as null and bumps
+# it to 999, so copies reorder columns and shift cards. See AVUZ-DECK-CLONE-ORDER-V1.
+RUN cp -R /var/www/html/docker/overlays/deck/. /var/www/html/apps/deck/
+
 # Clean old compiled bundles and rebuild frontend
 RUN npm run build
 
