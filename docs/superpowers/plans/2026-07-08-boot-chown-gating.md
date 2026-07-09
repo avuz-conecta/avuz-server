@@ -14,7 +14,7 @@
 - `occ` runs as **root** in this image (no `USER`/`su-exec`/`gosu`). Files it creates under `data/` are root-owned; php-fpm serves as `www-data` and starts only at the final `exec supervisord`. Ownership must be reconciled before that.
 - `chown www-data:www-data` and `chmod 770` are the existing conventions — keep them. Do **not** reintroduce a blind `chmod -R 770` over `data/`.
 - Never walk the user-file tree (`data/<user>/files/…`) unless a genuine NC db upgrade ran. That tree is the millions-of-inodes cost.
-- Spec: `docs/superpowers/specs/2026-07-08-boot-chown-gating-design.md`. The appdata-scoping decision (config-bump path skips user trees) is a **hypothesis validated in Task 5** — if that validation finds root-owned user inodes after a bump, switch the config-bump branch to a full `find` (fallback documented in Task 5).
+- Spec: `docs/superpowers/specs/2026-07-08-boot-chown-gating-design.md`. The appdata-scoping decision (config-bump path skips user trees) is a **hypothesis validated in Task 4** — if that validation finds root-owned user inodes after a bump, switch the config-bump branch to a full `find` (fallback documented in Task 4).
 
 ---
 
@@ -22,8 +22,9 @@
 
 - **Create `docker/lib-perms.sh`** — sourceable helpers: `avuz_fix_perms_small`, `avuz_reconcile_data_ownership`, and private `_avuz_*` primitives. Dry-run aware via `AVUZ_CHOWN_DRYRUN`. No side effects on source.
 - **Create `docker/tests/perms.test.sh`** — self-contained assertions over the lib in dry-run mode, plus one real `set -e` no-op check. Zero external deps.
-- **Modify `docker/entrypoint.sh`** — source the lib; declare + set the two signals; replace the phase-1 block (489-492) and the phase-5 block (686-688) with lib calls.
-- **Modify `Dockerfile`** — add `COPY docker/lib-perms.sh /usr/local/bin/` next to the entrypoint copy (line 87) so the entrypoint can source it by absolute path.
+- **Modify `docker/entrypoint.sh`** — source the lib from `/var/www/html/docker/lib-perms.sh`; declare + set the two signals; replace the phase-1 block (489-492) and the phase-5 block (686-688) with lib calls.
+
+**No Dockerfile change needed.** `COPY .` (Dockerfile:20) + the builder→runtime copy (line 67) already ship `docker/lib-perms.sh` to `/var/www/html/docker/lib-perms.sh`; `.dockerignore` does not exclude `docker/`, nothing removes it, and the entrypoint already reads `/var/www/html/docker/overlays/…` at runtime (`reapply_avuz_spreed_overlay`, line 89). Sourcing from that path sits on an assumption the code already makes.
 
 ---
 
@@ -216,9 +217,9 @@ In `docker/entrypoint.sh`, immediately after the `UPGRADE_STATE_FILE=...` line n
 
 ```bash
 
-# Ownership helpers (see docker/lib-perms.sh). Baked to /usr/local/bin by the
-# Dockerfile next to this script.
-source /usr/local/bin/lib-perms.sh
+# Ownership helpers. Shipped in the image via `COPY .` (same path the overlay
+# reapply functions already read at runtime); no separate Dockerfile copy needed.
+source /var/www/html/docker/lib-perms.sh
 
 # Boot signals consumed by avuz_reconcile_data_ownership in phase 5.
 DID_DB_UPGRADE=0   # set after `occ upgrade` (core rewrite — full data walk)
@@ -312,7 +313,7 @@ echo "✓ Permissions set"
 Run:
 ```bash
 bash -n docker/entrypoint.sh && echo SYNTAX_OK
-grep -q 'source /usr/local/bin/lib-perms.sh' docker/entrypoint.sh && echo SOURCED_OK
+grep -q 'source /var/www/html/docker/lib-perms.sh' docker/entrypoint.sh && echo SOURCED_OK
 grep -q 'DID_DB_UPGRADE=1' docker/entrypoint.sh && echo DBFLAG_OK
 grep -q 'DID_CONFIG_RUN=1' docker/entrypoint.sh && echo CFGFLAG_OK
 grep -q 'avuz_reconcile_data_ownership /var/www/html/data' docker/entrypoint.sh && echo RECONCILE_OK
@@ -335,55 +336,12 @@ git commit -m "feat(entrypoint): gate data/ ownership walk behind boot signals"
 
 ---
 
-### Task 3: Ship the lib in the image
-
-**Files:**
-- Modify: `Dockerfile` (near line 87, the entrypoint COPY)
-
-**Interfaces:**
-- Consumes: `docker/lib-perms.sh` from Task 1.
-- Produces: `/usr/local/bin/lib-perms.sh` present in the runtime image so the entrypoint's `source` resolves.
-
-- [ ] **Step 1: Add the COPY**
-
-Find (line ~87):
-
-```dockerfile
-COPY docker/entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/entrypoint.sh
-```
-
-Replace with:
-
-```dockerfile
-COPY docker/entrypoint.sh /usr/local/bin/
-COPY docker/lib-perms.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/entrypoint.sh
-```
-
-- [ ] **Step 2: Assert the COPY is present**
-
-Run: `grep -q 'COPY docker/lib-perms.sh /usr/local/bin/' Dockerfile && echo COPY_OK`
-Expected: `COPY_OK`
-
-> Full build verification (`./scripts/build-push.sh`) happens in Task 5 — a
-> Docker build is too heavy for this task's inner loop.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add Dockerfile
-git commit -m "build: ship lib-perms.sh into the runtime image"
-```
-
----
-
-### Task 4: Build the image and smoke-test the boot locally
+### Task 3: Build the image and smoke-test the boot locally
 
 **Files:** none (build + run)
 
 **Interfaces:**
-- Consumes: Tasks 1-3.
+- Consumes: Tasks 1-2.
 - Produces: a locally-built image whose entrypoint boots without the `source`/glob regressions.
 
 - [ ] **Step 1: Build the local image**
@@ -395,21 +353,21 @@ Run (per CLAUDE.md build commands):
 ```
 Expected: build completes; no error about `lib-perms.sh` missing.
 
-- [ ] **Step 2: Confirm the lib is in the image**
+- [ ] **Step 2: Confirm the lib shipped to the runtime image**
 
 Run:
 ```bash
 docker run --rm --entrypoint sh registry.avuz.app/admin/avuzconecta:latest \
-  -c 'test -f /usr/local/bin/lib-perms.sh && echo LIB_PRESENT'
+  -c 'test -f /var/www/html/docker/lib-perms.sh && echo LIB_PRESENT'
 ```
 Expected: `LIB_PRESENT`
 
-- [ ] **Step 3: Confirm the entrypoint sources the lib without aborting**
+- [ ] **Step 3: Confirm the entrypoint parses and sources the lib without aborting**
 
 Run (bash `-n` inside the image, plus a source smoke test):
 ```bash
 docker run --rm --entrypoint bash registry.avuz.app/admin/avuzconecta:latest \
-  -c 'bash -n /usr/local/bin/entrypoint.sh && source /usr/local/bin/lib-perms.sh && echo BOOT_PARSE_OK'
+  -c 'bash -n /usr/local/bin/entrypoint.sh && source /var/www/html/docker/lib-perms.sh && echo BOOT_PARSE_OK'
 ```
 Expected: `BOOT_PARSE_OK`
 
@@ -419,7 +377,7 @@ No code change expected. If the build surfaced a fix, commit it with a clear mes
 
 ---
 
-### Task 5: Operator validation on real stacks (gates the appdata-scoping decision)
+### Task 4: Operator validation on real stacks (gates the appdata-scoping decision)
 
 > **Operator-run, not a dev-session task.** Run against real client stacks via
 > Portainer console / `docker exec`. This is where the spec's Finding 2
@@ -427,7 +385,7 @@ No code change expected. If the build surfaced a fix, commit it with a clear mes
 > outputs in the PR description.
 
 **Interfaces:**
-- Consumes: the image from Task 4.
+- Consumes: the image from Task 3.
 - Produces: go/no-go evidence; possibly a one-line fallback change if scoping is unsafe.
 
 - [ ] **Step 1: Record baseline on a large local-disk client (before deploy)**
