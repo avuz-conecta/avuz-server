@@ -6,6 +6,14 @@ AVUZ_CONFIG_VERSION="33.0.0-13"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 
+# Ownership helpers. Shipped in the image via `COPY .` (same path the overlay
+# reapply functions already read at runtime); no separate Dockerfile copy needed.
+source /var/www/html/docker/lib-perms.sh
+
+# Boot signals consumed by avuz_reconcile_data_ownership in phase 5.
+DID_DB_UPGRADE=0   # set after `occ upgrade` (core rewrite — full data walk)
+DID_CONFIG_RUN=0   # set when run_avuz_configuration runs (appdata + log scope)
+
 # App lists (used for install, upgrade disable/re-enable, and bundled-app enforcement)
 BUNDLED_APPS=(
     "avuz_theme"
@@ -486,10 +494,12 @@ PHPINI
 # PHASE 1: Infrastructure (every restart)
 # ──────────────────────────────────────────────
 
-# Fix permissions for mounted volumes
+# Fix permissions for mounted volumes. data/ recursion is deliberately skipped
+# here — occ runs as root (ignores ownership) and php-fpm starts only at phase 5,
+# which reconciles data/ ownership. Recursing data/ now would be a wasted 3h walk
+# on large local-disk clients. See docker/lib-perms.sh.
 echo "Fixing permissions..."
-chown -R www-data:www-data /var/www/html/data /var/www/html/config /var/www/html/custom_apps 2>/dev/null || true
-chmod -R 770 /var/www/html/data /var/www/html/config /var/www/html/custom_apps 2>/dev/null || true
+avuz_fix_perms_small /var/www/html
 
 # Redis
 if [ -z "$REDIS_HOST" ] || [ "$REDIS_HOST" = "localhost" ] || [ "$REDIS_HOST" = "127.0.0.1" ]; then
@@ -605,6 +615,7 @@ else
 
         php occ upgrade --no-interaction
         php occ maintenance:mode --off
+        DID_DB_UPGRADE=1   # core upgrade can rewrite anywhere under data/
 
         # NC upgrade may have rewritten bundled apps; reapply overlays before
         # the app:update --all below (which can overwrite again).
@@ -659,6 +670,7 @@ CURRENT_STAMP=$(cat "$CONFIG_STAMP_FILE" 2>/dev/null || echo "")
 verify_avuz_patches
 if [ "$NEEDS_CONFIGURATION" -eq 1 ] || [ "$CURRENT_STAMP" != "$AVUZ_CONFIG_VERSION" ]; then
     run_avuz_configuration
+    DID_CONFIG_RUN=1   # occ-as-root wrote appdata_* + nextcloud.log this boot
 else
     echo "✓ Avuz configuration up to date ($AVUZ_CONFIG_VERSION), skipping"
 fi
@@ -684,8 +696,8 @@ chmod +x /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push 2>/dev/nul
 # ──────────────────────────────────────────────
 
 echo "Final permissions check..."
-chown -R www-data:www-data /var/www/html/data /var/www/html/config /var/www/html/custom_apps
-chmod -R 770 /var/www/html/data /var/www/html/config /var/www/html/custom_apps
+avuz_fix_perms_small /var/www/html
+avuz_reconcile_data_ownership /var/www/html/data "$DID_DB_UPGRADE" "$DID_CONFIG_RUN"
 echo "✓ Permissions set"
 
 # ──────────────────────────────────────────────
