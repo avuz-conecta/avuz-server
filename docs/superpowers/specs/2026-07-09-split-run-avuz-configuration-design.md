@@ -204,3 +204,6 @@ manifest is seeded from the resulting state; the new-app loop enables nothing ex
 - Hard `app:remove` / data purge.
 - Zero-downtime / blue-green deploy.
 - Moving OIDC to an image-baked app.
+- Fail-closed coverage of the core-upgrade branch (`needsDbUpgrade: true` path). The
+  marker + maintenance-gate protect only the config-path `occ upgrade`; the
+  core-upgrade branch keeps its existing `UPGRADE_STATE_FILE` behavior.

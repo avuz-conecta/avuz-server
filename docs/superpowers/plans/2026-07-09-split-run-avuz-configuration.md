@@ -19,6 +19,7 @@
 - The manifest lives at `/var/www/html/data/.avuz_known_apps`; the failure marker at `/var/www/html/data/.avuz_upgrade_failed`. `data/` is a local volume on both disk and S3 stacks (same place the existing `.avuz_configured` stamp lives), so both persist across container recreate.
 - Managed app arrays are `BUNDLED_APPS` (entrypoint.sh:18-37) and `ENABLE_APPS` (39-61). Conditional apps (`oidc`, `conectamail`) are enabled in their own env-gated blocks and are **not** in these arrays — never drive removal by diffing against the arrays.
 - Lib is sourced from `/var/www/html/docker/lib-apps.sh` (same path convention as `lib-perms.sh`, entrypoint.sh:11). `COPY .` (Dockerfile:20) already ships `docker/`; no Dockerfile change needed — verified in Task 6.
+- **Fail-closed scope is the config-path `occ upgrade` only.** The marker + maintenance-gate protect the `occ upgrade` inside `run_avuz_configuration`. The pre-existing core-upgrade branch (the `needsDbUpgrade: true` path with its own `occ upgrade` and `app:update --all`) is **not** re-wired here and keeps its existing `UPGRADE_STATE_FILE` behavior — out of scope, do not assume full coverage.
 
 ---
 
@@ -238,6 +239,15 @@ assert_eq "enable_new_apps appends new app to manifest" "activity
 deck
 spreed
 calendar" "$(cat "$man")"
+
+# failed enable must NOT append (retry next boot). Stub _avuz_occ to fail.
+_avuz_occ() { return 1; }
+avuz_enable_new_apps "$man" forms >/dev/null 2>&1
+assert_eq "failed enable does not poison manifest" "activity
+deck
+spreed
+calendar" "$(cat "$man")"
+unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
 rm -f "$man"
 ```
 
@@ -278,15 +288,20 @@ avuz_new_apps() {
     done
 }
 
-# Enable managed apps ($2..) not yet in the manifest ($1); append each to it.
-# Keep --force: some managed apps have not declared support for the running NC
-# version. app:enable is idempotent for an already-enabled app.
+# Enable managed apps ($2..) not yet in the manifest ($1); append to the manifest
+# ONLY when the enable succeeds, so a failed enable is retried next boot instead
+# of being silently marked "known". Keep --force: some managed apps have not
+# declared support for the running NC version. Under the caller's `set -e`, the
+# `if _avuz_occ …` form tolerates a non-zero enable (condition context).
 avuz_enable_new_apps() {
     local manifest="$1"; shift
     local app
     for app in $(avuz_new_apps "$manifest" "$@"); do
-        _avuz_occ app:enable --force "$app"
-        echo "$app" >> "$manifest"
+        if _avuz_occ app:enable --force "$app"; then
+            echo "$app" >> "$manifest"
+        else
+            echo "✗ Could not enable $app (will retry next boot)"
+        fi
     done
 }
 ```
@@ -340,12 +355,13 @@ Expected: FAIL — `avuz_retire_apps` undefined.
 Append to `docker/lib-apps.sh`:
 ```bash
 # Disable each retired app ($1..). Idempotent: app:disable on an already-disabled
-# app is a no-op. NEVER app:remove (that runs uninstall migrations and can DROP
-# tables = irreversible user-data loss).
+# app is a no-op. `|| true` so a disable failure (e.g. app not present) never
+# aborts the boot under the caller's `set -e`. NEVER app:remove (that runs
+# uninstall migrations and can DROP tables = irreversible user-data loss).
 avuz_retire_apps() {
     local app
     for app in "$@"; do
-        _avuz_occ app:disable "$app"
+        _avuz_occ app:disable "$app" || true
     done
 }
 ```
@@ -368,27 +384,30 @@ git commit -m "feat(entrypoint): explicit REMOVE_APPS retirement helper (disable
 ## Task 5: Extract `apply_avuz_settings()` (pure refactor, no behavior change)
 
 **Files:**
-- Modify: `docker/entrypoint.sh` (lines 210-505)
+- Modify: `docker/entrypoint.sh` (`run_avuz_configuration`, currently lines 210-505)
 
 **Interfaces:**
-- Produces: `apply_avuz_settings()` — runs every `config:system:set` / `config:app:set` / `theming:config` call, the `avuz-upload.ini` write, the conditional OIDC/ConectaMail/SMTP/OnlyOffice/AI/Talk blocks, and the `*imagePath*` Redis clear (the current body of lines 217-476). No app enable/update/repair.
+- Produces: `apply_avuz_settings()` — a **top-level** (sibling, not nested) function running every `config:system:set` / `config:app:set` / `theming:config` call, the `avuz-upload.ini` write, the conditional OIDC/ConectaMail/SMTP/OnlyOffice/AI/Talk blocks, and the `*imagePath*` Redis clear. No app enable/update/repair.
 
-- [ ] **Step 1: Wrap the settings block in a function**
+> **Why relocation, not wrap-in-place:** the settings block lives *inside* `run_avuz_configuration() { … }` (opens ~:210, closes ~:505). Wrapping it with `apply_avuz_settings() { … }` where it sits would define a function **nested** inside another — it only registers when the outer runs and leaks scope. The block must be **moved out** to a sibling function.
 
-In `docker/entrypoint.sh`, immediately before the current line 217 (`# Trusted domains & protocol`) insert:
+- [ ] **Step 1: Move the settings body into a new top-level function**
+
+The settings body is the span that starts at the `# Trusted domains & protocol` comment and ends at the `redis-cli … *imagePath* …` clear line (the last line before the `# Database maintenance` comment). Cut that entire span out of `run_avuz_configuration` and paste it into a **new sibling function defined immediately above** `run_avuz_configuration` (before its `# ────` comment header, at file scope):
 ```bash
 # Idempotent settings only — safe to run on every config-version bump. No app
 # enable/update/repair (those live in the gated block in run_avuz_configuration).
 apply_avuz_settings() {
-```
-Then immediately after the current line 476 (the `redis-cli … *imagePath* …` clear), insert a closing:
-```bash
+    # Trusted domains & protocol
+    #   … <the moved span: everything from the trusted-domains block through the
+    #      redis-cli *imagePath* clear, verbatim, unchanged> …
 }
 ```
+Do not edit the moved lines — relocate them verbatim so the diff is a pure move.
 
 - [ ] **Step 2: Call it from `run_avuz_configuration`**
 
-In `run_avuz_configuration`, the body between the opening `appstoreenabled=true` line (215) and the `# Database maintenance` comment (478) is now the `apply_avuz_settings` function. Replace the now-empty span by calling it. After this edit the top of `run_avuz_configuration` reads:
+Where the span was cut, leave a call. The top of `run_avuz_configuration` now reads:
 ```bash
 run_avuz_configuration() {
     echo "═══ Running Avuz Conecta configuration ═══"
@@ -400,6 +419,11 @@ run_avuz_configuration() {
     echo "Running database maintenance..."
 ```
 (The `# Database maintenance` block and everything below it up to the stamp write is rewritten in Task 6 — leave it untouched in this task.)
+
+- [ ] **Step 2b: Confirm no nested-function definition survived**
+
+Run: `awk '/^apply_avuz_settings\(\) \{/{print NR": "$0}; /^run_avuz_configuration\(\) \{/{print NR": "$0}' docker/entrypoint.sh`
+Expected: both functions print at **column-0** (no leading whitespace) — proving `apply_avuz_settings` is a sibling, not indented inside another function.
 
 - [ ] **Step 3: Verify no occ-call drift**
 
@@ -445,9 +469,9 @@ REMOVE_APPS=(
 )
 ```
 
-- [ ] **Step 3: Replace the heavy block (current lines 478-501)**
+- [ ] **Step 3: Replace the heavy block**
 
-Delete from `# Database maintenance` (478) through the `appstoreenabled --value=false` line (501) **inclusive of** the old `app:update --all` (487), the overlay reapply calls (488-489), and the `app:enable --force` loop (491-496). Replace with:
+Anchor by content (Task 5 shifted line numbers — do **not** use absolute lines). Inside `run_avuz_configuration`, delete the contiguous block that runs from the `# Database maintenance` comment through the `php occ config:system:set appstoreenabled --value=false …` line — i.e. the old `db:add-missing-indices` + `maintenance:repair` (the `# Database maintenance` block), the `app:update --all` line, the two `reapply_avuz_*_overlay` calls, the `# Ensuring managed apps are enabled` `app:enable --force` loop, and the appstore-off line. Replace the whole deleted block with:
 ```bash
     # Database maintenance — cheap index check every bump; expensive repair only
     # on fresh install or a real NC core upgrade.
@@ -483,8 +507,15 @@ Delete from `# Database maintenance` (478) through the `appstoreenabled --value=
 
     # New-app enable via the known-apps manifest: seed on first run (enables
     # nothing), then enable only managed apps we have never seen. Admin-disabled
-    # apps stay in the manifest and are never resurrected.
-    php occ app:list 2>/dev/null | avuz_seed_manifest "$AVUZ_KNOWN_APPS"
+    # apps stay in the manifest and are never resurrected. Guard the seed: a
+    # transient/empty `app:list` must NOT write an empty manifest (that would make
+    # every managed app look new next boot and mass force-enable).
+    _avuz_app_list="$(php occ app:list 2>/dev/null)"
+    if [ -n "$_avuz_app_list" ]; then
+        printf '%s\n' "$_avuz_app_list" | avuz_seed_manifest "$AVUZ_KNOWN_APPS"
+    else
+        echo "✗ occ app:list empty/failed — skipping manifest seed this boot"
+    fi
     avuz_enable_new_apps "$AVUZ_KNOWN_APPS" "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"
 
     # Retire apps listed in REMOVE_APPS (disable only, never remove).
@@ -533,11 +564,11 @@ git commit -m "feat(entrypoint): split run_avuz_configuration — occ upgrade + 
 
 - [ ] **Step 1: Wrap the force-off in a marker check**
 
-Replace entrypoint.sh:595:
+Anchor by content (line numbers shifted in Tasks 5-6). Find the single maintenance-mode force-off line in the existing-install branch:
 ```bash
     sed -i "s/'maintenance' => true/'maintenance' => false/g" /var/www/html/config/config.php 2>/dev/null || true
 ```
-with:
+Replace it with:
 ```bash
     # Force-disable maintenance mode (clears a stale flag) — UNLESS a prior
     # occ upgrade failed. In that case leave maintenance ON: fail closed to the
@@ -605,3 +636,12 @@ On a clean volume, deploy. Expected: all apps enabled (Phase 4), expensive repai
 - **Spec coverage:** cheap/heavy split (Tasks 5-6), `occ upgrade` fail-closed recovery + marker + maintenance gating (Tasks 2, 6, 7), known-apps manifest (Task 3, 6), `REMOVE_APPS` disable-only (Tasks 4, 6), gated expensive repair (Task 6), overlay reapply removal (Task 6), in-container probes (Task 1), behavior matrix + fresh-install (Task 8). All spec sections map to a task.
 - **Placeholders:** none — every code step shows full code; the one probe-dependent constant (no-op rc) is Task 1's explicit output with a documented default.
 - **Type consistency:** `avuz_classify_upgrade` → `ok|failure` feeds `avuz_handle_upgrade_result` (same tokens); `avuz_seed_manifest`/`avuz_new_apps`/`avuz_enable_new_apps` share the `<manifest_file>` first arg; `AVUZ_KNOWN_APPS` and `UPGRADE_FAILED_MARKER` declared in Task 6 and consumed in Tasks 6-7.
+
+**Grill fixes folded (2026-07-09):** (1) Task 5 relocates settings to a sibling
+function, not a nested one, with a column-0 check. (2) `avuz_enable_new_apps` uses
+`if _avuz_occ …` and `avuz_retire_apps` uses `|| true`, so a failed `occ` never
+aborts the boot under `set -e`. (3) enable appends to the manifest only on success,
+and the seed is skipped when `app:list` is empty/failed — no manifest poisoning.
+(4) edit anchors are content-based, not absolute line numbers (drift across tasks).
+(5) fail-closed scope (config-path `occ upgrade` only) is stated in constraints +
+spec. Fixes (2)+(3) verified behaviorally under `set -e`.
