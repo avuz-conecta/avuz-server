@@ -174,6 +174,13 @@ avuz_reconcile_data_ownership() {
         done
         shopt -u nullglob
     fi
+    # Log-owner safety. File owner is set at CREATION, not on append, so the log
+    # goes root-owned only when occ-as-root creates it (fresh/config-bump/upgrade
+    # boots) — and the appdata_* scope above excludes it. So on a config-bump boot
+    # this is the ONLY line that heals the log; it also heals a log recreated by a
+    # manual root `occ` run between plain restarts. No chmod: an active NC log is
+    # owner-writable by construction (logfile_mode 0640), so chown alone restores
+    # write access.
     _avuz_chown 0 "$data_dir/nextcloud.log"
 }
 ```

@@ -155,8 +155,12 @@ elif [ "$DID_CONFIG_RUN" -eq 1 ]; then
     shopt -u nullglob
 fi
 
-# Cheap always-on safety: occ-as-root most often clobbers the log. One stat,
-# instant — keeps logging alive even on a skipped plain restart.
+# Log-owner safety. Owner is set at creation, not append, so the log goes
+# root-owned only when occ-as-root creates it (fresh/config-bump/upgrade) — and
+# the appdata_* scope above excludes it, so on a config-bump boot this is the
+# only line that heals it. Also heals a log recreated by a manual root occ
+# between plain restarts. No chmod: an active NC log is owner-writable by
+# construction (logfile_mode 0640).
 chown www-data:www-data /var/www/html/data/nextcloud.log 2>/dev/null || true
 ```
 
