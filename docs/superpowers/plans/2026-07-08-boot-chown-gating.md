@@ -371,9 +371,49 @@ docker run --rm --entrypoint bash registry.avuz.app/admin/avuzconecta:latest \
 ```
 Expected: `BOOT_PARSE_OK`
 
-- [ ] **Step 4: Commit (no-op if nothing changed)**
+- [ ] **Step 4: Prove real ownership post-conditions in-container (root, synthetic tree)**
 
-No code change expected. If the build surfaced a fix, commit it with a clear message and re-run Steps 1-3.
+The image runs as root (no `USER` directive), so this exercises the real
+`chown`/`find` — not dry-run labels — against a controlled tree. Proves the
+*mechanism* (scoped bump flips appdata_* + log, leaves the user tree; db upgrade
+flips everything). The *hypothesis* that occ only dirties appdata_* on a real
+bump is Task 4.
+
+Run:
+```bash
+docker run --rm --entrypoint bash registry.avuz.app/admin/avuzconecta:latest -c '
+  set -e
+  source /var/www/html/docker/lib-perms.sh
+
+  # --- config-bump scope: appdata_* + log flip, user tree untouched ---
+  d=$(mktemp -d); mkdir -p "$d/appdata_x" "$d/user1/files"
+  touch "$d/appdata_x/preview.png" "$d/user1/files/doc.txt" "$d/nextcloud.log"
+  chown root:root "$d/appdata_x/preview.png" "$d/user1/files/doc.txt" "$d/nextcloud.log"
+  avuz_reconcile_data_ownership "$d" 0 1
+  [ "$(stat -c %U "$d/appdata_x/preview.png")" = www-data ] || { echo FAIL_appdata_not_fixed; exit 1; }
+  [ "$(stat -c %U "$d/nextcloud.log")"        = www-data ] || { echo FAIL_log_not_fixed; exit 1; }
+  [ "$(stat -c %U "$d/user1/files/doc.txt")"  = root ]     || { echo FAIL_usertree_touched; exit 1; }
+
+  # --- db-upgrade full walk: everything flips, including the user tree ---
+  e=$(mktemp -d); mkdir -p "$e/user1/files"
+  touch "$e/user1/files/doc.txt" "$e/nextcloud.log"
+  chown root:root "$e/user1/files/doc.txt" "$e/nextcloud.log"
+  avuz_reconcile_data_ownership "$e" 1 0
+  [ "$(stat -c %U "$e/user1/files/doc.txt")" = www-data ] || { echo FAIL_dbupgrade_missed_usertree; exit 1; }
+
+  # --- S3/no-appdata under set -e: no abort ---
+  f=$(mktemp -d)
+  avuz_reconcile_data_ownership "$f" 0 1
+  echo OWNERSHIP_OK
+'
+```
+Expected: `OWNERSHIP_OK` (any `FAIL_*` line means a mechanism bug — fix the lib,
+rebuild, re-run).
+
+- [ ] **Step 5: Commit (no-op if nothing changed)**
+
+No code change expected. If the build or Step 4 surfaced a fix, commit it with a
+clear message and re-run Steps 1-4.
 
 ---
 
@@ -417,8 +457,11 @@ unsafe: change the config-bump branch in `docker/lib-perms.sh` to a full walk �
         _avuz_find_rechown "$data_dir"
 ```
 
-— re-run Task 1 tests (update the "config bump scopes to appdata + log" expected
-output to `FIND-RECHOWN $tmp\nCHOWN $tmp/nextcloud.log`), rebuild, redeploy.
+— then update **both** test layers to the new expected behavior: Task 1's
+dry-run test ("config bump scopes to appdata + log" → `FIND-RECHOWN $tmp` +
+`CHOWN $tmp/nextcloud.log`) and Task 3's in-container assertion (the config-bump
+case now flips the user tree too, so `FAIL_usertree_touched` becomes
+`= www-data`). Rebuild, redeploy.
 
 - [ ] **Step 4: Validate the S3 path (no `set -e` abort, boot unchanged)**
 
