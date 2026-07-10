@@ -529,10 +529,15 @@ run_avuz_configuration() {
     _avuz_app_list="$(php occ app:list 2>/dev/null)"
     if [ -n "$_avuz_app_list" ]; then
         printf '%s\n' "$_avuz_app_list" | avuz_seed_manifest "$AVUZ_KNOWN_APPS"
+        # Enable only inside this branch: if the manifest was just seeded (or
+        # already exists), new-app detection is trustworthy. On an empty/failed
+        # app:list we skip enabling too — otherwise a missing manifest would make
+        # every managed app look "new" and mass force-enable (resurrecting
+        # admin-disabled apps). Fresh installs still get every app via Phase 4.
+        avuz_enable_new_apps "$AVUZ_KNOWN_APPS" "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"
     else
-        echo "✗ occ app:list empty/failed — skipping manifest seed this boot"
+        echo "✗ occ app:list empty/failed — skipping manifest seed + new-app enable this boot"
     fi
-    avuz_enable_new_apps "$AVUZ_KNOWN_APPS" "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"
 
     # Retire apps listed in REMOVE_APPS (disable only, never remove).
     avuz_retire_apps "${REMOVE_APPS[@]}"
