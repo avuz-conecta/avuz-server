@@ -84,3 +84,14 @@ avuz_enable_new_apps() {
         fi
     done
 }
+
+# Disable each retired app ($1..). Idempotent: app:disable on an already-disabled
+# app is a no-op. `|| true` so a disable failure (e.g. app not present) never
+# aborts the boot under the caller's `set -e`. NEVER app:remove (that runs
+# uninstall migrations and can DROP tables = irreversible user-data loss).
+avuz_retire_apps() {
+    local app
+    for app in "$@"; do
+        _avuz_occ app:disable "$app" || true
+    done
+}

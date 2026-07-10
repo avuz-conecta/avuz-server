@@ -80,4 +80,12 @@ calendar" "$(cat "$man")"
 unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
 rm -f "$man"
 
+# ── retirement: disable only, never remove ──
+out="$(AVUZ_OCC_DRYRUN=1 avuz_retire_apps roundcube weather_status)"
+assert_eq "retire disables each listed app" "OCC app:disable roundcube
+OCC app:disable weather_status" "$out"
+
+out="$(AVUZ_OCC_DRYRUN=1 avuz_retire_apps)"
+assert_eq "retire with no apps is a no-op" "" "$out"
+
 exit $fail
