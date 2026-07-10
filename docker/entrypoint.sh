@@ -203,17 +203,9 @@ PHPEOF
     echo "✓ S3 object store config written to $config_file"
 }
 
-# ──────────────────────────────────────────────
-# Avuz configuration — runs on fresh install, after upgrade, or when config version changes
-# All settings here are persisted in config.php or the DB, so they only need to run once.
-# ──────────────────────────────────────────────
-run_avuz_configuration() {
-    echo "═══ Running Avuz Conecta configuration ═══"
-
-    # Re-enable the in-app store for the duration of this run so the
-    # app:install/update calls below can query the store. Re-disabled at the end.
-    php occ config:system:set appstoreenabled --value=true --type=boolean
-
+# Idempotent settings only — safe to run on every config-version bump. No app
+# enable/update/repair (those live in the gated block in run_avuz_configuration).
+apply_avuz_settings() {
     # Trusted domains & protocol
     # NEXTCLOUD_TRUSTED_DOMAINS accepts comma-separated list, each goes to its
     # own trusted_domains index. Required when serving NC under multiple host
@@ -474,6 +466,20 @@ PHPINI
 
     # Clear imagePath cache after theme changes
     redis-cli -h "$REDIS_HOST" EVAL "local keys = redis.call('keys', '*imagePath*'); for i=1,#keys do redis.call('del', keys[i]) end; return #keys" 0 || true
+}
+
+# ──────────────────────────────────────────────
+# Avuz configuration — runs on fresh install, after upgrade, or when config version changes
+# All settings here are persisted in config.php or the DB, so they only need to run once.
+# ──────────────────────────────────────────────
+run_avuz_configuration() {
+    echo "═══ Running Avuz Conecta configuration ═══"
+
+    # Re-enable the in-app store for the duration of this run so the
+    # app:install/update calls below can query the store. Re-disabled at the end.
+    php occ config:system:set appstoreenabled --value=true --type=boolean
+
+    apply_avuz_settings
 
     # Database maintenance
     echo "Running database maintenance..."
