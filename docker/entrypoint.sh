@@ -5,10 +5,13 @@ set -e
 AVUZ_CONFIG_VERSION="33.0.0-14"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
+AVUZ_KNOWN_APPS="/var/www/html/data/.avuz_known_apps"
+UPGRADE_FAILED_MARKER="/var/www/html/data/.avuz_upgrade_failed"
 
 # Ownership helpers. Shipped in the image via `COPY .` (same path the overlay
 # reapply functions already read at runtime); no separate Dockerfile copy needed.
 source /var/www/html/docker/lib-perms.sh
+source /var/www/html/docker/lib-apps.sh
 
 # Boot signals consumed by avuz_reconcile_data_ownership in phase 5.
 DID_DB_UPGRADE=0   # set after `occ upgrade` (core rewrite — full data walk)
@@ -58,6 +61,11 @@ ENABLE_APPS=(
     "notify_push"
     "onlyoffice"
     "integration_openai"
+)
+
+# Apps to retire on deploy. Disable only (data kept); never app:remove. Add an
+# app here to turn it off across all stacks; leave empty when nothing is retiring.
+REMOVE_APPS=(
 )
 
 verify_avuz_patches() {
@@ -481,25 +489,53 @@ run_avuz_configuration() {
 
     apply_avuz_settings
 
-    # Database maintenance
+    # Database maintenance — cheap index check every bump; expensive repair only
+    # on fresh install or a real NC core upgrade.
     echo "Running database maintenance..."
     php occ db:add-missing-indices --no-interaction 2>/dev/null || true
-    php occ maintenance:repair --include-expensive 2>/dev/null || true
+    if [ "$NC_INSTALLED" -eq 0 ] || [ "$DID_DB_UPGRADE" -eq 1 ]; then
+        php occ maintenance:repair --include-expensive 2>/dev/null || true
+    fi
 
-    # Update App Store apps (custom_apps/) to latest compatible versions.
-    # Note: this also updates bundled apps and can overwrite our spreed overlay,
-    # so reapply the overlay immediately after.
-    echo "Updating App Store apps..."
-    php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
-    reapply_avuz_spreed_overlay
-    reapply_avuz_files_downloadlimit_overlay
+    # occ upgrade (replaces app:update --all) — runs pending core+app migrations
+    # from on-disk code: no store, no overlay clobber. Fail closed: on failure
+    # write the marker, skip the stamp, and exit so the container crash-loops
+    # (visible in Portainer) and the next boot retries. Skip when the core-upgrade
+    # branch already ran occ upgrade this boot.
+    if [ "$DID_DB_UPGRADE" -eq 0 ]; then
+        echo "Running occ upgrade (pending migrations)..."
+        set +e
+        php occ upgrade --no-interaction
+        _avuz_upgrade_rc=$?
+        set -e
+        if php occ maintenance:mode 2>/dev/null | grep -q 'currently enabled'; then
+            _avuz_maint=on
+        else
+            _avuz_maint=off
+        fi
+        _avuz_upgrade_class="$(avuz_classify_upgrade "$_avuz_upgrade_rc" "$_avuz_maint")"
+        if ! avuz_handle_upgrade_result "$_avuz_upgrade_class" "$UPGRADE_FAILED_MARKER"; then
+            echo "✗ occ upgrade FAILED (rc=$_avuz_upgrade_rc, maintenance=$_avuz_maint) — marker written, halting boot"
+            exit 1
+        fi
+        echo "✓ occ upgrade $_avuz_upgrade_class"
+    fi
 
-    # Ensure all managed apps are enabled — use --force for apps that
-    # haven't declared support for this NC version yet (bruteforcesettings, notifications, text)
-    echo "Ensuring managed apps are enabled..."
-    for app in "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"; do
-        php occ app:enable --force "$app" 2>/dev/null || echo "✗ Could not enable $app"
-    done
+    # New-app enable via the known-apps manifest: seed on first run (enables
+    # nothing), then enable only managed apps we have never seen. Admin-disabled
+    # apps stay in the manifest and are never resurrected. Guard the seed: a
+    # transient/empty `app:list` must NOT write an empty manifest (that would make
+    # every managed app look new next boot and mass force-enable).
+    _avuz_app_list="$(php occ app:list 2>/dev/null)"
+    if [ -n "$_avuz_app_list" ]; then
+        printf '%s\n' "$_avuz_app_list" | avuz_seed_manifest "$AVUZ_KNOWN_APPS"
+    else
+        echo "✗ occ app:list empty/failed — skipping manifest seed this boot"
+    fi
+    avuz_enable_new_apps "$AVUZ_KNOWN_APPS" "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"
+
+    # Retire apps listed in REMOVE_APPS (disable only, never remove).
+    avuz_retire_apps "${REMOVE_APPS[@]}"
 
     # Lock down the in-app store AFTER all installs/updates above have run.
     # Avuz owns the app upgrade cycle via image rebuilds; this prevents admins
@@ -597,8 +633,14 @@ else
     chown -R www-data:www-data /var/www/html/config
     chmod -R 770 /var/www/html/config
 
-    # Force disable maintenance mode via config.php (before any occ commands)
-    sed -i "s/'maintenance' => true/'maintenance' => false/g" /var/www/html/config/config.php 2>/dev/null || true
+    # Force-disable maintenance mode (clears a stale flag) — UNLESS a prior
+    # occ upgrade failed. In that case leave maintenance ON: fail closed to the
+    # maintenance page instead of serving a half-migrated app.
+    if [ -f "$UPGRADE_FAILED_MARKER" ]; then
+        echo "⚠ prior upgrade failed ($UPGRADE_FAILED_MARKER present) — leaving maintenance mode ON"
+    else
+        sed -i "s/'maintenance' => true/'maintenance' => false/g" /var/www/html/config/config.php 2>/dev/null || true
+    fi
 
     # Fix potentially corrupted viewer app
     if [ ! -f /var/www/html/apps/viewer/appinfo/info.xml ]; then
