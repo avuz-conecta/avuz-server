@@ -30,4 +30,54 @@ if avuz_handle_upgrade_result ok "$marker"; then rc=0; else rc=1; fi
 assert_eq "ok returns 0" "0" "$rc"
 assert_eq "ok clears marker" "gone" "$([ -e "$marker" ] && echo present || echo gone)"
 
+# ── manifest / new-app detection ──
+APP_LIST_FIXTURE="Enabled:
+  - activity: 3.0.0
+  - deck: 1.14.0
+Disabled:
+  - spreed: 18.0.0"
+
+# parse: both sections -> appids
+out="$(printf '%s\n' "$APP_LIST_FIXTURE" | avuz_parse_app_list)"
+assert_eq "parse emits all appids" "activity
+deck
+spreed" "$out"
+
+# seed when absent: writes parsed appids
+man="$(mktemp -u)"
+printf '%s\n' "$APP_LIST_FIXTURE" | avuz_seed_manifest "$man"
+assert_eq "seed writes manifest when absent" "activity
+deck
+spreed" "$(cat "$man")"
+
+# seed when present: leaves manifest untouched
+printf 'Enabled:\n  - newapp: 1.0.0\n' | avuz_seed_manifest "$man"
+assert_eq "seed no-op when manifest present" "activity
+deck
+spreed" "$(cat "$man")"
+
+# new_apps: only managed apps absent from manifest
+out="$(avuz_new_apps "$man" deck spreed calendar forms)"
+assert_eq "new_apps lists only unknown managed apps" "calendar
+forms" "$out"
+
+# enable_new_apps: enables the unknown ones and appends them
+out="$(AVUZ_OCC_DRYRUN=1 avuz_enable_new_apps "$man" deck calendar)"
+assert_eq "enable_new_apps enables only the new app" \
+    "OCC app:enable --force calendar" "$out"
+assert_eq "enable_new_apps appends new app to manifest" "activity
+deck
+spreed
+calendar" "$(cat "$man")"
+
+# failed enable must NOT append (retry next boot). Stub _avuz_occ to fail.
+_avuz_occ() { return 1; }
+avuz_enable_new_apps "$man" forms >/dev/null 2>&1
+assert_eq "failed enable does not poison manifest" "activity
+deck
+spreed
+calendar" "$(cat "$man")"
+unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
+rm -f "$man"
+
 exit $fail

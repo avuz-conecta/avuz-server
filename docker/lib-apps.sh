@@ -39,3 +39,48 @@ avuz_handle_upgrade_result() {
     rm -f "$marker"
     return 0
 }
+
+# Pure filter: given `occ app:list` text on stdin, emit one appid per line
+# (both Enabled: and Disabled: sections).
+avuz_parse_app_list() {
+    grep '  - ' | sed 's/  - \(.*\):.*/\1/'
+}
+
+# Seed the manifest from all currently-known apps IF it does not exist yet.
+# Reads `occ app:list` text on stdin. An existing manifest is left untouched.
+avuz_seed_manifest() {
+    local manifest="$1"
+    if [ -f "$manifest" ]; then
+        cat >/dev/null   # drain stdin, no-op
+        return 0
+    fi
+    avuz_parse_app_list > "$manifest"
+}
+
+# Pure: emit the managed apps ($2..) absent from the manifest ($1).
+avuz_new_apps() {
+    local manifest="$1"; shift
+    local app
+    for app in "$@"; do
+        if ! grep -qxF "$app" "$manifest" 2>/dev/null; then
+            echo "$app"
+        fi
+    done
+}
+
+# Enable managed apps ($2..) not yet in the manifest ($1); append to the manifest
+# ONLY when the enable succeeds, so a failed enable is retried next boot instead
+# of being silently marked "known". Keep --force: some managed apps have not
+# declared support for the running NC version. Under the caller's `set -e`, the
+# `if _avuz_occ …` form tolerates a non-zero enable (condition context).
+avuz_enable_new_apps() {
+    local manifest="$1"; shift
+    local app
+    for app in $(avuz_new_apps "$manifest" "$@"); do
+        if _avuz_occ app:enable --force "$app"; then
+            echo "$app" >> "$manifest"
+        else
+            echo "✗ Could not enable $app (will retry next boot)"
+        fi
+    done
+}
