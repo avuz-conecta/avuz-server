@@ -114,6 +114,19 @@ namespace {
         check('stale .lock removed', !is_file($lockf));
     })();
 
+    // ---- Task A4: finalize() assembles but does NOT clean parts ----
+    (function () use ($svc) {
+        $room = new Room('finaltok1');
+        $uploadId = $svc->init($room, 'assemble.webm', 8);
+        $svc->writeChunk($room, $uploadId, 0, 'AAAA');
+        $svc->writeChunk($room, $uploadId, 1, 'BBBB');
+        $file = $svc->finalize($room, $uploadId, 8);
+        global $failures;
+        check('finalize returns assembled bytes', @file_get_contents($file['tmp_name']) === 'AAAABBBB');
+        check('finalize leaves parts dir intact', is_dir($svc->getRoot() . '/finaltok1/' . $uploadId));
+        @unlink($file['tmp_name']);
+    })();
+
     echo $failures === 0 ? "\nPASS\n" : "\n$failures FAILURE(S)\n";
     exit($failures === 0 ? 0 : 1);
 }

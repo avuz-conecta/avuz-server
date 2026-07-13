@@ -109,8 +109,6 @@ class RecordingChunkedUploadService {
 			));
 		}
 
-		$this->cleanup($room->getToken(), $uploadId);
-
 		return [
 			'tmp_name' => $tmpPath,
 			'name' => (string)$meta['fileName'],
