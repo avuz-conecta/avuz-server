@@ -11,6 +11,8 @@ use Psr\Log\LoggerInterface;
 
 class RecordingChunkedUploadService {
 	private const CHUNK_TTL_SECONDS = 3600;
+	private const DONE_TTL_SECONDS = 86400; // 24h dedup window
+	private const LOCK_TTL_SECONDS = 3600;  // 1h; a finalize never runs this long
 	private const MAX_CHUNKS = 200;
 
 	public function __construct(
@@ -153,6 +155,17 @@ class RecordingChunkedUploadService {
 					}
 				} catch (\Throwable $e) {
 					$this->logger->warning('Failed to sweep stale chunk dir', ['exception' => $e, 'dir' => $uploadDir]);
+				}
+			}
+			$now2 = time();
+			foreach (glob($tokenDir . '/*.done') ?: [] as $doneFile) {
+				if (($now2 - (int)@filemtime($doneFile)) > self::DONE_TTL_SECONDS) {
+					@unlink($doneFile);
+				}
+			}
+			foreach (glob($tokenDir . '/*.lock') ?: [] as $lockFile) {
+				if (($now2 - (int)@filemtime($lockFile)) > self::LOCK_TTL_SECONDS) {
+					@unlink($lockFile);
 				}
 			}
 		}

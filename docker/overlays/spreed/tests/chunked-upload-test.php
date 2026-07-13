@@ -89,6 +89,31 @@ namespace {
         check('null fileName falls back to meta', $viaMeta === $viaName);
     })();
 
+    // ---- Task A3: sweepStale GCs markers/locks by TTL ----
+    (function () use ($svc) {
+        $room = new Room('sweeptok1');
+        $key = $svc->finalizeKey($room, 'sweep.webm', 'z');
+        $svc->markFinalized($room, $key);
+        $lock = $svc->acquireFinalizeLock($room, $key);
+        $svc->releaseFinalizeLock($lock);
+        $root = $svc->getRoot();
+        $done = $root . '/sweeptok1/' . $key . '.done';
+        $lockf = $root . '/sweeptok1/' . $key . '.lock';
+
+        // Fresh: sweep keeps both.
+        $svc->sweepStale();
+        global $failures;
+        check('fresh .done kept', is_file($done));
+        check('fresh .lock kept', is_file($lockf));
+
+        // Age them past TTL: .done > 24h, .lock > 1h.
+        touch($done, time() - 90000);
+        touch($lockf, time() - 4000);
+        $svc->sweepStale();
+        check('stale .done removed', !is_file($done));
+        check('stale .lock removed', !is_file($lockf));
+    })();
+
     echo $failures === 0 ? "\nPASS\n" : "\n$failures FAILURE(S)\n";
     exit($failures === 0 ? 0 : 1);
 }
