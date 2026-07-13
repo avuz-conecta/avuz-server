@@ -189,4 +189,55 @@ class RecordingChunkedUploadService {
 			throw new InvalidArgumentException('filename');
 		}
 	}
+
+	public function finalizeKey(Room $room, ?string $fileName, string $uploadId): string {
+		if ($fileName === null || $fileName === '') {
+			$dir = $this->getUploadDir($room->getToken(), $uploadId, create: false);
+			$meta = json_decode((string)@file_get_contents($dir . '/.meta'), true);
+			$fileName = is_array($meta) ? (string)($meta['fileName'] ?? '') : '';
+			if ($fileName === '') {
+				throw new InvalidArgumentException('filename_unknown');
+			}
+		}
+		return hash('sha256', $room->getToken() . ':' . $fileName);
+	}
+
+	private function markerPath(string $token, string $key, string $ext): string {
+		if (!preg_match('/^[a-z0-9]{4,30}$/', $token) || !preg_match('/^[a-f0-9]{64}$/', $key)) {
+			throw new InvalidArgumentException('marker_id');
+		}
+		$tokenDir = $this->getRoot() . '/' . $token;
+		if (!is_dir($tokenDir) && !mkdir($tokenDir, 0770, true) && !is_dir($tokenDir)) {
+			throw new InvalidArgumentException('mkdir');
+		}
+		return $tokenDir . '/' . $key . '.' . $ext;
+	}
+
+	public function isFinalized(Room $room, string $key): bool {
+		return is_file($this->markerPath($room->getToken(), $key, 'done'));
+	}
+
+	public function markFinalized(Room $room, string $key): void {
+		$path = $this->markerPath($room->getToken(), $key, 'done');
+		file_put_contents($path, json_encode(['finalizedAt' => time()]));
+	}
+
+	/**
+	 * @return resource an open handle holding LOCK_EX; pass to releaseFinalizeLock().
+	 */
+	public function acquireFinalizeLock(Room $room, string $key) {
+		$path = $this->markerPath($room->getToken(), $key, 'lock');
+		$handle = fopen($path, 'c');
+		if ($handle === false || !flock($handle, LOCK_EX)) {
+			throw new InvalidArgumentException('lock');
+		}
+		return $handle;
+	}
+
+	public function releaseFinalizeLock($handle): void {
+		if (is_resource($handle)) {
+			flock($handle, LOCK_UN);
+			fclose($handle);
+		}
+	}
 }

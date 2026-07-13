@@ -60,6 +60,35 @@ namespace {
         check('no leftover .tmp files', count(glob($root . '/atomictok/' . $uploadId . '/*.tmp*') ?: []) === 0);
     })();
 
+    // ---- Task A2: key + marker + lock ----
+    (function () use ($svc) {
+        $room = new Room('keytok01');
+        $k1 = $svc->finalizeKey($room, 'rec.webm', 'x');
+        $k2 = $svc->finalizeKey($room, 'rec.webm', 'y');
+        $k3 = $svc->finalizeKey($room, 'other.webm', 'x');
+        check('key stable across uploadId', $k1 === $k2);
+        check('key differs by fileName', $k1 !== $k3);
+        check('key is 64-hex', (bool)preg_match('/^[a-f0-9]{64}$/', $k1));
+
+        check('not finalized initially', $svc->isFinalized($room, $k1) === false);
+        $svc->markFinalized($room, $k1);
+        check('finalized after mark', $svc->isFinalized($room, $k1) === true);
+
+        $h = $svc->acquireFinalizeLock($room, $k1);
+        check('lock handle is a resource', is_resource($h));
+        $svc->releaseFinalizeLock($h);
+        check('lock file exists after acquire', is_file($svc->getRoot() . '/keytok01/' . $k1 . '.lock'));
+    })();
+
+    // key fallback to .meta when fileName omitted
+    (function () use ($svc) {
+        $room = new Room('metatok01');
+        $uploadId = $svc->init($room, 'frommeta.webm', 4);
+        $viaMeta = $svc->finalizeKey($room, null, $uploadId);
+        $viaName = $svc->finalizeKey($room, 'frommeta.webm', $uploadId);
+        check('null fileName falls back to meta', $viaMeta === $viaName);
+    })();
+
     echo $failures === 0 ? "\nPASS\n" : "\n$failures FAILURE(S)\n";
     exit($failures === 0 ? 0 : 1);
 }
