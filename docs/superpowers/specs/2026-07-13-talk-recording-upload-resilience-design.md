@@ -27,6 +27,16 @@ Make the chunked upload survive transient Cloudflare 504s, and make the *rare* r
 failure trivial to re-trigger by hand. Correctness constraint: **never post a recording
 to the conversation twice.**
 
+## Preconditions
+
+Chunk parts, the `.done` dedup markers, and `.lock` files all live on the app container's
+**local** `datadirectory`. This assumes **a single Nextcloud app container per instance**
+(or, if ever scaled horizontally, a **shared** chunk-storage volume across containers).
+With N independent app containers behind NPM, chunks scatter across containers and finalize
+cannot assemble them — chunked upload is already broken today under that topology, and the
+file-based lock/marker would not synchronise across containers either. All current Avuz
+clients are single-container; this must be re-checked before any horizontal-scale rollout.
+
 ## Approach
 
 One resilience layer across the two existing pieces of the path — no new components.
@@ -42,33 +52,45 @@ Retry alone fixes the observed bug (chunk 504). Idempotent finalize closes the o
 correctness trap it would otherwise open (a slow S3 assembly can push finalize past CF's
 ~100 s edge timeout → 504 → a naive retry re-stores → duplicate).
 
-## Component 1 — server-side idempotent finalize (avuz-server overlay)
+## Component 1 — server-side atomic chunk writes + idempotent finalize (avuz-server overlay)
 
 **Files:**
 - `docker/overlays/spreed/lib/Controller/RecordingController.php` — `storeChunkedFinalize`
-- `docker/overlays/spreed/lib/Service/RecordingChunkedUploadService.php` — `finalize`,
-  new marker/lock helpers, extended `sweepStale`
+- `docker/overlays/spreed/lib/Service/RecordingChunkedUploadService.php` — `writeChunk`
+  (atomic), `finalize` (lock + dedup), new dedup/lock helpers, extended `sweepStale`
 - `docker/entrypoint.sh` — update the spreed-overlay integrity check string to the bumped
   sentinel (see Sentinel below)
 
-A finalize call for a given `uploadId` becomes safe to issue more than once:
+### Atomic chunk write (fixes the concurrent-retry corruption race)
 
-1. **Lock.** Acquire an exclusive `flock` on `<chunkRoot>/<token>/<uploadId>.lock` around
-   the critical section. This serialises a retry that arrives while the first finalize is
-   *still running* server-side (bot timed out, origin did not) — the real double-post race.
-   `flock` is advisory and process-crash-safe (released when the fd closes).
-2. **Short-circuit.** If `<chunkRoot>/<token>/<uploadId>.done` exists → release lock,
-   return HTTP 200 without re-assembling or re-storing.
-3. **Store once.** Otherwise: assemble parts → `RecordingService::store(...)` → **write the
-   `.done` marker** → clean up the parts dir → release lock → return 200.
+A retried chunk can race the slow first attempt writing the **same** `NNNN.part` path;
+`file_put_contents` is not atomic, so the two writers can interleave → corrupt part →
+finalize size-mismatch. Fix: `writeChunk` writes to `NNNN.part.tmp.<rand>` then **atomic
+`rename()`** to `NNNN.part`. `rename` is atomic on the local fs → last-writer-wins cleanly,
+no interleave, and `finalize`'s glob of `NNNN.part` never matches a temp/partial file.
 
-The `.done` marker is stored **outside** the `<uploadId>` parts directory so the existing
-chunk cleanup cannot delete it. Its content is not read by the bot (which only checks HTTP
-status); write a JSON stamp `{"finalizedAt": <unixtime>}` — enough for debugging and for
-`sweepStale` age checks.
+### Idempotent finalize
 
-`sweepStale` is extended to also unlink stale `*.done` and `*.lock` files (same 1 h TTL
-as the upload dirs) so markers/locks don't accumulate.
+Dedup is keyed on the **recording**, not the transient uploadId:
+`key = sha256(token ':' fileName)` (fileName from the upload's `.meta`, unique per recording
+via its timestamp). Keying on the recording — not the uploadId — protects **both** the bot's
+in-call finalize retry *and* a later manual `reupload` (which uses a fresh uploadId).
+
+1. **Lock.** Exclusive `flock` on `<chunkRoot>/<token>/<key>.lock` around the critical
+   section — serialises a retry (or a racing manual reupload) that arrives while the first
+   finalize is still storing. `flock` is advisory, released when the fd closes (crash-safe).
+2. **Short-circuit.** If `<chunkRoot>/<token>/<key>.done` exists → release, return HTTP 200
+   without re-assembling or re-storing.
+3. **Store once.** Assemble the uploadId's parts → `RecordingService::store(...)` → **write
+   `<key>.done` as the very next operation** (JSON `{"finalizedAt": <unixtime>}`) → clean up
+   the parts dir → release lock → return 200.
+
+**Marker lifetimes.** `.done` is the durable dedup record — TTL **24 h** (covers same/next-day
+manual recovery; beyond that the operator falls back to the check-first SOP). `.lock` is
+transient — GC at **1 h**. Both live **outside** the `<uploadId>` parts dir so chunk cleanup
+can't remove them. `sweepStale` is extended to unlink `.done` older than 24 h and `.lock`
+older than 1 h — **TTL-gated**, so it can never remove a marker/lock that an active finalize
+(seconds-to-minutes) is holding, avoiding the unlink-a-held-lock race.
 
 **Sentinel:** bump the overlay integrity sentinel `AVUZ-CHUNKED-UPLOAD-V1` →
 `AVUZ-CHUNKED-UPLOAD-V2` so a deployed image can be identified as carrying idempotent
@@ -86,6 +108,10 @@ existing `doRequest(retries=3)` pattern:
 - **Retry on:** `requests.ConnectionError`/`Timeout`, and HTTP `502/503/504/408`.
 - **Never retry on:** any other `4xx` (bad signature, size mismatch = a real error).
 - **Backoff:** exponential, `2, 4, 8, 16, 30 s` (capped), **5 attempts**.
+- **Per-request timeouts bounded** so a wedged chunk can't hang the upload for ~25 min:
+  drop the chunk POST timeout `300 s → 120 s` (50 MB over the wire is seconds; 120 s covers
+  a slow finalize/store), leaving `init 30 s`, `finalize 120 s`. Worst case per chunk ≈
+  `5 × 120 s + 60 s backoff ≈ 11 min` before it gives up and preserves the `/tmp` file.
 - `init` retry → server mints a new `uploadId`; the previous empty dir is GC'd — harmless.
 - `chunk` retry → same index to the same `uploadId`; `writeChunk` overwrites — idempotent.
 - `finalize` retry → same `uploadId`; server marker makes it a no-op that returns 200.
@@ -119,7 +145,10 @@ python3 -m nextcloud.talk.recording.reupload \
   `uploadRecordingChunked` (with the new retry).
 - `--file` optional → auto-discovers `/tmp/https<domain>/<token>/*.webm`.
 - `--config` defaults to the standard path.
-- Safe to re-run: idempotent finalize guarantees no double-post.
+- Safe to re-run **within the 24 h dedup window**: the recording-keyed `.done` marker makes
+  finalize a no-op even with a fresh uploadId — so a reupload after the bot already stored the
+  recording (finalize succeeded, response lost) does **not** double-post. Beyond 24 h the
+  marker is GC'd → SOP: check the conversation before rerunning.
 - Documented in `AVUZ_FORK.md`.
 
 ## Edge cases
@@ -127,11 +156,13 @@ python3 -m nextcloud.talk.recording.reupload \
 | Case | Handling |
 |------|----------|
 | `init` retry after lost response | new `uploadId`; old empty dir GC'd |
-| chunk retry | same index overwrites — idempotent |
-| finalize retry after successful store | `.done` marker → 200, no re-store |
-| concurrent finalize (retry vs still-running first) | `flock` serialises; second sees `.done` → 200 |
+| chunk retry racing slow first write | temp-file + atomic `rename` — no interleave/corruption |
+| finalize retry after successful store | recording-keyed `.done` marker → 200, no re-store |
+| concurrent finalize (retry vs still-running first) | `flock` on `<key>` serialises; second sees `.done` → 200 |
+| manual `reupload` after bot gave up (finalize had succeeded) | fresh uploadId, but same `token+fileName` key → `.done` hit → no double-post (within 24 h) |
+| PHP fatal between store-success and marker-write | accepted residual (µs window, requires store already done); marker written as the next op |
 | `4xx` (bad signature/size) | no retry, fail fast → manual recovery |
-| stale `.done`/`.lock` | `sweepStale` unlinks at 1 h |
+| stale `.done` / `.lock` | `sweepStale` unlinks `.done` >24 h, `.lock` >1 h — TTL-gated, never touches an active finalize |
 | retries exhausted | raise; `/tmp` file preserved; `reupload` CLI recovers |
 
 ## Testing
@@ -143,9 +174,15 @@ python3 -m nextcloud.talk.recording.reupload \
 - finalize retry: second call returns 200 (mock marker).
 - `reupload` CLI: smoke test (arg parsing, config load, auto-discovery of `/tmp` file).
 
-**Server overlay** (PHP, no local harness → staging e2e):
-- call `finalize` twice for one `uploadId` → exactly one recording in the conversation,
-  second call returns 200.
+**Server overlay** — the lock/marker logic is the trickiest code and has the weakest
+coverage, so add a **standalone PHP script test** (precedent: the audio-extraction recipe)
+that exercises `RecordingChunkedUploadService` against a temp dir with a mocked `IConfig`:
+- atomic write: concurrent `writeChunk` to the same index → resulting `NNNN.part` is one
+  intact copy, never interleaved.
+- idempotent finalize: two `finalize` calls for the same `token+fileName` (even different
+  uploadIds) → store path invoked **once**, second returns the short-circuit.
+- `sweepStale`: `.done` <24 h and `.lock` <1 h are kept; older are removed.
+Plus staging e2e: call `finalize` twice for one recording → exactly one recording message.
 
 **Acceptance (staging):**
 - record a real call → single recording message + transcript.
