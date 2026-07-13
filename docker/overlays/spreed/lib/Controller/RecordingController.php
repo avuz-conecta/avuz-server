@@ -45,7 +45,7 @@ use OCP\Http\Client\IClientService;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
-// AVUZ-CHUNKED-UPLOAD-V1 — do not remove; entrypoint integrity check matches this string
+// AVUZ-CHUNKED-UPLOAD-V2 — do not remove; entrypoint integrity check matches this string
 class RecordingController extends AEnvironmentAwareOCSController {
 	public function __construct(
 		string $appName,

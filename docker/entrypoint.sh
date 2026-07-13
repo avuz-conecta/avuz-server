@@ -74,7 +74,7 @@ verify_avuz_patches() {
     # means the patch was lost (corrupted image, upstream restore, bad rebase)
     # and we refuse to boot rather than serve a half-patched stack.
     local checks=(
-        "AVUZ-CHUNKED-UPLOAD-V1|/var/www/html/apps/spreed/lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
+        "AVUZ-CHUNKED-UPLOAD-V2|/var/www/html/apps/spreed/lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
         "Upload in progress — do not close this tab|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
         "admin-download-limit|/var/www/html/apps/files_downloadlimit/templates/admin.php|files_downloadlimit overlay missing — upstream 2.0.0 tarball drops this template (GH nextcloud/files_downloadlimit#421); redeploy or rerun reapply_avuz_files_downloadlimit_overlay"
         "AVUZ-AUDIO-EXTRACT-V1|/var/www/html/apps/integration_openai/lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
