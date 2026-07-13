@@ -41,8 +41,17 @@ class RecordingChunkedUploadService {
 		}
 		$dir = $this->getUploadDir($room->getToken(), $uploadId, create: false);
 		$path = $dir . '/' . sprintf('%04d.part', $index);
-		if (file_put_contents($path, $body) === false) {
+		// Write to a unique temp then atomically rename: a retried chunk racing the
+		// slow first write can never interleave into the final part, and finalize's
+		// glob of *.part never sees a partial file.
+		$tmp = $path . '.tmp.' . bin2hex(random_bytes(6));
+		if (file_put_contents($tmp, $body) === false) {
+			@unlink($tmp);
 			throw new InvalidArgumentException('chunk_write');
+		}
+		if (!rename($tmp, $path)) {
+			@unlink($tmp);
+			throw new InvalidArgumentException('chunk_rename');
 		}
 	}
 
@@ -149,7 +158,7 @@ class RecordingChunkedUploadService {
 		}
 	}
 
-	private function getRoot(): string {
+	public function getRoot(): string {
 		$dataDir = $this->config->getSystemValue('datadirectory', '/var/www/html/data');
 		return rtrim($dataDir, '/') . '/avuz-recording-chunks';
 	}
