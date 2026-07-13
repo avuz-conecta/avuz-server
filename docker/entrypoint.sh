@@ -294,6 +294,19 @@ apply_avuz_settings() {
     fi
     php occ app:enable oidc 2>/dev/null || true
 
+    # Preview Generator — install from App Store on first boot. Provides
+    # `occ preview:generate-all` for bulk pre-warming (core NC only generates
+    # on-demand). Needed after object-store migrations where the preview cache
+    # is rebuilt from scratch. Same install-then-enable pattern as OIDC above.
+    if ! php occ app:list --enabled 2>/dev/null | grep -q "previewgenerator" && \
+       ! [ -d /var/www/html/custom_apps/previewgenerator ]; then
+        echo "Installing Preview Generator from App Store..."
+        php occ app:install previewgenerator 2>/dev/null && echo "✓ Preview Generator installed" || echo "✗ Preview Generator install failed (no internet?)"
+    else
+        echo "✓ Preview Generator already present"
+    fi
+    php occ app:enable previewgenerator 2>/dev/null || true
+
     # Conecta Mail (Roundcube integration) — app id is `conectamail` since 1.1.0
     if [ -n "$ROUNDCUBE_URL" ]; then
         echo "Configuring Conecta Mail integration..."
