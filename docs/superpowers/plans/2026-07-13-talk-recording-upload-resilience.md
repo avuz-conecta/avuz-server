@@ -18,6 +18,9 @@
 - **Marker TTLs:** `.done` = 24 h (`86400`), `.lock` = 1 h (`3600`).
 - **Retry policy:** 5 attempts; backoff `2,4,8,16,30 s`; retry only on `408/502/503/504` and connection/timeout errors; never on other `4xx`. Bot per-request timeouts: `init 30 s`, `chunk 120 s`, `finalize 120 s`.
 - **No new Python dependencies** — stdlib + `requests` (already used). PHP: `declare(strict_types=1)`, match existing overlay style.
+- **`flock` requires a local filesystem.** The `datadirectory` (where chunks/markers/locks live) is local disk on all clients, even S3-primary stacks. `flock` semantics are unreliable on NFS — re-check before ever moving `datadirectory` to a network fs.
+- **Single-POST ceiling:** `SINGLE_POST_MAX = 100 * 1024 * 1024` (Cloudflare body cap). A recording larger than this can only be uploaded chunked; if chunked support can't be confirmed, the bot hard-fails rather than attempt a doomed single POST.
+- **Parts cleanup happens only after a successful `store()`** so a store failure leaves the chunks intact for the bot's retry (never forces manual recovery).
 
 ## File Structure
 
@@ -373,20 +376,61 @@ git add docker/overlays/spreed/lib/Service/RecordingChunkedUploadService.php doc
 git commit -m "feat(overlay): sweepStale GCs .done (24h) and .lock (1h) markers"
 ```
 
-### Task A4: Idempotent storeChunkedFinalize (controller)
+### Task A4: `finalize()` stops cleaning parts; controller cleans after store
 
 **Files:**
+- Modify: `docker/overlays/spreed/lib/Service/RecordingChunkedUploadService.php` (`finalize` — remove internal `cleanup()`)
 - Modify: `docker/overlays/spreed/lib/Controller/RecordingController.php` (`storeChunkedFinalize`, lines 563-587)
+- Modify: `docker/overlays/spreed/tests/chunked-upload-test.php`
 
 **Interfaces:**
-- Consumes: `finalizeKey`, `isFinalized`, `markFinalized`, `acquireFinalizeLock`, `releaseFinalizeLock` (A2), `finalize` (existing).
-- Produces: endpoint accepts an optional `fileName` field; a repeated finalize for the same `token+fileName` returns 200 without re-storing.
+- Consumes: `finalizeKey`, `isFinalized`, `markFinalized`, `acquireFinalizeLock`, `releaseFinalizeLock` (A2), `finalize`, `cleanup` (existing).
+- Produces: `finalize()` no longer deletes parts (assembly only); the controller deletes parts **only after** a successful `store()` + `markFinalized()`. The endpoint accepts an optional `fileName`; a repeat finalize for the same `token+fileName` returns 200 without re-storing.
 
-There is no local controller harness (needs full NC); this task is verified by staging e2e (Task A6). Change carefully.
+The controller needs the full NC runtime, so its idempotency dance is verified by staging e2e (Task A6). The service change (finalize leaves parts) is covered by the harness.
 
-- [ ] **Step 1: Rewrite `storeChunkedFinalize`**
+- [ ] **Step 1: Add failing harness test — finalize must leave parts intact**
 
-Replace the method body (keep the attributes/docblock above it) so it takes a nullable `$fileName` and wraps assemble+store in lock + short-circuit + marker:
+Append to `chunked-upload-test.php` before the final `echo`:
+
+```php
+    // ---- Task A4: finalize() assembles but does NOT clean parts ----
+    (function () use ($svc) {
+        $room = new Room('finaltok1');
+        $uploadId = $svc->init($room, 'assemble.webm', 8);
+        $svc->writeChunk($room, $uploadId, 0, 'AAAA');
+        $svc->writeChunk($room, $uploadId, 1, 'BBBB');
+        $file = $svc->finalize($room, $uploadId, 8);
+        global $failures;
+        check('finalize returns assembled bytes', @file_get_contents($file['tmp_name']) === 'AAAABBBB');
+        check('finalize leaves parts dir intact', is_dir($svc->getRoot() . '/finaltok1/' . $uploadId));
+        @unlink($file['tmp_name']);
+    })();
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `php docker/overlays/spreed/tests/chunked-upload-test.php`
+Expected: FAIL — `finalize leaves parts dir intact` FAILs (current `finalize` calls `cleanup()` and deletes the dir).
+
+- [ ] **Step 3: Remove `cleanup()` from `finalize()`**
+
+In `RecordingChunkedUploadService.php`, in `finalize()`, delete the line:
+
+```php
+		$this->cleanup($room->getToken(), $uploadId);
+```
+
+(`finalize` now only assembles + validates size + returns the tmp array. `cleanup()` itself is unchanged and stays public.)
+
+- [ ] **Step 4: Run to verify the harness passes**
+
+Run: `php docker/overlays/spreed/tests/chunked-upload-test.php`
+Expected: all `ok`, `PASS`.
+
+- [ ] **Step 5: Rewrite `storeChunkedFinalize`**
+
+Replace the method body (keep the attributes/docblock above it) so it takes a nullable `$fileName`, wraps assemble+store in lock + short-circuit + marker, and cleans parts **only after** store+mark succeed:
 
 ```php
 	public function storeChunkedFinalize(string $uploadId, ?string $owner, ?int $actualSize = null, ?string $fileName = null): DataResponse {
@@ -414,8 +458,10 @@ Replace the method body (keep the attributes/docblock above it) so it takes a nu
 			}
 			$file = $this->chunkedService->finalize($this->room, $uploadId, $actualSize);
 			$this->recordingService->store($this->getRoom(), $owner, $file);
-			// Write the dedup marker as the very next op after a successful store.
+			// Marker first (dedup), then drop the parts — both only after store() succeeds,
+			// so a store() failure leaves the chunks intact for the bot's retry.
 			$this->chunkedService->markFinalized($this->room, $key);
+			$this->chunkedService->cleanup($this->room->getToken(), $uploadId);
 		} catch (InvalidArgumentException $e) {
 			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
 		} finally {
@@ -430,18 +476,18 @@ Replace the method body (keep the attributes/docblock above it) so it takes a nu
 	}
 ```
 
-Also add a `@param ?string $fileName` line to the docblock and a matching request-body note; no route/attribute change is needed (the body is JSON-decoded into named params by the dispatcher).
+Add a `@param ?string $fileName` line to the docblock; no route/attribute change is needed (the JSON body is decoded into named params by the dispatcher).
 
-- [ ] **Step 2: Lint the PHP**
+- [ ] **Step 6: Lint + run harness**
 
-Run: `php -l docker/overlays/spreed/lib/Controller/RecordingController.php`
-Expected: `No syntax errors detected`.
+Run: `php -l docker/overlays/spreed/lib/Controller/RecordingController.php && php docker/overlays/spreed/tests/chunked-upload-test.php`
+Expected: `No syntax errors detected` then `PASS`.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add docker/overlays/spreed/lib/Controller/RecordingController.php
-git commit -m "feat(overlay): idempotent storeChunkedFinalize (lock + dedup marker)"
+git add docker/overlays/spreed/lib/Service/RecordingChunkedUploadService.php docker/overlays/spreed/lib/Controller/RecordingController.php docker/overlays/spreed/tests/chunked-upload-test.php
+git commit -m "feat(overlay): idempotent finalize; clean parts only after successful store"
 ```
 
 ### Task A5: Bump overlay sentinel V1 → V2 (lockstep with entrypoint)
@@ -738,7 +784,175 @@ git add src/nextcloud/talk/recording/BackendNotifier.py tests/test_backendnotifi
 git commit -m "feat: retry chunked upload POSTs, send fileName in finalize, bound chunk timeout"
 ```
 
-### Task B3: `reupload` recovery CLI
+### Task B3: Resilient capabilities fetch + no-downgrade guard
+
+**Files:**
+- Modify: `src/nextcloud/talk/recording/BackendNotifier.py` (`SINGLE_POST_MAX`, `_getWithRetry`, `_fetchCapabilities`, `uploadRecording`)
+- Modify: `tests/test_backendnotifier_retry.py`
+
+**Interfaces:**
+- Consumes: `_RETRYABLE_STATUS`, `_RETRY_BACKOFF`, `time`, `FakeResp` (B1).
+- Produces: `_getWithRetry(url, *, headers, verify, timeout, attempts=5) -> requests.Response`; `_fetchCapabilities` retries and propagates a hard failure instead of silently returning empty; `uploadRecording` raises for `size > SINGLE_POST_MAX` when chunked upload can't be confirmed — never attempts a doomed single POST.
+
+Why: `uploadRecording` chooses chunked-vs-single from a `/capabilities` GET. That GET was unretried and `_fetchCapabilities` swallowed *any* error to an empty set → a transient CF 504 there silently downgraded a >100 MB recording to a single POST → CF 413 → lost.
+
+- [ ] **Step 1: Add failing tests**
+
+Append to `tests/test_backendnotifier_retry.py`:
+
+```python
+def test_get_with_retry_retries_504(monkeypatch):
+    seq = iter([504, 200])
+    monkeypatch.setattr(BackendNotifier.requests, "get",
+                        lambda url, **kw: FakeResp(next(seq)), raising=False)
+    monkeypatch.setattr(BackendNotifier.time, "sleep", lambda *_: None)
+    r = BackendNotifier._getWithRetry("http://x", headers={}, verify=True, timeout=5)
+    assert r.status_code == 200
+
+
+def test_uploadRecording_hardfails_when_caps_unreachable_and_file_big(monkeypatch, tmp_path):
+    f = tmp_path / "big.webm"
+    f.write_bytes(b"x" * 10)
+    monkeypatch.setattr(BackendNotifier, "SINGLE_POST_MAX", 5)
+    monkeypatch.setattr(BackendNotifier.config, "getBackendSkipVerify", lambda b: True, raising=False)
+    monkeypatch.setattr(BackendNotifier.requests, "get", lambda url, **kw: FakeResp(504), raising=False)
+    monkeypatch.setattr(BackendNotifier.time, "sleep", lambda *_: None)
+    reached = {"single": False, "chunked": False}
+    monkeypatch.setattr(BackendNotifier, "uploadRecordingChunked",
+                        lambda **kw: reached.update(chunked=True), raising=False)
+    monkeypatch.setattr(BackendNotifier, "doRequest",
+                        lambda *a, **k: reached.update(single=True), raising=False)
+    try:
+        BackendNotifier.uploadRecording("http://x/", "tok12345", str(f), "u")
+        assert False, "expected hard fail"
+    except RuntimeError:
+        pass
+    assert reached["single"] is False and reached["chunked"] is False
+
+
+def test_uploadRecording_uses_chunked_when_capability_present(monkeypatch, tmp_path):
+    f = tmp_path / "big.webm"
+    f.write_bytes(b"x" * 10)
+    monkeypatch.setattr(BackendNotifier, "CHUNK_SIZE", 4)
+    monkeypatch.setattr(BackendNotifier.config, "getBackendSkipVerify", lambda b: True, raising=False)
+    monkeypatch.setattr(BackendNotifier.config, "getBackendSecret", lambda b: "sekret", raising=False)
+
+    class CapsResp(FakeResp):
+        def json(self):
+            return {"ocs": {"data": {"capabilities": {"spreed": {"features": ["recording-chunked-v1"]}}}}}
+
+    monkeypatch.setattr(BackendNotifier.requests, "get", lambda url, **kw: CapsResp(200), raising=False)
+    called = {"chunked": False}
+    monkeypatch.setattr(BackendNotifier, "uploadRecordingChunked",
+                        lambda **kw: called.update(chunked=True), raising=False)
+    BackendNotifier.uploadRecording("http://x/", "tok12345", str(f), "u")
+    assert called["chunked"] is True
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `python -m pytest tests/test_backendnotifier_retry.py -k "caps or capability or get_with_retry" -v`
+Expected: FAIL — `_getWithRetry` undefined; hard-fail test does not raise (current code downgrades to single POST).
+
+- [ ] **Step 3: Implement**
+
+In `BackendNotifier.py`, add next to `CHUNK_SIZE`:
+
+```python
+SINGLE_POST_MAX = 100 * 1024 * 1024  # Cloudflare request-body cap; above this, only chunked works
+```
+
+Add `_getWithRetry` (next to `_postWithRetry`):
+
+```python
+def _getWithRetry(url, *, headers, verify, timeout, attempts=5):
+    """GET with the same bounded-retry policy as _postWithRetry."""
+    import requests
+    last = None
+    for i in range(attempts):
+        try:
+            r = requests.get(url, headers=headers, verify=verify, timeout=timeout)
+            if r.status_code in _RETRYABLE_STATUS:
+                last = requests.HTTPError(f"HTTP {r.status_code}", response=r)
+            else:
+                r.raise_for_status()
+                return r
+        except (requests.ConnectionError, requests.Timeout) as e:
+            last = e
+        if i < attempts - 1:
+            time.sleep(_RETRY_BACKOFF[min(i, len(_RETRY_BACKOFF) - 1)])
+    if last is not None:
+        raise last
+    raise RuntimeError("retry exhausted")
+```
+
+Replace `_fetchCapabilities` so it retries and only swallows a *malformed* (but reachable) response, letting a hard network failure propagate:
+
+```python
+def _fetchCapabilities(backend: str, skipVerify: bool) -> set:
+    """Return spreed feature flags. Retries transient failures; raises if the
+    endpoint stays unreachable (caller decides whether that's fatal)."""
+    r = _getWithRetry(
+        backend.rstrip("/") + "/ocs/v2.php/cloud/capabilities",
+        headers={"OCS-APIRequest": "true", "Accept": "application/json"},
+        verify=not skipVerify,
+        timeout=15,
+    )
+    try:
+        return set(r.json()["ocs"]["data"]["capabilities"]["spreed"]["features"])
+    except (ValueError, KeyError, TypeError):
+        return set()
+```
+
+In `uploadRecording`, replace the caps/decision block (from `backendSkipVerify = ...` down to the end of the `if "recording-chunked-v1" in caps ...` block) with:
+
+```python
+    backendSkipVerify = config.getBackendSkipVerify(backend)
+    size = os.path.getsize(fileName)
+    try:
+        caps = _fetchCapabilities(backend, backendSkipVerify)
+    except Exception as e:
+        logger.warning("Capabilities fetch failed after retries: %s", e)
+        caps = None
+    chunkedOk = caps is not None and "recording-chunked-v1" in caps
+
+    if chunkedOk and size > CHUNK_SIZE:
+        secret = config.getBackendSecret(backend).encode()
+        return uploadRecordingChunked(
+            backend=backend,
+            secret=secret,
+            skipVerify=backendSkipVerify,
+            token=token,
+            fileName=os.path.basename(fileName),
+            filePath=fileName,
+            owner=owner,
+        )
+
+    if size > SINGLE_POST_MAX:
+        # Too big for a single multipart POST (Cloudflare 100 MB cap) and chunked
+        # upload could not be confirmed. Fail loudly — the /tmp recording is kept
+        # for `reupload` once the server/caps are reachable again.
+        raise RuntimeError(
+            f"cannot upload {size} B recording: chunked upload unavailable and file "
+            f"exceeds the single-POST limit ({SINGLE_POST_MAX} B)"
+        )
+```
+
+(The single-multipart POST code below it stays unchanged.)
+
+- [ ] **Step 4: Run to verify it passes**
+
+Run: `python -m pytest tests/test_backendnotifier_retry.py -v`
+Expected: all passed.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/nextcloud/talk/recording/BackendNotifier.py tests/test_backendnotifier_retry.py
+git commit -m "fix: retry capabilities GET, hard-fail big files when chunked upload unconfirmed"
+```
+
+### Task B4: `reupload` recovery CLI
 
 **Files:**
 - Create: `src/nextcloud/talk/recording/reupload.py`
@@ -862,7 +1076,7 @@ git add src/nextcloud/talk/recording/reupload.py tests/test_reupload.py
 git commit -m "feat: reupload recovery CLI (idempotent-safe manual re-dispatch)"
 ```
 
-### Task B4: Docs + full test run
+### Task B5: Docs + full test run
 
 **Files:**
 - Modify: `AVUZ_FORK.md`, `CHANGELOG.md`
@@ -893,7 +1107,7 @@ git add AVUZ_FORK.md CHANGELOG.md
 git commit -m "docs: document upload retry + reupload recovery CLI"
 ```
 
-### Task B5: Build, deploy bot, e2e acceptance
+### Task B6: Build, deploy bot, e2e acceptance
 
 **Files:** none (validation).
 
@@ -910,6 +1124,7 @@ Run the bot's build/push (per its `scripts/`) to `registry.avuz.app/admin/talk-r
 
 ## Self-Review
 
-- **Spec coverage:** atomic write (A1) ✓; recording-keyed dedup marker + lock (A2, A4) ✓; sweepStale TTL GC (A3) ✓; single-container precondition (Global Constraints) ✓; sentinel V2 lockstep (A5) ✓; bot retry policy + bounded timeouts (B1, B2) ✓; fileName in finalize (B2, A4) ✓; reupload CLI + manual-recovery-first (B3) ✓; standalone PHP test + bot pytest + staging e2e (A1-A3, A6, B1-B3, B5) ✓.
-- **Interfaces:** `finalizeKey(Room, ?string, string)`, `isFinalized`, `markFinalized`, `acquireFinalizeLock`/`releaseFinalizeLock` used identically in A2/A4; `_postWithRetry` signature identical in B1/B2; `_discover(token, base)` and `main(argv)` identical in B3. Consistent.
+- **Spec coverage:** atomic write (A1) ✓; recording-keyed dedup marker + lock (A2, A4) ✓; sweepStale TTL GC (A3) ✓; cleanup-after-store so store failures stay auto-retryable (A4) ✓; single-container + local-fs `flock` precondition (Global Constraints) ✓; sentinel V2 lockstep (A5) ✓; bot retry policy + bounded timeouts (B1, B2) ✓; resilient caps GET + no-downgrade hard-fail for >100 MB (B3) ✓; fileName in finalize (B2, A4) ✓; reupload CLI + manual-recovery-first (B4) ✓; standalone PHP test + bot pytest + staging e2e (A1-A4, A6, B1-B4, B6) ✓.
+- **Interfaces:** `finalizeKey(Room, ?string, string)`, `isFinalized`, `markFinalized`, `acquireFinalizeLock`/`releaseFinalizeLock`, `cleanup(token, uploadId)` used identically in A2/A4; `_postWithRetry`/`_getWithRetry` share `_RETRYABLE_STATUS`/`_RETRY_BACKOFF` (B1/B3); `SINGLE_POST_MAX` defined B3, used B3; `_discover(token, base)` and `main(argv)` identical in B4. Consistent.
 - **Ship order:** server (A) accepts the current bot (fileName null → meta fallback) so Phase 1 can deploy before Phase 2.
+- **Grill fixes folded:** F1 (caps retry + hard-fail, B3), F2 (cleanup after store, A4), F4 (token-dir survival — moot once cleanup follows store), F5 (local-fs `flock` precondition). F3 accepted staging-only (controller dance needs full NC to test meaningfully).
