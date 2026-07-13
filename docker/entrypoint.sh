@@ -340,18 +340,6 @@ apply_avuz_settings() {
     php occ config:app:set password_policy enforceNumericCharacters --value="1"
     php occ config:app:set password_policy enforceSpecialCharacters --value="1"
 
-    # Per-chunk PHP limits — must exceed CHUNK_SIZE (50MB) plus multipart envelope.
-    # The new chunked recording endpoint POSTs each chunk as raw bytes; this ceiling
-    # caps the largest single chunk we will accept.
-    # memory_limit raised above stock 512M so FilesMetadata + heavy occ jobs don't
-    # trip the 300MB Nextcloud cron warning on large libraries.
-    PHP_MEMORY_LIMIT="${PHP_MEMORY_LIMIT:-3072M}"
-    cat > /usr/local/etc/php/conf.d/avuz-upload.ini <<PHPINI
-upload_max_filesize = 64M
-post_max_size = 64M
-memory_limit = ${PHP_MEMORY_LIMIT}
-PHPINI
-
     # Talk defaults
     php occ config:app:set spreed create_samples --value="false"
     php occ config:app:set spreed changelog --value="no"
@@ -575,6 +563,20 @@ run_avuz_configuration() {
 # on large local-disk clients. See docker/lib-perms.sh.
 echo "Fixing permissions..."
 avuz_fix_perms_small /var/www/html
+
+# PHP runtime limits — written every boot (ungated) so a container recreate cannot
+# regress them, and named zz-* so it wins the conf.d load order over the base image's
+# nextcloud.ini (which sets memory_limit=512M). Env-overridable per deploy.
+#   memory_limit: the TaskProcessing CLI worker (core:audio2text) materializes whole
+#   recording files from S3 in memory; 512M OOMs on large recordings and orphans the
+#   task STATUS_RUNNING (no transcript, no error). See docs/superpowers memory.
+#   upload/post: the chunked recording endpoint POSTs raw ~50MB chunks.
+PHP_MEMORY_LIMIT="${PHP_MEMORY_LIMIT:-3072M}"
+cat > /usr/local/etc/php/conf.d/zz-avuz-upload.ini <<PHPINI
+upload_max_filesize = 64M
+post_max_size = 64M
+memory_limit = ${PHP_MEMORY_LIMIT}
+PHPINI
 
 # Redis
 if [ -z "$REDIS_HOST" ] || [ "$REDIS_HOST" = "localhost" ] || [ "$REDIS_HOST" = "127.0.0.1" ]; then
