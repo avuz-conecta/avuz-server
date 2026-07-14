@@ -186,3 +186,6 @@ cypress/snapshots
 cypress/videos
 
 /.direnv
+
+# Portainer redeploy webhook URLs (secrets)
+scripts/deploy-webhooks.env
