@@ -13,7 +13,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/deploy.env"
+# Environment-scoped config: default staging (deploy.env). Set PORTAINER_ENV_FILE
+# (e.g. to deploy.prod.env) to target another environment.
+CONFIG_FILE="${PORTAINER_ENV_FILE:-$SCRIPT_DIR/deploy.env}"
 
 die() { echo "error: $*" >&2; exit 1; }
 

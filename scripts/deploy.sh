@@ -19,12 +19,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/deploy.env"
+# Environment-scoped config: default is staging (deploy.env). deploy-prod.sh
+# sets PORTAINER_ENV_FILE to deploy.prod.env — separate URL + token per env.
+CONFIG_FILE="${PORTAINER_ENV_FILE:-$SCRIPT_DIR/deploy.env}"
 
 die() { echo "error: $*" >&2; exit 1; }
 
 command -v jq >/dev/null || die "jq is required (brew install jq)"
-[ -f "$CONFIG_FILE" ] || die "no $CONFIG_FILE — copy deploy.env.example and fill in PORTAINER_URL + PORTAINER_TOKEN"
+[ -f "$CONFIG_FILE" ] || die "no $CONFIG_FILE — copy $(basename "$CONFIG_FILE").example and fill in PORTAINER_URL + PORTAINER_TOKEN"
 
 # shellcheck disable=SC1090
 set -a; . "$CONFIG_FILE"; set +a
@@ -65,7 +67,7 @@ for stack in "${STACKS[@]}"; do
   [ "$found" = "1" ] || die "stack '$stack' not found in Portainer (matches: $found). See: $0 --list"
 done
 
-echo "About to redeploy (pull + recreate): ${STACKS[*]}"
+echo "About to redeploy (pull + recreate) [$(basename "$CONFIG_FILE")]: ${STACKS[*]}"
 if [ "$ASSUME_YES" -ne 1 ]; then
   [ -t 0 ] || die "non-interactive shell — pass -y to confirm"
   read -r -p "Proceed? [y/N] " reply
