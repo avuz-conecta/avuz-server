@@ -29,7 +29,17 @@ CURL_OPTS=()
 [ "${PORTAINER_INSECURE:-0}" = "1" ] && CURL_OPTS+=(-k)
 api() { curl -fsS "${CURL_OPTS[@]}" -H "X-API-Key: $PORTAINER_TOKEN" "$@"; }
 
-[ "$#" -ge 2 ] || die "usage: $0 <container> <cmd> [args...]"
+# Optional -u/--user to run the exec as a specific user (e.g. www-data — NC
+# refuses to bootstrap as root).
+EXEC_USER=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -u|--user) EXEC_USER="${2:?-u needs a username}"; shift 2 ;;
+    *) break ;;
+  esac
+done
+
+[ "$#" -ge 2 ] || die "usage: $0 [-u user] <container> <cmd> [args...]"
 CONTAINER="$1"; shift
 # Build the Cmd JSON array from the remaining args. Each arg goes through --arg
 # so dashes (php -i, grep -c, --flag) are never parsed as jq options.
@@ -46,8 +56,9 @@ done
 
 # Create the exec instance (TTY => raw, unmultiplexed output).
 EXEC_ID="$(api -X POST -H 'Content-Type: application/json' \
-  -d "$(jq -n --argjson cmd "$CMD_JSON" \
-        '{AttachStdout:true, AttachStderr:true, Tty:true, Cmd:$cmd}')" \
+  -d "$(jq -n --argjson cmd "$CMD_JSON" --arg user "$EXEC_USER" \
+        '{AttachStdout:true, AttachStderr:true, Tty:true, Cmd:$cmd}
+         + (if $user == "" then {} else {User:$user} end)')" \
   "$PORTAINER_URL/api/endpoints/$ENDPOINT/docker/containers/$CID/exec" | jq -r '.Id')"
 [ -n "$EXEC_ID" ] && [ "$EXEC_ID" != "null" ] || die "could not create exec instance"
 
