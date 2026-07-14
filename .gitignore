@@ -187,5 +187,5 @@ cypress/videos
 
 /.direnv
 
-# Portainer redeploy webhook URLs (secrets)
-scripts/deploy-webhooks.env
+# Portainer API token for scripts/deploy.sh (secret)
+scripts/deploy.env
