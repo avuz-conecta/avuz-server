@@ -45,7 +45,7 @@ use OCP\Http\Client\IClientService;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
-// AVUZ-CHUNKED-UPLOAD-V1 — do not remove; entrypoint integrity check matches this string
+// AVUZ-CHUNKED-UPLOAD-V2 — do not remove; entrypoint integrity check matches this string
 class RecordingController extends AEnvironmentAwareOCSController {
 	public function __construct(
 		string $appName,
@@ -543,6 +543,7 @@ class RecordingController extends AEnvironmentAwareOCSController {
 	 *
 	 * @param string $uploadId Identifier returned by store-chunked/init.
 	 * @param ?string $owner User that will own the recording file.
+	 * @param ?string $fileName Original file name; used to derive the idempotency key.
 	 * @return DataResponse<Http::STATUS_OK, null, array{}>|DataResponse<Http::STATUS_BAD_REQUEST, array{error: string}, array{}>|DataResponse<Http::STATUS_UNAUTHORIZED, array{type: string, error: array{code: string, message: string}}, array{}>
 	 *
 	 * 200: Recording stored
@@ -560,7 +561,7 @@ class RecordingController extends AEnvironmentAwareOCSController {
 		'token' => '[a-z0-9]{4,30}',
 		'uploadId' => '[a-f0-9]{32}',
 	])]
-	public function storeChunkedFinalize(string $uploadId, ?string $owner, ?int $actualSize = null): DataResponse {
+	public function storeChunkedFinalize(string $uploadId, ?string $owner, ?int $actualSize = null, ?string $fileName = null): DataResponse {
 		$sigData = $this->room->getToken() . ':' . $uploadId . ':finalize';
 		if (!$this->validateBackendRequest($sigData)) {
 			$response = new DataResponse([
@@ -573,14 +574,30 @@ class RecordingController extends AEnvironmentAwareOCSController {
 		if ($owner === null) {
 			return new DataResponse(['error' => 'owner'], Http::STATUS_BAD_REQUEST);
 		}
+
+		$lock = null;
+		$file = null;
 		try {
+			$key = $this->chunkedService->finalizeKey($this->room, $fileName, $uploadId);
+			$lock = $this->chunkedService->acquireFinalizeLock($this->room, $key);
+			// Already stored for this recording (retry or manual reupload) — no re-post.
+			if ($this->chunkedService->isFinalized($this->room, $key)) {
+				return new DataResponse(null);
+			}
 			$file = $this->chunkedService->finalize($this->room, $uploadId, $actualSize);
 			$this->recordingService->store($this->getRoom(), $owner, $file);
+			// Marker first (dedup), then drop the parts — both only after store() succeeds,
+			// so a store() failure leaves the chunks intact for the bot's retry.
+			$this->chunkedService->markFinalized($this->room, $key);
+			$this->chunkedService->cleanup($this->room->getToken(), $uploadId);
 		} catch (InvalidArgumentException $e) {
 			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
 		} finally {
 			if (isset($file['tmp_name']) && is_file($file['tmp_name'])) {
 				@unlink($file['tmp_name']);
+			}
+			if ($lock !== null) {
+				$this->chunkedService->releaseFinalizeLock($lock);
 			}
 		}
 		return new DataResponse(null);

@@ -11,6 +11,8 @@ use Psr\Log\LoggerInterface;
 
 class RecordingChunkedUploadService {
 	private const CHUNK_TTL_SECONDS = 3600;
+	private const DONE_TTL_SECONDS = 86400; // 24h dedup window
+	private const LOCK_TTL_SECONDS = 3600;  // 1h; a finalize never runs this long
 	private const MAX_CHUNKS = 200;
 
 	public function __construct(
@@ -41,8 +43,17 @@ class RecordingChunkedUploadService {
 		}
 		$dir = $this->getUploadDir($room->getToken(), $uploadId, create: false);
 		$path = $dir . '/' . sprintf('%04d.part', $index);
-		if (file_put_contents($path, $body) === false) {
+		// Write to a unique temp then atomically rename: a retried chunk racing the
+		// slow first write can never interleave into the final part, and finalize's
+		// glob of *.part never sees a partial file.
+		$tmp = $path . '.tmp.' . bin2hex(random_bytes(6));
+		if (file_put_contents($tmp, $body) === false) {
+			@unlink($tmp);
 			throw new InvalidArgumentException('chunk_write');
+		}
+		if (!rename($tmp, $path)) {
+			@unlink($tmp);
+			throw new InvalidArgumentException('chunk_rename');
 		}
 	}
 
@@ -98,8 +109,6 @@ class RecordingChunkedUploadService {
 			));
 		}
 
-		$this->cleanup($room->getToken(), $uploadId);
-
 		return [
 			'tmp_name' => $tmpPath,
 			'name' => (string)$meta['fileName'],
@@ -146,10 +155,21 @@ class RecordingChunkedUploadService {
 					$this->logger->warning('Failed to sweep stale chunk dir', ['exception' => $e, 'dir' => $uploadDir]);
 				}
 			}
+			$now2 = time();
+			foreach (glob($tokenDir . '/*.done') ?: [] as $doneFile) {
+				if (($now2 - (int)@filemtime($doneFile)) > self::DONE_TTL_SECONDS) {
+					@unlink($doneFile);
+				}
+			}
+			foreach (glob($tokenDir . '/*.lock') ?: [] as $lockFile) {
+				if (($now2 - (int)@filemtime($lockFile)) > self::LOCK_TTL_SECONDS) {
+					@unlink($lockFile);
+				}
+			}
 		}
 	}
 
-	private function getRoot(): string {
+	public function getRoot(): string {
 		$dataDir = $this->config->getSystemValue('datadirectory', '/var/www/html/data');
 		return rtrim($dataDir, '/') . '/avuz-recording-chunks';
 	}
@@ -178,6 +198,57 @@ class RecordingChunkedUploadService {
 	private function validateFileName(string $fileName): void {
 		if ($fileName === '' || str_contains($fileName, '/') || str_contains($fileName, "\0")) {
 			throw new InvalidArgumentException('filename');
+		}
+	}
+
+	public function finalizeKey(Room $room, ?string $fileName, string $uploadId): string {
+		if ($fileName === null || $fileName === '') {
+			$dir = $this->getUploadDir($room->getToken(), $uploadId, create: false);
+			$meta = json_decode((string)@file_get_contents($dir . '/.meta'), true);
+			$fileName = is_array($meta) ? (string)($meta['fileName'] ?? '') : '';
+			if ($fileName === '') {
+				throw new InvalidArgumentException('filename_unknown');
+			}
+		}
+		return hash('sha256', $room->getToken() . ':' . $fileName);
+	}
+
+	private function markerPath(string $token, string $key, string $ext): string {
+		if (!preg_match('/^[a-z0-9]{4,30}$/', $token) || !preg_match('/^[a-f0-9]{64}$/', $key)) {
+			throw new InvalidArgumentException('marker_id');
+		}
+		$tokenDir = $this->getRoot() . '/' . $token;
+		if (!is_dir($tokenDir) && !mkdir($tokenDir, 0770, true) && !is_dir($tokenDir)) {
+			throw new InvalidArgumentException('mkdir');
+		}
+		return $tokenDir . '/' . $key . '.' . $ext;
+	}
+
+	public function isFinalized(Room $room, string $key): bool {
+		return is_file($this->markerPath($room->getToken(), $key, 'done'));
+	}
+
+	public function markFinalized(Room $room, string $key): void {
+		$path = $this->markerPath($room->getToken(), $key, 'done');
+		file_put_contents($path, json_encode(['finalizedAt' => time()]));
+	}
+
+	/**
+	 * @return resource an open handle holding LOCK_EX; pass to releaseFinalizeLock().
+	 */
+	public function acquireFinalizeLock(Room $room, string $key) {
+		$path = $this->markerPath($room->getToken(), $key, 'lock');
+		$handle = fopen($path, 'c');
+		if ($handle === false || !flock($handle, LOCK_EX)) {
+			throw new InvalidArgumentException('lock');
+		}
+		return $handle;
+	}
+
+	public function releaseFinalizeLock($handle): void {
+		if (is_resource($handle)) {
+			flock($handle, LOCK_UN);
+			fclose($handle);
 		}
 	}
 }
