@@ -32,8 +32,14 @@ set -a; . "$CONFIG_FILE"; set +a
 [ -n "${PORTAINER_TOKEN:-}" ] || die "PORTAINER_TOKEN not set in $CONFIG_FILE"
 PORTAINER_URL="${PORTAINER_URL%/}" # strip trailing slash
 
+# Portainer's default HTTPS port (9443) uses a self-signed cert. Set
+# PORTAINER_INSECURE=1 in deploy.env to skip cert verification (fine for an
+# internal IP:port with no DNS). Leave unset when a real cert is in place.
+CURL_OPTS=()
+[ "${PORTAINER_INSECURE:-0}" = "1" ] && CURL_OPTS+=(-k)
+
 # GET helper — authenticated, fails on non-2xx.
-api_get() { curl -fsS -H "X-API-Key: $PORTAINER_TOKEN" "$PORTAINER_URL$1"; }
+api_get() { curl -fsS "${CURL_OPTS[@]}" -H "X-API-Key: $PORTAINER_TOKEN" "$PORTAINER_URL$1"; }
 
 ASSUME_YES=0
 STACKS=()
@@ -77,7 +83,7 @@ redeploy_one() {
   file="$(api_get "/api/stacks/$id/file" | jq -r '.StackFileContent')"
   body="$(jq -n --arg f "$file" --argjson e "$env" \
     '{stackFileContent:$f, env:$e, prune:false, pullImage:true}')"
-  curl -fsS -X PUT \
+  curl -fsS "${CURL_OPTS[@]}" -X PUT \
     -H "X-API-Key: $PORTAINER_TOKEN" -H "Content-Type: application/json" \
     -d "$body" "$PORTAINER_URL/api/stacks/$id?endpointId=$eid" >/dev/null
 }
