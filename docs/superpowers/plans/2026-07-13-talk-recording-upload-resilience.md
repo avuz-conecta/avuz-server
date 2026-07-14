@@ -527,9 +527,17 @@ git commit -m "chore(overlay): bump chunked-upload sentinel V1->V2 (idempotent f
 
 **Files:** none (validation).
 
+- [ ] **Step 0 (prerequisite): build from an apps-seeded checkout, NOT the bare worktree**
+
+`.gitignore` excludes `/apps*/*`, so the Phase 1 **worktree** (`.claude/worktrees/recording-resilience`) — like any fresh clone — has an **empty `apps/`**. Building there yields a broken image whose deploy fails (`occ app:enable` "not found on the appstore" for every bundled app). Before building, EITHER:
+- **(preferred) merge** `feat/recording-upload-resilience` into `avuz-customization` and build from the **main checkout** (`/Users/patrickrezende/work/avuz/avuz-server`), which already has `apps/` seeded; OR
+- **rsync** the bundled apps into the worktree first (per CLAUDE.md's fresh-checkout list) and build there.
+
+Verify before building: `ls apps/notifications apps/spreed apps/text >/dev/null && echo "apps seeded"`.
+
 - [ ] **Step 1: Build + push staging image**
 
-Run: `./scripts/build-push.sh latest staging`
+Run (from an apps-seeded checkout): `./scripts/build-push.sh latest staging`
 Expected: build succeeds, image pushed.
 
 - [ ] **Step 2: Deploy to a staging stack and confirm the sentinel**
