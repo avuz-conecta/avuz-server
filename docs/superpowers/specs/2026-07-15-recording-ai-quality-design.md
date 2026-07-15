@@ -37,34 +37,44 @@ compression_ratio = 0.81   ← LOW  (a single short line compresses poorly)
 no_speech_prob    = 0.95-0.97 ← HIGH (silence)
 ```
 
-So **`no_speech_prob` is the reliable signal**; `compression_ratio` is *per-segment*
-and misses cross-segment loops (each "Amara.org" line is its own low-ratio
-segment). Today `transcribe()` returns `response['text']` wholesale (using the
-last segment's `end` for quota).
+**CORRECTION (2026-07-15, from real recording data):** `no_speech_prob` is **NOT**
+a reliable signal. Probing a real recording (avuz-app3 `kx6p5im6`) measured **real
+Portuguese speech at `no_speech_prob = 0.93`** — as high as the hallucination
+(0.95). Any nsp threshold that catches the loop also deletes real speech (it would
+drop "conectar aqui no nosso servidor…"). nsp is abandoned.
+
+The reliable signal is **repetition**: on silence/noise Whisper loops the *same
+short text* dozens of times ("o"×hundreds, "Amara.org"×20), whereas real speech is
+varied even when nsp is high. Today `transcribe()` returns `response['text']`
+wholesale (using the last segment's `end` for quota).
 
 **Change:** rebuild the returned text from `segments`, **dropping hallucinated
-ones**:
+ones** by repetition:
 
-- **primary:** drop a segment if `no_speech_prob > 0.6` (silence-hallucination —
-  the Amara.org loops score ~0.95+; real speech scores near 0).
-- **secondary:** also drop if `compression_ratio > 2.4` (catches *within-segment*
-  loops like "E aí E aí E aí…" packed into one segment, whose ratio is high).
-- **missing-metric guard:** if a segment lacks a metric key, **keep** it (never
-  drop or crash on absent data — a non-OpenAI STT may omit them).
-- **duration before filtering:** compute the quota duration from the *original*
-  segments (or a copy) **before** filtering — today's code `array_pop`s the
-  segments array (mutating it, `:1030`), so the filter must read duration first.
+- **primary (repetition):** count each segment's trimmed, lowercased text; drop a
+  segment whose text is short (`mb_strlen <= 60`) and appears **>= 3 times** across
+  the response (the loop signature). Real varied speech never repeats identically,
+  so it survives regardless of nsp.
+- **secondary:** drop if `compression_ratio > 2.4` (within-segment loops like
+  "E aí E aí E aí…" packed into one segment).
+- **missing-metric guard:** a segment lacking `compression_ratio` is kept.
+- **duration before filtering:** compute quota duration from the *original*
+  segments **before** filtering — today's code `array_pop`s the array (`:1030`),
+  so read duration first (via `end()`, non-mutating).
 - join surviving segments' `text` (trimmed, single space) → returned transcript.
-- **fallback:** if the `segments` key is absent entirely (non-verbose response),
-  return `response['text']` unchanged. If segments exist but all are filtered out,
-  return the empty result honestly — a genuinely silent recording has no
-  transcript, and downstream (§C) turns that into a "sem conteúdo de fala" note
-  instead of an Amara.org wall.
+- **fallback:** if `segments` is absent (non-verbose response), return
+  `response['text']` unchanged. If all segments are filtered out, return empty —
+  §C turns that into a "sem conteúdo de fala" note.
 
-**Tradeoff (accept):** `compression_ratio > 2.4` can, rarely, drop legitimately
-repetitive real speech ("sim, sim, sim"); it's Whisper's own default threshold
-and the `no_speech_prob` gate does the heavy lifting, so false drops are rare.
-Thresholds are literals (`0.6`, `2.4`); no config surface. Sentinel
+**Does NOT solve the whole-chunk loop (separate gap):** when a long noise/silence
+*prefix* (e.g. 30 min of load-test bot tone) makes Whisper loop for the ENTIRE
+chunk, the real speech after it is never emitted — there is nothing in `segments`
+to keep. The filter yields empty; recovery requires cutting the noise prefix
+(`silenceremove` / smaller chunks) — a follow-up spec, not this change.
+
+**Tradeoff (accept):** a real phrase repeated >= 3× identically as short segments
+(e.g. "obrigado" ×3) would be dropped — rare for real speech, negligible loss.
+Constants are literals (`60`, `3`, `2.4`); no config surface. Sentinel
 `AVUZ-STT-QUALITY-V1`. Independent of B — pure fork change, one method.
 
 ### Interaction with chunking
@@ -146,12 +156,11 @@ Runnable locally where no NC harness is needed (matches `AVUZ-AUDIO-CHUNK-V1`
 precedent — the fork phpunit needs the full NC tree, unavailable in this
 deployment checkout):
 
-**A — segment filter (pure logic, standalone PHP mirroring the filter):**
-1. `no_speech_prob > 0.6` segment (the Amara.org case, ~0.95) → dropped; real
-   segments (nsp near 0) kept and joined.
-2. `compression_ratio > 2.4` segment (within-segment loop) → dropped.
-3. segment missing a metric key → **kept** (guard).
-4. all segments hallucinated → empty result (not the loop text).
+**A — repetition filter (pure logic, standalone PHP mirroring the filter):**
+1. same short text repeated ≥3× (Amara.org ×20, "o" ×N) → dropped → empty.
+2. real varied speech at `no_speech_prob = 0.93` → **kept** (proves nsp-independence).
+3. mixed loop + real segments → only the real ones kept.
+4. `compression_ratio > 2.4` within-segment loop → dropped.
 5. no `segments` key at all → falls back to `response['text']` unchanged.
 6. quota duration read from original segments even though the array is later
    filtered/`array_pop`ed.
