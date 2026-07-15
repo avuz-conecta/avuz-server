@@ -154,11 +154,11 @@ git commit -m "AVUZ-STT-QUALITY-V1: filter silence-hallucination segments (no_sp
 - Consumes: `$input['input']` (transcript), optional `$input['max_tokens']`, `$input['model']`; `chunkService->chunkSplitPrompt(string): string[]`; `createChatCompletion(...): array` (`['messages'=>string[]]`).
 - Produces: `process(...): array` → `['output' => string]` (unchanged contract).
 
-- [ ] **Step 1: Replace the `process()` body.** Keep the signature + the initial `$input['input']` validation (`:103-106`). Replace everything from the `$maxTokens = …` line (`:108`) through the `return ['output' => $summary];` (`:175`) with:
+- [ ] **Step 1: Replace the `process()` body.** Keep the signature, the `$startTime` (`:101`), the `$input['input']` validation, **and the `$prompt = $input['input'];` at `:106`**. Replace everything from the blank line after it — i.e. lines **`:108-175`** (`$maxTokens = …` through `return ['output' => $summary];`) — with the block below. **Do NOT re-declare `$prompt`** (G1: it is already set at `:106`).
+
+Chunking note (G2): `chunkSplitPrompt` splits at `getChunkSize()*3` chars (default 10000 → 30000 chars). Transcripts under that → single structured completion. Longer → **one** map-reduce pass (never the old recursive `do-while`). This is model-safe (respects the configured chunk size) and is the actual fix for the over-compression complaint. G3: this uses `createChatCompletion` only (chat) — fine on OpenRouter; it drops the legacy non-chat `createCompletion` fallback.
 
 ```php
-		$prompt = $input['input'];
-
 		// AVUZ-STT-QUALITY-V1 (§C): silent recording → empty/near-empty transcript.
 		// Don't ask the LLM to summarize nothing (it hallucinates structure).
 		if (mb_strlen(trim($prompt)) < 20) {
@@ -205,9 +205,11 @@ git commit -m "AVUZ-STT-QUALITY-V1: filter silence-hallucination segments (no_sp
 			$summary = $runChat($chunks[0] ?? $prompt, $structuredSystemPrompt);
 		} else {
 			// Too long for one call → single map-reduce pass (never recursive).
-			// map: extract key points per chunk; reduce: one structured summary.
-			$pointsSystemPrompt = 'Extraia os pontos-chave deste trecho de uma reunião, '
-				. 'em português, como uma lista concisa de bullets. Retorne apenas os bullets.';
+			// map: rich per-chunk summary (preserve topics/decisions/actions so the
+			// reduce has material); reduce: one structured summary.
+			$pointsSystemPrompt = 'Resuma este trecho de uma reunião em português, '
+				. 'preservando tópicos discutidos, decisões tomadas e ações/próximos passos '
+				. '(com responsáveis quando mencionados). Seja detalhado; não omita informações relevantes.';
 			$points = [];
 			$step = 0.7 / (float)count($chunks);
 			$progress = 0.1;
@@ -306,13 +308,20 @@ git commit -m "chore(submodule): integration_openai -> AVUZ-STT-QUALITY-V1 (sile
 
 **Files:** none (operational). Reuse `2026-07-14-whisper-chunked-transcription-PROD-RUNBOOK.md` mechanics; **staging first** (`avuz-conecta-2-app-1`).
 
-- [ ] **Step 1: Build + push the staging image**
+- [ ] **Step 1: Confirm which image tag `avuz-conecta-2` actually pulls, THEN build that tag** (G4 — load-bearing: build the wrong tag and the deploy won't land the code)
 
 ```bash
-cd /Users/patrickrezende/work/avuz/avuz-server
-./scripts/build-push.sh latest staging
+# what image is the staging container running?
+./scripts/portainer-exec.sh avuz-conecta-2-app-1 sh -c 'echo $IMAGE' 2>/dev/null || true
+# or inspect the stack's compose image line in Portainer
 ```
-(Staging stack pulls `:staging`. Confirm which tag `avuz-conecta-2` uses; use the matching build target.)
+Then build the matching target:
+```bash
+cd /Users/patrickrezende/work/avuz/avuz-server
+./scripts/build-push.sh latest staging   # → :staging   (use if the stack pulls :staging)
+# ./scripts/build-push.sh latest prod     # → :latest    (use if it pulls :latest)
+```
+⚠️ If staging pulls `:latest` (same tag as prod grupo-vidalar), deploying to staging updates the tag prod will later pull — validate on staging, then deploy the *same* image to prod (don't rebuild between).
 
 - [ ] **Step 2: Deploy staging + verify sentinel/pin**
 
