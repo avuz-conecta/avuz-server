@@ -3,7 +3,7 @@
 **Date:** 2026-07-15
 **Sentinel:** `AVUZ-STT-QUALITY-V1`
 **Fork:** `avuz-conecta/integration_openai` branch `avuz` (submodule `apps/integration_openai`), pin 4.5.1.3 → **4.5.1.4**
-**Also touches:** spreed overlay (`docker/overlays/spreed/lib/Service/RecordingService.php`)
+**Scope:** fork-only — no spreed overlay (grilled B1)
 **Builds on:** `AVUZ-AUDIO-CHUNK-V1` (chunked transcription, same fork)
 
 ## Problems (both real client complaints)
@@ -21,30 +21,50 @@
    summary until it stops shrinking, and a possibly-low global `maxTokens`
    (`:108`). No structure, no length proportionality.
 
-Both are fixable in code we already own (the fork + the spreed overlay).
+Both are fixable in the fork we already own (no spreed change — see §B).
 
 ## A. Silence-hallucination filter (fork, transcription path)
 
-`transcribe()` (`OpenAiAPIService.php` ~880-933) already requests
-`response_format = verbose_json`, whose `segments[]` carry per-segment metrics
-(`compression_ratio`, `no_speech_prob`, `avg_logprob`). Today it returns
-`response['text']` wholesale (only using the last segment's `end` for quota).
+`transcribe()` (`OpenAiAPIService.php` ~1000-1038) already requests
+`response_format = verbose_json`, whose `segments[]` carry per-segment metrics.
+**Empirically confirmed on staging (2026-07-15)** via `request()` on a 10-min
+silent tone → 20 hallucinated segments, each `text = "Legendas pela comunidade
+Amara.org"`, with keys: `id, seek, start, end, text, tokens, temperature,
+avg_logprob, compression_ratio, no_speech_prob`. Critically:
+
+```
+compression_ratio = 0.81   ← LOW  (a single short line compresses poorly)
+no_speech_prob    = 0.95-0.97 ← HIGH (silence)
+```
+
+So **`no_speech_prob` is the reliable signal**; `compression_ratio` is *per-segment*
+and misses cross-segment loops (each "Amara.org" line is its own low-ratio
+segment). Today `transcribe()` returns `response['text']` wholesale (using the
+last segment's `end` for quota).
 
 **Change:** rebuild the returned text from `segments`, **dropping hallucinated
-ones**, using Whisper's own thresholds:
+ones**:
 
-- drop a segment if `compression_ratio > 2.4` (repetition — the loops score very
-  high), **or** `no_speech_prob > 0.6` (non-speech/silence).
-- join the surviving segments' `text` (trimmed, single space) → returned transcript.
-- if `segments` is absent (non-verbose / other providers) or the filter removes
-  everything, fall back to the original `response['text']` **only when no segments
-  exist**; when segments exist but all are hallucinated, return the empty/near-empty
-  result honestly (a silent recording legitimately has no transcript → the summary
-  says so, instead of an Amara.org wall).
-- quota still uses the last **original** segment's `end` (unchanged), so billing
-  reflects real audio duration regardless of filtering.
+- **primary:** drop a segment if `no_speech_prob > 0.6` (silence-hallucination —
+  the Amara.org loops score ~0.95+; real speech scores near 0).
+- **secondary:** also drop if `compression_ratio > 2.4` (catches *within-segment*
+  loops like "E aí E aí E aí…" packed into one segment, whose ratio is high).
+- **missing-metric guard:** if a segment lacks a metric key, **keep** it (never
+  drop or crash on absent data — a non-OpenAI STT may omit them).
+- **duration before filtering:** compute the quota duration from the *original*
+  segments (or a copy) **before** filtering — today's code `array_pop`s the
+  segments array (mutating it, `:1030`), so the filter must read duration first.
+- join surviving segments' `text` (trimmed, single space) → returned transcript.
+- **fallback:** if the `segments` key is absent entirely (non-verbose response),
+  return `response['text']` unchanged. If segments exist but all are filtered out,
+  return the empty result honestly — a genuinely silent recording has no
+  transcript, and downstream (§C) turns that into a "sem conteúdo de fala" note
+  instead of an Amara.org wall.
 
-Thresholds are literals (`2.4`, `0.6`); no config surface. Sentinel
+**Tradeoff (accept):** `compression_ratio > 2.4` can, rarely, drop legitimately
+repetitive real speech ("sim, sim, sim"); it's Whisper's own default threshold
+and the `no_speech_prob` gate does the heavy lifting, so false drops are rare.
+Thresholds are literals (`0.6`, `2.4`); no config surface. Sentinel
 `AVUZ-STT-QUALITY-V1`. Independent of B — pure fork change, one method.
 
 ### Interaction with chunking
@@ -53,71 +73,72 @@ Thresholds are literals (`2.4`, `0.6`); no config surface. Sentinel
 filter runs per chunk, then chunk texts are joined as today. No change to the
 chunking loop.
 
-## B. Structured meeting summary (spreed overlay + fork provider)
+## B. Structured summary (fork provider only — no spreed overlay)
 
-`SummaryProvider` is the **generic** `TextToTextSummary` provider (call summaries
-and any other summarize-text use share it). `process(?string $userId, array
-$input, callable)` gets only the input text — not the task's `appId` (`spreed`)
-or `customId` (`call/summary/...`) — so it cannot tell a call recording from a
-generic summary from the inside. To structure **only call recordings** without
-disturbing generic summaries, spreed must signal the provider. Chosen signal: a
-**sentinel prefix in the input text**.
+`SummaryProvider` is the **generic** `TextToTextSummary` provider;
+`process(?string $userId, array $input, callable)` gets only the input text — not
+the task's `appId`/`customId` — so it cannot distinguish a call recording from a
+generic summary. **Decision (grilled B1):** rather than overlay a ~500-line,
+upstream-volatile `RecordingService.php` just to prefix a sentinel (permanent
+skew debt for one line), **structure ALL summaries**. On this Talk-centric
+instance, generic (non-recording) summaries are rare, and the prompt is written
+to degrade gracefully (empty sections collapse). Confirmed `SummaryProvider` is
+the provider that runs (empty `ai.taskprocessing_provider_preferences`;
+integration_openai is the only AI app; a real summary — task 19 — ran through it).
 
-1. **spreed overlay** — `RecordingService.php:267-273`, the summary `Task`
-   construction. Change the input from `['input' => $output]` to
-   `['input' => "<<AVUZ-MEETING>>\n" . $output]`. The sentinel travels in the
-   summary input only (ephemeral); the stored transcript `.md` is separate and
-   unaffected, so users never see it.
-2. **fork `SummaryProvider::process()`** — detect a leading `<<AVUZ-MEETING>>`:
-   - strip the sentinel line from the prompt.
-   - use a **structured PT system prompt** producing:
-     ```
-     # Resumo
-     <2-4 sentence overview>
+**Edit `SummaryProvider::process()` (`SummaryProvider.php:100-175`):**
 
-     ## Tópicos discutidos
-     - ...
+- Replace the generic system prompt (`:130-131`) with a **structured PT prompt**
+  producing:
+  ```
+  # Resumo
+  <2-4 sentence overview>
 
-     ## Decisões
-     - ...
+  ## Tópicos discutidos
+  - ...
 
-     ## Ações / próximos passos
-     - [responsável] ...
-     ```
-     Instruct: same language as the transcript (PT), detail proportional to
-     meeting length, omit a section only if it truly had no content, return only
-     the summary markdown.
-   - **skip the recursive re-compression.** For meeting input that fits the model
-     context (a 2-3 h transcript ≈ 3-13k tokens; the completion model has ample
-     context) → a **single** structured completion. Only if the transcript
-     genuinely exceeds context → one map-reduce pass (summarize chunks with the
-     structured prompt, combine once) — never the `while (oldNumChunks >
-     newNumChunks)` recursive collapse.
-   - use a generous output cap (e.g. `max($maxTokens, 2000)`) so structure isn't
-     truncated.
-   - **No sentinel → existing behavior verbatim** (generic prompt, current loop).
-     Generic summaries are untouched.
+  ## Decisões
+  - ...
 
-Sentinel `AVUZ-STT-QUALITY-V1` on both edits.
+  ## Ações / próximos passos
+  - [responsável] ...
+  ```
+  Instruct: reply in the same language as the text (PT), detail proportional to
+  the source length, **omit any section that genuinely had no content** (so a
+  short/generic text collapses to just `# Resumo`), return only the markdown.
+- **Kill the recursive re-compression.** Today `process()` loops
+  `while ($oldNumChunks > $newNumChunks)` (`:121-171`), re-summarizing the
+  combined summary until it stops shrinking — that is what over-compresses a 2 h
+  meeting. Replace with: if the transcript fits the model context (typical 2-3 h
+  ≈ 3-13k tokens) → a **single** structured completion. Only if it genuinely
+  exceeds context → **one** map-reduce pass (structured-summarize each chunk,
+  combine once) — never a recursive re-collapse. The fit boundary is concrete:
+  chunk with the existing `chunkService->chunkSplitPrompt()`; if it yields **1
+  chunk**, single-shot; if **>1**, one pass over the chunks then a single combine
+  completion.
+- Reuse `createChatCompletion($userId, $model, $userPrompt, $systemPrompt, null,
+  1, $maxTokens)` (signature confirmed) with the structured `$systemPrompt`.
+- Raise the output cap: `$maxTokens = max($maxTokens, 2000)` so structure isn't
+  truncated.
 
-### Why the spreed overlay (trade-off)
+Sentinel `AVUZ-STT-QUALITY-V1`. Pure fork change, one file. **No spreed change,
+no sentinel-in-input, no overlay skew.**
 
-"Call-recordings-only" requires the spreed signal; the alternative ("all
-summaries get structure") needed no spreed change but would put meeting sections
-on unrelated summaries. Adding `RecordingService.php` to the existing spreed
-overlay follows the established pattern (overlay applied at build, sentinel
-verified at entrypoint) — but note spreed is a bundled app (not a version-pinned
-fork), so this overlay file must be re-checked against spreed on NC upgrades,
-same as the existing `RecordingController.php` overlay.
+## C. Empty-transcript handling (silent recording)
+
+After §A a fully-silent recording yields an empty transcript; spreed still
+schedules a summary. Guard in `SummaryProvider::process()`: if the input text
+(trimmed) is empty or trivially short (< ~20 chars), **short-circuit** and return
+a fixed note `# Resumo\n\nSem conteúdo de fala detectado na gravação.` — do not
+call the LLM (avoids the model hallucinating structure over nothing). The stored
+transcript stays empty; the summary is honest. Same sentinel.
 
 ## Delivery
 
-1. Fork branch `avuz`: A (`transcribe`) + B (`SummaryProvider`) + pin bump
-   4.5.1.3 → 4.5.1.4; commit + push; advance submodule pointer in avuz-server.
-2. spreed overlay: add/patch `docker/overlays/spreed/lib/Service/RecordingService.php`
-   with the sentinel-prefixed summary input; ensure the build applies it and (if
-   the entrypoint sentinel-verifies spreed overlays) add a verification line.
-3. Build + deploy per the existing runbook; verify sentinels in the running container.
+1. Fork branch `avuz`: §A (`transcribe`) + §B/§C (`SummaryProvider`) + pin bump
+   4.5.1.3 → **4.5.1.4**; commit + push; advance submodule pointer in avuz-server.
+2. Build + deploy per the existing runbook; verify the `AVUZ-STT-QUALITY-V1`
+   sentinel + pin in the running container. **No spreed overlay touched.**
 
 ## Testing
 
@@ -125,27 +146,30 @@ Runnable locally where no NC harness is needed (matches `AVUZ-AUDIO-CHUNK-V1`
 precedent — the fork phpunit needs the full NC tree, unavailable in this
 deployment checkout):
 
-**A — segment filter (pure logic, standalone PHP):**
-1. segments with one high-`compression_ratio` loop segment + real ones → loop
-   dropped, real text joined.
-2. `no_speech_prob > 0.6` segment → dropped.
-3. all segments hallucinated → empty result (not the loop text).
-4. no `segments` key → falls back to `response['text']` unchanged.
+**A — segment filter (pure logic, standalone PHP mirroring the filter):**
+1. `no_speech_prob > 0.6` segment (the Amara.org case, ~0.95) → dropped; real
+   segments (nsp near 0) kept and joined.
+2. `compression_ratio > 2.4` segment (within-segment loop) → dropped.
+3. segment missing a metric key → **kept** (guard).
+4. all segments hallucinated → empty result (not the loop text).
+5. no `segments` key at all → falls back to `response['text']` unchanged.
+6. quota duration read from original segments even though the array is later
+   filtered/`array_pop`ed.
 
-**B — sentinel routing + structure (pure logic where possible):**
-5. input with `<<AVUZ-MEETING>>` → sentinel stripped, structured system prompt
-   selected, single-shot path (no recursive loop) for in-context length.
-6. input without sentinel → generic prompt + existing loop (unchanged).
+**B/C — summary (pure logic where possible):**
+7. input yields 1 chunk → single structured completion, no recursive loop.
+8. input empty / < ~20 chars → short-circuit "Sem conteúdo de fala" note, no LLM call.
 
-**e2e (staging, real wiring):** recover/re-run a real recording (incl. the
-silence-heavy one) → transcript free of Amara.org loops; summary is structured
-(Resumo/Tópicos/Decisões/Ações) and proportional. Verify via `taskprocessing:task:get`
-through `portainer-exec` as in the chunking e2e.
+**e2e (staging, real wiring):** re-run a real silence-heavy recording → transcript
+free of Amara.org/E-aí loops; a real meeting → summary is structured
+(Resumo/Tópicos/Decisões/Ações) and proportional (not over-compressed). Verify via
+`taskprocessing:task:get` through `portainer-exec` as in the chunking e2e.
 
 ## Out of scope (YAGNI)
 
 - Admin/user-configurable summary instruction (chose a good default instead).
-- `ffmpeg silenceremove` pre-filter (segment-metric filtering addresses the
+- `ffmpeg silenceremove` pre-filter (`no_speech_prob` filtering addresses the
   hallucination without audio-clipping risk; revisit only if loops survive).
-- Restructuring generic (non-recording) summaries.
+- Call-recording-only summary structure (grilled B1 — not worth the spreed
+  overlay skew; all summaries get the graceful structured prompt).
 - Per-call or per-user summary settings.
