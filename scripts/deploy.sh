@@ -48,7 +48,12 @@ STACKS=()
 for arg in "$@"; do
   case "$arg" in
     -l|--list)
-      api_get "/api/stacks" | jq -r '.[].Name' | sort | sed 's/^/  /' \
+      # Same stack name can exist in multiple environments (endpoints); show the
+      # endpoint + stack id so collisions are visible and can be targeted by id.
+      { echo -e "ENDPOINT\tSTACK_ID\tNAME"
+        api_get "/api/stacks" \
+          | jq -r '.[] | "\(.EndpointId)\t\(.Id)\t\(.Name)"' | sort -k3
+      } | column -t -s "$(printf '\t')" \
         || die "could not reach Portainer at $PORTAINER_URL"
       exit 0 ;;
     -y|--yes) ASSUME_YES=1 ;;
@@ -59,12 +64,22 @@ done
 
 [ "${#STACKS[@]}" -gt 0 ] || die "no stack given. See: $0 --list"
 
-# Fetch the stack list once; resolve every name up front so a typo aborts
-# before any deploy fires.
+# A target is either a numeric stack id (unambiguous — use when names collide
+# across endpoints) or a stack name. This jq selector matches whichever.
+SELECT='.[] | select(if ($t|test("^[0-9]+$")) then (.Id == ($t|tonumber)) else (.Name == $t) end)'
+
+# Fetch the stack list once; resolve every target up front so a typo or an
+# ambiguous name aborts before any deploy fires.
 ALL_STACKS="$(api_get "/api/stacks")" || die "could not reach Portainer at $PORTAINER_URL"
 for stack in "${STACKS[@]}"; do
-  found="$(printf '%s' "$ALL_STACKS" | jq --arg n "$stack" '[.[] | select(.Name==$n)] | length')"
-  [ "$found" = "1" ] || die "stack '$stack' not found in Portainer (matches: $found). See: $0 --list"
+  matches="$(printf '%s' "$ALL_STACKS" | jq --arg t "$stack" "[$SELECT] | length")"
+  if [ "$matches" = "0" ]; then
+    die "stack '$stack' not found. See: $0 --list"
+  elif [ "$matches" != "1" ]; then
+    cand="$(printf '%s' "$ALL_STACKS" | jq -r --arg t "$stack" "$SELECT | \"  endpoint \(.EndpointId)  id \(.Id)  \(.Name)\"")"
+    die "'$stack' is ambiguous ($matches stacks share that name across endpoints). Target by id instead:
+$cand"
+  fi
 done
 
 echo "About to redeploy (pull + recreate) [$(basename "$CONFIG_FILE")]: ${STACKS[*]}"
@@ -76,7 +91,7 @@ fi
 
 redeploy_one() {
   local stack="$1" row id eid env file body
-  row="$(printf '%s' "$ALL_STACKS" | jq -c --arg n "$stack" '.[] | select(.Name==$n)')"
+  row="$(printf '%s' "$ALL_STACKS" | jq -c --arg t "$stack" "$SELECT")"
   id="$(printf '%s' "$row" | jq -r '.Id')"
   eid="$(printf '%s' "$row" | jq -r '.EndpointId')"
   env="$(printf '%s' "$row" | jq -c '.Env // []')"
