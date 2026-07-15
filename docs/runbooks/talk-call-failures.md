@@ -12,6 +12,10 @@ mid-incident.
   `nextcloud-spreed-signaling` (single process).
 - Signaling config: `/etc/nextcloud-spreed-signaling/server.conf`.
 - Cloudflare on `meet.avuz.app` is **grey/DNS-only** (correct — keep it that way).
+- **nginx** on the host terminates TLS 443 and reverse-proxies the signaling WS to
+  `127.0.0.1:8080` (config: `/etc/nginx/sites-available/meet.avuz.app`). WS timeouts are
+  already correct (`proxy_read_timeout 3600s`, `proxy_send_timeout 3600s`, `Upgrade`
+  headers present) — verified 2026-07-15, not the cause of drops.
 - **Nextcloud app host:** separate **Docker** host (e.g. `conectahml2.avuz.app`,
   `app3.avuz.app` — one per tenant). Run `occ` inside the NC container:
   `docker exec -u www-data <nc-container> php occ ...`
@@ -212,7 +216,9 @@ systemd-detect-virt; [ -e /proc/user_beancounters ] && echo OpenVZ
 - **Cloudflare** — `meet.avuz.app` is grey/DNS-only; not in the signaling path.
 - **Clock skew** — verified within 1s of true UTC (OpenVZ host keeps it correct despite
   `synchronized: no`).
-- **Reverse-proxy WS timeout** — there is no NPM/nginx in front of `meet.avuz.app`.
+- **Reverse-proxy WS timeout** — nginx DOES front `meet.avuz.app`, but its signaling
+  location already has `proxy_read_timeout 3600s` + WS upgrade headers (verified
+  2026-07-15). Correctly tuned → not the cause.
 - **Signaling version** — running v2.1.1 (current-ish), not the old "unknown" build.
 - **Mobile join-loop** — fixed by the stagger overlay (P2 verifies).
 
