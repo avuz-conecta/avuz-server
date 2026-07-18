@@ -2,7 +2,7 @@
 <info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
     <id>conectamail</id>
-    <name>Conecta Mail</name>
+    <name>Mail</name>
     <summary>Roundcube webmail integration</summary>
     <description><![CDATA[Access your email directly from Avuz Conecta.]]></description>
     <version>1.1.0</version>
@@ -17,7 +17,7 @@
     </dependencies>
     <navigations>
         <navigation>
-            <name>Conecta Mail</name>
+            <name>Mail</name>
             <route>conectamail.page.index</route>
             <order>10</order>
             <icon>mail.svg</icon>
