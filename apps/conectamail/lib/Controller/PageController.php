@@ -13,7 +13,7 @@ class PageController extends Controller
     public function __construct(
         IRequest $request,
         private CredentialService $credentialService,
-        private string $userId,
+        private ?string $userId,
     ) {
         parent::__construct('conectamail', $request);
     }
