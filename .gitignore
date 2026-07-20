@@ -190,3 +190,6 @@ cypress/videos
 # Portainer API token for scripts/deploy.sh (secret)
 scripts/deploy.env
 scripts/deploy.prod.env
+
+# Bulk user-create input (real emails — keep out of git)
+scripts/users.csv

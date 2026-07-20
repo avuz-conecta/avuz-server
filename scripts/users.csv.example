@@ -1,0 +1,4 @@
+# email,Group Name[,Display Name]   -- one user per line; group auto-created if missing
+# Copy to users.csv (gitignored) and fill with real users. Display Name optional.
+alice@example.com,Marketing
+bob@example.com,Vendas,Bob Silva
