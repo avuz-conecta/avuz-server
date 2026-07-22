@@ -69,23 +69,44 @@ REMOVE_APPS=(
 )
 
 verify_avuz_patches() {
-    # Each entry: "<sentinel>|<target-file>|<recovery-hint>". Sentinels are
-    # unique strings that must appear in the deployed artifact; missing one
-    # means the patch was lost (corrupted image, upstream restore, bad rebase)
-    # and we refuse to boot rather than serve a half-patched stack.
+    # Each entry: "<sentinel>|<appid>|<relative-path>|<recovery-hint>". The
+    # target path is resolved via `occ app:getpath` (avuz_sentinel_target),
+    # NOT hardcoded under /var/www/html/apps — NC picks the highest-version
+    # copy across all app paths, so a store install in custom_apps can
+    # outrank (shadow) the image copy while a hardcoded-path check still
+    # passed against the unused image copy. Sentinels are unique strings
+    # that must appear in the deployed artifact; missing one means the patch
+    # was lost (corrupted image, upstream restore, bad rebase, shadowed by
+    # an unpatched store copy) and we refuse to boot rather than serve a
+    # half-patched stack. files-main.js is not an app; app id "-" keeps the
+    # absolute path as-is.
     local checks=(
-        "AVUZ-CHUNKED-UPLOAD-V2|/var/www/html/apps/spreed/lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
-        "Upload in progress — do not close this tab|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
-        "admin-download-limit|/var/www/html/apps/files_downloadlimit/templates/admin.php|files_downloadlimit overlay missing — upstream 2.0.0 tarball drops this template (GH nextcloud/files_downloadlimit#421); redeploy or rerun reapply_avuz_files_downloadlimit_overlay"
-        "AVUZ-AUDIO-EXTRACT-V1|/var/www/html/apps/integration_openai/lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
-        "AVUZ-DECK-CLONE-ORDER-V1|/var/www/html/apps/deck/lib/Service/BoardService.php|deck overlay missing — board-copy column/card shift fix lost; redeploy or rerun reapply_avuz_deck_overlay"
+        "AVUZ-CHUNKED-UPLOAD-V2|spreed|lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
+        "Upload in progress — do not close this tab|-|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
+        "admin-download-limit|files_downloadlimit|templates/admin.php|files_downloadlimit overlay missing — upstream 2.0.0 tarball drops this template (GH nextcloud/files_downloadlimit#421); redeploy or rerun reapply_avuz_files_downloadlimit_overlay"
+        "AVUZ-AUDIO-EXTRACT-V1|integration_openai|lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
+        "AVUZ-DECK-CLONE-ORDER-V1|deck|lib/Service/BoardService.php|deck overlay missing — board-copy column/card shift fix lost; redeploy or rerun reapply_avuz_deck_overlay"
     )
     local failed=0
     for entry in "${checks[@]}"; do
         local sentinel="${entry%%|*}"
         local rest="${entry#*|}"
-        local target="${rest%%|*}"
+        local app="${rest%%|*}"
+        rest="${rest#*|}"
+        local relative="${rest%%|*}"
         local hint="${rest#*|}"
+        local target
+        if [ "$app" = "-" ]; then
+            target="$relative"
+        else
+            target="$(avuz_sentinel_target "$app" "$relative")"
+        fi
+        if [ -z "$target" ]; then
+            echo "✗ AVUZ PATCH UNVERIFIABLE: could not resolve app path for '$app'"
+            echo "  $hint"
+            failed=1
+            continue
+        fi
         if ! grep -q "$sentinel" "$target" 2>/dev/null; then
             echo "✗ AVUZ PATCH MISSING: sentinel '$sentinel' not found in $target"
             echo "  $hint"

@@ -88,4 +88,20 @@ OCC app:disable weather_status" "$out"
 out="$(AVUZ_OCC_DRYRUN=1 avuz_retire_apps)"
 assert_eq "retire with no apps is a no-op" "" "$out"
 
+# ── app path resolution ──
+_avuz_occ() { echo "/var/www/html/custom_apps/spreed"; }
+assert_eq "app_path returns occ getpath output" \
+    "/var/www/html/custom_apps/spreed" "$(avuz_app_path spreed)"
+
+assert_eq "sentinel_target joins path and relative file" \
+    "/var/www/html/custom_apps/spreed/lib/Controller/RecordingController.php" \
+    "$(avuz_sentinel_target spreed lib/Controller/RecordingController.php)"
+
+_avuz_occ() { return 1; }
+assert_eq "app_path empty when occ fails" "" "$(avuz_app_path spreed)"
+assert_eq "sentinel_target empty when path unresolved" "" \
+    "$(avuz_sentinel_target spreed lib/Controller/RecordingController.php)"
+unset -f _avuz_occ
+source "$HERE/../lib-apps.sh"
+
 exit $fail

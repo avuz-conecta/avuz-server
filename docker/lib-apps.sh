@@ -95,3 +95,21 @@ avuz_retire_apps() {
         _avuz_occ app:disable "$app" || true
     done
 }
+
+# Resolve the path Nextcloud actually uses for an app. NC picks the highest
+# version across all app paths, so the image copy is NOT authoritative — a
+# store install in the custom_apps volume can outrank it. Empty on failure.
+avuz_app_path() {
+    local app="$1" path
+    path="$(_avuz_occ app:getpath "$app" 2>/dev/null)" || return 0
+    printf '%s' "$path"
+}
+
+# Absolute path to a sentinel-bearing file inside the app NC resolved.
+# Empty when the app path cannot be resolved, so the caller fails closed.
+avuz_sentinel_target() {
+    local app="$1" relative="$2" base
+    base="$(avuz_app_path "$app")"
+    [ -n "$base" ] || return 0
+    printf '%s/%s' "$base" "$relative"
+}
