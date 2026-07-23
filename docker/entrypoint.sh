@@ -2,11 +2,15 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-14"
+AVUZ_CONFIG_VERSION="33.0.0-15"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 AVUZ_KNOWN_APPS="/var/www/html/data/.avuz_known_apps"
 UPGRADE_FAILED_MARKER="/var/www/html/data/.avuz_upgrade_failed"
+
+# Shadow copies of Avuz-owned apps are moved here rather than deleted, so a bad
+# purge is recoverable. Lives on the data volume; one generation is kept.
+AVUZ_SHADOW_QUARANTINE="/var/www/html/data/.avuz_shadow_quarantine"
 
 # Ownership helpers. Shipped in the image via `COPY .` (same path the overlay
 # reapply functions already read at runtime); no separate Dockerfile copy needed.
@@ -73,29 +77,82 @@ ENABLE_APPS=(
     "integration_openai"
 )
 
+# Apps carrying an Avuz overlay or fork. Image-owned: never store-installed,
+# never store-updated, and their custom_apps shadow copies are purged at boot.
+# Adding an app here without adding an overlay is harmless; the reverse is not.
+AVUZ_OWNED_APPS=(
+    "spreed"
+    "deck"
+    "files_downloadlimit"
+    "integration_openai"
+)
+
+# Vanilla apps Avuz does not patch. Installed and updated from the App Store
+# inside the appstoreenabled window in run_avuz_configuration, so upstream fixes
+# arrive without an image rebuild. The store serves the newest release compatible
+# with the running NC major — there is no version pin (occ app:install/app:update
+# have no --version flag), and that unpinned "latest compatible" is the accepted
+# trade for not owning these apps. Start narrow; widen once staging proves a boot.
+AVUZ_STORE_APPS=(
+    "forms"
+)
+
+# Safety boundary, asserted before anything below reads either list: an app in
+# both AVUZ_OWNED_APPS and AVUZ_STORE_APPS would be store-updated and silently
+# lose its Avuz overlay (integration_openai has no reapply_* function to mask
+# it). Fail closed. Re-checked inside run_avuz_configuration too — harmless,
+# idempotent belt-and-suspenders.
+_avuz_overlap="$(avuz_assert_disjoint "${AVUZ_OWNED_APPS[*]}" "${AVUZ_STORE_APPS[*]}")"
+if [ -n "$_avuz_overlap" ]; then
+    echo "✗ CONFIG ERROR: app(s) in both AVUZ_OWNED_APPS and AVUZ_STORE_APPS: $_avuz_overlap"
+    echo "  A store update would clobber the Avuz overlay. Refusing to boot."
+    exit 1
+fi
+
 # Apps to retire on deploy. Disable only (data kept); never app:remove. Add an
 # app here to turn it off across all stacks; leave empty when nothing is retiring.
 REMOVE_APPS=(
 )
 
 verify_avuz_patches() {
-    # Each entry: "<sentinel>|<target-file>|<recovery-hint>". Sentinels are
-    # unique strings that must appear in the deployed artifact; missing one
-    # means the patch was lost (corrupted image, upstream restore, bad rebase)
-    # and we refuse to boot rather than serve a half-patched stack.
+    # Each entry: "<sentinel>|<appid>|<relative-path>|<recovery-hint>". The
+    # target path is resolved via `occ app:getpath` (avuz_sentinel_target),
+    # NOT hardcoded under /var/www/html/apps — NC picks the highest-version
+    # copy across all app paths, so a store install in custom_apps can
+    # outrank (shadow) the image copy while a hardcoded-path check still
+    # passed against the unused image copy. Sentinels are unique strings
+    # that must appear in the deployed artifact; missing one means the patch
+    # was lost (corrupted image, upstream restore, bad rebase, shadowed by
+    # an unpatched store copy) and we refuse to boot rather than serve a
+    # half-patched stack. files-main.js is not an app; app id "-" keeps the
+    # absolute path as-is.
     local checks=(
-        "AVUZ-CHUNKED-UPLOAD-V2|/var/www/html/apps/spreed/lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
-        "Upload in progress — do not close this tab|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
-        "admin-download-limit|/var/www/html/apps/files_downloadlimit/templates/admin.php|files_downloadlimit overlay missing — upstream 2.0.0 tarball drops this template (GH nextcloud/files_downloadlimit#421); redeploy or rerun reapply_avuz_files_downloadlimit_overlay"
-        "AVUZ-AUDIO-EXTRACT-V1|/var/www/html/apps/integration_openai/lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
-        "AVUZ-DECK-CLONE-ORDER-V1|/var/www/html/apps/deck/lib/Service/BoardService.php|deck overlay missing — board-copy column/card shift fix lost; redeploy or rerun reapply_avuz_deck_overlay"
+        "AVUZ-CHUNKED-UPLOAD-V2|spreed|lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
+        "Upload in progress — do not close this tab|-|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
+        "admin-download-limit|files_downloadlimit|templates/admin.php|files_downloadlimit overlay missing — upstream 2.0.0 tarball drops this template (GH nextcloud/files_downloadlimit#421); redeploy or rerun reapply_avuz_files_downloadlimit_overlay"
+        "AVUZ-AUDIO-EXTRACT-V1|integration_openai|lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
+        "AVUZ-DECK-CLONE-ORDER-V1|deck|lib/Service/BoardService.php|deck overlay missing — board-copy column/card shift fix lost; redeploy or rerun reapply_avuz_deck_overlay"
     )
     local failed=0
     for entry in "${checks[@]}"; do
         local sentinel="${entry%%|*}"
         local rest="${entry#*|}"
-        local target="${rest%%|*}"
+        local app="${rest%%|*}"
+        rest="${rest#*|}"
+        local relative="${rest%%|*}"
         local hint="${rest#*|}"
+        local target
+        if [ "$app" = "-" ]; then
+            target="$relative"
+        else
+            target="$(avuz_sentinel_target "$app" "$relative")"
+        fi
+        if [ -z "$target" ]; then
+            echo "✗ AVUZ PATCH UNVERIFIABLE: could not resolve app path for '$app'"
+            echo "  $hint"
+            failed=1
+            continue
+        fi
         if ! grep -q "$sentinel" "$target" 2>/dev/null; then
             echo "✗ AVUZ PATCH MISSING: sentinel '$sentinel' not found in $target"
             echo "  $hint"
@@ -125,9 +182,9 @@ reapply_avuz_spreed_overlay() {
 
 # Reapply the files_downloadlimit overlay onto
 # /var/www/html/apps/files_downloadlimit/. The upstream 2.0.0 tarball ships
-# without templates/admin.php (GH nextcloud/files_downloadlimit#421), so every
-# 'occ app:update --all' against the store re-extracts the broken bundle and
-# wipes our restored template. Re-run this after every update.
+# without templates/admin.php (GH nextcloud/files_downloadlimit#421), so any
+# store update of this app re-extracts the broken bundle and wipes our
+# restored template. Re-run this after every update.
 reapply_avuz_files_downloadlimit_overlay() {
     local overlay="/var/www/html/docker/overlays/files_downloadlimit"
     if [ -d "$overlay" ]; then
@@ -494,9 +551,25 @@ apply_avuz_settings() {
 run_avuz_configuration() {
     echo "═══ Running Avuz Conecta configuration ═══"
 
+    _avuz_overlap="$(avuz_assert_disjoint "${AVUZ_OWNED_APPS[*]}" "${AVUZ_STORE_APPS[*]}")"
+    if [ -n "$_avuz_overlap" ]; then
+        echo "✗ CONFIG ERROR: app(s) in both AVUZ_OWNED_APPS and AVUZ_STORE_APPS: $_avuz_overlap"
+        echo "  A store update would clobber the Avuz overlay. Refusing to boot."
+        exit 1
+    fi
+
+    # Owned apps must win path resolution before anything else runs.
+    avuz_purge_shadow_copies /var/www/html/custom_apps /var/www/html/apps \
+        "$AVUZ_SHADOW_QUARANTINE" "${AVUZ_OWNED_APPS[@]}"
+
     # Re-enable the in-app store for the duration of this run so the
     # app:install/update calls below can query the store. Re-disabled at the end.
     php occ config:system:set appstoreenabled --value=true --type=boolean
+
+    # Vanilla apps track the store; owned apps are untouched here by construction
+    # (disjointness asserted above).
+    echo "Syncing store-managed apps..."
+    avuz_sync_store_apps "${AVUZ_STORE_APPS[@]}"
 
     apply_avuz_settings
 
@@ -508,7 +581,7 @@ run_avuz_configuration() {
         php occ maintenance:repair --include-expensive 2>/dev/null || true
     fi
 
-    # occ upgrade (replaces app:update --all) — runs pending core+app migrations
+    # occ upgrade (does not touch the store) — runs pending core+app migrations
     # from on-disk code: no store, no overlay clobber. Fail closed: on failure
     # write the marker, skip the stamp, and exit so the container crash-loops
     # (visible in Portainer) and the next boot retries. Skip when the core-upgrade
@@ -531,6 +604,9 @@ run_avuz_configuration() {
         fi
         echo "✓ occ upgrade $_avuz_upgrade_class"
     fi
+
+    avuz_guard_app_downgrades "${AVUZ_STORE_APPS[*]}" \
+        "${AVUZ_STORE_APPS[@]}" "${AVUZ_OWNED_APPS[@]}"
 
     # New-app enable via the known-apps manifest: seed on first run (enables
     # nothing), then enable only managed apps we have never seen. Admin-disabled
@@ -557,6 +633,13 @@ run_avuz_configuration() {
     # Avuz owns the app upgrade cycle via image rebuilds; this prevents admins
     # (or NC's auto-update) from overwriting our patched spreed.
     php occ config:system:set appstoreenabled --value=false --type=boolean
+
+    # A store install could have landed a higher-version copy of an owned app in
+    # custom_apps. Purge again and re-verify sentinels against the RESOLVED path
+    # so a clobbered overlay fails this boot, not silently at runtime.
+    avuz_purge_shadow_copies /var/www/html/custom_apps /var/www/html/apps \
+        "$AVUZ_SHADOW_QUARANTINE" "${AVUZ_OWNED_APPS[@]}"
+    verify_avuz_patches
 
     # Write stamp so we skip this on plain restarts
     echo "$AVUZ_CONFIG_VERSION" > "$CONFIG_STAMP_FILE"
@@ -710,18 +793,11 @@ else
         php occ maintenance:mode --off
         DID_DB_UPGRADE=1   # core upgrade can rewrite anywhere under data/
 
-        # NC upgrade may have rewritten bundled apps; reapply overlays before
-        # the app:update --all below (which can overwrite again).
-        reapply_avuz_spreed_overlay
-        reapply_avuz_files_downloadlimit_overlay
-        reapply_avuz_deck_overlay
-
-        # Update custom_apps (App Store apps) now that NC core is upgraded.
-        # Reapply overlays afterwards because app:update may pull a fresh
-        # spreed and/or a fresh files_downloadlimit (whose 2.0.0 tarball drops
-        # templates/admin.php — GH issue 421).
-        echo "Updating App Store apps..."
-        php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
+        # NC upgrade may have rewritten bundled apps; reapply overlays after the
+        # core upgrade. Store-managed apps (AVUZ_STORE_APPS) are synced inside
+        # the store window in run_avuz_configuration, which always runs next
+        # (NEEDS_CONFIGURATION=1 is set below) — appstoreenabled is false here,
+        # so a store sync attempted at this point would be a guaranteed no-op.
         reapply_avuz_spreed_overlay
         reapply_avuz_files_downloadlimit_overlay
         reapply_avuz_deck_overlay
@@ -762,6 +838,20 @@ echo "✓ Nextcloud verified"
 # - after upgrade (NEEDS_CONFIGURATION=1)
 # - config version changed (new image deployed)
 CURRENT_STAMP=$(cat "$CONFIG_STAMP_FILE" 2>/dev/null || echo "")
+
+# Owned apps must win path resolution before the sentinel check resolves any
+# path — otherwise a shadow copy makes verify_avuz_patches fail closed on a
+# condition the purge below would have repaired, and the boot never gets there.
+avuz_purge_shadow_copies /var/www/html/custom_apps /var/www/html/apps \
+    "$AVUZ_SHADOW_QUARANTINE" "${AVUZ_OWNED_APPS[@]}"
+
+# Catches drift on plain restarts too (they skip run_avuz_configuration below):
+# if a quarantined shadow was ahead of the image copy, the app's code just
+# landed behind its migrated schema. Owned apps only — they need no store
+# window, the guard only prints a rebuild hint for those. Non-fatal by
+# construction; invoked bare.
+avuz_guard_app_downgrades "${AVUZ_STORE_APPS[*]}" "${AVUZ_OWNED_APPS[@]}"
+
 verify_avuz_patches
 if [ "$NEEDS_CONFIGURATION" -eq 1 ] || [ "$CURRENT_STAMP" != "$AVUZ_CONFIG_VERSION" ]; then
     run_avuz_configuration
