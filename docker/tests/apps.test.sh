@@ -110,6 +110,10 @@ mkdir -p "$shadow_root/spreed" "$shadow_root/deck" "$shadow_root/forms" "$shadow
 # usable image copies for spreed and deck only
 mkdir -p "$image_root/spreed/appinfo" "$image_root/deck/appinfo"
 touch "$image_root/spreed/appinfo/info.xml" "$image_root/deck/appinfo/info.xml"
+# marker proves actual content moves, not just a directory node landing at
+# the quarantine path (a `rm -rf` + `mkdir -p` would still pass a bare
+# existence check but would silently lose this file)
+echo spreed-payload > "$shadow_root/spreed/MARKER"
 
 assert_eq "shadow_copies lists owned apps that have an image fallback" \
 "$shadow_root/spreed
@@ -123,6 +127,8 @@ assert_eq "purge quarantines owned shadow copy" "gone" \
     "$([ -e "$shadow_root/spreed" ] && echo present || echo gone)"
 assert_eq "purge is reversible — copy lands in quarantine" "present" \
     "$([ -d "$quarantine/spreed" ] && echo present || echo gone)"
+assert_eq "purge is reversible — marker content survives the move" \
+    "spreed-payload" "$(cat "$quarantine/spreed/MARKER" 2>/dev/null)"
 assert_eq "purge NEVER touches an app with no image fallback" "present" \
     "$([ -e "$shadow_root/orphan" ] && echo present || echo gone)"
 assert_eq "orphan is warned about" "yes" \
@@ -131,6 +137,19 @@ assert_eq "purge leaves non-owned app untouched" "present" \
     "$([ -e "$shadow_root/forms" ] && echo present || echo gone)"
 assert_eq "purge is idempotent" "0" \
     "$(avuz_purge_shadow_copies "$shadow_root" "$image_root" "$quarantine" spreed deck >/dev/null; echo $?)"
+
+# ── malformed app names are refused, not acted on ──
+for bad_app in "" "." ".." "../escape" "spreed/../../etc"; do
+    bad_out="$(avuz_shadow_copies "$shadow_root" "$image_root" "$bad_app")"
+    assert_eq "shadow_copies refuses malformed app name '$bad_app'" "" "$bad_out"
+
+    bad_purge_out="$(avuz_purge_shadow_copies "$shadow_root" "$image_root" "$quarantine" "$bad_app")"
+    assert_eq "purge_shadow_copies refuses malformed app name '$bad_app'" "yes" \
+        "$(printf '%s' "$bad_purge_out" | grep -q 'malformed app name' && echo yes || echo no)"
+done
+assert_eq "malformed-name run touched nothing outside the volume" "present" \
+    "$([ -e "$shadow_root/forms" ] && echo present || echo gone)"
+
 rm -rf "$shadow_root" "$image_root" "$quarantine"
 
 exit $fail

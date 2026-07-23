@@ -114,6 +114,21 @@ avuz_sentinel_target() {
     printf '%s/%s' "$base" "$relative"
 }
 
+# Pure: reject unsafe/malformed app identifiers before they reach a path
+# concatenation. Empty, `.`, `..`, or anything containing `/` is refused —
+# defense in depth even though today's callers only pass a fixed,
+# code-reviewed app list. Silent (no printing) so callers of the pure
+# `avuz_shadow_copies` list-emitter stay clean; callers that log (like
+# `avuz_purge_shadow_copies`) print their own warning on rejection.
+avuz_valid_app_name() {
+    local app="$1"
+    case "$app" in
+        "" | "." | ".." ) return 1 ;;
+        */* ) return 1 ;;
+    esac
+    return 0
+}
+
 # Pure: emit custom_apps directories for Avuz-owned apps that are SAFE to purge.
 # These shadow the patched image copy whenever their version is higher (NC
 # resolves an app to the highest version across app paths), silently serving
@@ -122,8 +137,12 @@ avuz_sentinel_target() {
 # copy and the app would genuinely disappear.
 avuz_shadow_copies() {
     local root="$1" image_root="$2"; shift 2
+    : "${root:?}" "${image_root:?}"
     local app
     for app in "$@"; do
+        if ! avuz_valid_app_name "$app"; then
+            continue
+        fi
         # Explicit `if` rather than `[ … ] && echo`: under the entrypoint's
         # `set -e`, a trailing AND-list whose left side fails aborts the boot.
         if [ -d "$root/$app" ] && [ -f "$image_root/$app/appinfo/info.xml" ]; then
@@ -149,8 +168,13 @@ avuz_shadow_copies() {
 # Idempotent.
 avuz_purge_shadow_copies() {
     local root="$1" image_root="$2" quarantine="$3"; shift 3
-    local app path
+    : "${root:?}" "${image_root:?}" "${quarantine:?}"
+    local app
     for app in "$@"; do
+        if ! avuz_valid_app_name "$app"; then
+            echo "✗ SKIPPING malformed app name: '$app'"
+            continue
+        fi
         if [ ! -d "$root/$app" ]; then
             continue
         fi
