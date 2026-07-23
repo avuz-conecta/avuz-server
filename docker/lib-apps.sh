@@ -187,7 +187,10 @@ avuz_purge_shadow_copies() {
             echo "✗ Could not create quarantine dir $quarantine — app will still resolve to the shadow copy"
             continue
         fi
-        rm -rf "${quarantine:?}/$app"
+        # Clear any stale generation. `|| true`: the only mutation on this boot
+        # path that isn't already if-guarded — a perms error here must warn via
+        # the mv branch below, never abort the boot under set -e.
+        rm -rf "${quarantine:?}/$app" || true
         if mv "$root/$app" "$quarantine/$app"; then
             echo "✓ Quarantined shadow copy $root/$app -> $quarantine/$app (image copy is authoritative)"
         else
