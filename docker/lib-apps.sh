@@ -260,3 +260,42 @@ avuz_guard_app_downgrades() {
     done
     return 0
 }
+
+# Pure: emit app ids present in both lists. The owned/store split is a safety
+# boundary — an app in both sets would get store-updated and lose its overlay,
+# so this is asserted at boot rather than trusted to convention.
+avuz_assert_disjoint() {
+    local a="$1" b="$2" app
+    for app in $a; do
+        # Explicit `if` — see avuz_shadow_copies: a trailing AND-list that fails
+        # would abort the boot under `set -e`.
+        if printf '%s\n' $b | grep -qxF "$app"; then
+            echo "$app"
+        fi
+    done
+    return 0
+}
+
+# Install or update each store-managed app. Targeted calls only: `app:update
+# --all` would pull every app from the store and clobber the Avuz overlays, which
+# is why the entrypoint moved to `occ upgrade` in the first place. Failures are
+# logged and skipped — a store outage must not abort the boot.
+avuz_sync_store_apps() {
+    local app
+    for app in "$@"; do
+        if _avuz_occ app:getpath "$app" >/dev/null 2>&1; then
+            if _avuz_occ app:update "$app"; then
+                echo "✓ $app up to date from store"
+            else
+                echo "✗ $app store update failed (offline? store outage?) — keeping current version"
+            fi
+        else
+            if _avuz_occ app:install "$app"; then
+                echo "✓ $app installed from store"
+            else
+                echo "✗ $app store install failed (offline? store outage?)"
+            fi
+        fi
+    done
+    return 0
+}

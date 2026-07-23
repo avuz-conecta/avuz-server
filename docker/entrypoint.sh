@@ -63,6 +63,26 @@ ENABLE_APPS=(
     "integration_openai"
 )
 
+# Apps carrying an Avuz overlay or fork. Image-owned: never store-installed,
+# never store-updated, and their custom_apps shadow copies are purged at boot.
+# Adding an app here without adding an overlay is harmless; the reverse is not.
+AVUZ_OWNED_APPS=(
+    "spreed"
+    "deck"
+    "files_downloadlimit"
+    "integration_openai"
+)
+
+# Vanilla apps Avuz does not patch. Installed and updated from the App Store
+# inside the appstoreenabled window in run_avuz_configuration, so upstream fixes
+# arrive without an image rebuild. The store serves the newest release compatible
+# with the running NC major — there is no version pin (occ app:install/app:update
+# have no --version flag), and that unpinned "latest compatible" is the accepted
+# trade for not owning these apps. Start narrow; widen once staging proves a boot.
+AVUZ_STORE_APPS=(
+    "forms"
+)
+
 # Apps to retire on deploy. Disable only (data kept); never app:remove. Add an
 # app here to turn it off across all stacks; leave empty when nothing is retiring.
 REMOVE_APPS=(

@@ -286,4 +286,19 @@ unset -f _avuz_occ
 source "$HERE/../lib-apps.sh"
 rm -rf "$guard_root"
 
+# ── disjointness ──
+assert_eq "disjoint sets report nothing" "" \
+    "$(avuz_assert_disjoint "forms calendar" "spreed deck")"
+assert_eq "overlap is reported" "spreed" \
+    "$(avuz_assert_disjoint "forms spreed" "spreed deck")"
+
+# ── store sync plan ──
+export AVUZ_OCC_DRYRUN=1
+sync_out="$(avuz_sync_store_apps forms calendar)"
+assert_eq "sync updates apps already present" "yes" \
+    "$(printf '%s' "$sync_out" | grep -q 'OCC app:update forms' && echo yes || echo no)"
+assert_eq "sync never uses --all" "no" \
+    "$(printf '%s' "$sync_out" | grep -q -- '--all' && echo yes || echo no)"
+unset AVUZ_OCC_DRYRUN
+
 exit $fail
