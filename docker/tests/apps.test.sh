@@ -219,10 +219,22 @@ assert_eq "guard says nothing about an app that is not behind" "no" \
 # a failing store update must not abort the boot — the guard swallows it and
 # reports, it never lets the `occ app:update` exit status propagate.
 GUARD_UPDATE_FAIL=1
-if guard_out2="$(avuz_guard_app_downgrades "storeapp" storeapp)"; then guard_rc2=0; else guard_rc2=1; fi
+guard_out2="$(avuz_guard_app_downgrades "storeapp" storeapp)"; guard_rc2=$?
 assert_eq "guard survives a failed store update — still non-fatal" "0" "$guard_rc2"
 assert_eq "guard reports a failed store update instead of hiding it" "yes" \
     "$(printf '%s' "$guard_out2" | grep -q 'store update failed' && echo yes || echo no)"
+GUARD_UPDATE_FAIL=""
+
+# an empty store list must fall through to the owned/report branch and never
+# heal — prove it, don't just assume the shipped fallthrough is safe. Capture
+# to a variable before grepping (matching the pattern above) rather than
+# piping the function straight into `grep -q`: under `pipefail`, `grep -q`
+# can close the pipe as soon as it matches while the function is still
+# writing later lines, and the resulting SIGPIPE makes the pipeline's exit
+# status nonzero regardless of the match — a real, observed flake.
+guard_out3="$(avuz_guard_app_downgrades "" storeapp)"
+assert_eq "empty store list never heals" "no" \
+    "$(printf '%s' "$guard_out3" | grep -q UPDATE_CALLED && echo yes || echo no)"
 
 unset -f _avuz_occ
 source "$HERE/../lib-apps.sh"

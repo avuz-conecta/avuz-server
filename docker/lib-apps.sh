@@ -231,7 +231,7 @@ avuz_guard_app_downgrades() {
         state="$(avuz_code_behind_db "$app" "$code" "$db")"
         [ "$state" = "behind" ] || continue
         echo "✗ DOWNGRADE DETECTED: $app code $code is older than its migrated schema $db"
-        if printf '%s\n' $store_apps | grep -qxF "$app"; then
+        if printf '%s\n' "$store_apps" | tr ' ' '\n' | grep -qxF "$app"; then
             echo "  Healing from App Store..."
             if _avuz_occ app:update "$app"; then
                 echo "  ✓ $app updated from store"
