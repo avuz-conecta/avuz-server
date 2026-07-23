@@ -299,6 +299,27 @@ assert_eq "sync updates apps already present" "yes" \
     "$(printf '%s' "$sync_out" | grep -q 'OCC app:update forms' && echo yes || echo no)"
 assert_eq "sync never uses --all" "no" \
     "$(printf '%s' "$sync_out" | grep -q -- '--all' && echo yes || echo no)"
+
+# The two assertions above only exercise the update branch: under plain
+# AVUZ_OCC_DRYRUN=1, `_avuz_occ app:getpath` always echoes and returns 0, so
+# app:getpath "always succeeds" and the install branch (the else side) is
+# unreachable from this suite for any app name — an install-branch --all
+# regression would sail through undetected. Force the install branch by
+# stubbing _avuz_occ per-argument (same convention as the
+# avuz_guard_app_downgrades block above): make app:getpath fail to simulate
+# "app not installed", so avuz_sync_store_apps must take the else branch.
+_avuz_occ() {
+    if [ "$1" = "app:getpath" ]; then return 1; fi
+    echo "OCC $*"
+    return 0
+}
+install_out="$(avuz_sync_store_apps forms)"
+assert_eq "sync installs an app absent from getpath" "yes" \
+    "$(printf '%s' "$install_out" | grep -q 'OCC app:install forms' && echo yes || echo no)"
+assert_eq "sync install branch never uses --all" "no" \
+    "$(printf '%s' "$install_out" | grep -q -- '--all' && echo yes || echo no)"
+unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
+
 unset AVUZ_OCC_DRYRUN
 
 exit $fail
