@@ -190,3 +190,57 @@ avuz_purge_shadow_copies() {
     done
     return 0
 }
+
+# Pure: return 0 when version $1 sorts strictly before $2. Uses sort -V, which
+# handles Nextcloud's 4-segment app versions (e.g. 4.5.1.7) correctly.
+avuz_version_lt() {
+    local a="$1" b="$2"
+    # Explicit `if` — a trailing `[ … ] && return 1` would abort the boot under
+    # `set -e` on the not-equal path.
+    if [ "$a" = "$b" ]; then
+        return 1
+    fi
+    [ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | head -1)" = "$a" ]
+}
+
+# Pure: report whether an app's on-disk code is older than the schema its own
+# migrations already applied. This is the Forms failure mode — a store install
+# migrates the DB, then the code reverts (lost custom_apps volume, or an image
+# rebuilt from a stale checkout) while the schema stays ahead. An empty db
+# version means the app was never installed, which is not a downgrade.
+avuz_code_behind_db() {
+    local _app="$1" code="$2" db="$3"
+    [ -n "$db" ] || { echo "ok"; return; }
+    [ -n "$code" ] || { echo "ok"; return; }
+    if avuz_version_lt "$code" "$db"; then echo "behind"; else echo "ok"; fi
+}
+
+# Warn (and try to heal) when an app's code is behind its migrated schema.
+# Heals only apps in the store-managed set — an owned app that is behind means
+# the image is wrong and a store pull would clobber the Avuz overlay, so those
+# are reported for a human to fix by rebuilding the image. Non-fatal: one stale
+# app must not take a tenant offline.
+avuz_guard_app_downgrades() {
+    local store_apps="$1"; shift
+    local app code db state base
+    for app in "$@"; do
+        base="$(avuz_app_path "$app")"
+        [ -n "$base" ] || continue
+        code="$(grep -o '<version>[^<]*' "$base/appinfo/info.xml" 2>/dev/null | head -1 | cut -d'>' -f2)"
+        db="$(_avuz_occ config:app:get "$app" installed_version 2>/dev/null | tr -d '[:space:]')"
+        state="$(avuz_code_behind_db "$app" "$code" "$db")"
+        [ "$state" = "behind" ] || continue
+        echo "✗ DOWNGRADE DETECTED: $app code $code is older than its migrated schema $db"
+        if printf '%s\n' $store_apps | grep -qxF "$app"; then
+            echo "  Healing from App Store..."
+            if _avuz_occ app:update "$app"; then
+                echo "  ✓ $app updated from store"
+            else
+                echo "  ✗ $app store update failed — app may misbehave until the next deploy"
+            fi
+        else
+            echo "  $app is Avuz-owned: rebuild the image with a version >= $db (do NOT store-update, it would clobber the overlay)"
+        fi
+    done
+    return 0
+}

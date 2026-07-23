@@ -158,4 +158,74 @@ assert_eq "malformed-name run touched nothing outside the volume" "present" \
 
 rm -rf "$shadow_root" "$image_root" "$quarantine"
 
+# ── version comparison ──
+assert_eq "5.2.5 < 5.3.0"      "yes" "$(avuz_version_lt 5.2.5 5.3.0 && echo yes || echo no)"
+assert_eq "5.3.0 not < 5.2.5"  "no"  "$(avuz_version_lt 5.3.0 5.2.5 && echo yes || echo no)"
+assert_eq "equal is not less"  "no"  "$(avuz_version_lt 5.2.5 5.2.5 && echo yes || echo no)"
+assert_eq "4.5.1.7 < 4.5.2"    "yes" "$(avuz_version_lt 4.5.1.7 4.5.2 && echo yes || echo no)"
+
+# ── downgrade detection ──
+assert_eq "code older than schema is behind" "behind" "$(avuz_code_behind_db forms 5.2.5 5.3.0)"
+assert_eq "code matching schema is ok"       "ok"     "$(avuz_code_behind_db forms 5.3.0 5.3.0)"
+assert_eq "code newer than schema is ok"     "ok"     "$(avuz_code_behind_db forms 5.3.5 5.3.0)"
+assert_eq "missing db version is ok"         "ok"     "$(avuz_code_behind_db forms 5.2.5 '')"
+
+# ── downgrade guard: heal store apps, report owned apps, stay non-fatal ──
+guard_root="$(mktemp -d)"
+store_app_dir="$guard_root/storeapp"; owned_app_dir="$guard_root/ownedapp"; ok_app_dir="$guard_root/okapp"
+mkdir -p "$store_app_dir/appinfo" "$owned_app_dir/appinfo" "$ok_app_dir/appinfo"
+printf '<?xml version="1.0"?>\n<info><id>storeapp</id><version>5.2.5</version></info>\n' \
+    > "$store_app_dir/appinfo/info.xml"
+printf '<?xml version="1.0"?>\n<info><id>ownedapp</id><version>5.2.5</version></info>\n' \
+    > "$owned_app_dir/appinfo/info.xml"
+printf '<?xml version="1.0"?>\n<info><id>okapp</id><version>5.3.0</version></info>\n' \
+    > "$ok_app_dir/appinfo/info.xml"
+
+GUARD_UPDATE_FAIL=""
+_avuz_occ() {
+    case "$1" in
+        app:getpath)
+            case "$2" in
+                storeapp) echo "$store_app_dir" ;;
+                ownedapp) echo "$owned_app_dir" ;;
+                okapp)    echo "$ok_app_dir" ;;
+            esac
+            ;;
+        config:app:get)
+            echo "5.3.0"   # every app's schema is already migrated to 5.3.0
+            ;;
+        app:update)
+            echo "UPDATE_CALLED:$2"
+            [ "$GUARD_UPDATE_FAIL" = "1" ] && return 1
+            return 0
+            ;;
+    esac
+}
+
+# store-managed app behind schema -> healed; owned app behind schema -> reported,
+# never store-updated; app not behind -> silent.
+guard_out="$(avuz_guard_app_downgrades "storeapp okapp" storeapp ownedapp okapp)"
+guard_rc=$?
+assert_eq "guard is non-fatal when everything succeeds" "0" "$guard_rc"
+assert_eq "guard heals a behind store-managed app via app:update" "yes" \
+    "$(printf '%s' "$guard_out" | grep -q 'UPDATE_CALLED:storeapp' && echo yes || echo no)"
+assert_eq "guard never store-updates a behind owned app" "no" \
+    "$(printf '%s' "$guard_out" | grep -q 'UPDATE_CALLED:ownedapp' && echo yes || echo no)"
+assert_eq "guard tells the operator to rebuild the image for an owned app" "yes" \
+    "$(printf '%s' "$guard_out" | grep -qi 'rebuild the image' && echo yes || echo no)"
+assert_eq "guard says nothing about an app that is not behind" "no" \
+    "$(printf '%s' "$guard_out" | grep -q 'okapp' && echo yes || echo no)"
+
+# a failing store update must not abort the boot — the guard swallows it and
+# reports, it never lets the `occ app:update` exit status propagate.
+GUARD_UPDATE_FAIL=1
+if guard_out2="$(avuz_guard_app_downgrades "storeapp" storeapp)"; then guard_rc2=0; else guard_rc2=1; fi
+assert_eq "guard survives a failed store update — still non-fatal" "0" "$guard_rc2"
+assert_eq "guard reports a failed store update instead of hiding it" "yes" \
+    "$(printf '%s' "$guard_out2" | grep -q 'store update failed' && echo yes || echo no)"
+
+unset -f _avuz_occ
+source "$HERE/../lib-apps.sh"
+rm -rf "$guard_root"
+
 exit $fail
