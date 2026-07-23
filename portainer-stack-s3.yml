@@ -21,6 +21,9 @@ services:
   app:
     image: registry.avuz.app/admin/avuzconecta:staging-s3
     restart: unless-stopped
+    # Auto-restart on unhealthy is handled by the host's standalone autoheal stack
+    # (portainer-autoheal-stack.yml). The image bakes in `LABEL autoheal=true`, so no
+    # label is needed here — deploy one autoheal stack per host and this is covered.
     ports:
       - "8080:80"
     volumes:

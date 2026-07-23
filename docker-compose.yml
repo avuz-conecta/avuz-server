@@ -95,12 +95,16 @@ services:
         condition: service_healthy
     networks:
       - nextcloud-network
+    # Same probe as the image (docker/healthcheck.sh) so local dev reproduces what
+    # staging/prod see, including the diagnostic dump to data/avuz-health.log.
+    # No autoheal sidecar here on purpose: locally you want the broken container
+    # left standing so you can exec into it.
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/status.php"]
+      test: ["CMD", "/var/www/html/docker/healthcheck.sh"]
       interval: 30s
-      timeout: 10s
+      timeout: 15s
       retries: 3
-      start_period: 60s
+      start_period: 120s
 
 volumes:
   db_data:

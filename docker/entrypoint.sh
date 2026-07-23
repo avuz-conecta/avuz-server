@@ -12,6 +12,16 @@ UPGRADE_FAILED_MARKER="/var/www/html/data/.avuz_upgrade_failed"
 # reapply functions already read at runtime); no separate Dockerfile copy needed.
 source /var/www/html/docker/lib-perms.sh
 source /var/www/html/docker/lib-apps.sh
+source /var/www/html/docker/lib-health.sh
+
+# Boot marker in the health log. Whatever diagnostic block sits directly above it
+# is the reason this container went down — autoheal restarts leave no other trace.
+# Reset the failure counter first: autoheal uses `docker restart`, which keeps /tmp,
+# so without this the count would carry over from before the restart.
+avuz_health_reset_failures "$AVUZ_HEALTH_STATE"
+avuz_health_rotate "$AVUZ_HEALTH_LOG" "$AVUZ_HEALTH_LOG_MAX_BYTES"
+avuz_health_append "$AVUZ_HEALTH_LOG" \
+    "[$(avuz_health_timestamp)] BOOT container started (config $AVUZ_CONFIG_VERSION, host $(hostname))"
 
 # Boot signals consumed by avuz_reconcile_data_ownership in phase 5.
 DID_DB_UPGRADE=0   # set after `occ upgrade` (core rewrite — full data walk)

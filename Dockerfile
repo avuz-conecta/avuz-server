@@ -90,15 +90,23 @@ RUN chmod +x /usr/local/bin/merge-l10n.sh
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
 COPY docker/entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /var/www/html/docker/healthcheck.sh
 # Placeholder so nginx.conf's include never dangles; entrypoint regenerates it at
 # boot from TRUSTED_PROXIES (real client IP behind Cloudflare -> NPM).
 RUN mkdir -p /etc/nginx/conf.d && printf 'real_ip_header CF-Connecting-IP;\nreal_ip_recursive on;\n' > /etc/nginx/conf.d/avuz-realip.conf
 
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD curl -f http://localhost/status.php || exit 1
+# Opt this container into auto-restart. autoheal matches container labels, and a
+# Dockerfile LABEL becomes a container label — so every deployment inherits it with
+# no per-stack edit. A host's standalone autoheal service (portainer-autoheal-stack.yml)
+# restarts any container carrying this once Docker marks it unhealthy.
+LABEL autoheal=true
+
+# start-period covers first boot: install/upgrade/occ work can outrun the probe,
+# and without it autoheal would restart a container that is merely still booting.
+HEALTHCHECK --interval=30s --timeout=15s --retries=3 --start-period=300s \
+  CMD /var/www/html/docker/healthcheck.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisor.conf"]
