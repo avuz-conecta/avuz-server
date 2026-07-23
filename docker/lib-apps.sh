@@ -183,10 +183,16 @@ avuz_purge_shadow_copies() {
             echo "  Removing it would delete the only copy of '$app'. Fix the image first."
             continue
         fi
-        mkdir -p "$quarantine"
+        if ! mkdir -p "$quarantine"; then
+            echo "✗ Could not create quarantine dir $quarantine — app will still resolve to the shadow copy"
+            continue
+        fi
         rm -rf "${quarantine:?}/$app"
-        mv "$root/$app" "$quarantine/$app"
-        echo "✓ Quarantined shadow copy $root/$app -> $quarantine/$app (image copy is authoritative)"
+        if mv "$root/$app" "$quarantine/$app"; then
+            echo "✓ Quarantined shadow copy $root/$app -> $quarantine/$app (image copy is authoritative)"
+        else
+            echo "✗ Could not quarantine $root/$app — app will still resolve to the shadow copy"
+        fi
     done
     return 0
 }

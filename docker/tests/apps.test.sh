@@ -158,6 +158,36 @@ assert_eq "malformed-name run touched nothing outside the volume" "present" \
 
 rm -rf "$shadow_root" "$image_root" "$quarantine"
 
+# ── purge non-fatal on a failed move (mv can fail on ENOSPC or perms; the
+# quarantine is best-effort and must never gate the boot) ──
+mvfail_root="$(mktemp -d)"; mvfail_image="$(mktemp -d)"; mvfail_quarantine="$(mktemp -d)"
+mkdir -p "$mvfail_root/spreed" "$mvfail_image/spreed/appinfo"
+touch "$mvfail_image/spreed/appinfo/info.xml"
+echo spreed-payload > "$mvfail_root/spreed/MARKER"
+# quarantine dir exists (mkdir -p inside the function is then a no-op) but is
+# not writable, so the mv into it fails with EACCES while the rest of the
+# function keeps going.
+chmod 500 "$mvfail_quarantine"
+
+# entrypoint.sh (Task 5) calls avuz_purge_shadow_copies bare at the top level
+# under `set -e`, same call-site pattern proven for avuz_guard_app_downgrades
+# above. Exercise that exact pattern: a bare call, in a `set -e` subshell,
+# with the move destined to fail.
+if mvfail_out="$( ( set -e
+    source "$HERE/../lib-apps.sh"
+    avuz_purge_shadow_copies "$mvfail_root" "$mvfail_image" "$mvfail_quarantine" spreed
+    echo REACHED
+) 2>&1 )"; then :; fi
+assert_eq "purge survives a failed move — bare set -e invocation (matches entrypoint.sh call site)" "yes" \
+    "$(printf '%s' "$mvfail_out" | grep -q REACHED && echo yes || echo no)"
+assert_eq "purge reports the failed move instead of hiding it" "yes" \
+    "$(printf '%s' "$mvfail_out" | grep -q 'Could not quarantine' && echo yes || echo no)"
+assert_eq "a failed move leaves the shadow copy in place (app still resolves to it, but the boot survives)" "present" \
+    "$([ -e "$mvfail_root/spreed" ] && echo present || echo gone)"
+
+chmod 700 "$mvfail_quarantine"   # restore before cleanup
+rm -rf "$mvfail_root" "$mvfail_image" "$mvfail_quarantine"
+
 # ── version comparison ──
 assert_eq "5.2.5 < 5.3.0"      "yes" "$(avuz_version_lt 5.2.5 5.3.0 && echo yes || echo no)"
 assert_eq "5.3.0 not < 5.2.5"  "no"  "$(avuz_version_lt 5.3.0 5.2.5 && echo yes || echo no)"

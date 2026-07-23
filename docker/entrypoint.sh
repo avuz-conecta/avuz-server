@@ -87,6 +87,18 @@ AVUZ_STORE_APPS=(
     "forms"
 )
 
+# Safety boundary, asserted before anything below reads either list: an app in
+# both AVUZ_OWNED_APPS and AVUZ_STORE_APPS would be store-updated and silently
+# lose its Avuz overlay (integration_openai has no reapply_* function to mask
+# it). Fail closed. Re-checked inside run_avuz_configuration too — harmless,
+# idempotent belt-and-suspenders.
+_avuz_overlap="$(avuz_assert_disjoint "${AVUZ_OWNED_APPS[*]}" "${AVUZ_STORE_APPS[*]}")"
+if [ -n "$_avuz_overlap" ]; then
+    echo "✗ CONFIG ERROR: app(s) in both AVUZ_OWNED_APPS and AVUZ_STORE_APPS: $_avuz_overlap"
+    echo "  A store update would clobber the Avuz overlay. Refusing to boot."
+    exit 1
+fi
+
 # Apps to retire on deploy. Disable only (data kept); never app:remove. Add an
 # app here to turn it off across all stacks; leave empty when nothing is retiring.
 REMOVE_APPS=(
@@ -771,21 +783,11 @@ else
         php occ maintenance:mode --off
         DID_DB_UPGRADE=1   # core upgrade can rewrite anywhere under data/
 
-        # NC upgrade may have rewritten bundled apps; reapply overlays before
-        # the store sync below (which can overwrite again).
-        reapply_avuz_spreed_overlay
-        reapply_avuz_files_downloadlimit_overlay
-        reapply_avuz_deck_overlay
-
-        # Sync only store-managed apps (AVUZ_STORE_APPS) now that NC core is
-        # upgraded — never a blanket store update of every installed app, which
-        # would pull a fresh copy of every owned app (spreed, deck,
-        # files_downloadlimit, integration_openai) into custom_apps and clobber
-        # their overlays. Reapply overlays afterwards anyway as cheap, idempotent
-        # defense-in-depth in case some other path (e.g. the store sync itself)
-        # disturbed those directories.
-        echo "Updating store-managed apps..."
-        avuz_sync_store_apps "${AVUZ_STORE_APPS[@]}"
+        # NC upgrade may have rewritten bundled apps; reapply overlays after the
+        # core upgrade. Store-managed apps (AVUZ_STORE_APPS) are synced inside
+        # the store window in run_avuz_configuration, which always runs next
+        # (NEEDS_CONFIGURATION=1 is set below) — appstoreenabled is false here,
+        # so a store sync attempted at this point would be a guaranteed no-op.
         reapply_avuz_spreed_overlay
         reapply_avuz_files_downloadlimit_overlay
         reapply_avuz_deck_overlay
@@ -832,6 +834,13 @@ CURRENT_STAMP=$(cat "$CONFIG_STAMP_FILE" 2>/dev/null || echo "")
 # condition the purge below would have repaired, and the boot never gets there.
 avuz_purge_shadow_copies /var/www/html/custom_apps /var/www/html/apps \
     "$AVUZ_SHADOW_QUARANTINE" "${AVUZ_OWNED_APPS[@]}"
+
+# Catches drift on plain restarts too (they skip run_avuz_configuration below):
+# if a quarantined shadow was ahead of the image copy, the app's code just
+# landed behind its migrated schema. Owned apps only — they need no store
+# window, the guard only prints a rebuild hint for those. Non-fatal by
+# construction; invoked bare.
+avuz_guard_app_downgrades "${AVUZ_STORE_APPS[*]}" "${AVUZ_OWNED_APPS[@]}"
 
 verify_avuz_patches
 if [ "$NEEDS_CONFIGURATION" -eq 1 ] || [ "$CURRENT_STAMP" != "$AVUZ_CONFIG_VERSION" ]; then
