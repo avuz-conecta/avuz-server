@@ -160,9 +160,9 @@ reapply_avuz_spreed_overlay() {
 
 # Reapply the files_downloadlimit overlay onto
 # /var/www/html/apps/files_downloadlimit/. The upstream 2.0.0 tarball ships
-# without templates/admin.php (GH nextcloud/files_downloadlimit#421), so every
-# 'occ app:update --all' against the store re-extracts the broken bundle and
-# wipes our restored template. Re-run this after every update.
+# without templates/admin.php (GH nextcloud/files_downloadlimit#421), so any
+# store update of this app re-extracts the broken bundle and wipes our
+# restored template. Re-run this after every update.
 reapply_avuz_files_downloadlimit_overlay() {
     local overlay="/var/www/html/docker/overlays/files_downloadlimit"
     if [ -d "$overlay" ]; then
@@ -559,7 +559,7 @@ run_avuz_configuration() {
         php occ maintenance:repair --include-expensive 2>/dev/null || true
     fi
 
-    # occ upgrade (replaces app:update --all) — runs pending core+app migrations
+    # occ upgrade (does not touch the store) — runs pending core+app migrations
     # from on-disk code: no store, no overlay clobber. Fail closed: on failure
     # write the marker, skip the stamp, and exit so the container crash-loops
     # (visible in Portainer) and the next boot retries. Skip when the core-upgrade
@@ -772,17 +772,20 @@ else
         DID_DB_UPGRADE=1   # core upgrade can rewrite anywhere under data/
 
         # NC upgrade may have rewritten bundled apps; reapply overlays before
-        # the app:update --all below (which can overwrite again).
+        # the store sync below (which can overwrite again).
         reapply_avuz_spreed_overlay
         reapply_avuz_files_downloadlimit_overlay
         reapply_avuz_deck_overlay
 
-        # Update custom_apps (App Store apps) now that NC core is upgraded.
-        # Reapply overlays afterwards because app:update may pull a fresh
-        # spreed and/or a fresh files_downloadlimit (whose 2.0.0 tarball drops
-        # templates/admin.php — GH issue 421).
-        echo "Updating App Store apps..."
-        php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
+        # Sync only store-managed apps (AVUZ_STORE_APPS) now that NC core is
+        # upgraded — never a blanket store update of every installed app, which
+        # would pull a fresh copy of every owned app (spreed, deck,
+        # files_downloadlimit, integration_openai) into custom_apps and clobber
+        # their overlays. Reapply overlays afterwards anyway as cheap, idempotent
+        # defense-in-depth in case some other path (e.g. the store sync itself)
+        # disturbed those directories.
+        echo "Updating store-managed apps..."
+        avuz_sync_store_apps "${AVUZ_STORE_APPS[@]}"
         reapply_avuz_spreed_overlay
         reapply_avuz_files_downloadlimit_overlay
         reapply_avuz_deck_overlay
@@ -823,6 +826,13 @@ echo "✓ Nextcloud verified"
 # - after upgrade (NEEDS_CONFIGURATION=1)
 # - config version changed (new image deployed)
 CURRENT_STAMP=$(cat "$CONFIG_STAMP_FILE" 2>/dev/null || echo "")
+
+# Owned apps must win path resolution before the sentinel check resolves any
+# path — otherwise a shadow copy makes verify_avuz_patches fail closed on a
+# condition the purge below would have repaired, and the boot never gets there.
+avuz_purge_shadow_copies /var/www/html/custom_apps /var/www/html/apps \
+    "$AVUZ_SHADOW_QUARANTINE" "${AVUZ_OWNED_APPS[@]}"
+
 verify_avuz_patches
 if [ "$NEEDS_CONFIGURATION" -eq 1 ] || [ "$CURRENT_STAMP" != "$AVUZ_CONFIG_VERSION" ]; then
     run_avuz_configuration
