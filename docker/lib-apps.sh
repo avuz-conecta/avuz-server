@@ -113,3 +113,56 @@ avuz_sentinel_target() {
     [ -n "$base" ] || return 0
     printf '%s/%s' "$base" "$relative"
 }
+
+# Pure: emit custom_apps directories for Avuz-owned apps that are SAFE to purge.
+# These shadow the patched image copy whenever their version is higher (NC
+# resolves an app to the highest version across app paths), silently serving
+# unpatched code. An app is only listed when a usable image copy exists —
+# without that fallback, removing the custom_apps copy would remove the only
+# copy and the app would genuinely disappear.
+avuz_shadow_copies() {
+    local root="$1" image_root="$2"; shift 2
+    local app
+    for app in "$@"; do
+        # Explicit `if` rather than `[ … ] && echo`: under the entrypoint's
+        # `set -e`, a trailing AND-list whose left side fails aborts the boot.
+        if [ -d "$root/$app" ] && [ -f "$image_root/$app/appinfo/info.xml" ]; then
+            echo "$root/$app"
+        fi
+    done
+    return 0
+}
+
+# Quarantine shadow copies of Avuz-owned apps from the custom_apps volume.
+#
+# Safety properties, in order of importance:
+#   1. Never `occ app:remove` — that runs uninstall migrations and can DROP
+#      tables (irreversible user-data loss). This function only moves a code
+#      directory.
+#   2. Never orphan an app: skips (and warns about) any app without a usable
+#      image copy to fall back to.
+#   3. Reversible: moves to a quarantine dir on the data volume rather than
+#      deleting, so an operator can restore it. One generation is kept.
+#
+# App state (oc_appconfig, oc_preferences, data/appdata_*) is untouched — these
+# directories hold distributed code only and are never written to at runtime.
+# Idempotent.
+avuz_purge_shadow_copies() {
+    local root="$1" image_root="$2" quarantine="$3"; shift 3
+    local app path
+    for app in "$@"; do
+        if [ ! -d "$root/$app" ]; then
+            continue
+        fi
+        if [ ! -f "$image_root/$app/appinfo/info.xml" ]; then
+            echo "✗ SKIPPING shadow purge of $root/$app — no image copy to fall back to"
+            echo "  Removing it would delete the only copy of '$app'. Fix the image first."
+            continue
+        fi
+        mkdir -p "$quarantine"
+        rm -rf "${quarantine:?}/$app"
+        mv "$root/$app" "$quarantine/$app"
+        echo "✓ Quarantined shadow copy $root/$app -> $quarantine/$app (image copy is authoritative)"
+    done
+    return 0
+}

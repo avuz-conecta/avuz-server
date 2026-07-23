@@ -104,4 +104,33 @@ assert_eq "sentinel_target empty when path unresolved" "" \
 unset -f _avuz_occ
 source "$HERE/../lib-apps.sh"
 
+# ── shadow copy detection / purge ──
+shadow_root="$(mktemp -d)"; image_root="$(mktemp -d)"; quarantine="$(mktemp -d)"
+mkdir -p "$shadow_root/spreed" "$shadow_root/deck" "$shadow_root/forms" "$shadow_root/orphan"
+# usable image copies for spreed and deck only
+mkdir -p "$image_root/spreed/appinfo" "$image_root/deck/appinfo"
+touch "$image_root/spreed/appinfo/info.xml" "$image_root/deck/appinfo/info.xml"
+
+assert_eq "shadow_copies lists owned apps that have an image fallback" \
+"$shadow_root/spreed
+$shadow_root/deck" \
+    "$(avuz_shadow_copies "$shadow_root" "$image_root" spreed deck orphan integration_openai)"
+
+purge_out="$(avuz_purge_shadow_copies "$shadow_root" "$image_root" "$quarantine" \
+    spreed deck orphan integration_openai)"
+
+assert_eq "purge quarantines owned shadow copy" "gone" \
+    "$([ -e "$shadow_root/spreed" ] && echo present || echo gone)"
+assert_eq "purge is reversible — copy lands in quarantine" "present" \
+    "$([ -d "$quarantine/spreed" ] && echo present || echo gone)"
+assert_eq "purge NEVER touches an app with no image fallback" "present" \
+    "$([ -e "$shadow_root/orphan" ] && echo present || echo gone)"
+assert_eq "orphan is warned about" "yes" \
+    "$(printf '%s' "$purge_out" | grep -q 'no image copy' && echo yes || echo no)"
+assert_eq "purge leaves non-owned app untouched" "present" \
+    "$([ -e "$shadow_root/forms" ] && echo present || echo gone)"
+assert_eq "purge is idempotent" "0" \
+    "$(avuz_purge_shadow_copies "$shadow_root" "$image_root" "$quarantine" spreed deck >/dev/null; echo $?)"
+rm -rf "$shadow_root" "$image_root" "$quarantine"
+
 exit $fail
