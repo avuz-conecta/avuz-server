@@ -138,6 +138,12 @@ assert_eq "purge leaves non-owned app untouched" "present" \
 assert_eq "purge is idempotent" "0" \
     "$(avuz_purge_shadow_copies "$shadow_root" "$image_root" "$quarantine" spreed deck >/dev/null; echo $?)"
 
+# ── parameter validation guards ──
+assert_eq "shadow_copies guards against empty root" "1" \
+    "$( (avuz_shadow_copies "" "$image_root" spreed) >/dev/null 2>&1; echo $? )"
+assert_eq "purge_shadow_copies guards against empty quarantine" "1" \
+    "$( (avuz_purge_shadow_copies "$shadow_root" "$image_root" "" spreed) >/dev/null 2>&1; echo $? )"
+
 # ── malformed app names are refused, not acted on ──
 for bad_app in "" "." ".." "../escape" "spreed/../../etc"; do
     bad_out="$(avuz_shadow_copies "$shadow_root" "$image_root" "$bad_app")"
