@@ -2,11 +2,15 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-14"
+AVUZ_CONFIG_VERSION="33.0.0-15"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 AVUZ_KNOWN_APPS="/var/www/html/data/.avuz_known_apps"
 UPGRADE_FAILED_MARKER="/var/www/html/data/.avuz_upgrade_failed"
+
+# Shadow copies of Avuz-owned apps are moved here rather than deleted, so a bad
+# purge is recoverable. Lives on the data volume; one generation is kept.
+AVUZ_SHADOW_QUARANTINE="/var/www/html/data/.avuz_shadow_quarantine"
 
 # Ownership helpers. Shipped in the image via `COPY .` (same path the overlay
 # reapply functions already read at runtime); no separate Dockerfile copy needed.
@@ -525,9 +529,25 @@ apply_avuz_settings() {
 run_avuz_configuration() {
     echo "═══ Running Avuz Conecta configuration ═══"
 
+    _avuz_overlap="$(avuz_assert_disjoint "${AVUZ_OWNED_APPS[*]}" "${AVUZ_STORE_APPS[*]}")"
+    if [ -n "$_avuz_overlap" ]; then
+        echo "✗ CONFIG ERROR: app(s) in both AVUZ_OWNED_APPS and AVUZ_STORE_APPS: $_avuz_overlap"
+        echo "  A store update would clobber the Avuz overlay. Refusing to boot."
+        exit 1
+    fi
+
+    # Owned apps must win path resolution before anything else runs.
+    avuz_purge_shadow_copies /var/www/html/custom_apps /var/www/html/apps \
+        "$AVUZ_SHADOW_QUARANTINE" "${AVUZ_OWNED_APPS[@]}"
+
     # Re-enable the in-app store for the duration of this run so the
     # app:install/update calls below can query the store. Re-disabled at the end.
     php occ config:system:set appstoreenabled --value=true --type=boolean
+
+    # Vanilla apps track the store; owned apps are untouched here by construction
+    # (disjointness asserted above).
+    echo "Syncing store-managed apps..."
+    avuz_sync_store_apps "${AVUZ_STORE_APPS[@]}"
 
     apply_avuz_settings
 
@@ -563,6 +583,9 @@ run_avuz_configuration() {
         echo "✓ occ upgrade $_avuz_upgrade_class"
     fi
 
+    avuz_guard_app_downgrades "${AVUZ_STORE_APPS[*]}" \
+        "${AVUZ_STORE_APPS[@]}" "${AVUZ_OWNED_APPS[@]}"
+
     # New-app enable via the known-apps manifest: seed on first run (enables
     # nothing), then enable only managed apps we have never seen. Admin-disabled
     # apps stay in the manifest and are never resurrected. Guard the seed: a
@@ -588,6 +611,13 @@ run_avuz_configuration() {
     # Avuz owns the app upgrade cycle via image rebuilds; this prevents admins
     # (or NC's auto-update) from overwriting our patched spreed.
     php occ config:system:set appstoreenabled --value=false --type=boolean
+
+    # A store install could have landed a higher-version copy of an owned app in
+    # custom_apps. Purge again and re-verify sentinels against the RESOLVED path
+    # so a clobbered overlay fails this boot, not silently at runtime.
+    avuz_purge_shadow_copies /var/www/html/custom_apps /var/www/html/apps \
+        "$AVUZ_SHADOW_QUARANTINE" "${AVUZ_OWNED_APPS[@]}"
+    verify_avuz_patches
 
     # Write stamp so we skip this on plain restarts
     echo "$AVUZ_CONFIG_VERSION" > "$CONFIG_STAMP_FILE"
