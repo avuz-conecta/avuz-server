@@ -193,14 +193,30 @@ avuz_purge_shadow_copies() {
 
 # Pure: return 0 when version $1 sorts strictly before $2. Uses sort -V, which
 # handles Nextcloud's 4-segment app versions (e.g. 4.5.1.7) correctly.
+#
+# Nextcloud info.xml and installed_version strings can legitimately carry a
+# different number of segments for the same release (e.g. "5.3" vs "5.3.0").
+# A plain string/sort -V compare treats those as different (the shorter string
+# sorts first), which would misreport them as a downgrade. Zero-pad both
+# operands out to the same segment count first so trailing zero segments
+# never affect the result.
 avuz_version_lt() {
     local a="$1" b="$2"
+    local a_segments b_segments max i a_norm="" b_norm=""
+    IFS='.' read -r -a a_segments <<< "$a"
+    IFS='.' read -r -a b_segments <<< "$b"
+    max="${#a_segments[@]}"
+    if [ "${#b_segments[@]}" -gt "$max" ]; then max="${#b_segments[@]}"; fi
+    for ((i = 0; i < max; i++)); do
+        a_norm="${a_norm}${a_norm:+.}${a_segments[i]:-0}"
+        b_norm="${b_norm}${b_norm:+.}${b_segments[i]:-0}"
+    done
     # Explicit `if` — a trailing `[ … ] && return 1` would abort the boot under
     # `set -e` on the not-equal path.
-    if [ "$a" = "$b" ]; then
+    if [ "$a_norm" = "$b_norm" ]; then
         return 1
     fi
-    [ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | head -1)" = "$a" ]
+    [ "$(printf '%s\n%s\n' "$a_norm" "$b_norm" | sort -V | head -1)" = "$a_norm" ]
 }
 
 # Pure: report whether an app's on-disk code is older than the schema its own

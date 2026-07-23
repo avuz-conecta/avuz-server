@@ -164,6 +164,14 @@ assert_eq "5.3.0 not < 5.2.5"  "no"  "$(avuz_version_lt 5.3.0 5.2.5 && echo yes 
 assert_eq "equal is not less"  "no"  "$(avuz_version_lt 5.2.5 5.2.5 && echo yes || echo no)"
 assert_eq "4.5.1.7 < 4.5.2"    "yes" "$(avuz_version_lt 4.5.1.7 4.5.2 && echo yes || echo no)"
 
+# different segment counts for the same release must compare equal, not less
+assert_eq "5.3 not < 5.3.0 (equal, different segment count)" "no" \
+    "$(avuz_version_lt 5.3 5.3.0 && echo yes || echo no)"
+assert_eq "5.3.0 not < 5.3 (equal, different segment count)" "no" \
+    "$(avuz_version_lt 5.3.0 5.3 && echo yes || echo no)"
+assert_eq "5.9 < 5.10"         "yes" "$(avuz_version_lt 5.9 5.10 && echo yes || echo no)"
+assert_eq "5.2.5 < 5.2.10"     "yes" "$(avuz_version_lt 5.2.5 5.2.10 && echo yes || echo no)"
+
 # ── downgrade detection ──
 assert_eq "code older than schema is behind" "behind" "$(avuz_code_behind_db forms 5.2.5 5.3.0)"
 assert_eq "code matching schema is ok"       "ok"     "$(avuz_code_behind_db forms 5.3.0 5.3.0)"
@@ -235,6 +243,44 @@ GUARD_UPDATE_FAIL=""
 guard_out3="$(avuz_guard_app_downgrades "" storeapp)"
 assert_eq "empty store list never heals" "no" \
     "$(printf '%s' "$guard_out3" | grep -q UPDATE_CALLED && echo yes || echo no)"
+
+# entrypoint.sh (Task 5) calls this function bare at the top level under
+# `set -e`, never inside `$(...)` or an `if`. Command substitution does NOT
+# inherit errexit (no `shopt -s inherit_errexit` in this repo), so every
+# assertion above — all wrapped in `$(...)` — would still pass even if the
+# function aborted the real boot. Exercise the actual call pattern: a bare
+# call, in a `set -e` subshell, with the store update failing.
+#
+# NB: the stub below uses if/elif, not `case`, deliberately — bash 3.2 (the
+# macOS default, still in play in this dev environment) mis-parses a `case`
+# defined inside a command substitution that itself wraps a `( ... )`
+# subshell, throwing a spurious "syntax error near unexpected token `newline'"
+# even though the script is valid. if/elif sidesteps that parser bug.
+#
+# The assignment below is wrapped in `if ... ; then :; fi` on purpose: the
+# inner `( set -e ... )` subshell is EXPECTED to abort when the regression
+# this test guards against is present, which makes the command substitution
+# exit non-zero. Assigning it as a bare top-level statement would let that
+# non-zero status trip this outer test script's own `set -e` (line 2) and
+# kill the whole suite before the assertion below ever runs. Putting the
+# assignment in an `if` condition still performs it — the variable is set
+# either way — but keeps its exit status from being errexit-checked here.
+if bare_out="$( ( set -e
+    source "$HERE/../lib-apps.sh"
+    _avuz_occ() {
+        if [ "$1" = "app:getpath" ]; then
+            echo "$store_app_dir"
+        elif [ "$1" = "config:app:get" ]; then
+            echo "5.3.0"
+        elif [ "$1" = "app:update" ]; then
+            return 1
+        fi
+    }
+    avuz_guard_app_downgrades "storeapp" storeapp
+    echo REACHED
+) 2>&1 )"; then :; fi
+assert_eq "guard survives bare set -e invocation (matches entrypoint.sh call site)" "yes" \
+    "$(printf '%s' "$bare_out" | grep -q REACHED && echo yes || echo no)"
 
 unset -f _avuz_occ
 source "$HERE/../lib-apps.sh"
