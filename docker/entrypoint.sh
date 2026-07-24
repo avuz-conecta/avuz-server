@@ -863,6 +863,16 @@ else
     echo "✓ Avuz configuration up to date ($AVUZ_CONFIG_VERSION), skipping"
 fi
 
+# Reconcile bundled apps whose image code version jumped ahead of their DB
+# installed_version. A same-core image redeploy that bumps a bundled app (e.g.
+# forms 5.2.5 -> 5.3.5) leaves installed_version stale: `occ upgrade` only fires
+# on a CORE change, so nothing runs the app's own upgrade step. Runs every boot
+# (after apps are enabled), fires only on a real mismatch, self-clears after one
+# reconcile. Non-fatal. Scoped to ENABLE_APPS — the non-core appstore apps we
+# bundle — never the core BUNDLED_APPS (disabling files_sharing/dav at boot is
+# unsafe; those track core and `occ upgrade` handles them).
+avuz_reconcile_app_versions "${ENABLE_APPS[@]}"
+
 # ──────────────────────────────────────────────
 # PHASE 4: Apps (fresh install only)
 # ──────────────────────────────────────────────
