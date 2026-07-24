@@ -352,4 +352,38 @@ unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
 
 unset AVUZ_OCC_DRYRUN
 
+# ── app-version reconcile decision ──
+assert_eq "reconcile when installed behind code" "yes" "$(avuz_should_reconcile forms 5.3.5 5.2.5)"
+assert_eq "no reconcile when equal"              "no"  "$(avuz_should_reconcile forms 5.3.5 5.3.5)"
+assert_eq "no reconcile when installed ahead"    "no"  "$(avuz_should_reconcile forms 5.2.5 5.3.5)"
+assert_eq "no reconcile when code empty"         "no"  "$(avuz_should_reconcile forms '' 5.2.5)"
+assert_eq "no reconcile when installed empty"    "no"  "$(avuz_should_reconcile forms 5.3.5 '')"
+assert_eq "reconcile handles 4-segment"          "yes" "$(avuz_should_reconcile x 4.5.2 4.5.1.7)"
+
+# ── reconcile integration: fires disable+enable only on a real mismatch ──
+recon_root="$(mktemp -d)"
+mkdir -p "$recon_root/forms/appinfo" "$recon_root/deck/appinfo"
+printf '<info><version>5.3.5</version></info>' > "$recon_root/forms/appinfo/info.xml"
+printf '<info><version>1.17.0</version></info>' > "$recon_root/deck/appinfo/info.xml"
+# stub occ: getpath -> temp dir; installed_version -> forms behind (5.2.5), deck equal (1.17.0)
+_avuz_occ() {
+    case "$1 $2" in
+        "app:getpath forms") echo "$recon_root/forms" ;;
+        "app:getpath deck")  echo "$recon_root/deck" ;;
+        "config:app:get forms") echo "5.2.5" ;;
+        "config:app:get deck")  echo "1.17.0" ;;
+        *) echo "OCC $*" ;;
+    esac
+    return 0
+}
+recon_out="$(avuz_reconcile_app_versions forms deck)"
+assert_eq "reconcile disables the behind app" "yes" \
+    "$(printf '%s' "$recon_out" | grep -q 'OCC app:disable forms' && echo yes || echo no)"
+assert_eq "reconcile re-enables the behind app" "yes" \
+    "$(printf '%s' "$recon_out" | grep -q 'OCC app:enable --force forms' && echo yes || echo no)"
+assert_eq "reconcile leaves the up-to-date app untouched" "no" \
+    "$(printf '%s' "$recon_out" | grep -q 'deck' && echo yes || echo no)"
+unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
+rm -rf "$recon_root"
+
 exit $fail

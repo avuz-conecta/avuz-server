@@ -308,3 +308,35 @@ avuz_sync_store_apps() {
     done
     return 0
 }
+
+# Pure decision helper: should an app be reconciled? Yes IFF its DB
+# installed_version is strictly behind its on-disk code version. Empty code or
+# empty installed (app absent / not enabled) -> no.
+avuz_should_reconcile() {
+    local _app="$1" code="$2" installed="$3"
+    if [ -z "$code" ] || [ -z "$installed" ]; then echo no; return; fi
+    if avuz_version_lt "$installed" "$code"; then echo yes; else echo no; fi
+}
+
+# Reconcile bundled apps whose on-disk code version is ahead of their DB
+# installed_version. `occ upgrade` only fires on a CORE version change, so an
+# app-code-only bump (new bundled app version on the same NC core) leaves
+# installed_version stale: NC serves the new code but never runs the app's own
+# upgrade step. A no-op `app:enable --force` on an already-enabled app does NOT
+# trigger it either — only disable-then-enable does. Idempotent: fires only on a
+# real code>installed mismatch, which self-clears after one reconcile. Non-fatal.
+avuz_reconcile_app_versions() {
+    local app code installed base
+    for app in "$@"; do
+        base="$(avuz_app_path "$app")"
+        [ -n "$base" ] || continue
+        code="$(grep -o '<version>[^<]*' "$base/appinfo/info.xml" 2>/dev/null | head -1 | cut -d'>' -f2)"
+        installed="$(_avuz_occ config:app:get "$app" installed_version 2>/dev/null | tr -d '[:space:]')"
+        if [ "$(avuz_should_reconcile "$app" "$code" "$installed")" = "yes" ]; then
+            echo "Reconciling $app: on-disk code $code is ahead of installed $installed — disable+enable to run app upgrade"
+            _avuz_occ app:disable "$app" || true
+            _avuz_occ app:enable --force "$app" || true
+        fi
+    done
+    return 0
+}
