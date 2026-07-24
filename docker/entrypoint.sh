@@ -87,14 +87,17 @@ AVUZ_OWNED_APPS=(
     "integration_openai"
 )
 
-# Vanilla apps Avuz does not patch. Installed and updated from the App Store
-# inside the appstoreenabled window in run_avuz_configuration, so upstream fixes
-# arrive without an image rebuild. The store serves the newest release compatible
-# with the running NC major — there is no version pin (occ app:install/app:update
-# have no --version flag), and that unpinned "latest compatible" is the accepted
-# trade for not owning these apps. Start narrow; widen once staging proves a boot.
+# Vanilla apps Avuz does not patch but DOES want tracked from the App Store at
+# boot. Empty on purpose: `occ app:update` refuses to update an app that lives in
+# the bundled apps/ dir while appstoreenabled=false (Avuz's permanent state) —
+# even with a fresh catalog that contains the newer release — so the boot heal is
+# a silent no-op for bundled apps. `forms` was moved OUT of this set and pinned in
+# the image instead (apps/forms shipped at 5.3.5 to match its migrated 5.3 DB
+# schema); see docs/superpowers/plans/2026-07-22-app-sourcing-policy.md and the
+# forms-maxsubmissions drift note. The defensive halves of the policy (owned-app
+# overlay protection, shadow-copy quarantine, path-resolved sentinels, the
+# downgrade guard) still run regardless of this set being empty.
 AVUZ_STORE_APPS=(
-    "forms"
 )
 
 # Safety boundary, asserted before anything below reads either list: an app in
