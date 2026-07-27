@@ -895,7 +895,7 @@ class BoardSummaryMapperTest extends TestCase {
 		$this->assertSame(1, $counts[$this->board->getId()]['overdue']);
 		$this->assertSame(1, $counts[$this->board->getId()]['dueToday']);
 		$this->assertSame(2, $counts[$this->board->getId()]['dueWeek']);
-		$this->assertSame(3, $counts[$this->board->getId()]['dueMonth']);
+		$this->assertSame(2, $counts[$this->board->getId()]['dueMonth']);
 		$this->assertSame(1, $counts[$this->board->getId()]['noDue']);
 	}
 
@@ -906,9 +906,12 @@ class BoardSummaryMapperTest extends TestCase {
 }
 ```
 
-Note the bucket expectations: `dueWeek` counts the card due today *and* the one
-due in five days, because the windows nest. `dueMonth` counts all three dated
-future cards. Overdue is never counted in a forward window.
+Note the bucket expectations, which encode the forward-looking nesting: `dueWeek`
+counts the card due today *and* the one due in five days. `dueMonth` counts those
+same two (Soon + NextWeek) — **not** three: the overdue `Late` card is counted only
+in `overdue`, because all three forward windows (`dueToday`/`dueWeek`/`dueMonth`)
+start at `now`. `dueMonth`'s SQL therefore uses the same `duedate >= now` lower
+bound as its siblings.
 
 `CardMapper::assignLabel(int $card, int $label): void` is the assignment helper —
 note the argument order is card first, label second.
