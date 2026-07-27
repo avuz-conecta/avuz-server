@@ -19,6 +19,11 @@
 - Follow Deck's existing conventions, not the house style guide, where they conflict: Vue SFCs use `export default`, PHP uses tabs, `t('deck', '...')` for strings.
 - Every PHP file starts with the SPDX header used by the file it sits beside.
 - Table name: `deck_board_assigned_labels`. Sentinel string: `AVUZ-BOARD-TAGS-V1`.
+- **The database is PostgreSQL** (`portainer-stack.yml:18`, `portainer-stack-s3.yml:51`).
+  All SQL must be valid Postgres: `archived` is a real boolean, not tinyint, and
+  `SUM(...)` returns bigint — which arrives in PHP as a string, so every count is
+  cast with `(int)`. `@group DB` suites run against Postgres, never sqlite; sqlite
+  would pass SQL that Postgres rejects.
 
 ---
 
@@ -128,17 +133,56 @@ Edit `.gitignore` and remove the line ignoring `/js/` (grep for it first —
 cd ~/work/avuz/deck-fork && git add -f js/ .gitignore && git status --short | head
 ```
 
-- [ ] **Step 6: Run both test suites to establish a green baseline**
+- [ ] **Step 6: Stand up a Postgres-backed Nextcloud dev instance**
+
+Tasks 4 and 5 carry `@group DB` mapper suites — the tests covering the aggregate
+SQL. They need a real Nextcloud with a real Postgres behind it. Production runs
+Postgres, so the harness does too; sqlite would accept SQL that Postgres rejects
+and defeat the purpose of the tests.
 
 ```bash
-cd ~/work/avuz/deck-fork && composer install && vendor/bin/phpunit -c tests/phpunit.xml --testsuite unit 2>&1 | tail -20
+docker run -d --name deck-test-db -e POSTGRES_PASSWORD=deck -e POSTGRES_USER=deck -e POSTGRES_DB=deck -p 55432:5432 postgres:16
 ```
 
-Tests tagged `@group DB` need a running Nextcloud dev instance. If they error on
-DB connection, record which suites were skipped in the commit message rather than
-marking this step done silently.
+```bash
+docker run -d --name deck-test-nc --link deck-test-db:db -p 8099:80 -v ~/work/avuz/deck-fork:/var/www/html/custom_apps/deck nextcloud:33
+```
 
-- [ ] **Step 7: Commit the baseline**
+Complete the install through `occ`, pointing at the linked Postgres:
+
+```bash
+docker exec -u www-data deck-test-nc php occ maintenance:install --database pgsql --database-host db --database-name deck --database-user deck --database-pass deck --admin-user admin --admin-pass admin
+```
+
+```bash
+docker exec -u www-data deck-test-nc php occ app:enable deck && docker exec -u www-data deck-test-nc php occ status
+```
+
+Expected: `installed: true`, deck enabled. If the `nextcloud:33` image is not
+published yet, use the newest 33.x tag available; the app only needs the schema
+and `Test\TestCase` bootstrap, not our production image.
+
+- [ ] **Step 7: Run both suites to establish a green baseline**
+
+Run PHPUnit **inside** the container, where `tests/bootstrap.php` can find the
+server:
+
+```bash
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml 2>&1 | tail -20
+```
+
+Expected: the suite runs and reports its own baseline — some upstream failures are
+acceptable, a fatal bootstrap error is not. Record the exact pass/fail counts in
+the task report: every later task compares against this number, and without it
+"tests pass" is unverifiable.
+
+```bash
+cd ~/work/avuz/deck-fork && npx jest --passWithNoTests 2>&1 | tail -5
+```
+
+Expected: no tests found (Task 9 adds the first one).
+
+- [ ] **Step 8: Commit the baseline**
 
 ```bash
 cd ~/work/avuz/deck-fork && git commit -m "build: ship compiled js/ in the avuz fork" && git push -u avuz avuz
@@ -198,7 +242,7 @@ method actually calls.
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml --filter testCloneKeepsLeftmostStackOrder 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml --filter testCloneKeepsLeftmostStackOrder 2>&1 | tail -20
 ```
 
 Expected: FAIL — asserts `[999]` where `[0]` was expected.
@@ -224,7 +268,7 @@ with:
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml --filter testCloneKeepsLeftmostStackOrder 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml --filter testCloneKeepsLeftmostStackOrder 2>&1 | tail -20
 ```
 
 Expected: OK (1 test).
@@ -402,7 +446,7 @@ class BoardLabelMapperTest extends TestCase {
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
 ```
 
 Expected: FAIL — `Class "OCA\Deck\Db\BoardLabelMapper" not found`.
@@ -488,7 +532,7 @@ class BoardLabelMapper {
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
 ```
 
 Expected: OK (4 tests).
@@ -525,7 +569,7 @@ Add `use OCP\Server;` and the `Label` class is already in this namespace.
 - [ ] **Step 6: Run it and watch it fail**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml --filter testDeletingALabelDetachesItFromBoards 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml --filter testDeletingALabelDetachesItFromBoards 2>&1 | tail -20
 ```
 
 Expected: FAIL — the attachment survives, so the array is not empty.
@@ -561,7 +605,7 @@ copy them, do not retype from memory. Then:
 - [ ] **Step 8: Run the whole mapper suite**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
 ```
 
 Expected: OK (5 tests).
@@ -723,7 +767,7 @@ note the argument order is card first, label second.
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardSummaryMapperTest.php 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardSummaryMapperTest.php 2>&1 | tail -20
 ```
 
 Expected: FAIL — `Class "OCA\Deck\Db\BoardSummaryMapper" not found`.
@@ -862,13 +906,16 @@ class BoardSummaryMapper {
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardSummaryMapperTest.php 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardSummaryMapperTest.php 2>&1 | tail -20
 ```
 
-Expected: OK (4 tests). If the `SUM(CASE ...)` aliases come back as strings on
-your DB driver the casts already handle it; if the driver rejects
-`selectAlias(createFunction(...))`, fall back to five `COUNT(*)` queries with the
-same conditions rather than hand-writing SQL strings.
+Expected: OK (4 tests).
+
+Postgres returns `SUM(...)` as bigint, which PDO hands back as a string — the
+`(int)` casts already cover that. If Postgres rejects
+`selectAlias(createFunction(...))`, fall back to five separate `COUNT(*)` queries
+with the same conditions rather than hand-writing SQL strings. Do not "fix" a
+Postgres type error by loosening the cast; find the real column type first.
 
 - [ ] **Step 5: Commit**
 
@@ -1000,7 +1047,7 @@ class BoardTagServiceTest extends TestCase {
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/BoardTagServiceTest.php 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/BoardTagServiceTest.php 2>&1 | tail -20
 ```
 
 Expected: FAIL — `Class "OCA\Deck\Service\BoardTagService" not found`.
@@ -1120,7 +1167,7 @@ class BoardTagService {
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/BoardTagServiceTest.php 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/BoardTagServiceTest.php 2>&1 | tail -20
 ```
 
 Expected: OK (5 tests).
@@ -1251,7 +1298,7 @@ leftover placeholder, and PHPUnit needs the real interface.
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/BoardSummaryServiceTest.php 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/BoardSummaryServiceTest.php 2>&1 | tail -20
 ```
 
 Expected: FAIL — `Class "OCA\Deck\Service\BoardSummaryService" not found`.
@@ -1344,7 +1391,7 @@ board's own attachment wins the display casing.
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/BoardSummaryServiceTest.php 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/BoardSummaryServiceTest.php 2>&1 | tail -20
 ```
 
 Expected: OK (3 tests).
@@ -1435,7 +1482,7 @@ class BoardTagControllerTest extends TestCase {
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Controller/BoardTagControllerTest.php 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Controller/BoardTagControllerTest.php 2>&1 | tail -20
 ```
 
 Expected: FAIL — `Class "OCA\Deck\Controller\BoardTagController" not found`.
@@ -1507,7 +1554,7 @@ In `appinfo/routes.php`, immediately after the `// labels` block (the three
 - [ ] **Step 5: Run it and watch it pass**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Controller/BoardTagControllerTest.php 2>&1 | tail -20
+docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Controller/BoardTagControllerTest.php 2>&1 | tail -20
 ```
 
 Expected: OK (3 tests).
