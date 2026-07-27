@@ -204,18 +204,38 @@ container:
    fork must be mounted at `/var/www/html/apps/deck` exactly — three levels below
    the server root. Any other path breaks the bootstrap.
 
-To make every later task run PHPUnit identically, write a wrapper script **once**.
-Create `~/deck-test.sh`:
+Three facts about the Avuz image shape the wrappers, each verified the hard way:
+
+1. **`.dockerignore:21` strips `tests/`.** The production image deliberately omits
+   the Nextcloud server test framework (`tests/bootstrap.php`, `tests/lib/`,
+   `Test\TestCase`). Deck's `tests/phpunit.xml` bootstraps
+   `../../../tests/bootstrap.php`, which is that stripped file. Supply it by
+   bind-mounting the `avuz-server` checkout's `tests/` read-only. The checkout is
+   NC 33.0.0.16 — the exact source the image was built from — so the mount is
+   version-perfect, not a hack. `bootstrap.php` needs only `lib/base.php` (present
+   in the image) and `tests/autoload.php` (supplied by the mount).
+2. **Redis.** The entrypoint co-locates Redis and defaults `REDIS_HOST=127.0.0.1`.
+   The wrappers bypass the entrypoint, so no local Redis starts. Run a Redis
+   container on the network and point the instance at it (done in Step 6 below).
+3. **The `nextcloud/ocp` composer stub shadows real core `OCP\` classes** once Deck
+   loads inside a live instance, a fatal `#[\Override]` error. Remove it —
+   `composer remove nextcloud/ocp --dev` — which is exactly what upstream's own
+   `phpunit-sqlite.yml` workflow does before testing against a real instance.
+
+Write the wrapper **once**. Create `~/deck-test.sh`:
 
 ```bash
 #!/usr/bin/env bash
 # Run Deck's PHPUnit inside a throwaway Avuz container, fork mounted at apps/deck,
 # entrypoint bypassed (verify_avuz_patches would exit 1 before Task 2's sentinel).
+# The NC server test framework is bind-mounted from the avuz-server checkout —
+# the image strips tests/ via .dockerignore. Checkout is NC 33.0.0.16 = image core.
 set -euo pipefail
 exec docker run --rm --network deck-test-net -u www-data \
   -e POSTGRES_HOST=deck-test-db \
   -v deck-test-config:/var/www/html/config \
   -v deck-test-data:/var/www/html/data \
+  -v /Users/patrickrezende/work/avuz/avuz-server/tests:/var/www/html/tests:ro \
   -v "$HOME/work/avuz/deck-fork:/var/www/html/apps/deck" \
   -w /var/www/html/apps/deck \
   --entrypoint php avuzconecta:latest \
@@ -245,6 +265,18 @@ exec docker run --rm --network deck-test-net -u www-data \
   -v "$HOME/work/avuz/deck-fork:/var/www/html/apps/deck" \
   -w /var/www/html \
   --entrypoint php avuzconecta:latest occ "$@"
+```
+
+`occ` does not need the `tests/` mount — only PHPUnit does.
+
+Two harness fixes belong in Step 6, before the wrappers are used:
+
+```bash
+docker run -d --name deck-test-redis --network deck-test-net redis:7-alpine
+```
+
+```bash
+~/deck-occ.sh config:system:set redis host --value deck-test-redis && cd ~/work/avuz/deck-fork && composer remove nextcloud/ocp --dev
 ```
 
 ```bash
