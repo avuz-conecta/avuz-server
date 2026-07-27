@@ -266,8 +266,8 @@ only a new row.
 - Tagging without edit permission is rejected.
 - Live-card definition excludes `done`, `archived`, and `deleted_at` cards from
   both derived tags and date buckets.
-- Bucket boundaries respect the user's timezone: at UTC−3, a card due 22:00 local
-  today lands in `today`, not tomorrow.
+- Buckets nest correctly: a card due in two hours is counted by `dueToday`,
+  `dueWeek`, and `dueMonth`, and an overdue card by `overdue` alone.
 
 ### JS
 
