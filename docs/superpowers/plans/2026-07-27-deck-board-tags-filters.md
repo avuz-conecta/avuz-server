@@ -2546,10 +2546,27 @@ Back in the server repo. This is the task that changes what the image contains.
 - Modify: `docker/entrypoint.sh:121-137`
 - Modify: `CLAUDE.md`
 
-- [ ] **Step 1: Build and commit the final bundle in the fork**
+- [ ] **Step 1: Ship the fork's `vendor/` AND built `js/` (both gitignored)**
+
+**Critical, and missing from the original plan:** Deck's `appinfo/autoload.php`
+does `require_once __DIR__ . '/../vendor/autoload.php'` and `Application.php`
+throws "Cannot include autoload" if it's absent — so the submodule MUST carry
+`vendor/`, exactly like the `integration_openai` fork. `vendor/` is gitignored in
+the fork, so force-add it.
+
+Do NOT rebuild vendor with `composer install` — Deck's shipped vendor is
+php-scoper-processed and a plain install can differ. Copy the **golden checkout's
+proven production vendor** (same v1.17.0, 144 files, the one the running image
+uses) into the fork instead. Deck's `composer.json` has no `autoload` section —
+`OCA\Deck` classes load via NC's convention autoloader (`lib/`), not composer — so
+our new classes need no autoloader regeneration (verified live in the browser
+pass).
 
 ```bash
-cd ~/work/avuz/deck-fork && npm run build && git add js/ && git commit -m "build: rebuild bundle with board tags" && git push avuz avuz
+cd ~/work/avuz/deck-fork
+rm -rf vendor && cp -R /Users/patrickrezende/work/avuz/avuz-server/apps/deck/vendor ./vendor
+npm run build
+git add -f vendor/ js/ && git commit -m "build: ship vendor + rebuilt bundle" && git push avuz avuz
 ```
 
 - [ ] **Step 2: Add the sentinel**
