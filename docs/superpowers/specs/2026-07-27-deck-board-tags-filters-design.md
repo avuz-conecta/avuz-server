@@ -92,23 +92,28 @@ together; the date chip ANDs with the tag set.
 
 ### Date buckets
 
-Over live cards only, computed in **the user's timezone** (`IDateTimeZone`), not
-UTC. Duedates are stored UTC; at UTC−3 a naive UTC comparison puts anything due
-after 21:00 local into tomorrow's bucket. Day and month boundaries resolve in
-local time.
+Deck already ships this vocabulary for its in-board card filter
+(`src/components/Controls.vue`): Overdue / Next 24 hours / Next 7 days /
+Next 30 days / No due date, keyed `overdue`, `dueToday`, `dueWeek`, `dueMonth`,
+`noDue`. The board filter **reuses those keys and windows verbatim** rather than
+inventing calendar-based ones. Two consequences, both good: a user sees the same
+five choices inside a board and above the board list, and rolling windows are
+absolute instants, so no timezone conversion is needed anywhere.
 
-| Bucket    | Rule                                          |
-| --------- | --------------------------------------------- |
-| `overdue` | `duedate < now`                               |
-| `today`   | `now <= duedate <= end of today, local`       |
-| `week`    | `now <= duedate <= now + 7 days`              |
-| `month`   | `now <= duedate <= end of current month, local` |
-| `none`    | `duedate IS NULL`                             |
+Over live cards only:
 
-Buckets overlap by design: a card due today counts in `today`, `week`, and
-`month`. Past-due cards count only in `overdue` — `today`, `week`, and `month`
-look forward from now, so `Hoje` means "due later today", not "late since this
-morning".
+| Bucket     | Label (pt_BR)        | Rule                                  |
+| ---------- | -------------------- | ------------------------------------- |
+| `overdue`  | Vencidas             | `duedate < now`                       |
+| `dueToday` | Próximas 24 horas    | `now <= duedate <= now + 24h`         |
+| `dueWeek`  | Próximos 7 dias      | `now <= duedate <= now + 7 days`      |
+| `dueMonth` | Próximos 30 dias     | `now <= duedate <= now + 30 days`     |
+| `noDue`    | Sem prazo            | `duedate IS NULL`                     |
+
+Buckets nest: a card due in two hours counts in `dueToday`, `dueWeek`, and
+`dueMonth`. Past-due cards count only in `overdue` — the three forward windows
+start at `now`. This is stricter than Deck's own `dueWeek`, which sloppily
+includes overdue cards; it matches Deck's `date:` search filter instead.
 
 A board matches a chip when its count for that bucket is greater than zero.
 
@@ -149,8 +154,9 @@ Above the board grid, in the app header area:
   alphabetically. No separate vocabulary endpoint: the list is derived from data
   the screen already holds, so it can never offer a tag that matches nothing.
   Multiple selections OR together.
-- **Prazo** — five single-select chips: `Vencidas`, `Hoje`, `Próximos 7 dias`,
-  `Este mês`, `Sem prazo`. Clicking the active chip clears it.
+- **Prazo** — five single-select chips: `Vencidas`, `Próximas 24 horas`,
+  `Próximos 7 dias`, `Próximos 30 dias`, `Sem prazo`. Clicking the active chip
+  clears it.
 
 Filters apply **within the board section already selected** — Deck's own
 board-type navigation (all / shared with you / archived) stays the outer scope,
@@ -214,18 +220,17 @@ Deck's `package.json` engines.
 `installed_version` and runs `app:disable` + `app:enable --force`, which executes
 the migration.
 
-Open item for the plan: confirm `info.xsd` accepts a four-part version. Fallback is
-`1.17.1`, at the cost of a collision when upstream ships that tag.
+**Resolved:** `resources/app-info.xsd` restricts `<version>` to strict three-part
+semver, so `1.17.0.1` is invalid and the version is **`1.17.1`**. When upstream
+ships a real 1.17.1, the rebase takes the next free patch number.
 
 ### Migration class naming
 
-NC's `MigrationService` discovers migrations by class name and orders them by the
-encoded version, so the name cannot simply be `VersionAvuz...`. Proposed:
-`Version1170100Date20260727120000`, which sorts after every upstream `1.17.0`
-migration and reads as `1.17.0.1`. Two things to confirm before writing it: the
-exact name pattern `MigrationService` accepts, and that no upstream Deck migration
-already claims that string — a rebase onto a later tag must not land two classes
-with the same name.
+**Resolved:** `MigrationService::sortMigrations` orders on `/(\d+)Date(\d+)/`, so
+the class is `Version11701Date20260727120000` — the `11701` prefix encodes 1.17.1
+in Deck's existing scheme (`Version11000Date...` = 1.10.0) and sorts after every
+upstream migration. The date suffix keeps it unique against any future upstream
+class in the same version slot.
 
 ### Rollback is not symmetric
 
@@ -243,10 +248,11 @@ it during an incident.
 
 ### Sentinel
 
-`AVUZ-BOARD-TAGS-V1` in a fork source file, checked by `verify_avuz_patches` at
-boot. The check resolves Deck's actual app path rather than assuming `/apps`: a
-store-installed Deck in the `custom_apps` volume outranks the fork by version and
-would shadow it while a hardcoded check still reports green.
+`AVUZ-BOARD-TAGS-V1` in `lib/Controller/BoardTagController.php`, added to the
+`checks` table in `docker/entrypoint.sh`. That table already resolves each app's
+real path via `occ app:getpath` rather than assuming `/apps`, so a store-installed
+Deck shadowing the fork from `custom_apps` is caught — no change needed there,
+only a new row.
 
 ## Verification
 
