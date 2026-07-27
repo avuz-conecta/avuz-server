@@ -2643,14 +2643,50 @@ git add -A && git commit -m "feat(deck): ship the avuz fork as a submodule"
 
 ### Task 15: Build, deploy to staging, verify
 
+- [ ] **Step 0: Make the build source COMPLETE (learned the hard way)**
+
+The Docker build packages the current working tree. A **worktree** (where this
+feature was developed) is NOT a complete build source: it has `apps/deck` (our
+submodule) but is missing `3rdparty/` (the Composer autoloader submodule),
+`apps/integration_openai` (the other fork submodule), and the ~20 rsync'd bundled
+apps. Building from it produces an image where `occ` dies with "Composer
+autoloader not found, unable to continue. Check the folder 3rdparty" — a **boot
+crash-loop**, and (because the tag is reused) it overwrites the last-good
+`:staging` image. This took staging down once.
+
+Before building, make the worktree whole:
+
+```bash
+git submodule update --init 3rdparty apps/integration_openai   # apps/deck already inited
+MAIN=/Users/patrickrezende/work/avuz/avuz-server
+for app in activity bruteforcesettings calendar contacts external \
+           files_downloadlimit files_retention forms logreader notifications \
+           notify_push onlyoffice password_policy quota_warning spreed \
+           suspicious_login text twofactor_totp viewer; do
+  rsync -a "$MAIN/apps/$app/" "apps/$app/"
+done
+```
+
+Verify before building: `ls 3rdparty/autoload.php` and
+`ls apps/*/appinfo/info.xml | wc -l` (expect the full app set, ~50+).
+
 - [ ] **Step 1: Build the staging image**
 
 ```bash
 ./scripts/build-push.sh latest staging
 ```
 
-Expected: build completes and pushes. A failure in the Deck submodule step means
-the submodule was not initialised — run `git submodule update --init apps/deck`.
+Expected: build completes and pushes `avuzconecta:staging`. Before deploying,
+**verify the image is complete**, not just that it pushed:
+
+```bash
+docker run --rm --entrypoint sh registry.avuz.app/admin/avuzconecta:staging -c \
+  'ls /var/www/html/3rdparty/autoload.php /var/www/html/apps/deck/vendor/autoload.php && ls /var/www/html/apps/*/appinfo/info.xml | wc -l'
+```
+
+Expect the autoloaders present and the full app count. The staging stack reuses
+the `:staging` tag, so a broken push has no rollback tag — catch it here, not at
+boot.
 
 - [ ] **Step 2: Deploy and watch the migration run**
 

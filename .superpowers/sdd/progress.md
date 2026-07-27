@@ -70,3 +70,9 @@ Task 14: complete (fork commit 63ef1cfe4 pushed; server-repo commit 43a7e814b6a)
 - Deploy creds: deploy.env absent in worktree but PRESENT in main checkout (/Users/patrickrezende/work/avuz/avuz-server/scripts/deploy.env) → use PORTAINER_ENV_FILE=<main>/scripts/deploy.env for deploy.sh + portainer-exec.sh.
 - OPEN: staging stack name + image-ref (template portainer-stack.yml says avuz-conecta:latest [hyphen] but build-push produces avuzconecta:staging [no hyphen] — resolve via deploy.sh --list before deploying).
 - .dockerignore strips only tests/ (not vendor/apps/js) → deck submodule ships intact. Verified.
+
+## INCIDENT (staging stack 8 down ~15min) + RECOVERY
+Root cause: built staging image from the WORKTREE, which had apps/deck (submodule) but was MISSING 3rdparty/ (Composer autoloader submodule), apps/integration_openai, AND the ~20 rsync'd bundled apps. Image shipped without 3rdparty/autoload.php → occ "Composer autoloader not found" → boot crash-loop. The :staging tag was overwritten (no rollback tag). Stack 46 unaffected (pinned to old digest 6091cf...).
+Fix: git submodule update --init 3rdparty apps/integration_openai + rsync 17 bundled apps from main checkout → worktree complete. Rebuilding correct image → redeploy stack 8.
+Plan updated: Task 15 Step 0 (make build source complete) + post-build image completeness verify.
+LESSON: worktree is NOT a complete build source. Init all submodules + rsync bundled apps first, OR build from main checkout with the branch checked out.
