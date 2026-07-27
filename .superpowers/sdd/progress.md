@@ -64,3 +64,9 @@ Task 14: complete (fork commit 63ef1cfe4 pushed; server-repo commit 43a7e814b6a)
   1. Empty-state "Limpar filtros" bypassed route+bar → stale state. Fixed: clearFilters() now does $router.replace({query:{}}), bar's watcher re-syncs local+store (same path as bar's own clear).
   2. Empty-state showed for zero-board new users (misleading). Fixed: gated on hasActiveFilter.
   Fork fix commit ff1102e67 (pushed); submodule pointer bumped in server commit 85553307c82. Lint+build clean. Same $router path already browser-proven.
+
+## Task 15 staging — IN PROGRESS
+- Build: build-push.sh latest staging running from WORKTREE (has submodule+Task14). amd64 emulated. → avuzconecta:staging pushed to registry.avuz.app.
+- Deploy creds: deploy.env absent in worktree but PRESENT in main checkout (/Users/patrickrezende/work/avuz/avuz-server/scripts/deploy.env) → use PORTAINER_ENV_FILE=<main>/scripts/deploy.env for deploy.sh + portainer-exec.sh.
+- OPEN: staging stack name + image-ref (template portainer-stack.yml says avuz-conecta:latest [hyphen] but build-push produces avuzconecta:staging [no hyphen] — resolve via deploy.sh --list before deploying).
+- .dockerignore strips only tests/ (not vendor/apps/js) → deck submodule ships intact. Verified.
