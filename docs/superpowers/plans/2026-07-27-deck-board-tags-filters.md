@@ -136,43 +136,127 @@ Edit `.gitignore` and remove the line ignoring `/js/` (grep for it first —
 cd ~/work/avuz/deck-fork && git add -f js/ .gitignore && git status --short | head
 ```
 
-- [ ] **Step 6: Stand up a Postgres-backed Nextcloud dev instance**
+- [ ] **Step 6: Stand up the test harness on the Avuz image**
 
 Tasks 4 and 5 carry `@group DB` mapper suites — the tests covering the aggregate
-SQL. They need a real Nextcloud with a real Postgres behind it. Production runs
-Postgres, so the harness does too; sqlite would accept SQL that Postgres rejects
-and defeat the purpose of the tests.
+SQL. They need a real Nextcloud with a real Postgres behind it. The harness runs
+**our own image**, not upstream's: it is the server this code actually ships on,
+and building it locally is a two-command job.
+
+Build it from the golden checkout (which has `3rdparty/` initialised and all
+bundled apps present — this worktree does not):
 
 ```bash
-docker run -d --name deck-test-db -e POSTGRES_PASSWORD=deck -e POSTGRES_USER=deck -e POSTGRES_DB=deck -p 55432:5432 postgres:16
+cd /Users/patrickrezende/work/avuz/avuz-server && KEEP_DOCKER=1 ./scripts/build-base.sh latest local
 ```
 
 ```bash
-docker run -d --name deck-test-nc --link deck-test-db:db -p 8099:80 -v ~/work/avuz/deck-fork:/var/www/html/custom_apps/deck nextcloud:33
+cd /Users/patrickrezende/work/avuz/avuz-server && KEEP_DOCKER=1 ./scripts/build-push.sh latest local
 ```
 
-Complete the install through `occ`, pointing at the linked Postgres:
+`local` sets `PUSH=false` — the image stays on this machine. Result is
+`avuzconecta:latest` (arm64).
+
+Create a network and attach the Postgres container:
 
 ```bash
-docker exec -u www-data deck-test-nc php occ maintenance:install --database pgsql --database-host db --database-name deck --database-user deck --database-pass deck --admin-user admin --admin-pass admin
+docker network create deck-test-net 2>/dev/null; docker network connect deck-test-net deck-test-db 2>/dev/null; docker network inspect deck-test-net --format '{{range .Containers}}{{.Name}} {{end}}'
+```
+
+If `deck-test-db` does not exist yet:
+
+```bash
+docker run -d --name deck-test-db --network deck-test-net -e POSTGRES_PASSWORD=deck -e POSTGRES_USER=deck -e POSTGRES_DB=deck postgres:16
+```
+
+Boot the instance once **without** the fork mounted, so the entrypoint installs
+Nextcloud into Postgres and provisions the config volume:
+
+```bash
+docker run -d --name deck-test-nc --network deck-test-net -p 8099:80 -e POSTGRES_HOST=deck-test-db -e POSTGRES_DB=deck -e POSTGRES_USER=deck -e POSTGRES_PASSWORD=deck -e REDIS_HOST= -e NEXTCLOUD_ADMIN_USER=admin -e NEXTCLOUD_ADMIN_PASSWORD=DeckTest123456 -e NEXTCLOUD_TRUSTED_DOMAIN=localhost -v deck-test-config:/var/www/html/config -v deck-test-data:/var/www/html/data avuzconecta:latest
+```
+
+Watch it come up — the entrypoint installs, enables ~20 apps, and applies theming,
+so this takes minutes:
+
+```bash
+docker logs -f deck-test-nc 2>&1 | tail -40
+```
+
+Expected: `✓ Avuz patches present` and the instance reaching a ready state. Then:
+
+```bash
+docker exec -u www-data deck-test-nc php occ status
+```
+
+Expected: `installed: true`.
+
+- [ ] **Step 7: Run both suites to establish a baseline**
+
+Test runs use a **throwaway container with the entrypoint overridden**, mounting
+the fork over `apps/deck`. Two reasons this is not `docker exec` into the running
+container:
+
+1. `verify_avuz_patches` in the entrypoint `exit 1`s when a sentinel is missing.
+   The fork has no sentinels until Task 2, so booting *through* the entrypoint with
+   the fork mounted would refuse to start. `--entrypoint php` bypasses it.
+2. Deck's `tests/phpunit.xml` bootstraps `../../../tests/bootstrap.php`, so the
+   fork must be mounted at `/var/www/html/apps/deck` exactly — three levels below
+   the server root. Any other path breaks the bootstrap.
+
+To make every later task run PHPUnit identically, write a wrapper script **once**.
+Create `~/deck-test.sh`:
+
+```bash
+#!/usr/bin/env bash
+# Run Deck's PHPUnit inside a throwaway Avuz container, fork mounted at apps/deck,
+# entrypoint bypassed (verify_avuz_patches would exit 1 before Task 2's sentinel).
+set -euo pipefail
+exec docker run --rm --network deck-test-net -u www-data \
+  -e POSTGRES_HOST=deck-test-db \
+  -v deck-test-config:/var/www/html/config \
+  -v deck-test-data:/var/www/html/data \
+  -v "$HOME/work/avuz/deck-fork:/var/www/html/apps/deck" \
+  -w /var/www/html/apps/deck \
+  --entrypoint php avuzconecta:latest \
+  vendor/bin/phpunit -c tests/phpunit.xml "$@"
 ```
 
 ```bash
-docker exec -u www-data deck-test-nc php occ app:enable deck && docker exec -u www-data deck-test-nc php occ status
+chmod +x ~/deck-test.sh && ~/deck-test.sh 2>&1 | tail -20
 ```
 
-Expected: `installed: true`, deck enabled. If the `nextcloud:33` image is not
-published yet, use the newest 33.x tag available; the app only needs the schema
-and `Test\TestCase` bootstrap, not our production image.
+Expected: the suite runs and reports a baseline. Some upstream failures are
+acceptable; a fatal bootstrap error is not. Record the exact pass/fail/error
+counts in the task report — every later task compares against this number.
 
-- [ ] **Step 7: Run both suites to establish a green baseline**
-
-Run PHPUnit **inside** the container, where `tests/bootstrap.php` can find the
-server:
+Write a second wrapper for running `occ` against the fork — Task 3 needs it to
+apply the new migration to the harness database. Create `~/deck-occ.sh`:
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml 2>&1 | tail -20
+#!/usr/bin/env bash
+# Run occ inside a throwaway Avuz container with the fork mounted at apps/deck,
+# entrypoint bypassed. Used to apply the fork's migrations to the harness DB.
+set -euo pipefail
+exec docker run --rm --network deck-test-net -u www-data \
+  -e POSTGRES_HOST=deck-test-db \
+  -v deck-test-config:/var/www/html/config \
+  -v deck-test-data:/var/www/html/data \
+  -v "$HOME/work/avuz/deck-fork:/var/www/html/apps/deck" \
+  -w /var/www/html \
+  --entrypoint php avuzconecta:latest occ "$@"
 ```
+
+```bash
+chmod +x ~/deck-occ.sh && ~/deck-occ.sh status
+```
+
+Expected: `installed: true`, reading the same config volume the running instance
+provisioned.
+
+**Every later task runs its PHPUnit via `~/deck-test.sh ARGS`.** The plan's
+per-task commands are written that way. The Jest commands run natively (`npx jest`)
+from `~/work/avuz/deck-fork` — they need no container.
 
 Expected: the suite runs and reports its own baseline — some upstream failures are
 acceptable, a fatal bootstrap error is not. Record the exact pass/fail counts in
@@ -245,7 +329,7 @@ method actually calls.
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml --filter testCloneKeepsLeftmostStackOrder 2>&1 | tail -20
+~/deck-test.sh --filter testCloneKeepsLeftmostStackOrder 2>&1 | tail -20
 ```
 
 Expected: FAIL — asserts `[999]` where `[0]` was expected.
@@ -271,7 +355,7 @@ with:
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml --filter testCloneKeepsLeftmostStackOrder 2>&1 | tail -20
+~/deck-test.sh --filter testCloneKeepsLeftmostStackOrder 2>&1 | tail -20
 ```
 
 Expected: OK (1 test).
@@ -361,7 +445,32 @@ cd ~/work/avuz/deck-fork && php -r '$x=new DOMDocument();$x->load("appinfo/info.
 Expected: `bool(true)`. A `false` here means the version string broke the semver
 pattern — fix it before continuing, since NC would reject the app at install time.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Apply the migration to the harness database**
+
+The `@group DB` suites in Tasks 4 and 5 query `deck_board_assigned_labels`, which
+does not exist yet in the harness — the running instance installed the image's
+Deck, without this migration. Apply it with the occ wrapper from Task 1, which
+mounts the fork and runs its migrations against the harness Postgres:
+
+```bash
+~/deck-occ.sh app:enable deck --force && ~/deck-occ.sh migrations:migrate deck 2>&1 | tail -20
+```
+
+Expected: the migration runs and reports `Version11701Date20260727120000` applied.
+If `migrations:migrate` reports nothing to do, the reconcile did not pick up the
+new code — run `~/deck-occ.sh upgrade` and re-check.
+
+- [ ] **Step 5: Confirm the table exists in the harness**
+
+```bash
+docker exec deck-test-db psql -U deck -d deck -c '\d deck_board_assigned_labels' 2>&1 | tail -12
+```
+
+Expected: the table with `board_id`, `label_id`, the unique index
+`deck_board_labels_uq`, and index `deck_board_labels_idx_b`. If it is missing,
+Task 4's DB tests cannot pass — stop and resolve before proceeding.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 cd ~/work/avuz/deck-fork && git add lib/Migration/Version11701Date20260727120000.php appinfo/info.xml && git commit -m "feat(tags): add deck_board_assigned_labels table"
@@ -449,7 +558,7 @@ class BoardLabelMapperTest extends TestCase {
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
+~/deck-test.sh tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
 ```
 
 Expected: FAIL — `Class "OCA\Deck\Db\BoardLabelMapper" not found`.
@@ -535,7 +644,7 @@ class BoardLabelMapper {
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
+~/deck-test.sh tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
 ```
 
 Expected: OK (4 tests).
@@ -572,7 +681,7 @@ Add `use OCP\Server;` and the `Label` class is already in this namespace.
 - [ ] **Step 6: Run it and watch it fail**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml --filter testDeletingALabelDetachesItFromBoards 2>&1 | tail -20
+~/deck-test.sh --filter testDeletingALabelDetachesItFromBoards 2>&1 | tail -20
 ```
 
 Expected: FAIL — the attachment survives, so the array is not empty.
@@ -608,7 +717,7 @@ copy them, do not retype from memory. Then:
 - [ ] **Step 8: Run the whole mapper suite**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
+~/deck-test.sh tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
 ```
 
 Expected: OK (5 tests).
@@ -770,7 +879,7 @@ note the argument order is card first, label second.
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardSummaryMapperTest.php 2>&1 | tail -20
+~/deck-test.sh tests/unit/Db/BoardSummaryMapperTest.php 2>&1 | tail -20
 ```
 
 Expected: FAIL — `Class "OCA\Deck\Db\BoardSummaryMapper" not found`.
@@ -909,7 +1018,7 @@ class BoardSummaryMapper {
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardSummaryMapperTest.php 2>&1 | tail -20
+~/deck-test.sh tests/unit/Db/BoardSummaryMapperTest.php 2>&1 | tail -20
 ```
 
 Expected: OK (4 tests).
@@ -1050,7 +1159,7 @@ class BoardTagServiceTest extends TestCase {
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/BoardTagServiceTest.php 2>&1 | tail -20
+~/deck-test.sh tests/unit/Service/BoardTagServiceTest.php 2>&1 | tail -20
 ```
 
 Expected: FAIL — `Class "OCA\Deck\Service\BoardTagService" not found`.
@@ -1170,7 +1279,7 @@ class BoardTagService {
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/BoardTagServiceTest.php 2>&1 | tail -20
+~/deck-test.sh tests/unit/Service/BoardTagServiceTest.php 2>&1 | tail -20
 ```
 
 Expected: OK (5 tests).
@@ -1301,7 +1410,7 @@ leftover placeholder, and PHPUnit needs the real interface.
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/BoardSummaryServiceTest.php 2>&1 | tail -20
+~/deck-test.sh tests/unit/Service/BoardSummaryServiceTest.php 2>&1 | tail -20
 ```
 
 Expected: FAIL — `Class "OCA\Deck\Service\BoardSummaryService" not found`.
@@ -1394,7 +1503,7 @@ board's own attachment wins the display casing.
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/BoardSummaryServiceTest.php 2>&1 | tail -20
+~/deck-test.sh tests/unit/Service/BoardSummaryServiceTest.php 2>&1 | tail -20
 ```
 
 Expected: OK (3 tests).
@@ -1485,7 +1594,7 @@ class BoardTagControllerTest extends TestCase {
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Controller/BoardTagControllerTest.php 2>&1 | tail -20
+~/deck-test.sh tests/unit/Controller/BoardTagControllerTest.php 2>&1 | tail -20
 ```
 
 Expected: FAIL — `Class "OCA\Deck\Controller\BoardTagController" not found`.
@@ -1557,7 +1666,7 @@ In `appinfo/routes.php`, immediately after the `// labels` block (the three
 - [ ] **Step 5: Run it and watch it pass**
 
 ```bash
-docker exec -u www-data -w /var/www/html/custom_apps/deck deck-test-nc php vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Controller/BoardTagControllerTest.php 2>&1 | tail -20
+~/deck-test.sh tests/unit/Controller/BoardTagControllerTest.php 2>&1 | tail -20
 ```
 
 Expected: OK (3 tests).
