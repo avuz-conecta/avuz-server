@@ -468,14 +468,19 @@ In `appinfo/info.xml` line 23, replace `<version>1.17.0</version>` with:
     <version>1.17.1</version>
 ```
 
-- [ ] **Step 3: Verify the version still validates**
+- [ ] **Step 3: Verify the version string is valid semver**
+
+Do **not** validate the whole `info.xml` against the xsd — upstream Deck v1.17.0's
+`info.xml` has a pre-existing `repair-steps` element-ordering issue that makes
+whole-file `schemaValidate` return `false` regardless of the version. That is not
+our concern. Verify only that the version we set is a valid three-part semver:
 
 ```bash
-cd ~/work/avuz/deck-fork && php -r '$x=new DOMDocument();$x->load("appinfo/info.xml");var_dump($x->schemaValidate("/Users/patrickrezende/work/avuz/avuz-server/resources/app-info.xsd"));' 2>&1 | tail -5
+cd ~/work/avuz/deck-fork && php -r '$v=simplexml_load_file("appinfo/info.xml")->version; var_dump((bool)preg_match("/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/", (string)$v), (string)$v);'
 ```
 
-Expected: `bool(true)`. A `false` here means the version string broke the semver
-pattern — fix it before continuing, since NC would reject the app at install time.
+Expected: `bool(true)` and `string "1.17.1"`. A `false` means the version broke the
+pattern (e.g. a stray fourth part) — fix before continuing.
 
 - [ ] **Step 4: Apply the migration to the harness database**
 
