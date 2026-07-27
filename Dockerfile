@@ -35,10 +35,10 @@ RUN cp -R /var/www/html/docker/overlays/spreed/. /var/www/html/apps/spreed/
 # Without it the Sharing admin page returns 500 with TemplateNotFoundException.
 RUN cp -R /var/www/html/docker/overlays/files_downloadlimit/. /var/www/html/apps/files_downloadlimit/
 
-# Apply Avuz deck overlay (board-copy column/card shift fix). Upstream loose
-# `== null` on stack order treats the leftmost stack (order 0) as null and bumps
-# it to 999, so copies reorder columns and shift cards. See AVUZ-DECK-CLONE-ORDER-V1.
-RUN cp -R /var/www/html/docker/overlays/deck/. /var/www/html/apps/deck/
+# Deck is shipped as the avuz-conecta/deck submodule at apps/deck (branch avuz,
+# pinned). It carries the board-copy fix (AVUZ-DECK-CLONE-ORDER-V1) and the
+# board-tags feature (AVUZ-BOARD-TAGS-V1) as real commits, plus its committed
+# vendor/ and built js/ — so no overlay cp is needed here.
 
 # Clean old compiled bundles and rebuild frontend
 RUN npm run build
