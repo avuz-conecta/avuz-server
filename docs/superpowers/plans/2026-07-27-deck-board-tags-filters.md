@@ -1809,7 +1809,36 @@ describe('tagOptions', () => {
 })
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [ ] **Step 2: Repair Jest before the first run**
+
+Task 1 found Jest broken out of the box on upstream v1.17.0: `npx jest` throws a
+Validation Error because `vue-jest` and `babel-jest` are referenced by the config
+but missing from `package.json` devDependencies. Fix it before this is the first
+real test:
+
+```bash
+cd ~/work/avuz/deck-fork && npm ls @vue/vue2-jest babel-jest 2>&1 | tail -5
+```
+
+If either is missing, install the versions the jest config expects (the config at
+`package.json` `"jest"` names `@vue/vue2-jest` for `.vue` and `babel-jest` for
+`.js`):
+
+```bash
+cd ~/work/avuz/deck-fork && npm install --save-dev @vue/vue2-jest@^29.2.6 babel-jest@^29.7.0
+```
+
+Confirm a clean no-tests run, which also proves the transform chain loads:
+
+```bash
+cd ~/work/avuz/deck-fork && npx jest --passWithNoTests 2>&1 | tail -5
+```
+
+Expected: "No tests found" or a clean pass — NOT a Validation Error. This devDep
+change IS committed to the fork (unlike the ocp removal): the fork's own Jest
+config depends on it.
+
+- [ ] **Step 3: Run the spec and watch it fail**
 
 ```bash
 cd ~/work/avuz/deck-fork && npx jest src/helpers/boardFilters.spec.js 2>&1 | tail -20
@@ -1817,7 +1846,7 @@ cd ~/work/avuz/deck-fork && npx jest src/helpers/boardFilters.spec.js 2>&1 | tai
 
 Expected: FAIL — cannot resolve `./boardFilters.js`.
 
-- [ ] **Step 3: Write the helper**
+- [ ] **Step 4: Write the helper**
 
 Create `src/helpers/boardFilters.js`:
 
@@ -1879,7 +1908,7 @@ export function tagOptions(summaries) {
 }
 ```
 
-- [ ] **Step 4: Run it and watch it pass**
+- [ ] **Step 5: Run it and watch it pass**
 
 ```bash
 cd ~/work/avuz/deck-fork && npx jest src/helpers/boardFilters.spec.js 2>&1 | tail -20
@@ -1887,7 +1916,7 @@ cd ~/work/avuz/deck-fork && npx jest src/helpers/boardFilters.spec.js 2>&1 | tai
 
 Expected: PASS, 10 tests.
 
-- [ ] **Step 5: Lint**
+- [ ] **Step 6: Lint**
 
 ```bash
 cd ~/work/avuz/deck-fork && npm run lint 2>&1 | tail -20
@@ -1896,10 +1925,12 @@ cd ~/work/avuz/deck-fork && npm run lint 2>&1 | tail -20
 Expected: no errors for the new files. Fix what it reports rather than adding
 eslint-disable comments.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
+
+Include the Jest devDep fix from Step 2 — the fork's test config needs it:
 
 ```bash
-cd ~/work/avuz/deck-fork && git add src/helpers/boardFilters.js src/helpers/boardFilters.spec.js && git commit -m "feat(tags): add board filter predicate"
+cd ~/work/avuz/deck-fork && git add src/helpers/boardFilters.js src/helpers/boardFilters.spec.js package.json package-lock.json && git commit -m "feat(tags): add board filter predicate"
 ```
 
 ---
