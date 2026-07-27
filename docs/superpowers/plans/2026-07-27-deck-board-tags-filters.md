@@ -107,8 +107,11 @@ Expected: completes without `ERESOLVE`. If Node is too new, install the version
 in `package.json` `engines` via nvm and retry — do not pass `--force`.
 
 ```bash
-cd ~/work/avuz/deck-fork && composer install --no-dev
+cd ~/work/avuz/deck-fork && composer install
 ```
+
+Dev dependencies are required, not optional — `vendor/bin/phpunit` comes from
+them, and every later task runs it. Do not pass `--no-dev`.
 
 - [ ] **Step 4: Build the frontend and confirm output**
 
