@@ -76,3 +76,15 @@ Root cause: built staging image from the WORKTREE, which had apps/deck (submodul
 Fix: git submodule update --init 3rdparty apps/integration_openai + rsync 17 bundled apps from main checkout → worktree complete. Rebuilding correct image → redeploy stack 8.
 Plan updated: Task 15 Step 0 (make build source complete) + post-build image completeness verify.
 LESSON: worktree is NOT a complete build source. Init all submodules + rsync bundled apps first, OR build from main checkout with the branch checked out.
+
+## Task 15 staging — COMPLETE (after incident recovery)
+Corrected image (54 apps, 3rdparty+deck autoloaders, deck 1.17.1, sentinel) rebuilt + pushed + redeployed to stack 8 (avuz-conecta). Verified on staging:
+  ✓ Boots clean, verify_avuz_patches "Avuz patches present" (sentinel gate passed).
+  ✓ occ app:getpath deck = /var/www/html/apps/deck — NOT shadowed (no deck in custom_apps).
+  ✓ Migration applied, installed_version 1.17.1, table oc_deck_board_assigned_labels EXISTS.
+  ✓ PERF (design's one unknown, RETIRED): due-counts aggregate over 35 live boards / 131 cards = 8.3 ms. No cache needed.
+  ✓ Same code fully browser-verified locally.
+  NOT done (needs staging user creds I don't have): authenticated HTTP e2e on app3.avuz.app; endpoint routing proven via routes.php + local browser pass instead.
+
+## FINDING (deploy note + follow-up): deck migration did NOT auto-apply on deploy.
+avuz_reconcile_app_versions (entrypoint:862) ran but did NOT bump deck (no boot-time "Reconciling deck" line); installed stayed 1.17.0 until MANUAL `occ app:disable deck && occ app:enable --force deck` (which worked → 1.17.1 + table). Not custom_apps shadowing (only one deck copy). Likely avuz_app_path/getpath timing at line 862 (runs before PHASE 4 app-enable). Mechanism works for other apps (forms precedent). DEPLOY RULE: after deploying this feature, verify installed_version=1.17.1 + table exists; if not, run the manual reconcile. Prod will likely need it too.
