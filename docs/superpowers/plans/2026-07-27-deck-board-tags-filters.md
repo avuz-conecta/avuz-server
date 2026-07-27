@@ -493,41 +493,83 @@ cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/D
 
 Expected: OK (4 tests).
 
-- [ ] **Step 5: Clean up attachments when a label dies**
+- [ ] **Step 5: Write the failing cascade test**
 
-`LabelMapper::delete()` already exists at `lib/Db/LabelMapper.php:36`. A deleted
-label must not leave a dangling attachment. In `lib/Service/LabelService.php`,
-find the `delete(int $id)` method and inject `BoardLabelMapper` via the
-constructor, then call `$this->boardLabelMapper->deleteByLabel($id);` immediately
-before the existing label deletion call.
+A deleted label must not leave a dangling board attachment. `LabelMapper::delete()`
+(`lib/Db/LabelMapper.php:36`) is already the single choke point for this — it
+overrides the parent to call `deleteLabelAssignments()` first, so every delete path
+(label deleted, board deleted, import rollback) passes through it. The board
+attachment cleanup belongs there, not in `LabelService`.
 
-Add the matching test to `tests/unit/Service/LabelServiceTest.php`:
+Add to `tests/unit/Db/BoardLabelMapperTest.php`:
 
 ```php
-public function testDeleteAlsoDetachesTheLabelFromBoards(): void {
-	$this->boardLabelMapper->expects($this->once())
-		->method('deleteByLabel')
-		->with(123);
+	public function testDeletingALabelDetachesItFromBoards(): void {
+		$labelMapper = Server::get(LabelMapper::class);
 
-	$this->service->delete(123);
-}
+		$label = new Label();
+		$label->setTitle('Efêmera');
+		$label->setColor('31CC7C');
+		$label->setBoardId(9001);
+		$label = $labelMapper->insert($label);
+
+		$this->mapper->setForBoard(9001, [$label->getId()]);
+		$labelMapper->delete($label);
+
+		$this->assertSame([], $this->mapper->findLabelIdsForBoard(9001));
+	}
 ```
 
-Mock `BoardLabelMapper` in that file's `setUp()` the same way its siblings are
-mocked, and pass it in the same constructor position you added.
+Add `use OCP\Server;` and the `Label` class is already in this namespace.
 
-- [ ] **Step 6: Run the label service suite**
+- [ ] **Step 6: Run it and watch it fail**
 
 ```bash
-cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Service/LabelServiceTest.php 2>&1 | tail -20
+cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml --filter testDeletingALabelDetachesItFromBoards 2>&1 | tail -20
 ```
 
-Expected: OK, all tests.
+Expected: FAIL — the attachment survives, so the array is not empty.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Add the cascade**
+
+In `lib/Db/LabelMapper.php`, inject the new mapper and extend `delete()`:
+
+```php
+	public function __construct(
+		IDBConnection $db,
+		private BoardLabelMapper $boardLabelMapper,
+	) {
+		parent::__construct($db, 'deck_labels', Label::class);
+	}
+```
+
+Keep the existing `parent::__construct` arguments exactly as they are in the file —
+copy them, do not retype from memory. Then:
+
+```php
+	public function delete(Entity $entity): Entity {
+		// delete assigned labels
+		$this->deleteLabelAssignments($entity->getId());
+		// AVUZ: drop board-level attachments too, or the boards overview keeps
+		// filtering on a tag whose label no longer exists.
+		$this->boardLabelMapper->deleteByLabel($entity->getId());
+		// delete label
+		return parent::delete($entity);
+	}
+```
+
+- [ ] **Step 8: Run the whole mapper suite**
 
 ```bash
-cd ~/work/avuz/deck-fork && git add lib/Db/BoardLabelMapper.php lib/Service/LabelService.php tests/unit/Db/BoardLabelMapperTest.php tests/unit/Service/LabelServiceTest.php && git commit -m "feat(tags): attach labels directly to boards"
+cd ~/work/avuz/deck-fork && vendor/bin/phpunit -c tests/phpunit.xml tests/unit/Db/BoardLabelMapperTest.php 2>&1 | tail -20
+```
+
+Expected: OK (5 tests).
+
+- [ ] **Step 9: Commit**
+
+```bash
+cd ~/work/avuz/deck-fork && git add lib/Db/BoardLabelMapper.php lib/Db/LabelMapper.php tests/unit/Db/BoardLabelMapperTest.php && git commit -m "feat(tags): attach labels directly to boards"
 ```
 
 ---
@@ -613,12 +655,8 @@ class BoardSummaryMapperTest extends TestCase {
 		$card->setOwner('admin');
 		$card->setOrder(0);
 		$card->setArchived($archived);
-		if ($duedate !== null) {
-			$card->setDuedate($duedate);
-		}
-		if ($done !== null) {
-			$card->setDone($done);
-		}
+		$card->setDuedate($duedate === null ? null : new \DateTime($duedate));
+		$card->setDone($done === null ? null : new \DateTime($done));
 		return $this->cardMapper->insert($card);
 	}
 
@@ -633,7 +671,7 @@ class BoardSummaryMapperTest extends TestCase {
 	public function testDerivedTagsListLabelsOfLiveCards(): void {
 		$live = $this->makeCard('Live', '2030-01-01 10:00:00');
 		$label = $this->makeLabel('Cliente X');
-		$this->labelMapper->assignLabelToCard($label->getId(), $live->getId());
+		$this->cardMapper->assignLabel($live->getId(), $label->getId());
 
 		$tags = $this->mapper->findDerivedTags([$this->board->getId()]);
 
@@ -644,8 +682,8 @@ class BoardSummaryMapperTest extends TestCase {
 		$done = $this->makeCard('Done', '2030-01-01 10:00:00', false, '2026-01-01 10:00:00');
 		$archived = $this->makeCard('Archived', '2030-01-01 10:00:00', true);
 		$label = $this->makeLabel('Invisivel');
-		$this->labelMapper->assignLabelToCard($label->getId(), $done->getId());
-		$this->labelMapper->assignLabelToCard($label->getId(), $archived->getId());
+		$this->cardMapper->assignLabel($done->getId(), $label->getId());
+		$this->cardMapper->assignLabel($archived->getId(), $label->getId());
 
 		$tags = $this->mapper->findDerivedTags([$this->board->getId()]);
 
@@ -679,9 +717,8 @@ Note the bucket expectations: `dueWeek` counts the card due today *and* the one
 due in five days, because the windows nest. `dueMonth` counts all three dated
 future cards. Overdue is never counted in a forward window.
 
-Check `LabelMapper` for the real name of the card-assignment helper before running
-— if it is not `assignLabelToCard`, use whatever `CardMapper`/`LabelMapper` expose
-and adjust the fixture, not the assertions.
+`CardMapper::assignLabel(int $card, int $label): void` is the assignment helper —
+note the argument order is card first, label second.
 
 - [ ] **Step 2: Run it and watch it fail**
 
@@ -768,10 +805,10 @@ class BoardSummaryMapper {
 		}
 
 		$qb = $this->db->getQueryBuilder();
-		$nowParam = $qb->createNamedParameter($now, IQueryBuilder::PARAM_DATETIME_MUTABLE);
-		$in24h = $qb->createNamedParameter($now->modify('+1 day'), IQueryBuilder::PARAM_DATETIME_MUTABLE);
-		$in7d = $qb->createNamedParameter($now->modify('+7 days'), IQueryBuilder::PARAM_DATETIME_MUTABLE);
-		$in30d = $qb->createNamedParameter($now->modify('+30 days'), IQueryBuilder::PARAM_DATETIME_MUTABLE);
+		$nowParam = $qb->createNamedParameter($now, IQueryBuilder::PARAM_DATETIME_IMMUTABLE);
+		$in24h = $qb->createNamedParameter($now->modify('+1 day'), IQueryBuilder::PARAM_DATETIME_IMMUTABLE);
+		$in7d = $qb->createNamedParameter($now->modify('+7 days'), IQueryBuilder::PARAM_DATETIME_IMMUTABLE);
+		$in30d = $qb->createNamedParameter($now->modify('+30 days'), IQueryBuilder::PARAM_DATETIME_IMMUTABLE);
 
 		$bucket = static fn (string $condition): string => "SUM(CASE WHEN $condition THEN 1 ELSE 0 END)";
 
@@ -1897,12 +1934,14 @@ export default {
 	},
 	computed: {
 		dueOptions() {
+			// `t` and `n` are Vue prototype methods here (src/main.js:25-26), not
+			// globals — inside <script> they must be called as this.t / this.n.
 			return [
-				{ value: DUE_FILTERS.OVERDUE, label: t('deck', 'Vencidas') },
-				{ value: DUE_FILTERS.TODAY, label: t('deck', 'Próximas 24 horas') },
-				{ value: DUE_FILTERS.WEEK, label: t('deck', 'Próximos 7 dias') },
-				{ value: DUE_FILTERS.MONTH, label: t('deck', 'Próximos 30 dias') },
-				{ value: DUE_FILTERS.NONE, label: t('deck', 'Sem prazo') },
+				{ value: DUE_FILTERS.OVERDUE, label: this.t('deck', 'Vencidas') },
+				{ value: DUE_FILTERS.TODAY, label: this.t('deck', 'Próximas 24 horas') },
+				{ value: DUE_FILTERS.WEEK, label: this.t('deck', 'Próximos 7 dias') },
+				{ value: DUE_FILTERS.MONTH, label: this.t('deck', 'Próximos 30 dias') },
+				{ value: DUE_FILTERS.NONE, label: this.t('deck', 'Sem prazo') },
 			]
 		},
 		tagOptionTitles() {
@@ -2191,9 +2230,12 @@ existing label editor:
 Initialise `boardTags` in `created()` from
 `this.$store.state.boardSummaries[this.board.id]?.directTags ?? []`, dispatching
 `loadBoardSummaries` first if the map is empty — the sidebar can be opened without
-ever visiting the boards list. Check the file for the real name of the manage
-permission getter before using `canManage`; `src/store/main.js:119` defines
-`canEdit`, and there may be a separate manage getter.
+ever visiting the boards list.
+
+`canManage` is a real getter at `src/store/main.js:122`, reading
+`state.currentBoard.permissions.PERMISSION_MANAGE` — the same permission
+`BoardTagService::setTags()` enforces server-side, so the hidden UI and the
+rejected request agree.
 
 - [ ] **Step 4: Build, lint, verify by hand**
 
@@ -2284,8 +2326,12 @@ directly above the class declaration, then rebuild, commit, and push.
 - [ ] **Step 3: Replace the overlay with the submodule**
 
 ```bash
-cd /Users/patrickrezende/work/avuz/avuz-server/.claude/worktrees/deck-app-improvements-786dd1 && git rm -r --cached apps/deck && rm -rf apps/deck && git submodule add -b avuz https://github.com/avuz-conecta/deck.git apps/deck
+cd /Users/patrickrezende/work/avuz/avuz-server/.claude/worktrees/deck-app-improvements-786dd1 && git rm -r --cached apps/deck && rm -rf apps/deck && git submodule add -f -b avuz https://github.com/avuz-conecta/deck.git apps/deck
 ```
+
+`-f` is required, not optional: `.gitignore:22` (`/apps*/*`) ignores `apps/deck`,
+and `git submodule add` refuses an ignored path without it. Confirm with
+`git check-ignore -v apps/deck` if the command errors.
 
 ```bash
 git rm -r docker/overlays/deck
