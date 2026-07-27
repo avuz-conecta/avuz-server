@@ -2495,40 +2495,43 @@ cd ~/work/avuz/deck-fork && git add src/components/ && git commit -m "feat(tags)
 
 ---
 
-### Task 13: Portuguese strings
+### Task 13: Portuguese strings — verification only
 
-**Files:**
-- Modify: `l10n/pt_BR.js`, `l10n/pt_BR.json`
+**Decision (user, 2026-07-27):** keep **Portuguese msgids**. The new UI strings were
+written directly in Portuguese (`t('deck', 'Vencidas')`, `t('deck', 'Tags do
+quadro')`, …). In a pt_BR-default deployment these render correctly via NC's
+msgid-fallback (`t(app, msgid)` returns the translation if present, else the msgid
+itself — here the msgid *is* the Portuguese text). This diverges from Deck's
+English-source convention, accepted deliberately because Avuz is pt_BR-only.
 
-Deck's l10n files are generated from Transifex, but ours are additive: our strings
-never exist upstream, so a rebase keeps them as long as we append rather than
-reformat.
+**Consequence: no `l10n/` files are touched.** `l10n/pt_BR.js` is Transifex-generated;
+adding identity entries (`"Vencidas": "Vencidas"`) would be wrong and would fight
+the next rebase. There is nothing to translate — the source string is already
+Portuguese.
 
-- [ ] **Step 1: Add the strings**
+- [ ] **Step 1: Confirm every added user-facing string is Portuguese**
 
-Every string introduced in Tasks 11 and 12 was already written in Portuguese, so
-`pt_BR` needs entries only where the English source differs. Collect them:
-
-```bash
-cd ~/work/avuz/deck-fork && grep -rhoE "t\('deck', '[^']+'\)" src/components/boards/BoardFilterBar.vue src/components/boards/Boards.vue src/components/board/TagsTabSidebar.vue | sort -u
-```
-
-For each string that is still English (`Filter boards`, if any survived), add a
-`pt_BR` entry to both files following their existing shape.
-
-- [ ] **Step 2: Confirm nothing regressed**
+An accidental English msgid that Deck does NOT already translate would render in
+English. Verify none slipped in:
 
 ```bash
-cd ~/work/avuz/deck-fork && php -r 'json_decode(file_get_contents("l10n/pt_BR.json"), true); echo json_last_error_msg(), PHP_EOL;'
+cd ~/work/avuz/deck-fork && git diff 9c13b9181 HEAD -- src/components/ | grep '^+' | grep -oE "t\('deck', '[^']+'\)" | sort -u
 ```
 
-Expected: `No error`.
+Expected: every user-facing string is Portuguese (Vencidas, Próximas 24 horas,
+Próximos 7 dias, Próximos 30 dias, Sem prazo, Filtrar por tag, Filtrar quadros,
+Limpar filtros, Nenhum quadro com esses filtros, Tags do quadro, Adicionar tag ao
+quadro, and the hint sentence). Deck's own pre-existing English strings (Cancel,
+Delete, Edit, "Add a new tag" from the label editor) are already translated by
+Deck's catalog and are fine.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Confirm rendering in the browser**
 
-```bash
-cd ~/work/avuz/deck-fork && git add l10n/ && git commit -m "i18n(tags): pt_BR strings for board tags"
-```
+Covered by the consolidated browser pass (before Task 14): open the boards
+overview in the pt_BR instance and confirm the filter chips and sidebar section
+show Portuguese, not raw msgid keys or English.
+
+No commit — this task changes no files.
 
 ---
 
