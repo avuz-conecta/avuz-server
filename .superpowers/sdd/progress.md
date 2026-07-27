@@ -59,3 +59,8 @@ Read-only-hides-tagging: unit-verified (backend PERMISSION_MANAGE + UI canManage
 Task 14: complete (fork commit 63ef1cfe4 pushed; server-repo commit 43a7e814b6a). Fork: golden production vendor/ (144 files, force-committed — deck autoload.php hard-requires it) + rebuilt js/ + AVUZ-BOARD-TAGS-V1 sentinel. Server repo: apps/deck now a submodule (branch avuz, pinned 63ef1cfe4); docker/overlays/deck deleted; Dockerfile cp line removed; entrypoint reapply_avuz_deck_overlay removed + AVUZ-BOARD-TAGS-V1 sentinel row added (clone-order row now says "fork" not "overlay"); CLAUDE.md deck moved to submodule line. Consistency verified: no dangling overlay refs, entrypoint bash -n OK. RESOLVED: deck composer.json has no autoload section → OCA\Deck classes load via NC convention autoloader (lib/), not vendor; new classes need no autoloader regen (browser pass proved it).
 
 === ALL CODE + SHIP COMPLETE (Tasks 1-14). Remaining: Task 15 staging build+deploy+verify (gated on user per checkpoint). ===
+
+## FINAL WHOLE-BRANCH REVIEW (opus) — verdict SHIP. All 6 cross-layer contracts ✓. 2 Minor findings (both in Boards.vue, both pre-noted in Task 11 ledger) FIXED:
+  1. Empty-state "Limpar filtros" bypassed route+bar → stale state. Fixed: clearFilters() now does $router.replace({query:{}}), bar's watcher re-syncs local+store (same path as bar's own clear).
+  2. Empty-state showed for zero-board new users (misleading). Fixed: gated on hasActiveFilter.
+  Fork fix commit ff1102e67 (pushed); submodule pointer bumped in server commit 85553307c82. Lint+build clean. Same $router path already browser-proven.
