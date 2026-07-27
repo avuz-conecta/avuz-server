@@ -2187,6 +2187,15 @@ export default {
 	created() {
 		this.readFiltersFromRoute()
 	},
+	watch: {
+		// vue-router v3 REUSES the Boards component instance across the sibling
+		// routes /board, /board/archived, /board/shared — created() fires once, so
+		// without this watcher, switching tabs leaves stale filters applied while
+		// the URL shows none. (The same reason Boards.vue has a navFilter watcher.)
+		'$route.query'() {
+			this.readFiltersFromRoute()
+		},
+	},
 	methods: {
 		readFiltersFromRoute() {
 			const query = this.$route.query
