@@ -530,6 +530,21 @@ import { NcButton } from '@nextcloud/vue'
 				await this.$store.dispatch('loadMatchingCards', this.board.id)
 			}
 		},
+		async refetchIfExpanded() {
+			if (this.expanded) {
+				await this.$store.dispatch('loadMatchingCards', this.board.id)
+			}
+		},
+```
+- **Self-heal on filter change.** The filter setters clear `matchingCards`, so an
+  already-expanded row's cards go `undefined` (→ "Carregando…") with nothing to
+  refill them. Add a watcher that refetches when the filter changes while expanded:
+
+```js
+	watch: {
+		'$store.state.boardTagFilter'() { this.refetchIfExpanded() },
+		'$store.state.boardDueFilter'() { this.refetchIfExpanded() },
+	},
 ```
 - Below the row, when `expanded`, render the matching cards (or a note). Since `BoardItem` is one `.board-list-row`, put the expansion as a sibling block within the component root (wrap the row + expansion in a fragment/div):
 
