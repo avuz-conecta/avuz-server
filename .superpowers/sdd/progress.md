@@ -108,3 +108,6 @@ Enh Task 4: complete (amended commit 38efc51e1, review Approved w/ 1 Important f
 ## SHIP enhancements
 Fork pushed 8d338390c (all 4 enh tasks + rebuilt bundle); server submodule bumped to it (commit 14c85570492). Sentinels + MatchingCardMapper + built js verified at pointer.
 === ENHANCEMENTS COMPLETE + SHIPPED to fork + submodule. Staging redeploy = next step (not auto-done; base feature already on stack 8). ===
+
+## BUGFIX: glimpse tag-only filter showed all cards
+Root cause: BoardTagApi.loadMatchingCards sent `?tag=X` (name `tag`, and PHP parses repeated `tag=a&tag=b` as scalar), but controller expects `array $tags` → NC never populated it → $tags=[] → no tag filter → all cards. Confirmed empirically: ?tag=Cliente X returned both cards; ?tags[]=Cliente X returned only the tagged one. Fix: `params.append('tags[]', t)`. Regression test src/services/BoardTagApi.spec.js (asserts tags%5B%5D in URL). Browser-verified: tag-only filter → glimpse shows only "Enviar proposta", not "Sem tag". Fork b3ed8ecea, submodule bumped (server 5672354472b). Rebuilding+redeploying staging.
