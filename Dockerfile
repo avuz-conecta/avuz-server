@@ -60,6 +60,10 @@ RUN find /var/www/html/apps -type d -exec chmod 755 {} \; \
   && find /var/www/html/themes -type d -exec chmod 755 {} \; \
   && find /var/www/html/themes -type f -exec chmod 644 {} \;
 
+# Guard against MediaPipe glue/wasm drift (untracked vendored files → silent
+# virtual-background breakage). Fails the build loud on mismatch.
+RUN sh /var/www/html/scripts/verify-mediapipe.sh
+
 # ============================================
 # Final runtime image
 # ============================================
