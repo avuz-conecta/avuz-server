@@ -88,3 +88,23 @@ Corrected image (54 apps, 3rdparty+deck autoloaders, deck 1.17.1, sentinel) rebu
 
 ## FINDING (deploy note + follow-up): deck migration did NOT auto-apply on deploy.
 avuz_reconcile_app_versions (entrypoint:862) ran but did NOT bump deck (no boot-time "Reconciling deck" line); installed stayed 1.17.0 until MANUAL `occ app:disable deck && occ app:enable --force deck` (which worked → 1.17.1 + table). Not custom_apps shadowing (only one deck copy). Likely avuz_app_path/getpath timing at line 862 (runs before PHASE 4 app-enable). Mechanism works for other apps (forms precedent). DEPLOY RULE: after deploying this feature, verify installed_version=1.17.1 + table exists; if not, run the manual reconcile. Prod will likely need it too.
+
+## ENHANCEMENTS PHASE (plan 2026-07-27-deck-board-tags-enhancements.md, base ff1102e6)
+Task 1: directTags carries color (backend). Task 2: matching-cards endpoint. Task 3: FE colored chips + one-row bar. Task 4: FE expandable glimpse.
+Enh Task 1: complete (commit a0716561e, review Approved zero findings). directTags now {title,color}[] w/ Postgres color round-trip test; tags stays title-only; derived untouched. Full suite 401/6. NOTE: fork vendor is production (Task 14) → no phpunit; agent reinstalled dev deps in the harness container (persists for later tasks).
+Enh Task 2: complete (commit 446bcf066, review Approved). MatchingCardMapper live-card+buckets byte-identical to findDueCounts; conditional tag join; intersection (tag AND date) tested; PERMISSION_READ before query; route board_tag#matchingCards. Full suite 406/6.
+  - MINOR (final sweep): deleted_at legs (soft-deleted stack/card) not independently tested (covered by code-identity); applyDue fails-open on unknown bucket.
+Enh Task 3: complete (commit a750f7143, review Approved zero findings). Tile chips colored via Color mixin (textColor contrast); all directTags uses read objects; overflow chip neutral; filter bar one-row (flex 0 1 320px). Build+lint+stylelint clean.
+Enh Task 4: complete (amended commit 38efc51e1, review Approved w/ 1 Important fixed). Expandable glimpse: chevron gated on hasActiveFilter, @click.stop.prevent (chevron inside router-link), lazy-fetch-once, 3-state (list/direct-note/loading), moment format('L'). FIX: added watch on both filter refs → refetchIfExpanded (self-heal stuck-loading on filter change); removed dead clearMatchingCards. Build+lint clean.
+
+=== ALL 4 ENHANCEMENT TASKS COMPLETE. Next: consolidated browser verify + ship. ===
+
+## ENHANCEMENTS CONSOLIDATED BROWSER PASS — STRONG PASS (local avuzconecta:latest, fork overlaid)
+  ✓ #1 tile chips colored: Cliente X green (31CC7C), Urgente red (E9322D), contrast text via Color mixin. board-summary directTags carries {title,color}.
+  ✓ #2 filter bar one row: tag NcSelect (capped) + 5 due chips + count on a single row.
+  ✓ #3 glimpse: Vencidas filter → chevron on matching board → expand → "Enviar proposta · A Fazer · 01/07/2026" (title, list, formatted due). Lazy-fetch + 3-state (loading/list/direct-note) work.
+  NOTE (deploy): matching-cards route 404'd until Redis FLUSHALL — NC caches compiled routes in Redis; hot-overlaying a new route needs a flush. A clean image boot registers it fresh (no action needed on real deploy). Same class as the migration-reconcile finding.
+
+## SHIP enhancements
+Fork pushed 8d338390c (all 4 enh tasks + rebuilt bundle); server submodule bumped to it (commit 14c85570492). Sentinels + MatchingCardMapper + built js verified at pointer.
+=== ENHANCEMENTS COMPLETE + SHIPPED to fork + submodule. Staging redeploy = next step (not auto-done; base feature already on stack 8). ===
