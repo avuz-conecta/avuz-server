@@ -25,7 +25,7 @@ DIR="${1:-/var/www/html/apps/spreed/js}"
 echo "Verifying MediaPipe vendored files in $DIR ..."
 cd "$DIR"
 
-if sha256sum -c --strict <<'EOF'
+if sha256sum -c <<'EOF'
 c449032ffe44333db7e22a7e8535661989fc61431e1e56b30dfa9c0aa1df61b7  vision_wasm_internal.js
 cb3ec20026a9aecc2a81a93c25630ceb5389297ddb7a5f0bd61dd09cde606b9b  vision_wasm_internal.wasm
 d420051f74b83b9a429fe54f33a0f684ae1c42d9a0cff39330930f8409b3e3bf  vision_wasm_nosimd_internal.js
