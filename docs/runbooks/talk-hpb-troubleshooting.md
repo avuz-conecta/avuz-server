@@ -135,6 +135,51 @@ systemctl daemon-reload
 systemctl enable --now hpb-monitor hpb-health.timer
 ```
 
+## TURN over 443 (restrictive-network clients)
+
+Clients behind firewalls that allow only 443 outbound can't reach TURN on
+3478/5349. Fix without a 2nd IP: **nginx `stream` SNI multiplexing** — nginx on
+443 peeks the TLS SNI and routes TURN traffic to coturn, web traffic to the
+signaling vhost. Requires a **dedicated TURN hostname** (nginx can't tell TURN
+from web on 443 without a distinct SNI). Configured on meet04 as `turn04.avuz.app`.
+
+Setup (already applied to meet04):
+1. DNS: `turn04.avuz.app` A → HPB IP, **grey-cloud (never CF-proxied)**.
+2. Cert: `certbot certonly --webroot -w /var/www/html -d turn04.avuz.app`.
+3. `apt install libnginx-mod-stream` (dynamic module on Ubuntu).
+4. Move the web vhost off public 443 → `listen 127.0.0.1:8443 ssl;`.
+5. Add at the top level of `nginx.conf` (outside `http{}`):
+   ```nginx
+   stream {
+       map $ssl_preread_server_name $hpb_upstream {
+           turn04.avuz.app  127.0.0.1:5349;   # coturn TLS
+           default          127.0.0.1:8443;   # signaling/web vhost
+       }
+       server { listen 443; listen [::]:443; proxy_pass $hpb_upstream; ssl_preread on; }
+   }
+   ```
+6. coturn `cert=`/`pkey=` → the `turn04` cert (coturn presents ONE cert, so ALL
+   its TLS URLs must use `turn04`); reapply ssl-cert group perms.
+7. signaling `[turn] servers` → all three on `turn04`:
+   `turn:turn04...:3478,turns:turn04...:5349,turns:turn04...:443?transport=tcp`
+8. `nginx -t` → `systemctl reload nginx; systemctl restart coturn nextcloud-spreed-signaling`.
+
+Verify (server-side, no restricted network needed):
+```bash
+# SNI routing + correct cert per backend
+for sni in turn04.avuz.app meet04.avuz.app; do
+  echo -n "$sni → "; echo | openssl s_client -connect <hpb>:443 -servername $sni 2>/dev/null | openssl x509 -noout -subject; done
+# expect: turn04 SNI → CN=turn04 (coturn); meet04 SNI → CN=meet04 (nginx)
+```
+Then the real proof: from a 443-only network, a call's `chrome://webrtc-internals`
+active candidate-pair should be `relay` via `turn04...:443`.
+
+Gotchas: welcome endpoint 404s on `HEAD` (`curl -sI`) — use GET. Web vhost logs
+show `127.0.0.1` (stream-proxied); fine for an HPB (no CF in front). coturn
+doesn't speak proxy_protocol, so don't enable it on the stream. `5349` TLS URL
+MUST also use `turn04` or it presents the `turn04` cert against a `meet04` SNI →
+mismatch.
+
 ## Cutover (point an NC instance at a new HPB)
 
 Per NC (app3, vidalar, digrepal): Talk admin → High-performance backend → URL
