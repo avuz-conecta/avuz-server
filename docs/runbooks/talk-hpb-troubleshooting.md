@@ -94,7 +94,12 @@ bot machine saturated, not the HPB — cross-check the CSV (idle = server fine).
 - [ ] firewall: 443/tcp, 3478+5349 tcp+udp, Janus RTP range/udp, coTURN relay range/udp
 - [ ] all services `Restart=on-failure`; cert `certbot.timer` enabled **with reload hooks**
 - [ ] black-box recorder (`hpb-monitor`) + health timer running
-- [ ] hardening: coTURN `denied-peer-ip` for RFC1918/link-local
+- [ ] hardening: coTURN `denied-peer-ip` for RFC1918/link-local — **WARNING: this reds the NC-admin
+  TURN "test" button** (the test relays to the admin browser's own private LAN candidate, which the block
+  denies). Real HPB calls are unaffected (they relay to Janus's public IP). On a dedicated bare-metal HPB
+  the SSRF value is marginal (no cloud metadata, coturn already denies loopback, only localhost services)
+  — often not worth breaking the operational test. If a green NC test matters, skip it or keep only the
+  `169.254`/`127` denies.
 - optional: TURN-over-443 for restrictive clients; governor `performance` only if latency glitches seen (costs idle watts, marginal gain — default `schedutil` is fine)
 
 ## Install the monitoring (one-time per host)
