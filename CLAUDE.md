@@ -84,28 +84,32 @@ non-interactive shells never prompt. Linux just requires the daemon to be up.
 `.gitignore` line 22 (`/apps*/*`) excludes every NC app from version control.
 A fresh `git clone` ships with only a handful of force-added apps under `apps/`.
 The other ~20 bundled apps (notifications, text, activity, twofactor_totp,
-suspicious_login, logreader, password_policy, calendar, contacts, deck, spreed,
+suspicious_login, logreader, password_policy, calendar, contacts, spreed,
 forms, viewer, notify_push, onlyoffice, files_downloadlimit, files_retention,
 external, bruteforcesettings, quota_warning) live in their
 own GitHub repos and must be pulled in **before** `./scripts/build-push.sh`,
 otherwise the resulting image is missing them and `occ app:enable` fails with
 "not found on the appstore" at runtime.
 
-`integration_openai` is the exception: it is a **version-pinned fork**
-(`avuz-conecta/integration_openai`, branch `avuz`) shipped as a git submodule at
-`apps/integration_openai` — NOT rsync'd and NOT App Store-installed. Do not add
-it to the rsync loop below; init it as a submodule instead.
+`integration_openai` and `deck` are the exceptions: both are **version-pinned
+forks** shipped as git submodules — NOT rsync'd and NOT App Store-installed.
+`avuz-conecta/integration_openai` (branch `avuz`) at `apps/integration_openai`,
+and `avuz-conecta/deck` (branch `avuz`, pinned at v1.17.0 + Avuz commits) at
+`apps/deck` — the deck fork carries the board-copy fix and the board-tags feature
+as real commits, plus its committed `vendor/` and built `js/` (the Dockerfile
+can't rebuild either). Do not add them to the rsync loop below; init them as
+submodules instead.
 
 Two things to do on a fresh clone:
 
 ```bash
 # 1. Init submodules: 3rdparty (Composer autoloader) + the integration_openai
-#    fork (or the build is missing them).
-git submodule update --init --recursive 3rdparty apps/integration_openai
+#    and deck forks (or the build is missing them).
+git submodule update --init --recursive 3rdparty apps/integration_openai apps/deck
 
 # 2. Populate apps/ with the bundled NC apps.
 #    Simplest: clone alongside an existing working checkout and rsync them in.
-for app in activity bruteforcesettings calendar contacts deck external \
+for app in activity bruteforcesettings calendar contacts external \
            files_downloadlimit files_retention forms logreader notifications \
            notify_push onlyoffice password_policy quota_warning spreed \
            suspicious_login text twofactor_totp viewer; do

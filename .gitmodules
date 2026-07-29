@@ -8,3 +8,7 @@
 	path = apps/integration_openai
 	url = https://github.com/avuz-conecta/integration_openai.git
 	branch = avuz
+[submodule "apps/deck"]
+	path = apps/deck
+	url = https://github.com/avuz-conecta/deck.git
+	branch = avuz

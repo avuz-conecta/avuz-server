@@ -134,7 +134,8 @@ verify_avuz_patches() {
         "Upload in progress — do not close this tab|-|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
         "admin-download-limit|files_downloadlimit|templates/admin.php|files_downloadlimit overlay missing — upstream 2.0.0 tarball drops this template (GH nextcloud/files_downloadlimit#421); redeploy or rerun reapply_avuz_files_downloadlimit_overlay"
         "AVUZ-AUDIO-EXTRACT-V1|integration_openai|lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
-        "AVUZ-DECK-CLONE-ORDER-V1|deck|lib/Service/BoardService.php|deck overlay missing — board-copy column/card shift fix lost; redeploy or rerun reapply_avuz_deck_overlay"
+        "AVUZ-DECK-CLONE-ORDER-V1|deck|lib/Service/BoardService.php|deck fork missing — board-copy column/card shift fix lost; check the apps/deck submodule shipped and no store copy in custom_apps outranks it"
+        "AVUZ-BOARD-TAGS-V1|deck|lib/Controller/BoardTagController.php|deck fork missing — board tags and overview filters lost; check the apps/deck submodule shipped at 1.17.1 and no store copy in custom_apps outranks it"
     )
     local failed=0
     for entry in "${checks[@]}"; do
@@ -194,20 +195,6 @@ reapply_avuz_files_downloadlimit_overlay() {
         cp -R "$overlay/." /var/www/html/apps/files_downloadlimit/
         chown -R www-data:www-data /var/www/html/apps/files_downloadlimit
         echo "✓ Avuz files_downloadlimit overlay reapplied"
-    else
-        echo "✗ Avuz overlay missing at $overlay — image may be corrupted"
-    fi
-}
-
-# Reapply the deck overlay onto /var/www/html/apps/deck/. Carries the
-# board-copy fix (AVUZ-DECK-CLONE-ORDER-V1); 'occ app:update' can pull a fresh
-# upstream deck from the store and wipe it. Re-run after every update.
-reapply_avuz_deck_overlay() {
-    local overlay="/var/www/html/docker/overlays/deck"
-    if [ -d "$overlay" ]; then
-        cp -R "$overlay/." /var/www/html/apps/deck/
-        chown -R www-data:www-data /var/www/html/apps/deck
-        echo "✓ Avuz deck overlay reapplied"
     else
         echo "✗ Avuz overlay missing at $overlay — image may be corrupted"
     fi
@@ -803,7 +790,8 @@ else
         # so a store sync attempted at this point would be a guaranteed no-op.
         reapply_avuz_spreed_overlay
         reapply_avuz_files_downloadlimit_overlay
-        reapply_avuz_deck_overlay
+        # deck is a submodule now (apps/deck, branch avuz) — its patches are real
+        # commits, not an overlay, so there is nothing to reapply after an upgrade.
 
         # Re-enable apps that were enabled before the upgrade
         # --allow-unstable is required for apps that haven't declared NC33 support yet
