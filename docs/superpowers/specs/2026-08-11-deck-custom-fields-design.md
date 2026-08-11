@@ -54,6 +54,21 @@ Avuz board-tags feature). It has **no custom fields**. This adds them.
 
 `dropdown` and `multi` share the same `options` blob — type decides single vs array.
 
+**Type is immutable after create.** Changing a field's type once values exist would corrupt them,
+so `updateField` never changes `type` — only title, options, required. To change a type, delete and
+recreate the field.
+
+**`required` semantics per type:** ignored for `checkbox` (a checkbox always has a value, 0 or 1).
+`date` is **date-only** (ISO `YYYY-MM-DD`, no time component).
+
+**Option ids** for `dropdown`/`multi` are **server-generated and stable** (minted on create/update,
+never reused). Removing an option from a field's list does **not** delete card values that reference
+it — those values are kept and rendered as `"(removida)"` in the UI. Never silently drop a filled
+value.
+
+**"Status" is not a custom field.** Raíven's card "Status" chip maps to the Deck **stack** (kanban
+column) the card sits in — do not build a Status field; it would duplicate the stack.
+
 ## Data model
 
 Two new tables. **No foreign-key constraints** (Deck convention — cascade is manual in mappers,
@@ -112,10 +127,13 @@ Type-safety lives at two boundaries:
   - `delete()` override or service-level cascade → purge values via
     `CustomFieldValueMapper::deleteForField`.
 - `lib/Db/CustomFieldValueMapper.php` — table `deck_card_custom_field_values`:
-  - `findForCard(int $cardId): CustomFieldValue[]`
-  - `findForCards(int[] $cardIds): CustomFieldValue[]` — batch (IN) for board-view enrichment.
-  - `upsert(int $cardId, int $fieldId, ?string $value): CustomFieldValue` — insert or update the
-    unique (card_id, field_id) row; deleting the row when value is null/empty is acceptable.
+  - `findForCard(int $cardId): CustomFieldValue[]` — the P1 read path (sidebar).
+  - `findForCards(int[] $cardIds): CustomFieldValue[]` — batch (IN). **Not used in P1** (values are
+    not shown on tiles yet); added for P5 tile display. Do not wire it into the board view now.
+  - `setValue(int $cardId, int $fieldId, ?string $value): void` — **app-level** insert-or-update:
+    `SELECT` the `(card_id, field_id)` row, then `INSERT` or `UPDATE`. **No DB-native upsert**
+    (`ON CONFLICT`/`ON DUPLICATE KEY`) — Deck runs MySQL, Postgres, and SQLite. A null/empty value
+    deletes the row.
   - `deleteForField(int $fieldId)`, `deleteForCard(int $cardId)` — manual cascade.
 
 ### Service layer
@@ -128,9 +146,13 @@ Type-safety lives at two boundaries:
   - `reorder(int $boardId, int[] $orderedIds)` — MANAGE.
   - `setValue(int $cardId, int $fieldId, ?string $value): CustomFieldValue` — resolve board from
     card, `checkPermission(cardMapper, $cardId, Acl::PERMISSION_EDIT)`, validate value against the
-    field's type/options, upsert.
-- `lib/Validators/CustomFieldServiceValidator.php` — `rules()`: `title` required non-empty;
-  `type` in the 7-key enum; `options` required non-empty when type ∈ {dropdown, multi}.
+    field's type/options, then `customFieldValueMapper->setValue` (app-level insert/update).
+  - `getValues(int $cardId): CustomFieldValue[]` — `PERMISSION_READ`; used by the sidebar-open read.
+- `lib/Validators/CustomFieldServiceValidator.php` — `rules()`: `title` required non-empty and
+  **unique per board** (case-insensitive, like labels — avoids colliding Excel columns in P2);
+  `type` in the 7-key enum; `options` required non-empty when type ∈ {dropdown, multi}; on
+  `setValue`, the value must be valid for the field's type (numeric for number/money, a known option
+  id for dropdown, an array of known option ids for multi, ISO date for date, 0/1 for checkbox).
 
 ### Controller + routes
 - `lib/Controller/CustomFieldController.php` — `extends Controller`, `#[NoAdminRequired]` on each
@@ -139,22 +161,31 @@ Type-safety lives at two boundaries:
   - `updateField(int $fieldId, string $title, ?array $options, bool $required)`
   - `deleteField(int $fieldId)`
   - `reorderFields(int $boardId, array $fieldIds)`
+  - `getCardValues(int $cardId)` — returns the card's value rows (sidebar open)
   - `setCardValue(int $cardId, int $fieldId, ?string $value)`
 - `appinfo/routes.php` — web routes:
   - `POST   /boards/{boardId}/custom-fields`            → `custom_field#createField`
   - `PUT    /custom-fields/{fieldId}`                   → `custom_field#updateField`
   - `DELETE /custom-fields/{fieldId}`                   → `custom_field#deleteField`
   - `PUT    /boards/{boardId}/custom-fields/reorder`    → `custom_field#reorderFields`
+  - `GET    /cards/{cardId}/custom-fields`              → `custom_field#getCardValues` (sidebar open)
   - `PUT    /cards/{cardId}/custom-fields/{fieldId}`    → `custom_field#setCardValue`
   - (OCS API twin deferred; web routes suffice for the SPA in P1.)
 
-### Enrichment (two places, per the fork's label pattern)
+  `reorderFields` and `setCardValue` must validate every referenced field/card belongs to the
+  board/card in the URL before acting.
+
+### Enrichment (P1 = definitions on board, values on single card only)
 - **Board definitions:** `BoardService` (where it does `board->setLabels(labelMapper->findAll)`)
   also calls `customFieldMapper->findAll($boardId)` → `board->setCustomFields(...)`. This is how
-  `currentBoard.customFields` reaches the SPA. `Board` entity gets `addRelation('customFields')`.
-- **Card values:** `Card` entity gets `addRelation('customFieldValues')`. `CardService::enrichCards`
-  batch-loads via `customFieldValueMapper->findForCards($cardIds)` and attaches per card (feeds the
-  board view). `CardMapper::find()` attaches for the single-card read.
+  `currentBoard.customFields` reaches the SPA so the sidebar knows which fields exist. `Board`
+  entity gets `addRelation('customFields')`.
+- **Card values (single card only in P1):** the sidebar fetches a card's values when it opens, via
+  the read endpoint `GET /cards/{cardId}/custom-fields` → `customFieldValueMapper->findForCard`. The
+  store keeps them on the card as `customFieldValues` (`Card` entity `addRelation('customFieldValues')`
+  for the write/read round-trip). **Do NOT batch-enrich values in `CardService::enrichCards`** — the
+  board view does not render field values in P1, so enriching every card is wasted work. That batch
+  path lands in P5 when values appear on tiles.
 
 ### Clone
 - **Board clone:** the existing clone path copies field definitions to the new board (new ids);
@@ -169,15 +200,17 @@ Type-safety lives at two boundaries:
 - `src/store/main.js` — `currentBoard.customFields` array; mutations
   `addCustomFieldToCurrentBoard / updateCustomFieldInCurrentBoard / removeCustomFieldFromCurrentBoard`
   and a reorder mutation; actions of the same names calling `apiClient` then committing.
-- `src/store/card.js` — `setCustomFieldValue({card, fieldId, value})` action → `CustomFieldApi`
-  then `commit('updateCardProperty', {property:'customFieldValues', card})`.
+- `src/store/card.js` — `loadCustomFieldValues({card})` action → `CustomFieldApi.getCardValues`
+  then `commit('updateCardProperty', {property:'customFieldValues', card})` (called when the sidebar
+  opens); `setCustomFieldValue({card, fieldId, value})` action → `CustomFieldApi.setCardValue` then
+  the same commit.
 - Cache/enum strings: reuse the fork's existing convention (no new magic strings).
 
 ### API service (JS)
 - `src/services/CustomFieldApi.js` — class with `url(u){ return generateUrl('/apps/deck'+u) }`,
   methods returning `axios.<verb>` (from `@nextcloud/axios`), mirroring `BoardApi`/`CardApi`:
   `createCustomField`, `updateCustomField`, `deleteCustomField`, `reorderCustomFields`,
-  `setCardCustomFieldValue`.
+  `getCardValues`, `setCardCustomFieldValue`.
 
 ### Board settings UI
 - `src/components/board/CustomFieldsTabSidebar.vue` — manage a board's field definitions: list
@@ -190,8 +223,9 @@ Type-safety lives at two boundaries:
   `src/components/card/CardSidebarTabDetails.vue` (after DueDateSelector, before Description).
   Renders a "Campos" section listing the board's fields; for each, a per-type widget bound to the
   card's value; **soft-required**: when `required && empty`, show a red "obrigatório" badge next to
-  the field. On change, dispatch `setCustomFieldValue`. Works on the deep-cloned `copiedCard` like
-  the other selectors.
+  the field (ignored for checkbox). On mount/card-change, dispatch `loadCustomFieldValues` to fetch
+  the card's values; on change, dispatch `setCustomFieldValue`. Works on the deep-cloned `copiedCard`
+  like the other selectors.
 - **Per-type widget hash-map** (one input component, `field.type` → widget): text input / number
   input / money input (R$ prefix, 2 decimals) / `NcSelect` single / `NcSelect` multi / date picker
   / checkbox. Icons from `vue-material-design-icons`.
