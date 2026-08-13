@@ -268,6 +268,80 @@ PHPEOF
     echo "✓ S3 object store config written to $config_file"
 }
 
+# ──────────────────────────────────────────────
+# Makes the bucket reap its own abandoned multipart uploads.
+# Nextcloud never does: writeMultiPart() aborts on a caught exception, but the
+# UploadId lives only in a local variable, so a worker killed outright — OOM,
+# fpm timeout, object store unreachable — strands the parts permanently. They
+# are invisible to every counter we have (absent from ListObjectsV2, from
+# oc_filecache, from every quota figure) while Ceph still bills them. Measured
+# 2026-07: 68 GiB stranded on one tenant, 189 GiB on another still accruing
+# ~60/day. A bucket-side rule is the only thing that collects them.
+# Runs on every boot so a removed rule heals itself. Fail-open by construction:
+# a bucket that cannot be reached must never block startup, hence the short
+# timeouts. Never replaces an existing policy — an operator's own rules win.
+# S3_MPU_ABORT_DAYS tunes the age floor (default 1 day); 0 disables entirely.
+# ──────────────────────────────────────────────
+ensure_objectstore_lifecycle() {
+    [ -f /var/www/html/config/s3.config.php ] || return 0
+    if [ "${S3_MPU_ABORT_DAYS:-1}" = "0" ]; then
+        echo "S3 multipart abort rule disabled (S3_MPU_ABORT_DAYS=0)"
+        return 0
+    fi
+
+    php <<'PHPEOF' || echo "⚠ S3 lifecycle rule not applied — continuing boot"
+<?php
+require '/var/www/html/3rdparty/autoload.php';
+$CONFIG = [];
+include '/var/www/html/config/s3.config.php';
+if (!isset($CONFIG['objectstore']['arguments']['bucket'])) {
+    exit(0);
+}
+$arguments = $CONFIG['objectstore']['arguments'];
+$bucket = $arguments['bucket'];
+$days = (int)(getenv('S3_MPU_ABORT_DAYS') ?: 1);
+$endpoint = (($arguments['use_ssl'] ?? true) ? 'https://' : 'http://') . $arguments['hostname']
+    . (!empty($arguments['port']) ? ':' . $arguments['port'] : '');
+
+$client = new Aws\S3\S3Client([
+    'version' => 'latest',
+    'region' => $arguments['region'] ?? 'us-east-1',
+    'endpoint' => $endpoint,
+    'use_path_style_endpoint' => (bool)($arguments['use_path_style'] ?? false),
+    'credentials' => ['key' => $arguments['key'], 'secret' => $arguments['secret']],
+    'retries' => 1,
+    'http' => ['connect_timeout' => 5, 'timeout' => 15],
+]);
+
+try {
+    $client->getBucketLifecycleConfiguration(['Bucket' => $bucket]);
+    echo "✓ S3 lifecycle policy already present on $bucket\n";
+    exit(0);
+} catch (Aws\S3\Exception\S3Exception $e) {
+    if ($e->getAwsErrorCode() !== 'NoSuchLifecycleConfiguration') {
+        fwrite(STDERR, 'S3 lifecycle check failed: ' . ($e->getAwsErrorCode() ?: 'unreachable') . "\n");
+        exit(1);
+    }
+}
+
+try {
+    $client->putBucketLifecycleConfiguration([
+        'Bucket' => $bucket,
+        'LifecycleConfiguration' => ['Rules' => [[
+            'ID' => 'abort-incomplete-mpu',
+            'Status' => 'Enabled',
+            'Filter' => ['Prefix' => ''],
+            'AbortIncompleteMultipartUpload' => ['DaysAfterInitiation' => $days],
+        ]]],
+    ]);
+} catch (Aws\S3\Exception\S3Exception $e) {
+    fwrite(STDERR, 'S3 lifecycle write failed: ' . ($e->getAwsErrorCode() ?: 'unreachable') . "\n");
+    exit(1);
+}
+echo "✓ S3 lifecycle policy created on $bucket (abort incomplete uploads after {$days}d)\n";
+PHPEOF
+}
+
 # Idempotent settings only — safe to run on every config-version bump. No app
 # enable/update/repair (those live in the gated block in run_avuz_configuration).
 apply_avuz_settings() {
@@ -699,6 +773,7 @@ done
 # PHASE 1.5: Object store (must precede maintenance:install on fresh stacks)
 # ──────────────────────────────────────────────
 configure_objectstore_s3
+ensure_objectstore_lifecycle
 
 # ──────────────────────────────────────────────
 # PHASE 2: Install or upgrade
