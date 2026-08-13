@@ -29,9 +29,13 @@ P4 subtasks → P5 views → P3 time → P8 migration → P2 export → P7 auto-
   - Delete a folder → **only when empty** (no boards, no sub-folders). Removing a non-empty folder
     means first moving its boards out, each of which already requires board MANAGE — so it is
     impossible to delete a board you don't manage via folder ops.
-  - **Visibility**: the folder tree is shared/visible; boards inside respect their existing board
-    ACL. A folder with no boards the current user can access (directly or in descendants) is hidden
-    from that user's view.
+  - **Visibility**: the folder tree is shared/visible to **all authenticated users** (folder
+    titles are org-wide metadata, like ClickUp space/folder names — acceptable because each Raíven
+    tenant is its own single-tenant NC instance). Boards inside still respect their existing board
+    ACL: you only see/open boards shared with you, so a folder may display with some boards hidden.
+    **No per-user folder pruning** — this avoids (a) leaking-by-pretense (titles are on the wire
+    regardless once returned) and (b) a just-created empty folder vanishing from its own creator.
+    (Grill fix 2026-08-13; earlier draft pruned empty-for-user folders — dropped.)
 
 ## Goals
 
@@ -95,13 +99,17 @@ Two changes. **No DB foreign keys** (Deck convention — cascade/guards are in a
 - `lib/Service/FolderService.php`:
   - `findAll(): Folder[]` — any authenticated user (shared tree).
   - `create(string $title, ?int $parentId): Folder` — any user; validate title non-empty; if
-    `parentId` set, it must exist; set `owner` = current uid; insert.
+    `parentId` set, it must exist; set `owner` = current uid; set `order` = (max `order` among
+    siblings under the same `parentId`) + 1; insert. **Sibling folders with identical titles are
+    ALLOWED** (like ClickUp; not enforced) — deliberate, not an oversight.
   - `rename(int $id, string $title): Folder` — any user; validate.
   - `move(int $id, ?int $parentId): Folder` — any user; **cycle prevention**: reject if `parentId`
     equals `id` or is a descendant of `id` (walk up from the target parent to root; if we hit `id`,
     reject with `BadRequestException`). If `parentId` set, it must exist.
   - `delete(int $id): void` — any user, but **only when empty**: reject with `BadRequestException`
-    if any board has `folder_id = id` OR `folderMapper->hasChildren(id)`.
+    if `boardMapper->findInFolder(id)` is non-empty OR `folderMapper->hasChildren(id)`.
+    (Requires a new `BoardMapper::findInFolder(int $folderId): Board[]` — a `WHERE folder_id = ?`
+    query; `FolderService` depends on `BoardMapper` for this guard.)
 - `lib/Service/BoardService.php` → `setFolder(int $boardId, ?int $folderId): Board` — gate on
   **board MANAGE** (`permissionService->checkPermission($boardMapper, $boardId, Acl::PERMISSION_MANAGE)`);
   if `folderId` set, verify the folder exists; set `board->setFolderId($folderId)`; update.
@@ -124,11 +132,13 @@ Two changes. **No DB foreign keys** (Deck convention — cascade/guards are in a
   - `PUT    /boards/{boardId}/folder`          → `board#setFolder` (body `{ folderId }`, nullable)
 
 ### Serialization / how the tree reaches the SPA
-- `GET /folders` returns ALL folders (shared). Boards already come ACL-filtered from the existing
-  boards list, each now carrying `folderId`. **The frontend builds the tree** from (all folders +
-  the user's accessible boards) and **prunes** any folder branch that contains no accessible boards
-  in itself or its descendants. Keeping the prune on the frontend keeps the backend simple and the
-  ACL single-sourced (the boards list is already the ACL authority).
+- `GET /folders` returns ALL folders (shared, visible to all authenticated users). Boards already
+  come ACL-filtered from the existing boards list, each now carrying `folderId`. **The frontend
+  builds the tree** from (all folders + the user's accessible boards): every folder is placed by
+  `parent_id`, and each board is nested under its `folderId` (or at root when null). **No pruning**
+  — folders always render (empty ones included, so you can place boards into a folder you just
+  created); boards you can't access simply aren't in the list. ACL stays single-sourced (the boards
+  list is the authority).
 
 ## Frontend / UX
 
@@ -164,8 +174,9 @@ Two changes. **No DB foreign keys** (Deck convention — cascade/guards are in a
 - **Board delete** — no folder side effects (the board row is removed; folders untouched).
 - **Deleting a board's folder membership is not board deletion** — `setFolder(boardId, null)` just
   moves it to root.
-- **Empty-for-user folders** — pruned from that user's tree (see serialization); the folder still
-  exists for users who can access its boards.
+- **Empty folders** — always shown (needed so you can place boards into a folder you just created).
+- **Folder with boards you can't access** — the folder still shows (shared metadata), just without
+  the boards you lack access to.
 
 ## Testing
 
