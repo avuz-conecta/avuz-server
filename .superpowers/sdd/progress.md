@@ -213,3 +213,36 @@ Verified live at conectahml.avuz.app (CF purged, new JS active):
 Cleanup: both test folders deleted, sidebar restored flat. Board list intact.
 Host disk: prune -a freed +7G (50 imgs). Now 53%/42.7G free (was 0). Healthy.
 === P6 SHIPPED + VERIFIED LIVE ON STAGING. ===
+
+# ==== P6.1 Folder Sharing / Permission Inheritance — SDD ====
+Code in /Users/patrickrezende/work/avuz/deck-fork (branch avuz). BASE = a725e7b04. Plan: docs/superpowers/plans/2026-08-14-deck-folder-sharing.md (11 tasks). Spec grilled, plan grilled.
+Task 1: complete (671c285c7, review clean — Spec OK, Code Approved, 2 harmless Minors)
+Task 2: complete (af82369df, review found Critical folderPermsCache cross-user leak → FIXED + re-reviewed clean; +deleted-board Minor fixed; PermServiceTest 65/65)
+Task 3: complete (499827100, review clean — right-method verified: BoardController/BoardApiController/PageController all use findAll where merge landed; filter parity OK; no DI cycle; dedup/union genuine)
+  MINOR(defer-triage): expandWithDescendants BFS/cycle only mock-tested (no direct FolderMapperTest)
+  MINOR(defer-triage): folder-shared boards NOT in Deck search (getUserBoards/SearchService untouched, no $term on findInFolders) — separate surface, out of P6.1 scope
+Task 4: complete (e3b8823c0, review clean — MANAGE gate OK, cache invalidation genuinely tested, participant-validation divergence adjudicated correct/mirrors BoardMapper::mapAcl)
+  MINOR(defer-triage): resolveParticipant duplicated from BoardMapper::mapAcl (drift risk — shared helper someday)
+  MINOR(defer-triage): invalidateFolderSubtreeCache $folderId unused (whole-cache flush, acknowledged TODO for targeted)
+Task 5: complete (c3fbb010a, review clean — gates OK incl root-open, cascade ordering right, visibility+ancestors verified, permissions reach SPA via addRelation mirror of Board, no cycle)
+  MINOR(defer-triage): title-validation runs before parent-MANAGE check (title-only, no security impact)
+  MINOR(defer-triage): FolderService.findAll + folderPermissionsForUser each call folderMapper.findAll (one avoidable extra query)
+Task 6: complete (146a20a48, review clean — 4 routes exact, thin passthrough, sentinel present, raw returns match repo)
+Task 7: complete (49364263e, review clean — shape+serialization OK, correctness matches Task2 primitive, full-detail path confirmed: Board.vue loadBoardById GET /boards/{id} -> inheritedAcl present for sharing tab)
+  MINOR(defer-triage): BoardApiController details=true runs computeInheritedAcl per-board across list (uncosted perf path)
+  MINOR(defer-triage): ancestry walk lacks _wip cycle guard (structurally prevented by move-cycle-guard today; cheap to add)
+Task 8: complete (cdc7e6334, review found IMPORTANT: single-board --boardId transfer swept ALL folders → FIXED (folder transfer gated after boardId early-return, line 107) + test flipped to never(); participant cleanup clean)
+=== BACKEND COMPLETE (T1-8). Frontend next. ===
+Task 9: complete (94594c673, review clean — API contract exact match, deck class pattern correct, store reactive+isolated)
+  CONTRACT for T10: folder-ACL store actions ALREADY showError globally + reject; modal catch must only reset local UI, NOT show a 2nd toast
+Task 10: complete (d5c18eb47, review clean — dep changes dev-only (build safe), board-tab extraction behavior-preserving, gating+error-contract OK; +fixed broken Vue2 jest infra)
+  MINOR(fold into T11): SharingParticipantPicker #noOptions/#noResult hardcoded English leaks into PT folder modal -> make props w/ PT defaults
+  MINOR(defer-triage): board-tab picker selection-reset + loading-spinner timing cosmetic drift (no data/dispatch impact)
+Task 11: complete (2f5743bcb — BLOCKED first: T7 left inheritedAcl out of BoardTest fixtures -> fixed 4 expected arrays; inherited via-folder rows + PT picker props; jest 10/72, PHP 499 (6 pre-existing Notifier only), build clean)
+  NOTE: T7 gap (entity prop added without updating Db/BoardTest fixtures) caught at T11 full-suite gate — same class as P6 folderId miss
+=== ALL 11 TASKS COMPLETE. Final whole-branch review next. ===
+
+## FINAL WHOLE-BRANCH REVIEW (opus) — SHIP-AFTER-FIXES → FIXED → SHIP
+6/6 cross-layer contracts SOUND; stated hot-path risk CONFIRMED SAFE (additive merge, no board goes invisible, no unearned access, memoization fires); all 9 Minors DEFER-OK.
+BLOCKING (Important) FIXED (2cd6f0265): view-only folder share (default add, all flags false) granted ZERO access — folderPermissionsForUser derived READ=edit||share||manage, dropping board-ACL "membership grants read". Fix: READ=true on owner+shared entries, unionFlags ORs READ, cascades to subfolders; computeInheritedAcl emits view-only "via folder" row. 4 discriminating tests fail-pre/pass-post. PermServiceTest 67/67, FolderServiceTest 14/14, BoardServiceTest 36/36.
+=== P6.1 COMPLETE + SHIP. Fork avuz HEAD 2cd6f0265, deck 1.17.4. 12 commits. Review loop caught 4 real bugs: T2 cross-user cache leak (Critical), T8 single-board transfer swept all folders (Important), T7 BoardTest fixture regression (full-suite gate), view-only READ (Important, final review). Next: push fork + submodule bump + staging build/deploy + browser pass. ===
