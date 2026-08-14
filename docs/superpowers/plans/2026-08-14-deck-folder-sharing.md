@@ -99,7 +99,7 @@ public function folderPermissionsForUser(string $userId): array {
     foreach ($folders as $f) { $byId[$f->getId()] = $f; }   // id-index (findAll is NOT id-keyed)
 
     $groups = $this->groupManager->getUserGroupIds($this->userManager->get($userId));
-    $circleIds = array_map(fn ($c) => $c->getSingleId(), $this->circlesService->getUserCircles($userId));
+    $circleIds = $this->circlesService->getUserCircles($userId); // already returns string[] of circle ids — do NOT map getSingleId()
     $sharedFolderIds = $this->folderAclMapper->findFolderIdsForUser($userId, $groups, $circleIds);
 
     $ownFlags = []; // folderId => [EDIT,SHARE,MANAGE]
@@ -178,7 +178,7 @@ git commit -m "feat(deck): inherit folder ACL into board permissions via getPerm
 - [ ] **Step 5: Implement the merge in `BoardService::findAll`.** After the existing `boardMapper->findAllForUser(...)` call:
 ```php
 $groups = $this->groupManager->getUserGroupIds($this->userManager->get($userId));
-$circleIds = array_map(fn ($c) => $c->getSingleId(), $this->circlesService->getUserCircles($userId));
+$circleIds = $this->circlesService->getUserCircles($userId); // already returns string[] of circle ids — do NOT map getSingleId()
 $sharedFolderIds = $this->folderAclMapper->findFolderIdsForUser($userId, $groups, $circleIds);
 $expanded = $this->folderMapper->expandWithDescendants($sharedFolderIds); // FolderMapper helper (no service cycle)
 $folderBoards = $this->boardMapper->findInFolders($expanded, $includeArchived, $since, $before);
