@@ -88,46 +88,54 @@ Expected: FAIL (`folderPermissionsForUser` undefined / no union).
 
 - [ ] **Step 2: Inject the mappers.** Add `FolderMapper` and `FolderAclMapper` to the `PermissionService` constructor (mirror the existing promoted-property constructor params). Add a private `?array $folderPermsCache = null` memo field.
 
-- [ ] **Step 3: Implement the resolver.**
+- [ ] **Step 3: Implement the resolver.** `FolderMapper::findAll()` returns a **flat list** (ordered by parent_id/order/title) — build an id-index locally; do not index the raw result. Seed a folder's own flags from **both** the folder's creator-ownership (implicit full flags) **and** any `folder_acl` grant the user matches.
 ```php
 public function folderPermissionsForUser(string $userId): array {
     if ($this->folderPermsCache !== null) {
         return $this->folderPermsCache;
     }
+    $folders = $this->folderMapper->findAll();        // flat Folder[]
+    $byId = [];
+    foreach ($folders as $f) { $byId[$f->getId()] = $f; }   // id-index (findAll is NOT id-keyed)
+
     $groups = $this->groupManager->getUserGroupIds($this->userManager->get($userId));
     $circleIds = array_map(fn ($c) => $c->getSingleId(), $this->circlesService->getUserCircles($userId));
     $sharedFolderIds = $this->folderAclMapper->findFolderIdsForUser($userId, $groups, $circleIds);
-    // own flags per folder from its ACL rows the user matches
-    $folders = $this->folderMapper->findAll(); // all folders, ordered by parent_id,order,title (P6)
+
     $ownFlags = []; // folderId => [EDIT,SHARE,MANAGE]
-    foreach ($sharedFolderIds as $fid) {
+    foreach ($folders as $f) {                         // creator/owner => implicit full control
+        if ($f->getOwner() === $userId) {
+            $ownFlags[$f->getId()] = [Acl::PERMISSION_EDIT => true, Acl::PERMISSION_SHARE => true, Acl::PERMISSION_MANAGE => true];
+        }
+    }
+    foreach ($sharedFolderIds as $fid) {               // folder_acl grants, unioned with any owner flags
         $acls = $this->folderAclMapper->findAll($fid);
-        $ownFlags[$fid] = [
+        $ownFlags[$fid] = $this->unionFlags($ownFlags[$fid] ?? [], [
             Acl::PERMISSION_EDIT => $this->userCan($acls, Acl::PERMISSION_EDIT, $userId),
             Acl::PERMISSION_SHARE => $this->userCan($acls, Acl::PERMISSION_SHARE, $userId),
             Acl::PERMISSION_MANAGE => $this->userCan($acls, Acl::PERMISSION_MANAGE, $userId),
-        ];
+        ]);
     }
-    // accumulate root->leaf: a child unions its parent's accumulated flags
+
     $acc = [];
-    $resolve = function (int $fid, callable $self) use (&$acc, $ownFlags, $folders) {
+    $resolve = function (int $fid, callable $self) use (&$acc, $ownFlags, $byId) {
         if (isset($acc[$fid])) { return $acc[$fid]; }
-        $folder = $folders[$fid] ?? null; // build an id=>folder index from findAll()
-        $parentFlags = ($folder && $folder->getParentId() !== null) ? $self($folder->getParentId(), $self) : [];
-        $mine = $ownFlags[$fid] ?? [];
-        $acc[$fid] = $this->unionFlags($parentFlags, $mine);
+        $acc[$fid] = ['_wip' => true];                 // guard against a malformed cycle (P6 prevents real ones)
+        $folder = $byId[$fid] ?? null;
+        $parentFlags = ($folder && $folder->getParentId() !== null && !isset($acc[$folder->getParentId()]['_wip']))
+            ? $self($folder->getParentId(), $self) : [];
+        $acc[$fid] = $this->unionFlags($parentFlags, $ownFlags[$fid] ?? []);
         return $acc[$fid];
     };
-    foreach ($folders as $folder) { $resolve($folder->getId(), $resolve); }
-    // add READ = any of edit/share/manage
+    foreach ($byId as $fid => $_f) { $resolve($fid, $resolve); }
     foreach ($acc as $fid => $flags) {
-        $acc[$fid][Acl::PERMISSION_READ] = ($flags[Acl::PERMISSION_EDIT] ?? false)
-            || ($flags[Acl::PERMISSION_SHARE] ?? false) || ($flags[Acl::PERMISSION_MANAGE] ?? false);
+        $acc[$fid][Acl::PERMISSION_READ] = !empty($flags[Acl::PERMISSION_EDIT])
+            || !empty($flags[Acl::PERMISSION_SHARE]) || !empty($flags[Acl::PERMISSION_MANAGE]);
     }
     return $this->folderPermsCache = $acc;
 }
 ```
-Add a private `unionFlags(array $a, array $b): array` that ORs `EDIT/SHARE/MANAGE`. Build the `id=>folder` index from `findAll()` (adjust `FolderMapper::findAll` to return `Folder[]` you can index by id, or index locally). Add `inheritedBoardPermissions(int $boardId, string $userId)`: look up the board's `folderId` (via `boardMapper->find`) and return `folderPermissionsForUser($userId)[$folderId] ?? []`.
+Add private `unionFlags(array $a, array $b): array` (OR of `EDIT/SHARE/MANAGE`). Add `inheritedBoardPermissions(int $boardId, string $userId)`: look up the board's `folderId` (via `boardMapper->find`) and return `folderPermissionsForUser($userId)[$folderId] ?? []`. **Owner-seed test:** add `testFolderOwnerInheritsManageOnContainedBoard` — a folder creator gets MANAGE on a board another user placed inside their folder (consistent with the approved "move propagates access" semantic, in reverse).
 
 - [ ] **Step 4: Union into getPermissions.** In `getPermissions`, after computing the board-ACL `$permissions`, fetch `$inherited = $this->inheritedBoardPermissions($boardId, $userId);` and set each of READ/EDIT/MANAGE/SHARE to `$permissions[X] || ($inherited[X] ?? false)` (keep the existing `sharingDisabledForUser` guard on SHARE). Cache as before.
 
@@ -151,12 +159,13 @@ git commit -m "feat(deck): inherit folder ACL into board permissions via getPerm
 - Test: `tests/unit/Service/BoardServiceTest.php`, `tests/unit/Db/BoardMapperTest.php`
 
 **Interfaces:**
-- Consumes: `FolderAclMapper::findFolderIdsForUser`, `FolderMapper` descendants walk, `PermissionService::folderPermissionsForUser`.
-- Produces: `BoardMapper::findInFolders(int[] $folderIds): Board[]`; `BoardService::findAll` returns direct ∪ folder-reachable boards, deduped, each with merged permissions.
+- Consumes: `FolderAclMapper::findFolderIdsForUser`, `FolderMapper` (already injected in `BoardService`), `PermissionService::folderPermissionsForUser`.
+- Produces: `BoardMapper::findInFolders(int[] $folderIds, ...filters): Board[]`; `FolderMapper::expandWithDescendants(int[] $ids): int[]`; `BoardService::findAll` returns direct ∪ folder-reachable boards, deduped, each with merged permissions.
+- **DI note (avoid a cycle):** `BoardService` already injects `FolderMapper` (not `FolderService`); put the descendant-expansion (`expandWithDescendants`) on **`FolderMapper`** so both `BoardService` and `FolderService` reuse it without a service cycle. Do **not** inject `FolderService` into `BoardService`.
 
 - [ ] **Step 1: Write failing mapper test.** In `BoardMapperTest`, insert two boards, put board X in folder 900; assert `findInFolders([900, 901])` returns X once and excludes the other. Empty-array input returns `[]`.
 
-- [ ] **Step 2: Implement `findInFolders`.** In `BoardMapper`, add `findInFolders(array $folderIds): array` — `WHERE folder_id IN (:ids)`; return `[]` immediately if `$folderIds` is empty (never emit `IN ()`). Model it on the P6 `findInFolder(int $folderId)`.
+- [ ] **Step 2: Implement `findInFolders`.** In `BoardMapper`, add `findInFolders(array $folderIds, bool $includeArchived = true, ?int $since = null, ?int $before = null): array` — `WHERE folder_id IN (:ids)` **plus the same archived/deleted/since/before WHERE clauses `findAllForUser` applies** (push filters into SQL — do NOT post-filter in PHP, which would diverge from the direct-board semantics). Return `[]` immediately if `$folderIds` is empty (never emit `IN ()`). Model it on `findInFolder(int $folderId)` + the filter clauses of `findAllForUser`.
 
 - [ ] **Step 3: Run mapper test to pass.** `~/deck-test.sh --filter BoardMapperTest` → PASS.
 
@@ -171,16 +180,16 @@ git commit -m "feat(deck): inherit folder ACL into board permissions via getPerm
 $groups = $this->groupManager->getUserGroupIds($this->userManager->get($userId));
 $circleIds = array_map(fn ($c) => $c->getSingleId(), $this->circlesService->getUserCircles($userId));
 $sharedFolderIds = $this->folderAclMapper->findFolderIdsForUser($userId, $groups, $circleIds);
-$expanded = $this->folderService->expandWithDescendants($sharedFolderIds); // new helper: BFS over parent_id
-$folderBoards = $this->boardMapper->findInFolders($expanded);
+$expanded = $this->folderMapper->expandWithDescendants($sharedFolderIds); // FolderMapper helper (no service cycle)
+$folderBoards = $this->boardMapper->findInFolders($expanded, $includeArchived, $since, $before);
 ```
-Merge `$folderBoards` into the existing result deduped by board id; apply the SAME `includeArchived`/`since`/`before`/deleted filtering the direct query applies (filter `$folderBoards` in PHP to match). Run each merged board through the existing enrichment/permission path so `matchPermissions` unions inherited flags (Task 2). Add `FolderService::expandWithDescendants(int[] $ids): int[]` (BFS using `FolderMapper::findChildren` / a children index).
+Merge `$folderBoards` into the existing result **deduped by board id** (a board reachable both directly and via folder appears once). Filtering already happened in SQL (Step 2). Run each merged board through the existing enrichment/permission path so `matchPermissions` unions inherited flags (Task 2). Add `FolderMapper::expandWithDescendants(int[] $ids): int[]` (BFS over `findChildren` / a `parent_id` children-index; dedup; guard empty input).
 
 - [ ] **Step 6: Run service test to pass.** `~/deck-test.sh --filter BoardServiceTest` → PASS.
 
 - [ ] **Step 7: Commit.**
 ```bash
-git add lib/Db/BoardMapper.php lib/Service/BoardService.php lib/Service/FolderService.php tests/unit/Service/BoardServiceTest.php tests/unit/Db/BoardMapperTest.php
+git add lib/Db/BoardMapper.php lib/Db/FolderMapper.php lib/Service/BoardService.php tests/unit/Service/BoardServiceTest.php tests/unit/Db/BoardMapperTest.php
 git commit -m "feat(deck): include folder-shared boards in accessible boards list (P6.1)"
 ```
 
@@ -190,6 +199,7 @@ git commit -m "feat(deck): include folder-shared boards in accessible boards lis
 
 **Files:**
 - Create: `lib/Service/FolderAclService.php`
+- Create: `lib/Validators/FolderAclServiceValidator.php` (mirror `BoardServiceValidator`)
 - Modify: `lib/Service/PermissionService.php` (add `checkFolderPermission` + subtree cache flush helper)
 - Test: `tests/unit/Service/FolderAclServiceTest.php`
 
@@ -207,7 +217,7 @@ git commit -m "feat(deck): include folder-shared boards in accessible boards lis
 - [ ] **Step 2: Implement `checkFolderPermission` + `invalidateFolderSubtreeCache`.** In `PermissionService`: `checkFolderPermission` = folder owner (`folderMapper->find($folderId)->getOwner() === $userId`) OR `folderPermissionsForUser($userId)[$folderId][$permission] ?? false`, else throw. `invalidateFolderSubtreeCache` = expand folder → descendants (reuse `FolderService::expandWithDescendants` or a mapper walk), collect boards via `boardMapper->findInFolders`, and `permissionCache->remove("$boardId-$userId")` for affected users — simplest correct version: `permissionCache->clear()` (whole-cache flush per request) and null out `$this->folderPermsCache`. Prefer the flush for correctness; note the targeted version as a later optimization.
 
 - [ ] **Step 3: Implement `FolderAclService`.** Mirror `BoardService::addAcl/updateAcl/deleteAcl`:
-  - `create`: `$this->permissionService->checkFolderPermission($folderId, Acl::PERMISSION_MANAGE)`; validate participant exists via the same validators the board path uses (user/group/circle); reject duplicate (`findAll` contains participant+type); insert; `invalidateFolderSubtreeCache`; return with resolved display fields.
+  - `create`: `$this->permissionService->checkFolderPermission($folderId, Acl::PERMISSION_MANAGE)`; validate the payload via a `FolderAclServiceValidator` mirroring `BoardServiceValidator` (type/participant/flags), and confirm the participant exists (user via `userManager->userExists`, group via `groupManager->groupExists`, circle via `circlesService`), same as board `addAcl`; reject duplicate (`findAll` already contains participant+type); insert; `invalidateFolderSubtreeCache`; return with resolved display fields.
   - `update`: load ACL → `checkFolderPermission(acl->getFolderId(), MANAGE)`; set flags; update; invalidate.
   - `delete`: load ACL → `checkFolderPermission(..., MANAGE)`; delete; invalidate.
   - `findAll`: `checkFolderPermission($folderId, Acl::PERMISSION_READ)`; return `folderAclMapper->findAll` with resolved display names.
@@ -216,7 +226,7 @@ git commit -m "feat(deck): include folder-shared boards in accessible boards lis
 
 - [ ] **Step 5: Commit.**
 ```bash
-git add lib/Service/FolderAclService.php lib/Service/PermissionService.php tests/unit/Service/FolderAclServiceTest.php
+git add lib/Service/FolderAclService.php lib/Validators/FolderAclServiceValidator.php lib/Service/PermissionService.php tests/unit/Service/FolderAclServiceTest.php
 git commit -m "feat(deck): FolderAclService with MANAGE gate + permission-cache invalidation (P6.1)"
 ```
 
@@ -229,8 +239,8 @@ git commit -m "feat(deck): FolderAclService with MANAGE gate + permission-cache 
 - Test: `tests/unit/Service/FolderServiceTest.php`
 
 **Interfaces:**
-- Consumes: `PermissionService::checkFolderPermission`, `FolderAclMapper` (cascade), `BoardService`/accessible-board set for visibility.
-- Produces: `FolderService::findAll()` returns only visible folders; `rename/delete/move/create`(subfolder) gate on folder MANAGE; `delete` purges `folder_acl`.
+- Consumes: `PermissionService::checkFolderPermission` + `folderPermissionsForUser`, `FolderAclMapper` (cascade), `BoardMapper` (accessible-board set for visibility — inject `BoardMapper`, NOT `BoardService`, to avoid a cycle).
+- Produces: `FolderService::findAll()` returns only visible folders, **each carrying the caller's `permissions` `{PERMISSION_EDIT,SHARE,MANAGE}`** (so the frontend can gate actions); `rename/delete/move/create`(subfolder) gate on folder MANAGE; `delete` purges `folder_acl`.
 
 - [ ] **Step 1: Write failing test.** In `FolderServiceTest`:
   - `testRenameRequiresManage`, `testDeleteRequiresManage`, `testMoveRequiresManage`, `testCreateSubfolderRequiresManageOnParent` — non-manager → `NoPermissionException`.
@@ -242,7 +252,7 @@ git commit -m "feat(deck): FolderAclService with MANAGE gate + permission-cache 
 
 - [ ] **Step 3: Cascade on delete.** In `delete`, after the empty-check passes, delete all `folderAclMapper->findAll($id)` rows before removing the folder row.
 
-- [ ] **Step 4: Visibility filter in `findAll`.** Compute the caller's visible folder set: `visible = creatorFolders ∪ sharedFolderIds ∪ foldersContainingAccessibleBoard`, then add all ancestors of any visible folder (walk `parentId` up) so paths render. Return only those. Reuse `folderPermissionsForUser` (shared/creator) + the accessible-board set (`boardMapper->findAllForUser` folderIds + folder-reachable). Keep the existing ordering.
+- [ ] **Step 4: Visibility filter + per-folder permissions in `findAll`.** Compute the caller's visible folder set: `visible = creatorFolders ∪ sharedFolderIds ∪ foldersContainingAccessibleBoard`, then add all ancestors of any visible folder (walk `parentId` up) so paths render. Return only those. Reuse `folderPermissionsForUser` (shared/creator) + the accessible-board set (`boardMapper` folderIds + folder-reachable). **On each returned folder, attach the caller's `permissions` = `folderPermissionsForUser($userId)[$folderId]`** (owner ⇒ full) so the SPA can gate the share/rename/delete/subfolder actions. Add a `testFindAllAttachesCallerPermissions` case (owner ⇒ manage true; read-only sharee ⇒ manage false). Keep the existing ordering.
 
 - [ ] **Step 5: Run test to pass.** `~/deck-test.sh --filter FolderServiceTest` → PASS.
 
@@ -368,7 +378,7 @@ git commit -m "feat(deck): folder-ACL api service + store module (P6.1)"
 
 **Interfaces:** Consumes the folder-ACL store (Task 9). A `Compartilhar` action opens `FolderSharingModal` for that folder.
 
-- [ ] **Step 1: Add the menu item.** In `AppNavigationFolder.vue`, add an `NcActionButton` (mirroring the existing `Nova subpasta`/`Renomear`/`Excluir` at lines 15–32) labeled `t('deck', 'Compartilhar')` with a share icon, `@click="startShare"`, shown only when the user can MANAGE the folder (`v-if` on a `canManage` prop/computed derived from the folder's permissions in the tree data). `startShare` opens the modal.
+- [ ] **Step 1: Add the menu item + gate existing actions.** In `AppNavigationFolder.vue`, add an `NcActionButton` (mirroring `Nova subpasta`/`Renomear`/`Excluir` at lines 15–32) labeled `t('deck', 'Compartilhar')` with a share icon, `@click="startShare"`. Add `canManage` computed = `!!this.folder.permissions?.[PERMISSION_MANAGE]` (folder payload now carries `permissions`, Task 5). **Gate all four management actions** (`Compartilhar`, `Nova subpasta`, `Renomear`, `Excluir`) behind `v-if="canManage"` — P6 left them ungated, so a non-manager currently sees actions that now 403. `startShare` opens the modal. Use the app's permission-constant enum (no magic ints).
 
 - [ ] **Step 2: Build the modal.** Create `FolderSharingModal.vue` using `NcModal` (or `NcDialog`) containing the reusable participant-picker + permission-row list. Extract the reusable inner list/picker from `SharingTabSidebar.vue` into a shared child component if it isn't already reusable (do NOT copy-paste its logic); feed it the folder's ACLs + folder-ACL store actions. Search users/groups/circles, add with `edit/share/manage`, edit flags, remove. On open, dispatch `loadFolderAcl(folderId)`.
 
