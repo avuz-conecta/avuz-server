@@ -111,3 +111,82 @@ Fork pushed 8d338390c (all 4 enh tasks + rebuilt bundle); server submodule bumpe
 
 ## BUGFIX: glimpse tag-only filter showed all cards
 Root cause: BoardTagApi.loadMatchingCards sent `?tag=X` (name `tag`, and PHP parses repeated `tag=a&tag=b` as scalar), but controller expects `array $tags` → NC never populated it → $tags=[] → no tag filter → all cards. Confirmed empirically: ?tag=Cliente X returned both cards; ?tags[]=Cliente X returned only the tagged one. Fix: `params.append('tags[]', t)`. Regression test src/services/BoardTagApi.spec.js (asserts tags%5B%5D in URL). Browser-verified: tag-only filter → glimpse shows only "Enviar proposta", not "Sem tag". Fork b3ed8ecea, submodule bumped (server 5672354472b). Rebuilding+redeploying staging.
+### PATH STANDARD (fix for CF Task 2 stale-brief mix-up): all CF briefs/reports live in DECK-FORK sdd dir
+- Canonical dir for CF briefs/reports/review-diffs: `/Users/patrickrezende/work/avuz/deck-fork/.superpowers/sdd/` (where review-package writes).
+- task-brief default OUTFILE depends on cwd's git root → was inconsistent (task-1 landed in avuz-server worktree, task-2 in deck-fork). FIX: always pass explicit OUTFILE under deck-fork sdd dir, and point implementers/reviewers at the deck-fork path.
+- Purged the stale board-tags task-2..12 briefs/reports that were sitting in the avuz-server worktree sdd dir (they caused CF Task 2's first dispatch to read the wrong "matching-cards" brief). Ledger (progress.md) + task-1 brief/report remain there.
+CF Task 2: complete (commit 0f988449e; review Spec ✅ + Quality Approved, zero findings). CustomFieldMapper mirrors LabelMapper; array_key_exists lastModified fix verified correct + test-proven. Full suite 412/6.
+  - Implementer FIXED a brief bug: `in_array('lastModified', getUpdatedFields())` is loose-comparison (values are true → always matches) → changed to `array_key_exists`. Correct fix, test proves stamping.
+  - PRE-EXISTING BUG (final sweep / possible separate task): the fork's real LabelMapper.php:99 has the SAME loose-in_array guard → labels likely never stamp lastModified on insert (store 0). Not in CF scope; flag upstream later.
+CF Task 3: complete (commit 8b11a5ede; review Spec ✅ + Quality Approved). Portable setValue (SELECT-then-insert/update/delete, no ON CONFLICT); null deletes. Test 3/3.
+  - HARNESS QUIRK (future DB tasks 7,8): inline `/** @group DB */` silently fails "not allowed to access the database"; MUST use multi-line docblock form. Fixed here.
+  - MINOR (final sweep): findRow catches DoesNotExistException only (not MultipleObjectsReturned — safe via unique index); null-value-no-existing-row branch untested (correct by inspection).
+CF Task 4: complete (commit bc8cdce36; review Spec ✅ + Quality Approved). CustomFieldType 7-type enum + validateValue (date-only, checkbox strict, dropdown/multi option membership); validator field_type rule. Tests 10/10.
+  - MINOR (final sweep): CustomFieldType multi branch uses is_array($decoded) — a JSON object {"0":"o1"} also decodes to array, could slip through; harden w/ array_is_list. FE never sends objects; low risk.
+CF Task 5: complete (amended commit e14a8705d; review Spec ✅ + Quality Approved after fixes). All 4 security invariants hold (perm-before-effect, stable option-id mint, cross-board reject, no update-path value purge). FIXES applied: setValue checkPermission before findBoardId; archived guards on delete+reorder; +2 security tests (cross-board reject, option-id reuse). Test 5/5.
+CF Task 6: complete (amended commit 834aa2d84; review Spec ✅ + Quality Approved). Controller thin passthrough, 6 routes no collision, sentinel, setCardValue returns fresh values. Blank-line nit fixed+amended. Test 1/1.
+CF Task 7: complete (commit fecea3f1b; review Spec ✅ + Quality Approved). Board.customFields + Card.customFieldValues; BoardService separate always-run enrichWithCustomFields (verified enrichWithLabels early-returns on 0 labels); P1 no-batch-enrich guard holds (CardService untouched); jsonSerialize ripple fixed (BoardTest+CardTest expected arrays, no masking). Full suite 432/6.
+CF Task 8: complete (amended commit 64b265873; Spec-then-fixes; remap tested asserts new field id 200, cross-board guard skips value copy, clone tests green, full suite 436t/6f).
+  - FLAG (future): cross-board single-card cloneCard carries original field ids (no cross-board field-clone primitive); matches task scope.
+=== BACKEND COMPLETE (CF Tasks 1-8). Full suite 436 tests / 6 pre-existing failures. ===
+  - FOLLOW-UP TICKET (spawn_task task_32707e0d): cross-board single-card clone needs cloneFieldIfNotExists primitive (mirror cloneLabelIfNotExists) to CARRY values across boards; currently safely SKIPS them.
+
+## Frontend batch (CF Tasks 9-12) execution note
+- Task 9 (CustomFieldApi.js) + Task 10 (store) are jest-testable. Tasks 11-12 (Vue components) can't unit-test in DB harness → build via `npm run build` + lint + commit; browser verification DEFERRED to ONE consolidated pass after Task 13 (controller-run, like prior project).
+CF Task 9: complete (commit 6504b66fd; review Spec ✅ + Quality Approved). CustomFieldApi 6 methods all cross-checked vs Task 6 backend routes (reorder {fieldIds} + setValue {value} correct). jest 3/3.
+  - MINOR (final sweep): spec asserts only create/setValue/getCardValues; reorder/update/delete untested (payloads verified-by-read, correct).
+CF Task 10: complete (commit feb73bbc2; review Spec ✅ + Quality Approved). Store wiring, all action↔mutation↔api pairings verified, customFieldValues string correct in both card actions. jest 17/17, lint clean.
+  - ENV NOTE (Task 11-12 specs): importing store/card.js unmocked pulls @nextcloud/axios ESM chain jest cant parse; mock CardApi/BoardApi to sidestep.
+
+## CF Vue-component tasks (11-12) verification adaptation
+- Vue components cant jest-unit-test in this repo (@nextcloud ESM chain unparseable + NcVue mount flaky) — proven in prior project. Tasks 11-12 verify via `npm run build` (compiles Vue/JS/imports/templates) + `npm run lint` + `npm run stylelint` + commit. UI behavior DEFERRED to ONE consolidated browser pass after Task 13 (controller-run).
+CF Task 11: complete (commit 262d3f26c; review Spec ✅ + Quality Approved). Board-settings tab: 7-type picker, option editor dropdown/multi-only, required toggle, reorder, canManage gate, type NcSelect disabled on edit (UI immutability). t() deferred to this.t() (Vue-prototype-bound). build+lint+stylelint clean.
+CF Task 12: complete (commit baa289c61 + fix 555b474f6; review Spec ✅ code/Quality Approved-otherwise). Per-type widgets encode/decode all 7 types matching backend validateValue (checkbox 0/1, multi JSON-array string, dropdown id, date YYYY-MM-DD, empty→null); soft-required badge skip checkbox; fetch-on-open. build+lint+stylelint clean.
+  - CRITICAL FIX (555b474f6, cross-task bug caught by Task 12 review): CustomField had no jsonSerialize override → RelationalEntity emitted raw getOptions() JSON STRING, frontend .find/.filter crashed on dropdown/multi. Fixed: CustomField::jsonSerialize decodes options via getOptionsArray(). +2 tests. CustomFieldTest 5/5.
+=== ALL FRONTEND CODE COMPLETE (CF Tasks 9-12). Remaining: Task 13 (version+build), consolidated browser pass, ship. ===
+CF Task 13: complete (commit 15cd1ab27). Version 1.17.2; authoritative js/ bundle built+committed (grep-confirmed contains currentBoardCustomFields/CustomFieldsSection); PHP suite 438t/6f (baseline+2 new), jest 17/17; all UI strings Portuguese (no English msgid), l10n files untouched (msgid-fallback per prior project). vendor NOT staged.
+  - MINOR (final review): "(removida)" label for a value referencing a REMOVED dropdown/multi option is not rendered by CustomFieldInput.vue — value is KEPT (backend no-purge verified Task 5), just shows blank/unlabeled, not "(removida)". No data loss. Spec cosmetic gap.
+=== ALL 13 CF TASKS COMPLETE. Fork HEAD 15cd1ab27 (deck 1.17.2). Next: final whole-branch review → browser pass → ship. ===
+
+## FINAL WHOLE-BRANCH REVIEW (opus) — verdict SHIP
+All 6 cross-layer contracts ✅ (value round-trip all 7 types, options decode round-trip fully closed, route/payload align, permission gates precede effects, P1 no-batch-enrich confirmed via grep findForCards never called, clone remap old→new + cross-board guard). No Critical/Important. All 5 deferred Minors triaged DEFER-OK.
+CONTROLLER FIXES post-review:
+  1. (555b474f6) CustomField::jsonSerialize decodes options→array (caught by Task 12 review; dropdown/multi were crashing on raw string).
+  2. (e2491c543) options-required for dropdown/multi enforced server-side (was UI-only; raw API could make unfillable field) + permission-before-validation ordering. Service test 6/6.
+DEFER-OK (not shipped, tracked): findRow single-exception (unique index makes it dead code); multi is_array vs array_is_list (FE never sends objects); reorder/update/delete API spec untested (verified-by-read); "(removida)" label unrendered (value kept, cosmetic); cross-board single-card clone skips values (ticketed).
+
+=== CF FEATURE CODE COMPLETE + REVIEWED SHIP. Fork ~/work/avuz/deck-fork branch avuz HEAD e2491c543, deck 1.17.2. NOT yet: pushed to fork remote, submodule bump in avuz-server, browser pass, build image, deploy (all gated on user). ===
+
+---
+
+# Deck BOARD FOLDERS (P6) — SDD progress ledger  [starts 2026-08-13]
+Plan: docs/superpowers/plans/2026-08-13-deck-board-folders.md (11 tasks)
+Spec: docs/superpowers/specs/2026-08-13-deck-board-folders-design.md
+Fork: ~/work/avuz/deck-fork branch `avuz`. BASE before P6 Task 1 = 2230de301 (P1 fully pushed to avuz/avuz).
+Same harness/env rules as P1 (see above): tests via ~/deck-test.sh (harness UP: deck-test-db/redis); @group DB = multi-line docblock; commit discipline (targeted git add, never vendor/js unless plan says); briefs/reports in deck-fork/.superpowers/sdd/; PHP files = <?php + blank + SPDX; lastModified stamp via array_key_exists.
+## P6 Tasks
+P6 Task 1: complete (commit aefc68ab0; review Spec ✅ + Quality Approved, zero issues). Folder entity + Version11703 (nullable parent_id + boards.folder_id, no FKs) + Board.folderId scalar. FolderTest 2/2.
+  - HARNESS NOTE (P6): Task 1's migration 11703 wasn't applied to the shared harness DB volumes (Task 1 test was non-DB). Task 2 ran `occ upgrade` on the deck-test image/volumes → deck_folders + boards.folder_id now live in the harness. Durable for remaining P6 @group DB tasks.
+P6 Task 2: complete (commit fb900a489; review Spec ✅ + Quality Approved). FolderMapper (maxOrder IS NULL correct, array_key_exists stamp) + BoardMapper.findInFolder. 10 tests/22 assertions.
+P6 Task 3: complete (commit f6f37897b; controller self-verified — rules id-numeric + title constraints match spec, header+blank ok, scope clean). Test 2/2.
+P6 Task 4: complete (commit ee6f55852; review Spec ✅ + Quality Approved). FolderService cycle-walk traced correct+terminating, delete-guard both branches, order-seed correct. Test 5/8.
+  - BY DESIGN (not a gap): FolderService has NO PermissionService/ChangeHelper — folder create/rename/delete are open to any authenticated user per spec; the only permission (board MANAGE) is in BoardService::setFolder (Task 5). Controller uses #[NoAdminRequired] = auth gate. Don't re-flag in Task 5/6.
+  - MINOR (final sweep): move() re-fetches find(parentId) after isDescendant already fetched it (harmless extra round-trip); no positive-path move/rename tests; count()>0 vs !empty style.
+P6 Task 5: complete (commit 86da557ad; review Spec ✅ + Quality Approved). setFolder MANAGE-before-effect verified, FolderMapper mock pos #10 matches, null-root skips check. BoardServiceTest 28/131.
+P6 Task 6: complete (commit 79e7c0f00; review Spec ✅ + Quality Approved, no deviations). FolderController + 6 routes + BoardController.setFolder + sentinel.
+P6 Task 7: complete (commit 10837e400; review Spec ✅ + Quality Approved). FolderApi 6 methods, moveFolder /parent + body keys verified vs backend. jest 6/6.
+P6 Task 8: complete (commit 83e481220; review Spec ✅ + Quality Approved). boardTree traced correct (empty folders survive, no dup, setBoardFolder syncs via addBoard). new spec 12/12, full jest 35/35.
+  - NOTE for Task 10: folder-delete action is named removeFolder (not deleteFolder). UI must dispatch removeFolder.
+P6 Task 9: complete (commit 9a018c23b; review Spec ✅ + Quality Approved). Recursive AppNavigationFolder (self-ref via name), keys present, archived/shared untouched, rootBoards rendered, loadFolders on mount. build+lint+stylelint clean.
+  - MINOR (final sweep): new inline All-boards item lacks alphabetical sort + open-on-add-boards of AppNavigationBoardCategory.
+P6 Task 10: complete (amended commit d2c08eb12; review Spec ✅ + Quality Approved after fix). Folder/board menu actions + recursive sort. FIX: added catch+showError to applyRename/createSubfolder/createRootFolder (were silent try/finally) + icon-add→FolderPlusOutline. build+lint+stylelint clean.
+=== ALL P6 FEATURE CODE COMPLETE (Tasks 1-10). Remaining: Task 11 version+build, browser pass, ship. ===
+P6 Task 11: complete (commit 4aaad8d6f after msgid fix; also cbebc8791 BoardTest folderId=>null fixture fix). Version 1.17.3, js/ bundle built (grep-confirmed AppNavigationFolder/boardTree). PHP 455t/6f (baseline), jest 36/36. FIX by controller: 'Folder name' English msgid → 'Nome da pasta' (3 placeholders) + rebuild + amend.
+  - NOTE: Task 1 added Board.folderId but didn't update BoardTest jsonSerialize expected arrays → 4 failures surfaced only at Task 11 full-sweep (BoardTest not run in Tasks 1-2). Fixed cbebc8791. Lesson: entity prop adds need the serialization-test fixture updated.
+=== ALL P6 CODE COMPLETE (Tasks 1-11). Fork avuz HEAD 4aaad8d6f, deck 1.17.3. Next: final whole-branch review → browser pass → ship (submodule bump + staging deploy). ===
+
+## FINAL WHOLE-BRANCH REVIEW (opus) — verdict SHIP-AFTER-FIXES → FIXED → SHIP
+All 6 cross-layer contracts ✅ (folder CRUD round-trip, board-placement MANAGE gate+UI parity, permission model incl delete-when-empty, cycle prevention + non-hanging tree getter, no-prune sorted tree, serialization). i18n confirmed clean (only 'Nome da pasta' etc.).
+IMPORTANT bug FIXED (commit a725e7b04): BoardService::setFolder returned un-enriched board → store addBoard replaced enriched board → canManage/acl/labels stripped till reload. Fix = store-side surgical merge: setBoardFolder action commits new setBoardFolderId mutation (Vue.set folderId on existing board), never replaces. folders.store 15/15, full jest 38/38.
+DEFER-OK minors: move re-fetches find(parentId); move missing-parent throws DoesNotExist not BadRequest; no positive-path move/rename test; buildBoardTree no cycle guard (proven non-hanging); folder-picker paddingLeft + submenu exclusivity (browser-pass, logic sound).
+=== P6 CODE COMPLETE + REVIEWED SHIP. Fork avuz HEAD a725e7b04, deck 1.17.3. Next: submodule bump + staging build/deploy + browser pass. ===
