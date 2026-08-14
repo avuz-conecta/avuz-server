@@ -114,8 +114,24 @@ Then:
 - **Board inherited perms** = `accumulatedFlags(board.folderId, user)` (empty if board has no folder
   or user matches no ancestor ACL).
 - **Board effective perms** = `unionFlags(ownBoardAclPerms, inheritedPerms)`; board **owner** = full.
-- Extend `PermissionService::getPermissions(int $boardId, ?string $userId)` (line ~57) and
-  `matchPermissions(Board)` (line ~95) to OR in the inherited folder perms before returning.
+
+**Single injection point — `getPermissions`.** Verified: `PermissionService::checkPermission` (the
+gate every service uses — Card, Stack, Attachment, Comment, Label, Assignment, CustomField, BoardTag)
+resolves through **`getPermissions(int $boardId, ?string $userId)`** (line ~57), which is
+`permissionCache`-backed (`boardId-userId`). Inject the inherited-folder union **into
+`getPermissions`** and it propagates to **every enforcement call and the read path at once**, cached
+per board per request — no "sees the board but 403s on edit" split. Also union it into
+`matchPermissions(Board)` (line ~95), the in-memory variant used when serializing the boards list.
+
+**Reuse, don't re-implement, membership.** `PermissionService::userCan(array $acls, $permission,
+$userId)` already resolves user + group (`groupManager->isInGroup`) + circle
+(`circlesService->isUserInCircle`) from an ACL array. `FolderAcl` exposes the same
+`getType/getParticipant/getPermission` interface, so `userCan` computes folder-grant flags unchanged.
+
+**Cost — memoize the folder→flags map per request.** Build `Map<folderId,{edit,share,manage}>` for the
+user once (O(folders), topological over `parent_id`) and memoize it on `PermissionService`; then
+`getPermissions`/`matchPermissions` for each board is an O(1) lookup on `board.folderId`. The existing
+`permissionCache` still short-circuits repeat board lookups within the request.
 
 ### Accessible-boards query (`BoardService` / `BoardMapper`) — highest-risk change
 
@@ -132,8 +148,11 @@ SQL, resolve inheritance in the **service layer**:
 5. `accessible` = `boardsDirect ∪ boardsViaFolder`, deduped by board id; each board's permissions
    merged via the resolver above.
 
-Group/circle membership resolution reuses the exact helper the board path already uses (do not
-re-implement it). `since`/`archived`/`before` filters must still apply to the folder-sourced boards.
+Group/circle membership resolution reuses `userCan` / the board path's `getUserGroupIds` +
+`circlesService->getUserCircles` (do not re-implement). **`since`/`archived`/`before`/deleted filters
+must apply identically to the folder-sourced boards** — a board pulled in via a shared folder must
+obey the same archived/deleted/pagination rules the SQL applies to direct boards, or the two sources
+diverge. Add explicit tests for an archived board reachable only via a shared folder.
 
 ### Folder ACL service + gating
 
@@ -156,6 +175,19 @@ re-implement it). `since`/`archived`/`before` filters must still apply to the fo
 - `FolderService::findAll` — filter to **visible** folders for the caller (creator ∪ has any
   `folder_acl` match ∪ subtree contains a board the user can access). Compute from (2)–(4) above +
   the user's accessible board set; keep ancestors of any visible node (so the path renders).
+
+### Cache invalidation + lifecycle (correctness — easy to miss)
+
+- **Permission cache.** `getPermissions` caches `boardId-userId`. A folder-ACL change (share / update /
+  unshare) silently changes the effective perms of **every board in that folder's subtree** for the
+  affected participants. On any `FolderAclService` write, **invalidate `permissionCache` for the
+  affected boards** (subtree boards) — or flush it — so a just-shared folder takes effect immediately
+  and an unshare revokes immediately. Missing this = stale access after (un)share.
+- **Participant deletion.** Extend `ParticipantCleanupListener` to also purge `folder_acl` rows whose
+  `participant` is the deleted user/group/circle (it already does this for `board_acl`).
+- **Folder owner deletion / transfer.** Extend `TransferOwnership` (command) to reassign
+  `deck_folders.owner` alongside boards, so a folder isn't orphaned (no owner = no implicit MANAGE)
+  when its creator is removed. Mirror the board handling.
 
 ### Controller + routes
 
@@ -205,7 +237,22 @@ re-implement it). `since`/`archived`/`before` filters must still apply to the fo
   accessible if a folder is shared to any of the user's groups/circles.
 - **Empty shared folder** — visible to creator + grantees (expected; Drive shows empty shared
   folders), even with no boards yet.
-- **Participant no longer exists** (deleted user/group) — mirror board ACL behavior.
+- **Participant no longer exists** (deleted user/group) — mirror board ACL behavior; see cleanup
+  listener above.
+
+### Access-semantics implications (settled by the locked decisions — flagged for a veto)
+
+Two consequences fall out of **union-only** + **MANAGE-gated folder ops**. Both match Nextcloud Drive.
+Neither is a new question — but they define how powerful folder sharing is, so they're called out:
+
+1. **Folder MANAGE = full control of the boards inside**, including **deleting a board** and
+   **re-sharing it**. Union-only (decision 2) forbids capping inherited perms, so `manage` on a folder
+   grants `manage` on every board in it. Sharing a folder with `manage` is therefore a heavy grant —
+   the UI copy on the share modal should make the level's effect legible (e.g. what "Gerenciar" does).
+2. **Moving a folder into a shared folder propagates access.** Moving folder X (which you MANAGE) under
+   a folder Y shared with others makes X's boards accessible to Y's grantees — exactly Drive's
+   behavior. The move is gated only on **your** MANAGE of X (not on Y), so the exposure is your
+   deliberate action, not a third-party leak. No destination-permission gate is added.
 
 ## Testing
 
@@ -215,10 +262,15 @@ re-implement it). `since`/`archived`/`before` filters must still apply to the fo
     duplicate-participant rejected; delete cascade on folder delete.
   - `PermissionServiceTest` (folder inheritance) — `getPermissions` unions inherited folder perms;
     ancestor-walk accumulates (edit at A + manage at A1 → edit+manage on B); owner = full; no folder =
-    board-only.
+    board-only; **inherited perm is enforced at `checkPermission`** (a folder-edit grantee passes an
+    EDIT check on a card in that board — not just the read path); **cache invalidated on folder-ACL
+    change** (share then immediately-effective; unshare then immediately-revoked).
   - `BoardServiceTest` / `BoardMapperTest` — accessible boards include boards under a folder shared to
     the user (direct + descendant folders); group/circle path; dedupe with a direct board share;
-    `since`/archived filters still honored.
+    `since`/archived filters still honored (incl. **an archived board reachable only via a shared
+    folder**).
+  - `ParticipantCleanupListenerTest` / `TransferOwnershipTest` — deleting a participant purges their
+    `folder_acl` rows; transferring ownership reassigns `deck_folders.owner`.
   - `FolderServiceTest` — `findAll` returns only visible folders (creator ∪ shared ∪
     subtree-has-accessible-board), ancestors of a visible node kept; rename/delete/move now require
     MANAGE.
