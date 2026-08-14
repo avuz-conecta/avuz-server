@@ -190,3 +190,26 @@ All 6 cross-layer contracts ✅ (folder CRUD round-trip, board-placement MANAGE 
 IMPORTANT bug FIXED (commit a725e7b04): BoardService::setFolder returned un-enriched board → store addBoard replaced enriched board → canManage/acl/labels stripped till reload. Fix = store-side surgical merge: setBoardFolder action commits new setBoardFolderId mutation (Vue.set folderId on existing board), never replaces. folders.store 15/15, full jest 38/38.
 DEFER-OK minors: move re-fetches find(parentId); move missing-parent throws DoesNotExist not BadRequest; no positive-path move/rename test; buildBoardTree no cycle guard (proven non-hanging); folder-picker paddingLeft + submenu exclusivity (browser-pass, logic sound).
 === P6 CODE COMPLETE + REVIEWED SHIP. Fork avuz HEAD a725e7b04, deck 1.17.3. Next: submodule bump + staging build/deploy + browser pass. ===
+
+## STAGING DEPLOY (P6) — 2026-08-14
+Image built+pushed registry.avuz.app/admin/avuzconecta:staging (digest e0d161cc). Deploy avuz-conecta stack via Portainer.
+- Deploy #1 curl(56) timeout (VPN); #2 OK "redeployed".
+- Container crash-looped: "Fail to create file sequence directory" (Snowflake FileSequence:52) = HOST DISK 100% (96G/92G used/0 free). NOT P6. New image pull tipped an already-near-full host (70 imgs/120 vols/78G layers).
+- Fix: Portainer images/prune dangling → 70→59 imgs, freed 16G (→83%/15.8G free); restarted container → healthy.
+- VERIFIED: deck installed_version=1.17.3; oc_deck_folders table OK; oc_deck_boards.folder_id OK (pgsql). Container healthy, 200s.
+- TODO: proper host cleanup pass (unused images -a + orphan volumes audit) — host chronically near-full. Cloudflare JS purge (on Patrick) after browser pass.
+
+## P6 UX PASS (staging, Chrome-driven) — 2026-08-14 — ALL GREEN
+Verified live at conectahml.avuz.app (CF purged, new JS active):
+1. Create root folder (QA Espaço) ✓ persist
+2. Create nested subfolder (Orçamento) ✓ indented
+3. Rename folder (→ Orçamentos Raíven) ✓ PUT /folders/1 200
+4. Move board into 3-level nest (Administrativo→Orçamento) ✓
+5. Folder-picker indentation (Orçamento indented under parent) ✓ [flagged detail #1 OK]
+6. ENRICHMENT FIX (a725e7b04): moved board kept full MANAGE menu (Editar/Clonar/Exportar/Mover/Excluir) ✓ — not stripped
+7. Move board→Raiz ✓ PUT /boards/61/folder 200, re-rendered at root
+8. Delete-non-empty BLOCKED ✓ DELETE /folders/2 400, folder survived
+9. Delete-empty SUCCESS ✓ DELETE /folders/2 200, removed
+Cleanup: both test folders deleted, sidebar restored flat. Board list intact.
+Host disk: prune -a freed +7G (50 imgs). Now 53%/42.7G free (was 0). Healthy.
+=== P6 SHIPPED + VERIFIED LIVE ON STAGING. ===
