@@ -56,6 +56,8 @@ Follow-up to P6 (board folders) + P6.1 (folder sharing). P6 shipped folder place
   - Return the **enriched** board (`$this->find($boardId)`) — the P6.1 fix; keep it. The frontend still merges only `folderId`/`order` into the store board (P6.1 `setBoardFolderId` pattern) to preserve enrichment; extend that mutation to also set `order`.
 - `FolderService::move(int $id, ?int $parentId, ?int $order = null): Folder` — extend P6 signature. Gate on folder **MANAGE**. Keep the P6 cycle guard (reject into self/descendant). Position within `parentId` siblings using the same append-or-insert-and-resequence logic (`folderMapper->maxOrder($parentId)`).
 - **Resequencing routine** (shared shape for boards + folders): given a container (folderId / parentId) and a target index, write contiguous `order` values `0..n-1` to the siblings with the moved item placed at `index`. Keep it deterministic and O(siblings). A plain append is the `index = end` case.
+  - **Operate on the FULL container, not the acting user's ACL-filtered view.** Resequence every board with that `folder_id` (or every folder with that `parent_id`) — the backend sees them all. This keeps `order` values coherent across users and avoids collisions with siblings the actor can't see.
+  - **Order-only writes — no change/activity spam.** `StackService::reorder` calls `changeHelper->boardChanged()`; a sidebar reorder that touches many boards must NOT fan that out per board (no activity entries, no notifications, no per-board ETag storm). Update `order` (and, if needed, a single lightweight signal so clients refetch the boards list) and nothing else. Reordering is not an "edit" for activity purposes.
 
 ### Controllers + routes (bodies extended, routes unchanged)
 - `BoardController::setFolder(int $boardId, ?int $folderId, ?int $order = null)` — add the optional `order` param; pass through.
@@ -68,7 +70,10 @@ Follow-up to P6 (board folders) + P6.1 (folder sharing). P6 shipped folder place
 ## Frontend / UX
 
 ### Drag-and-drop (`vuedraggable`)
-- Add `vuedraggable` to `package.json`. Each container renders **two separate `<draggable>` lists** — a **folders** list then a **boards** list (matching today's "folders first, then boards" render). This avoids any mixed folder/board index math: order is naturally per-kind.
+- **Pin `vuedraggable@^2.24`** (Vue 2 / SortableJS 1.x). The app is **Vue 2.7.15** — `vuedraggable@4` is Vue 3-only and must NOT be used.
+- **Draggable wraps ONLY the folder-tree lists** — the root folders/boards lists in `AppNavigation.vue` and each folder's sub-folder/board lists in `AppNavigationFolder.vue`. It must NOT wrap the **shared** / **archived** `AppNavigationBoardCategory` lists (`AppNavigation.vue:63-80`) — those boards are not reorderable/placeable and stay as-is.
+- **Wrapper element must fit `NcAppNavigationItem`'s child structure.** A folder's children render directly in the `NcAppNavigationItem` default slot as nav items today; the `<draggable>` inserts a root element, so set its `tag`/`:component` to the element the nav list expects (a `ul`, with the nav items as its `li`s) so the sidebar markup/styling is preserved. Verify the rendered DOM matches the pre-DnD structure.
+- Each container renders **two separate `<draggable>` lists** — a **folders** list then a **boards** list (matching today's "folders first, then boards" render). This avoids any mixed folder/board index math: order is naturally per-kind.
   - Root level (`AppNavigation.vue`): a folders `<draggable>` (root folders) + a boards `<draggable>` (root boards).
   - Each folder (`AppNavigationFolder.vue`): a folders `<draggable>` (its sub-folders) + a boards `<draggable>` (its boards).
 - **Two SortableJS groups, one per kind:**
@@ -84,7 +89,8 @@ Follow-up to P6 (board folders) + P6.1 (folder sharing). P6 shipped folder place
   - Reject dropping a folder into itself or a descendant (walk the tree client-side; backend also guards).
   - Reject a drop whose target folder the user cannot place into if that matters (placement is gated by the moved item's MANAGE, not the target's — mirror P6 menu rule).
 - **Visual:** SortableJS ghost/drop-indicator classes styled to match the sidebar; a subtle drop-target highlight on folders during drag-over.
-- Optimistic store update on drop, reconcile with the returned entity; on failure the store action already `showError`s + rejects (P6.1 contract) → revert local order.
+- **Click-vs-drag coexistence (with #1 folder-click-collapse).** The folder row is both draggable AND a click target that toggles collapse. Configure SortableJS so a click is not read as a drag and vice-versa: a small `delay`/`touchStartThreshold` (e.g. a few px / ms) starts a drag only past the threshold; SortableJS suppresses the synthetic click after a drag. A board row is draggable and also opens the board on click — same treatment. (If threshold tuning proves unreliable, fall back to a dedicated drag handle; default is whole-row draggable.)
+- **Optimistic update + revert.** `vuedraggable` mutates the bound list on drop (via `v-model`/`@change`). Dispatch the store action; on **reject** (the P6.1 contract: the action `showError`s then rejects) **restore the pre-drop order** (snapshot the list before the drop, or re-fetch) so the UI doesn't lie. On success, reconcile with the returned entity.
 
 ### Folder click-collapse (#1)
 - `AppNavigationFolder.vue`: bind `NcAppNavigationItem :open.sync="expanded"` (data `expanded`, default matching today's collapsed default) and toggle `expanded` on the item's row click (`@click` on `NcAppNavigationItem`, which fires for the name area, not the action buttons). The caret keeps working via the same synced state. (`:open.sync` is the confirmed NcAppNavigationItem API — see `AppNavigationBoardCategory.vue`/`DeckAppSettings`.) Ensure the click that toggles collapse does not also start a drag (SortableJS delay/threshold distinguishes click from drag) and does not fire when clicking an action button (`@click.stop` on those).
@@ -107,7 +113,8 @@ Follow-up to P6 (board folders) + P6.1 (folder sharing). P6 shipped folder place
 - **Folder into its own descendant** — rejected client-side + `BadRequestException` server-side (P6 guard).
 - **Board without MANAGE** — not draggable; the menu move is likewise gated.
 - **Concurrent reorders** — last write wins (same as stack/card reorder); resequencing is idempotent.
-- **Move across containers** resets the item into the target's sequence at the drop index; the source container's remaining siblings are left contiguous (or resequenced lazily — acceptable to leave gaps since sort is by `order` then title).
+- **Move across containers** resets the item into the target's sequence at the drop index (resequence the full target container); the source container's remaining siblings may be left with gaps — harmless, since sort is by `order` then title.
+- **Mixed-visibility folders (ACL edge).** A folder may hold boards the reordering user can't see (P6.1 visibility). The drop index comes from the user's filtered list; the backend maps it into the full container by placing the moved board relative to its **visible neighbors** (resequence the full container so the moved item sits between the visible predecessor and successor). Worst case, cross-user order is *best-effort* and the `order`-then-title tiebreak keeps it stable (never a crash or lost board). A fractional/gap-based `order` is a future hardening; v1 uses dense integer resequencing with the title tiebreak. Document this limitation.
 - **Board clone / new board / new folder** — appended at end (`maxOrder + 1`), consistent with P6 create.
 
 ## Testing
@@ -115,15 +122,15 @@ Follow-up to P6 (board folders) + P6.1 (folder sharing). P6 shipped folder place
 - **PHP (`~/deck-test.sh`)**:
   - `Version11705` migration applies (`deck_boards.order` present).
   - `BoardMapper::maxOrder` (root vs folder, empty → -1).
-  - `BoardServiceTest::setFolder` — append when `order` null; insert-at-index + resequence when given; MANAGE gate; returns enriched board.
+  - `BoardServiceTest::setFolder` — append when `order` null; insert-at-index + resequence when given; MANAGE gate; returns enriched board; **resequences the FULL container (not the caller's ACL-filtered subset)**; **does NOT fan out `boardChanged`/activity per sibling** on reorder.
   - `FolderServiceTest::move` — reorder within parent; re-nest + position; cycle guard intact; MANAGE gate.
-  - `BoardTest` fixtures updated with `order`.
+  - `BoardTest` fixtures updated with `order` (`'order' => 0`).
 - **JS (jest)**:
   - `buildBoardTree` sorts by `order` then title at every level.
   - `folders.store` — `setBoardFolder`/`moveFolder` pass `order`; mutations set `order` without clobbering enrichment.
   - `FolderApi.spec` — `order` in the payloads.
-  - A DnD component test (mount with a `vuedraggable` stub) asserting a simulated drop dispatches `setBoardFolder`/`moveFolder` with the right container + index, and that a non-MANAGE item is not draggable.
-  - `AppNavigationFolder` — row click toggles `expanded`; clicking an action button does not.
+  - A DnD component test (mount with a `vuedraggable` stub) asserting a simulated drop dispatches `setBoardFolder`/`moveFolder` with the right container + index; a non-MANAGE item is not draggable; a drop that **rejects** restores the pre-drop order; the **shared/archived category lists are NOT wrapped in draggable**.
+  - `AppNavigationFolder` — row click toggles `expanded`; clicking an action button does not (`@click.stop`).
 
 ## Deployment notes (carried from fork gotchas)
 
