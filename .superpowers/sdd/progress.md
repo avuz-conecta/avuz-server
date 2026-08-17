@@ -253,3 +253,25 @@ FIX (e1ed87c39): `:open.sync="open"` + reactive `open` data + watch(open→emit 
 DEPLOY LEARNING: JS-only deck change kept version 1.17.4 → NC's global asset `?v=` hash (d2336365) did NOT change → browsers keep OLD JS (CF purge does NOT fix browser HTTP cache; only a ?v change does). Fix reached clients only after bumping deck 1.17.4→1.17.5 (busted ?v to 4d8f5ca0) — RULE: any deck JS change that must reach cached clients needs a version bump. Verified live: new bundle loaded, ✕ closes modal + stays closed.
 Also hit: 502/autoheal restart flap right after the 1.17.5 boot (web tier slow after entrypoint config → unhealthy → autoheal restarted once → settled healthy on 2nd boot). Transient.
 === P6.1 fully SHIP + deployed (deck 1.17.5) + modal-close fix verified live. ===
+
+# ==== P6.2 Sidebar Drag-and-Drop + folder click-collapse — SDD ====
+Code in /Users/patrickrezende/work/avuz/deck-fork (branch avuz). BASE = 6b1fde9a2 (deck 1.17.5). Plan: docs/superpowers/plans/2026-08-14-deck-sidebar-dnd.md (9 tasks). Spec+plan grilled. Target 1.17.6.
+Task 1: complete (c664b5ff2, review clean — migration/entity/maxOrder faithful, BoardTest fixtures fixed, testMaxOrder genuine)
+  HARNESS was BROKEN (pre-existing NC-core Log.php array_map(normalizer->format(...)) by-ref bug -> all @group DB tests error). FIXED by patching local avuzconecta:latest test image (closure wrapper over 3 call sites, one-layer build; registry copy preserved). ~/deck-test.sh works normally now. Proper base-image fix belongs to avuz-server owner (Patrick).
+Task 2: complete (1e3825e2f, review clean — order-only traced (no-op update short-circuits), boardChanged once-on-move/zero-on-reorder, full-container resequence, tests assert exact write-orders)
+  MINOR(defer-triage): no single test exercises move+explicit-order together (gating is shared shared code, proven per-branch)
+Task 3: complete (19e0d779f, review found Moderate: FolderMapper.update overrides to bump lastModified unlike BoardMapper -> order-only reorder bumped it. FIXED update($folder,false) on reorder branch only (plain-move keeps bump); FolderServiceTest 19/19 fail-pre/pass-post)
+Task 4: complete (2d8664c6f, review clean — passthrough genuine, routes untouched, NoAdminRequired kept; case-path snag Controller vs controller resolved)
+=== BACKEND COMPLETE (T1-4). Frontend next (T5-8), build T9. ===
+Task 5: complete (ec9de7d48, review found CRITICAL: moveFolder full-replace stripped folder.permissions (P6.1 enrichment bug reincarnated) -> canManage/DnD break. FIXED: targeted setFolderPosition mutation (mirrors board setBoardFolderId); folders.store 38/38 fail-pre/pass-post. Boards path was already correct.)
+Task 6: complete (8bda5b3f8, review clean — reactivity sound, drop-index correct, groups separate, DOM verified vs vendor CSS, recursive scope OK)
+  DEFERRED-TO-T7 (confirmed by review): rejected drop -> ghost item (optimistic splice never reverted, fire-and-forget no .catch, silent). T7 revert-on-reject MUST fix this.
+Task 7: complete (9ff481715, review clean — revert real+full (both folder+root), error surfacing traced non-silent via Vue errorHandler, perm gate + cycle guard + click-vs-drag correct; Task-6 ghost-item bug FIXED)
+  MINOR(defer-triage): isManageable+DRAG constants duplicated across AppNavigation.vue/AppNavigationFolder.vue (future dnd-safety helper)
+  MINOR(defer-triage): pure-offline (no err.response) drag failure is silent (pre-existing main.js gap, not this task)
+Task 8: complete (fb7444750, review clean — verified vs real @nextcloud/vue source: open-default-false unchanged, actions/children siblings, caret disjoint, mock fix legit)
+Task 9: complete (705374b2e — full jest 104/104, full PHP 515 (only 6 pre-existing NotifierTest locale fails), eslint 0 errors, build clean, vuedraggable bundled). ALL 9 TASKS DONE.
+
+## FINAL WHOLE-BRANCH REVIEW (opus) — SHIP
+All 6 cross-layer contracts + 4 hot-path risks verified end-to-end. Order-only holds both paths (board bare-update no-op + folder update(false)); enrichment preserved (setBoardFolderId/setFolderPosition targeted merges); revert real + non-silent (vuedraggable v-model clone + Vue errorHandler toast); no board dropped/duplicated; menu-move append unchanged; mixed-visibility best-effort+tiebreak; click-collapse vs drag OK. Migration 11705 + 1.17.6 + vuedraggable@2.24.3 (Vue2) + reserved-word-via-QB all good. All P6.2 Minors DEFER-OK. Review loop caught 3 real bugs (T3 lastModified, T5 folder-perms strip, T6 ghost-item->T7). SMOKE NOTE: click caret specifically (possible row double-toggle) during staging pass.
+=== P6.2 COMPLETE + SHIP. deck 1.17.6, 9 commits. Next: push+submodule bump+staging build/deploy+browser smoke(+caret)+CF purge. ===
