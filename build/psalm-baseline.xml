@@ -37,12 +37,16 @@
 			'preLoginNameUsedAsUserName',
 			['uid' => &$uid]
 		)]]></code>
+      <code><![CDATA[getFederationIdFromSharedSecret]]></code>
     </DeprecatedMethod>
   </file>
   <file src="apps/comments/lib/Activity/Listener.php">
     <DeprecatedConstant>
       <code><![CDATA[CommentsEvent::EVENT_ADD]]></code>
     </DeprecatedConstant>
+    <DeprecatedMethod>
+      <code><![CDATA[getEvent]]></code>
+    </DeprecatedMethod>
   </file>
   <file src="apps/comments/lib/Listener/CommentsEventListener.php">
     <DeprecatedConstant>
@@ -51,6 +55,10 @@
       <code><![CDATA[CommentsEvent::EVENT_PRE_UPDATE]]></code>
       <code><![CDATA[CommentsEvent::EVENT_UPDATE]]></code>
     </DeprecatedConstant>
+    <DeprecatedMethod>
+      <code><![CDATA[getEvent]]></code>
+      <code><![CDATA[getEvent]]></code>
+    </DeprecatedMethod>
   </file>
   <file src="apps/comments/lib/MaxAutoCompleteResultsInitialState.php">
     <DeprecatedMethod>
@@ -62,6 +70,10 @@
       <code><![CDATA[CommentsEvent::EVENT_DELETE]]></code>
       <code><![CDATA[CommentsEvent::EVENT_PRE_UPDATE]]></code>
     </DeprecatedConstant>
+    <DeprecatedMethod>
+      <code><![CDATA[getEvent]]></code>
+      <code><![CDATA[getEvent]]></code>
+    </DeprecatedMethod>
   </file>
   <file src="apps/dav/appinfo/v1/publicwebdav.php">
     <InternalMethod>
@@ -1406,7 +1418,6 @@
     <InternalMethod>
       <code><![CDATA[getLocalFile]]></code>
       <code><![CDATA[new View('/' . $userId . '/files_external')]]></code>
-      <code><![CDATA[put]]></code>
     </InternalMethod>
   </file>
   <file src="apps/files_external/lib/Lib/Storage/SMB.php">
@@ -1440,7 +1451,6 @@
       <code><![CDATA[encrypt]]></code>
       <code><![CDATA[setIV]]></code>
       <code><![CDATA[setIV]]></code>
-      <code><![CDATA[setKey]]></code>
     </InternalMethod>
   </file>
   <file src="apps/files_external/lib/Service/BackendService.php">
@@ -1516,6 +1526,7 @@
       <code><![CDATA[(int)$code]]></code>
     </RedundantCast>
     <UndefinedClass>
+      <code><![CDATA[Circles]]></code>
       <code><![CDATA[Circles]]></code>
       <code><![CDATA[Circles]]></code>
     </UndefinedClass>
@@ -1596,9 +1607,6 @@
     </DeprecatedMethod>
   </file>
   <file src="apps/files_sharing/lib/Middleware/SharingCheckMiddleware.php">
-    <DeprecatedInterface>
-      <code><![CDATA[protected]]></code>
-    </DeprecatedInterface>
     <DeprecatedMethod>
       <code><![CDATA[getAppValue]]></code>
       <code><![CDATA[getAppValue]]></code>
@@ -1777,12 +1785,18 @@
   <file src="apps/files_trashbin/lib/Helper.php">
     <InternalClass>
       <code><![CDATA[new View('/' . $user . '/files_trashbin/files')]]></code>
+      <code><![CDATA[new View('/' . $user . '/files_trashbin/files')]]></code>
     </InternalClass>
     <InternalMethod>
       <code><![CDATA[getAbsolutePath]]></code>
       <code><![CDATA[getAbsolutePath]]></code>
+      <code><![CDATA[getAbsolutePath]]></code>
+      <code><![CDATA[getAbsolutePath]]></code>
+      <code><![CDATA[getMount]]></code>
       <code><![CDATA[getMount]]></code>
       <code><![CDATA[is_dir]]></code>
+      <code><![CDATA[is_dir]]></code>
+      <code><![CDATA[new View('/' . $user . '/files_trashbin/files')]]></code>
       <code><![CDATA[new View('/' . $user . '/files_trashbin/files')]]></code>
     </InternalMethod>
   </file>
@@ -1814,19 +1828,6 @@
     <MismatchingDocblockReturnType>
       <code><![CDATA[INode]]></code>
     </MismatchingDocblockReturnType>
-  </file>
-  <file src="apps/files_trashbin/lib/Sabre/TrashRoot.php">
-    <InvalidReturnStatement>
-      <code><![CDATA[$entry]]></code>
-    </InvalidReturnStatement>
-    <InvalidReturnType>
-      <code><![CDATA[ITrash]]></code>
-    </InvalidReturnType>
-  </file>
-  <file src="apps/files_trashbin/lib/Sabre/TrashbinPlugin.php">
-    <InternalMethod>
-      <code><![CDATA[free_space]]></code>
-    </InternalMethod>
   </file>
   <file src="apps/files_trashbin/lib/Storage.php">
     <DeprecatedMethod>
@@ -2198,7 +2199,6 @@
       <code><![CDATA[getAppValue]]></code>
       <code><![CDATA[getAppValue]]></code>
       <code><![CDATA[getAppValue]]></code>
-      <code><![CDATA[getAppValue]]></code>
       <code><![CDATA[getUserValue]]></code>
       <code><![CDATA[implementsActions]]></code>
       <code><![CDATA[implementsActions]]></code>
@@ -2224,11 +2224,7 @@
     </DeprecatedMethod>
   </file>
   <file src="apps/provisioning_api/lib/Middleware/ProvisioningApiMiddleware.php">
-    <DeprecatedInterface>
-      <code><![CDATA[IControllerMethodReflector]]></code>
-    </DeprecatedInterface>
     <DeprecatedMethod>
-      <code><![CDATA[hasAnnotation]]></code>
       <code><![CDATA[hasAnnotation]]></code>
     </DeprecatedMethod>
     <InvalidReturnType>
@@ -2788,16 +2784,10 @@
     <DeprecatedInterface>
       <code><![CDATA[User_LDAP]]></code>
     </DeprecatedInterface>
-    <ImplementedReturnTypeMismatch>
-      <code><![CDATA[string|false]]></code>
-    </ImplementedReturnTypeMismatch>
     <MoreSpecificImplementedParamType>
       <code><![CDATA[$limit]]></code>
       <code><![CDATA[$offset]]></code>
     </MoreSpecificImplementedParamType>
-    <NullableReturnStatement>
-      <code><![CDATA[null]]></code>
-    </NullableReturnStatement>
     <RedundantCondition>
       <code><![CDATA[$displayName && (count($displayName) > 0)]]></code>
       <code><![CDATA[is_string($dn)]]></code>
@@ -2923,11 +2913,7 @@
     <DeprecatedMethod>
       <code><![CDATA[\OC_App::getAllApps()]]></code>
       <code><![CDATA[getFilteredValues]]></code>
-      <code><![CDATA[getValues]]></code>
     </DeprecatedMethod>
-    <FalsableReturnStatement>
-      <code><![CDATA[$this->appConfig->getValues($app, false)]]></code>
-    </FalsableReturnStatement>
   </file>
   <file src="core/Command/Db/ConvertType.php">
     <DeprecatedMethod>
@@ -3208,9 +3194,6 @@
     </DeprecatedMethod>
   </file>
   <file src="core/Middleware/TwoFactorMiddleware.php">
-    <DeprecatedInterface>
-      <code><![CDATA[private]]></code>
-    </DeprecatedInterface>
     <DeprecatedMethod>
       <code><![CDATA[hasAnnotation]]></code>
       <code><![CDATA[hasAnnotation]]></code>
@@ -3883,7 +3866,7 @@
   </file>
   <file src="lib/private/Group/Manager.php">
     <LessSpecificReturnStatement>
-      <code><![CDATA[$groups]]></code>
+      <code><![CDATA[$this->getGroupsObjects($groupIds)]]></code>
     </LessSpecificReturnStatement>
     <MoreSpecificReturnType>
       <code><![CDATA[\OC\Group\Group[]]]></code>
@@ -4209,9 +4192,6 @@
     <InternalMethod>
       <code><![CDATA[getAbsolutePath]]></code>
     </InternalMethod>
-    <UndefinedInterfaceMethod>
-      <code><![CDATA[getQuota]]></code>
-    </UndefinedInterfaceMethod>
   </file>
   <file src="lib/private/legacy/OC_User.php">
     <UndefinedClass>

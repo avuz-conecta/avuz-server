@@ -221,8 +221,7 @@ class Cache implements ICache {
 			$query = $this->getQueryBuilder();
 			$query->selectFileCache()
 				->whereParent($fileId)
-				->whereStorageId($this->getNumericStorageId())
-				->orderBy('name', 'ASC');
+				->whereStorageId($this->getNumericStorageId());
 
 			$metadataQuery = $query->selectMetadata();
 
@@ -1003,7 +1002,7 @@ class Cache implements ICache {
 			$id = $entry['fileid'];
 
 			$query = $this->getQueryBuilder();
-			$query->select('size', 'unencrypted_size')
+			$query->select('size', 'unencrypted_size', 'encrypted')
 				->from('filecache')
 				->whereStorageId($this->getNumericStorageId())
 				->whereParent($id);
@@ -1023,7 +1022,7 @@ class Cache implements ICache {
 					return Util::numericToNumber($row['unencrypted_size']);
 				}, $rows);
 				$unencryptedSizes = array_map(function (array $row) {
-					return Util::numericToNumber(($row['unencrypted_size'] > 0) ? $row['unencrypted_size'] : $row['size']);
+					return Util::numericToNumber($row['encrypted'] ? $row['unencrypted_size'] : $row['size']);
 				}, $rows);
 
 				$sum = array_sum($sizes);
@@ -1211,6 +1210,9 @@ class Cache implements ICache {
 			&& $sourceCache->hasEncryptionWrapper()
 			&& !$this->shouldEncrypt($targetPath)) {
 			$data['encrypted'] = 0;
+			// normalizeData() prefers 'encryptedVersion' over 'encrypted' when both are
+			// set, so it has to be cleared too or the mark above gets ignored
+			unset($data['encryptedVersion']);
 		}
 
 		$fileId = $this->put($targetPath, $data);
@@ -1244,6 +1246,11 @@ class Cache implements ICache {
 		if ($entry instanceof CacheEntry && isset($entry['scan_permissions'])) {
 			$data['permissions'] = $entry['scan_permissions'];
 		}
+
+		if ($entry->isEncrypted() && isset($entry['encryptedVersion'])) {
+			$data['encryptedVersion'] = $entry['encryptedVersion'];
+		}
+
 		return $data;
 	}
 

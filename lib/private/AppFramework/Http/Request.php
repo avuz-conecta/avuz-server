@@ -39,7 +39,7 @@ class Request implements \ArrayAccess, \Countable, IRequest {
 	public const USER_AGENT_CHROME = '/^Mozilla\/5\.0 \([^)]+\) AppleWebKit\/[0-9.]+ \(KHTML, like Gecko\)( Ubuntu Chromium\/[0-9.]+|) Chrome\/[0-9.]+ (Mobile Safari|Safari)\/[0-9.]+( (Vivaldi|Brave|OPR)\/[0-9.]+|)$/';
 	// Safari User Agent from http://www.useragentstring.com/pages/Safari/
 	public const USER_AGENT_SAFARI = '/^Mozilla\/5\.0 \([^)]+\) AppleWebKit\/[0-9.]+ \(KHTML, like Gecko\) Version\/[0-9.]+ Safari\/[0-9.A-Z]+$/';
-	public const USER_AGENT_SAFARI_MOBILE = '/^Mozilla\/5\.0 \([^)]+\) AppleWebKit\/[0-9.]+ \(KHTML, like Gecko\) Version\/[0-9.]+ (Mobile\/[0-9.A-Z]+) Safari\/[0-9.A-Z]+$/';
+	public const USER_AGENT_SAFARI_MOBILE = '/^Mozilla\/5\.0 \((?:Apple-)?iP[^)]+\) AppleWebKit\/[0-9.+]+ \(KHTML, like Gecko\)/';
 	// Android Chrome user agent: https://developers.google.com/chrome/mobile/docs/user-agent
 	public const USER_AGENT_ANDROID_MOBILE_CHROME = '#Android.*Chrome/[.0-9]*#';
 	public const USER_AGENT_FREEBOX = '#^Mozilla/5\.0$#';
@@ -272,6 +272,8 @@ class Request implements \ArrayAccess, \Countable, IRequest {
 			case 'CONTENT_TYPE':
 			case 'CONTENT_LENGTH':
 			case 'REMOTE_ADDR':
+			case 'PHP_AUTH_USER':
+			case 'PHP_AUTH_PW':
 				if (isset($this->server[$name])) {
 					return $this->server[$name];
 				}
@@ -723,7 +725,7 @@ class Request implements \ArrayAccess, \Countable, IRequest {
 			$requestUri = substr($requestUri, 0, $pos);
 		}
 
-		$scriptName = $this->server['SCRIPT_NAME'];
+		$scriptName = $this->server['SCRIPT_NAME'] ?? '';
 		$pathInfo = $requestUri;
 
 		// strip off the script name's dir and file name

@@ -68,6 +68,14 @@ class CacheJail extends CacheWrapper {
 		}
 	}
 
+	protected function getUnjailedSourcePath(string $path): string {
+		if ($path === '') {
+			return $this->getGetUnjailedRoot();
+		} else {
+			return $this->getGetUnjailedRoot() . '/' . ltrim($path, '/');
+		}
+	}
+
 	/**
 	 * @param string $path
 	 * @param null|string $root
@@ -92,7 +100,12 @@ class CacheJail extends CacheWrapper {
 
 	protected function formatCacheEntry($entry) {
 		if (isset($entry['path'])) {
-			$entry['path'] = $this->getJailedPath($entry['path']);
+			$jailedPath = $this->getJailedPath($entry['path']);
+			if ($jailedPath !== null) {
+				$entry['path'] = $jailedPath;
+			} else {
+				return false;
+			}
 		}
 		return $entry;
 	}
@@ -189,7 +202,7 @@ class CacheJail extends CacheWrapper {
 	 * @return array [$storageId, $internalPath]
 	 */
 	protected function getMoveInfo($path) {
-		return [$this->getNumericStorageId(), $this->getSourcePath($path)];
+		return [$this->getNumericStorageId(), $this->getUnjailedSourcePath($path)];
 	}
 
 	/**

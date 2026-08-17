@@ -26,6 +26,8 @@ use function min;
 use function strlen;
 
 class JobList implements IJobList {
+	public const MAX_ARGUMENT_JSON_LENGTH = 32000;
+
 	/** @var array<string, string> */
 	protected array $alreadyVisitedParallelBlocked = [];
 
@@ -47,8 +49,8 @@ class JobList implements IJobList {
 		$class = ($job instanceof IJob) ? get_class($job) : $job;
 
 		$argumentJson = json_encode($argument);
-		if (strlen($argumentJson) > 4000) {
-			throw new \InvalidArgumentException('Background job arguments can\'t exceed 4000 characters (json encoded)');
+		if (strlen($argumentJson) > self::MAX_ARGUMENT_JSON_LENGTH) {
+			throw new \InvalidArgumentException('Background job arguments can\'t exceed ' . self::MAX_ARGUMENT_JSON_LENGTH . ' characters (json encoded)');
 		}
 
 		$query = $this->connection->getQueryBuilder();
@@ -110,7 +112,7 @@ class JobList implements IJobList {
 	public function removeById(string $id): void {
 		$query = $this->connection->getQueryBuilder();
 		$query->delete('jobs')
-			->where($query->expr()->eq('id', $query->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+			->where($query->expr()->eq('id', $query->createNamedParameter($id)));
 		$query->executeStatement();
 	}
 
@@ -260,7 +262,7 @@ class JobList implements IJobList {
 				$reset->update('jobs')
 					->set('reserved_at', $reset->expr()->literal(0, IQueryBuilder::PARAM_INT))
 					->set('last_checked', $reset->createNamedParameter($this->timeFactory->getTime() + 12 * 3600, IQueryBuilder::PARAM_INT))
-					->where($reset->expr()->eq('id', $reset->createNamedParameter($row['id'], IQueryBuilder::PARAM_INT)));
+					->where($reset->expr()->eq('id', $reset->createNamedParameter($row['id'])));
 				$reset->executeStatement();
 
 				// Background job from disabled app, try again.
@@ -352,7 +354,7 @@ class JobList implements IJobList {
 		$query = $this->connection->getQueryBuilder();
 		$query->update('jobs')
 			->set('reserved_at', $query->expr()->literal(0, IQueryBuilder::PARAM_INT))
-			->where($query->expr()->eq('id', $query->createNamedParameter($job->getId(), IQueryBuilder::PARAM_INT)));
+			->where($query->expr()->eq('id', $query->createNamedParameter($job->getId())));
 		$query->executeStatement();
 	}
 
@@ -377,7 +379,7 @@ class JobList implements IJobList {
 		$query->update('jobs')
 			->set('execution_duration', $query->createNamedParameter($timeTaken, IQueryBuilder::PARAM_INT))
 			->set('reserved_at', $query->createNamedParameter(0, IQueryBuilder::PARAM_INT))
-			->where($query->expr()->eq('id', $query->createNamedParameter($job->getId(), IQueryBuilder::PARAM_INT)));
+			->where($query->expr()->eq('id', $query->createNamedParameter($job->getId())));
 		$query->executeStatement();
 	}
 
@@ -387,7 +389,7 @@ class JobList implements IJobList {
 		$query->update('jobs')
 			->set('last_run', $query->createNamedParameter(0, IQueryBuilder::PARAM_INT))
 			->set('reserved_at', $query->createNamedParameter(0, IQueryBuilder::PARAM_INT))
-			->where($query->expr()->eq('id', $query->createNamedParameter($job->getId()), IQueryBuilder::PARAM_INT));
+			->where($query->expr()->eq('id', $query->createNamedParameter($job->getId())));
 		$query->executeStatement();
 	}
 

@@ -50,7 +50,7 @@ $CONFIG = [
 	 * It is useful when your Nextcloud instance is using different PHP servers.
 	 * Once it's set it shouldn't be changed.
 	 *
-	 * Value must be an integer, comprised between 0 and 1023.
+	 * Value must be an integer, comprised between 0 and 511.
 	 *
 	 * When config.php is shared between different servers, this value should be overriden with "NC_serverid=<int>" on each server.
 	 * Note that it must be overriden for CLI and for your webserver.
@@ -1748,6 +1748,16 @@ $CONFIG = [
 	'memcache.distributed' => '\\OC\\Memcache\\Memcached',
 
 	/**
+	 * Cache Key Prefix for Redis or Memcached
+	 *
+	 * * Used for avoiding collisions in the cache system
+	 * * May be used for ACL restrictions in Redis
+	 *
+	 * Defaults to ``''`` (empty string)
+	 */
+	'memcache_customprefix' => 'mycustomprefix',
+
+	/**
 	 * Connection details for Redis to use for memory caching in a single server configuration.
 	 *
 	 * For enhanced security, it is recommended to configure Redis
@@ -2529,6 +2539,19 @@ $CONFIG = [
 	'allowed_admin_ranges' => ['192.0.2.42/32', '233.252.0.0/24', '2001:db8::13:37/64'],
 
 	/**
+	 * List of trusted IP ranges that can bypass password confirmation.
+	 * If non-empty, all endpoints marked with the PasswordConfirmationRequired attribute
+	 * won't need a password confirmation when originating from IPs within these ranges.
+	 *
+	 * Supported formats:
+	 * - IPv4 addresses or ranges, e.g., ``192.0.2.42/32``, ``233.252.0.0/24``
+	 * - IPv6 addresses or ranges, e.g., ``2001:db8::13:37/64``
+	 *
+	 * Defaults to ``[]`` (empty array)
+	 */
+	'allowed_no_password_confirmation_ranges' => ['192.0.2.42/32', '233.252.0.0/24', '2001:db8::13:37/64'],
+
+	/**
 	 * Maximum file size (in megabytes) for animating GIFs on public sharing pages.
 	 * If a GIF exceeds this size, a static preview is shown.
 	 *
@@ -2862,7 +2885,7 @@ $CONFIG = [
 	/**
 	 * Maximum number of chunks uploaded in parallel during chunked uploads. Higher
 	 * counts increase throughput but consume more server resources, with diminishing
-	 * returns.
+	 * returns. Value must be a positive integer.
 	 *
 	 * Defaults to ``5``
 	 */

@@ -19,6 +19,7 @@ use OCA\DAV\Events\CardCreatedEvent;
 use OCA\DAV\Events\CardDeletedEvent;
 use OCA\DAV\Events\CardMovedEvent;
 use OCA\DAV\Events\CardUpdatedEvent;
+use OCA\DAV\Exception\UidConflict;
 use OCP\AppFramework\Db\TTransactional;
 use OCP\DB\Exception;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -478,6 +479,13 @@ class CardDavBackend implements BackendInterface, SyncSupport {
 			->from($this->dbCardsTable)
 			->where($query->expr()->eq('addressbookid', $query->createNamedParameter($addressbookId)));
 
+		return $this->getCardsFromQuery($query);
+	}
+
+	/**
+	 * @return array[]
+	 */
+	private function getCardsFromQuery(IQueryBuilder $query): array {
 		$cards = [];
 
 		$result = $query->executeQuery();
@@ -524,6 +532,37 @@ class CardDavBackend implements BackendInterface, SyncSupport {
 		}
 		$row['etag'] = '"' . $row['etag'] . '"';
 
+		$modified = false;
+		$row['carddata'] = $this->readBlob($row['carddata'], $modified);
+		if ($modified) {
+			$row['size'] = strlen($row['carddata']);
+		}
+
+		return $row;
+	}
+
+	/**
+	 * Returns a card that already has a given UID in an address book collection.
+	 *
+	 * @param int $addressBookId
+	 * @param string $uid
+	 * @return array|null The existing card, or null when the UID is free
+	 */
+	public function getCardByUid(int $addressBookId, string $uid): ?array {
+		$q = $this->db->getQueryBuilder();
+		$q->select('*')
+			->from($this->dbCardsTable)
+			->where($q->expr()->eq('addressbookid', $q->createNamedParameter($addressBookId, IQueryBuilder::PARAM_INT)))
+			->andWhere($q->expr()->eq('uid', $q->createNamedParameter($uid, IQueryBuilder::PARAM_STR)))
+			->setMaxResults(1);
+		$result = $q->executeQuery();
+		$row = $result->fetchAssociative();
+		$result->closeCursor();
+		if ($row === false) {
+			return null;
+		}
+
+		$row['etag'] = '"' . $row['etag'] . '"';
 		$modified = false;
 		$row['carddata'] = $this->readBlob($row['carddata'], $modified);
 		if ($modified) {
@@ -602,25 +641,19 @@ class CardDavBackend implements BackendInterface, SyncSupport {
 	 * @param mixed $addressBookId
 	 * @param string $cardUri
 	 * @param string $cardData
-	 * @param bool $checkAlreadyExists
+	 * @param bool $checkUidConflict
 	 * @return string
 	 */
-	public function createCard($addressBookId, $cardUri, $cardData, bool $checkAlreadyExists = true) {
+	public function createCard($addressBookId, $cardUri, $cardData, bool $checkUidConflict = true) {
 		$etag = md5($cardData);
 		$uid = $this->getUID($cardData);
-		return $this->atomic(function () use ($addressBookId, $cardUri, $cardData, $checkAlreadyExists, $etag, $uid) {
-			if ($checkAlreadyExists) {
-				$q = $this->db->getQueryBuilder();
-				$q->select('uid')
-					->from($this->dbCardsTable)
-					->where($q->expr()->eq('addressbookid', $q->createNamedParameter($addressBookId)))
-					->andWhere($q->expr()->eq('uid', $q->createNamedParameter($uid)))
-					->setMaxResults(1);
-				$result = $q->executeQuery();
-				$count = (bool)$result->fetchOne();
-				$result->closeCursor();
-				if ($count) {
-					throw new \Sabre\DAV\Exception\BadRequest('VCard object with uid already exists in this addressbook collection.');
+		return $this->atomic(function () use ($addressBookId, $cardUri, $cardData, $checkUidConflict, $etag, $uid) {
+			// Try to detect duplicate uids in the target collection
+			if ($checkUidConflict) {
+				$existing = $this->getCardByUid($addressBookId, $uid);
+				if ($existing !== null) {
+					// RFC 6352 no-uid-conflict (409) reporting the existing object's href.
+					throw UidConflict::forAddressBook($existing['uri']);
 				}
 			}
 
@@ -723,6 +756,12 @@ class CardDavBackend implements BackendInterface, SyncSupport {
 				return false;
 			}
 			$sourceObjectId = (int)$card['id'];
+
+			// Try to detect duplicate uids in the target collection
+			$existing = $this->getCardByUid($targetAddressBookId, $card['uid']);
+			if ($existing !== null) {
+				throw UidConflict::forAddressBook($existing['uri']);
+			}
 
 			$query = $this->db->getQueryBuilder();
 			$query->update('cards')
@@ -972,7 +1011,8 @@ class CardDavBackend implements BackendInterface, SyncSupport {
 					->from('cards')
 					->where(
 						$qb->expr()->eq('addressbookid', $qb->createNamedParameter($addressBookId))
-					);
+					)
+					->orderBy('id');
 				// No synctoken supplied, this is the initial sync.
 				$qb->setMaxResults($limit);
 				$stmt = $qb->executeQuery();
@@ -1531,5 +1571,33 @@ class CardDavBackend implements BackendInterface, SyncSupport {
 		}
 		// should already be handled, but just in case
 		throw new BadRequest('vCard can not be empty');
+	}
+
+	/**
+	 * Mark all cards in an address book as needing to be validated
+	 *
+	 * This is done by setting the modified date to `null`, once a sync runs
+	 * the mtime will be set to a non-null value. Leaving all deleted items with
+	 * a null modified date.
+	 */
+	public function markCardsAsPending(int $addressBookId): void {
+		$query = $this->db->getQueryBuilder();
+		$query->update($this->dbCardsTable)
+			->set('lastmodified', $query->createNamedParameter(null))
+			->where($query->expr()->eq('addressbookid', $query->createNamedParameter($addressBookId)))
+			->executeStatement();
+	}
+
+	/**
+	 * @return array[]
+	 */
+	public function getPendingCards(int $addressBookId): array {
+		$query = $this->db->getQueryBuilder();
+		$query->select(['id', 'addressbookid', 'uri', 'lastmodified', 'etag', 'size', 'carddata', 'uid'])
+			->from($this->dbCardsTable)
+			->where($query->expr()->eq('addressbookid', $query->createNamedParameter($addressBookId)))
+			->andWhere($query->expr()->isNull('lastmodified'));
+
+		return $this->getCardsFromQuery($query);
 	}
 }

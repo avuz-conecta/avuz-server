@@ -197,8 +197,10 @@ class Scanner extends BasicEmitter implements IScanner {
 						}
 					}
 
-					// we only updated unencrypted_size if it's already set
-					if (isset($cacheData['unencrypted_size']) && $cacheData['unencrypted_size'] === 0) {
+					// Skip updating unencrypted_size only when both cached and new values are 0
+					if (isset($cacheData['unencrypted_size'])
+						&& $cacheData['unencrypted_size'] === 0
+						&& isset($data['unencrypted_size']) && $data['unencrypted_size'] === 0) {
 						unset($data['unencrypted_size']);
 					}
 
@@ -216,7 +218,10 @@ class Scanner extends BasicEmitter implements IScanner {
 						$data['etag_changed'] = true;
 					}
 				} else {
-					unset($data['unencrypted_size']);
+					// For new files, only preserve unencrypted_size when the file is encrypted
+					if (!isset($data['encrypted']) || !$data['encrypted']) {
+						unset($data['unencrypted_size']);
+					}
 					$newData = $data;
 					$fileId = -1;
 				}
@@ -526,7 +531,7 @@ class Scanner extends BasicEmitter implements IScanner {
 		$removedChildren = \array_diff(array_keys($existingChildren), $newChildNames);
 		foreach ($removedChildren as $childName) {
 			$child = $path ? $path . '/' . $childName : $childName;
-			$this->removeFromCache($child);
+			$this->removeFromCache((string)$child);
 		}
 		if ($this->useTransactions) {
 			$this->connection->commit();

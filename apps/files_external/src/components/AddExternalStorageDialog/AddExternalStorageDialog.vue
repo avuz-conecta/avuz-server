@@ -27,13 +27,14 @@ import ApplicableEntities from './ApplicableEntities.vue'
 import AuthMechanismConfiguration from './AuthMechanismConfiguration.vue'
 import BackendConfiguration from './BackendConfiguration.vue'
 import MountOptions from './MountOptions.vue'
+import { DEFAULT_MOUNT_OPTIONS } from '../../store/storages.ts'
 
 const open = defineModel<boolean>('open', { default: true })
 
 const {
-	storage = { backendOptions: {}, mountOptions: {}, type: isAdmin ? 'system' : 'personal' },
+	storage = { backendOptions: {}, mountOptions: { ...DEFAULT_MOUNT_OPTIONS }, type: isAdmin ? 'system' : 'personal' },
 } = defineProps<{
-	storage?: Partial<IStorage> & { backendOptions: IStorage['backendOptions'] }
+	storage?: Partial<IStorage>
 }>()
 
 defineEmits<{
@@ -88,18 +89,20 @@ watch(authMechanisms, () => {
 			:label="t('files_external', 'Folder name')"
 			required />
 
-		<MountOptions v-model="internalStorage.mountOptions" />
+		<MountOptions v-model="internalStorage.mountOptions!" />
 
 		<ApplicableEntities
 			v-if="isAdmin"
 			v-model:groups="internalStorage.applicableGroups"
-			v-model:users="internalStorage.applicableUsers" />
+			v-model:users="internalStorage.applicableUsers"
+			:class="$style.externalStorageDialog__dropdown" />
 
 		<NcSelect
 			v-model="backend"
 			:options="backends"
 			:disabled="!!(internalStorage.id && internalStorage.backend)"
 			:inputLabel="t('files_external', 'External storage')"
+			:class="$style.externalStorageDialog__dropdown"
 			label="name"
 			required />
 
@@ -108,17 +111,18 @@ watch(authMechanisms, () => {
 			:options="authMechanisms"
 			:disabled="!internalStorage.backend || authMechanisms.length <= 1 || !!(internalStorage.id && internalStorage.authMechanism)"
 			:inputLabel="t('files_external', 'Authentication')"
+			:class="$style.externalStorageDialog__dropdown"
 			label="name"
 			required />
 
 		<BackendConfiguration
-			v-if="backend"
+			v-if="backend && internalStorage.backendOptions"
 			v-model="internalStorage.backendOptions"
 			:class="$style.externalStorageDialog__configuration"
 			:configuration="backend.configuration" />
 
 		<AuthMechanismConfiguration
-			v-if="authMechanism"
+			v-if="authMechanism && internalStorage.backendOptions"
 			v-model="internalStorage.backendOptions"
 			:class="$style.externalStorageDialog__configuration"
 			:authMechanism="authMechanism" />
@@ -145,5 +149,9 @@ watch(authMechanisms, () => {
 
 .externalStorageDialog__configuration {
 	margin-block: 0.5rem;
+}
+
+.externalStorageDialog__dropdown {
+	flex: 0 0 auto;
 }
 </style>
