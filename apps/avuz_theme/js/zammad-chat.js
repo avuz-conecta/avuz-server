@@ -29,6 +29,21 @@
 	});
 	document.body.appendChild(button);
 
+	// The lib never hides our custom launcher when the panel opens, so it overlaps
+	// the chat's input row (looks like the panel is cut off at the bottom). Toggle
+	// the launcher off the panel's own open-state class instead.
+	const syncLauncher = function () {
+		const panel = document.querySelector('.zammad-chat');
+		const isOpen = panel && panel.classList.contains('zammad-chat-is-open');
+		button.style.display = isOpen ? 'none' : '';
+	};
+	new MutationObserver(syncLauncher).observe(document.body, {
+		subtree: true,
+		childList: true,
+		attributes: true,
+		attributeFilter: ['class'],
+	});
+
 	// Zammad's lib auto-loads chat.css through a `data:text/css` @import, which our
 	// CSP style-src (domain-only) rejects — leaving the widget unstyled and, with
 	// cssAutoload on, never reaching `onReady`. Load the stylesheet ourselves via a
