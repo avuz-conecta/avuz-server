@@ -412,7 +412,21 @@
         "Save": "Salvar",
         "Today": "Hoje",
         "Tomorrow": "Amanhã",
-        "No due": "Sem vencimento"
+        "No due": "Sem vencimento",
+        "Start date": "Data de início",
+        "Add start date": "Adicionar data de início",
+        "Set a start date": "Definir uma data de início",
+        "Remove start date": "Remover data de início",
+        "Today – {timeLocale}": "Hoje – {timeLocale}",
+        "Set start date for today": "Definir data de início para hoje",
+        "Set start date for tomorrow": "Definir data de início para amanhã",
+        "Set start date for next week": "Definir data de início para a próxima semana",
+        "You have removed the start date of card {card}": "Você excluiu a data de início do cartão {card}",
+        "{user} has removed the start date of card {card}": "{user} excluiu a data de início do cartão {card}",
+        "You have set the start date of card {card} to {after}": "Você definiu a data de início do cartão {card} para {after}",
+        "{user} has set the start date of card {card} to {after}": "{user} definiu a data de início do cartão {card} para {after}",
+        "You have updated the start date of card {card} to {after}": "Você atualizou a data de início do cartão {card} para {after}",
+        "{user} has updated the start date of card {card} to {after}": "{user} atualizou a data de início do cartão {card} para {after}"
     },
     "pluralForm": "nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;"
 }
