@@ -16,6 +16,7 @@ use OCP\AppFramework\Http\Events\BeforeLoginTemplateRenderedEvent;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\INavigationManager;
 use OCP\IURLGenerator;
+use OCP\IUserSession;
 use OCP\Security\CSP\AddContentSecurityPolicyEvent;
 use OCP\User\Events\UserCreatedEvent;
 use OCP\Util;
@@ -75,7 +76,10 @@ class Application extends App implements IBootstrap {
 		$container = $context->getAppContainer();
 		$zammad = $container->get(ZammadConfig::class);
 
-		if ($zammad->isChatEnabled()) {
+		// Only inject the floating chat launcher for authenticated users — the
+		// pre-login screen must stay clean (chat identity is self-asserted anyway).
+		$userSession = $container->get(IUserSession::class);
+		if ($zammad->isChatEnabled() && $userSession->isLoggedIn()) {
 			$initialState = $container->get(IInitialState::class);
 			$initialState->provideInitialState('zammad', $zammad->initialState());
 			Util::addScript(self::APP_ID, 'zammad-chat');
