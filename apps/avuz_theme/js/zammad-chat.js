@@ -29,12 +29,22 @@
 	});
 	document.body.appendChild(button);
 
+	// Zammad's lib auto-loads chat.css through a `data:text/css` @import, which our
+	// CSP style-src (domain-only) rejects — leaving the widget unstyled and, with
+	// cssAutoload on, never reaching `onReady`. Load the stylesheet ourselves via a
+	// normal <link> (allowed by the style-src domain) and disable the lib's loader.
+	const stylesheet = document.createElement('link');
+	stylesheet.rel = 'stylesheet';
+	stylesheet.href = state.url + '/assets/chat/chat.css';
+	document.head.appendChild(stylesheet);
+
 	const script = document.createElement('script');
 	script.src = state.url + '/assets/chat/chat-no-jquery.min.js';
 	script.onload = function () {
 		new window.ZammadChat({
 			fontSize: '12px',
 			chatId: state.chatId,
+			cssAutoload: false,
 			show: false,
 		});
 	};
