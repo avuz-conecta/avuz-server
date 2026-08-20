@@ -90,6 +90,13 @@
 	stylesheet.href = state.url + '/assets/chat/chat.css';
 	document.head.appendChild(stylesheet);
 
+	// Zammad's X only minimizes the widget (a leftover header bar stays pinned at the
+	// bottom), which our launcher then overlaps. Hide the panel whenever it isn't
+	// fully open so only our launcher shows; reopening (is-open added) reveals it.
+	const minimizeHide = document.createElement('style');
+	minimizeHide.textContent = '.zammad-chat:not(.zammad-chat-is-open){display:none !important;}';
+	document.head.appendChild(minimizeHide);
+
 	const script = document.createElement('script');
 	script.src = state.url + '/assets/chat/chat-no-jquery.min.js';
 	script.onload = function () {
