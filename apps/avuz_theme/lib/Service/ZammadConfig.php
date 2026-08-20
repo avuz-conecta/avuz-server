@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\AvuzTheme\Service;
 
 use OCP\IAppConfig;
+use OCP\IUser;
 
 class ZammadConfig {
 	private const APP_ID = 'avuz_theme';
@@ -30,12 +31,16 @@ class ZammadConfig {
 	}
 
 	/**
-	 * @return array{url: string, chatId: int}
+	 * @return array{url: string, chatId: int, userName: string, userLogin: string, userEmail: string, org: string}
 	 */
-	public function initialState(): array {
+	public function initialState(?IUser $user = null): array {
 		return [
 			'url' => $this->host(),
 			'chatId' => (int)$this->get('zammad_chat_id'),
+			'userName' => $user?->getDisplayName() ?? '',
+			'userLogin' => $user?->getUID() ?? '',
+			'userEmail' => $user?->getEmailAddress() ?? '',
+			'org' => $this->get('zammad_org'),
 		];
 	}
 

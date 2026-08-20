@@ -79,9 +79,10 @@ class Application extends App implements IBootstrap {
 		// Only inject the floating chat launcher for authenticated users — the
 		// pre-login screen must stay clean (chat identity is self-asserted anyway).
 		$userSession = $container->get(IUserSession::class);
-		if ($zammad->isChatEnabled() && $userSession->isLoggedIn()) {
+		$user = $userSession->getUser();
+		if ($zammad->isChatEnabled() && $user !== null) {
 			$initialState = $container->get(IInitialState::class);
-			$initialState->provideInitialState('zammad', $zammad->initialState());
+			$initialState->provideInitialState('zammad', $zammad->initialState($user));
 			Util::addScript(self::APP_ID, 'zammad-chat');
 		}
 
