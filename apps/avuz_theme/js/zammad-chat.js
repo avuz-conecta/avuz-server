@@ -90,8 +90,10 @@
 		});
 
 		// Send the identity line as the FIRST message (not on open — that would
-		// queue ghost sessions from users who just peek). Wrap sendMessage so the
-		// first user message is preceded by one identity line, once per session.
+		// queue ghost sessions from users who just peek). The widget's input is a
+		// contenteditable <div> whose innerHTML the lib sends, so set the element's
+		// text content (auto-escaped), not `.value`. Wrap sendMessage so the first
+		// user message is preceded by one identity line, once per session.
 		let identitySent = false;
 		const originalSend = zammadChat.sendMessage.bind(zammadChat);
 		zammadChat.sendMessage = function () {
@@ -99,10 +101,10 @@
 				identitySent = true;
 				const input = document.querySelector('.zammad-chat-input');
 				if (input) {
-					const pending = input.value;
-					input.value = buildIdentityLine(state);
+					const pending = input.innerHTML;
+					input.textContent = buildIdentityLine(state);
 					originalSend();
-					input.value = pending;
+					input.innerHTML = pending;
 				}
 			}
 			return originalSend();
