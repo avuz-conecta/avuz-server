@@ -82,12 +82,31 @@
 	const script = document.createElement('script');
 	script.src = state.url + '/assets/chat/chat-no-jquery.min.js';
 	script.onload = function () {
-		new window.ZammadChat({
+		const zammadChat = new window.ZammadChat({
 			fontSize: '12px',
 			chatId: state.chatId,
 			cssAutoload: false,
 			show: false,
 		});
+
+		// Send the identity line as the FIRST message (not on open — that would
+		// queue ghost sessions from users who just peek). Wrap sendMessage so the
+		// first user message is preceded by one identity line, once per session.
+		let identitySent = false;
+		const originalSend = zammadChat.sendMessage.bind(zammadChat);
+		zammadChat.sendMessage = function () {
+			if (!identitySent) {
+				identitySent = true;
+				const input = document.querySelector('.zammad-chat-input');
+				if (input) {
+					const pending = input.value;
+					input.value = buildIdentityLine(state);
+					originalSend();
+					input.value = pending;
+				}
+			}
+			return originalSend();
+		};
 	};
 	document.body.appendChild(script);
 })();
