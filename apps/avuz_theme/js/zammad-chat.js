@@ -1,6 +1,32 @@
 (function () {
 	'use strict';
 
+	function buildIdentityLine(s) {
+		const name = (s.userName || 'Usuário').trim();
+		const login = (s.userLogin || '').trim();
+		const email = (s.userEmail || '').trim();
+		const org = (s.org || '').trim();
+		const parts = [name];
+		if (login && email) {
+			if (login === email) {
+				parts.push(email);
+			} else {
+				parts.push(login);
+				parts.push(email);
+			}
+		} else if (login || email) {
+			parts.push(login || email);
+		}
+		let line = (login || email)
+			? '👤 ' + parts.join(' · ')
+			: '👤 ' + name + ' (sem e-mail cadastrado)';
+		if (org) {
+			line += ' · ' + org;
+		}
+		return line;
+	}
+	window.__avuzBuildIdentityLine = buildIdentityLine;
+
 	const state = OCP.InitialState.loadState('avuz_theme', 'zammad');
 	if (!state || !state.url || !state.chatId) {
 		return; // guarded: misconfig must not throw
