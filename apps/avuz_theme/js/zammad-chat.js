@@ -55,13 +55,24 @@
 	});
 	document.body.appendChild(button);
 
+	// Shared between the launcher observer (which re-arms per conversation) and the
+	// send wrap (which guards one identity line per conversation).
+	let identitySent = false;
+	let panelWasOpen = false;
+
 	// The lib never hides our custom launcher when the panel opens, so it overlaps
 	// the chat's input row (looks like the panel is cut off at the bottom). Toggle
-	// the launcher off the panel's own open-state class instead.
+	// the launcher off the panel's own open-state class. Also re-arm the identity
+	// line on each closed→open transition, so every new conversation carries it —
+	// not just the first one per page load.
 	const syncLauncher = function () {
 		const panel = document.querySelector('.zammad-chat');
-		const isOpen = panel && panel.classList.contains('zammad-chat-is-open');
+		const isOpen = !!(panel && panel.classList.contains('zammad-chat-is-open'));
 		button.style.display = isOpen ? 'none' : '';
+		if (isOpen && !panelWasOpen) {
+			identitySent = false;
+		}
+		panelWasOpen = isOpen;
 	};
 	new MutationObserver(syncLauncher).observe(document.body, {
 		subtree: true,
@@ -94,7 +105,6 @@
 		// contenteditable <div> whose innerHTML the lib sends, so set the element's
 		// text content (auto-escaped), not `.value`. Wrap sendMessage so the first
 		// user message is preceded by one identity line, once per session.
-		let identitySent = false;
 		const originalSend = zammadChat.sendMessage.bind(zammadChat);
 		zammadChat.sendMessage = function () {
 			if (!identitySent) {
