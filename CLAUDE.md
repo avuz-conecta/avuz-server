@@ -34,7 +34,7 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 
 ### Talk recording chunked upload
 - spreed patched via overlay (`docker/overlays/spreed/lib/...`) applied during Docker build. Sentinel `AVUZ-CHUNKED-UPLOAD-V1` lives in the overlay's `RecordingController.php`; entrypoint verifies the running container's spreed has it.
-- Bot fork lives in the **separate repo** `github.com/avuz-conecta/talk-recording`; image `10.50.100.103:8080/admin/talk-recording` referenced from `portainer-recording-stack.yml`.
+- Bot fork lives in the **separate repo** `github.com/avuz-conecta/talk-recording`; image `registry.avuz.app/admin/talk-recording` referenced from `portainer-recording-stack.yml`.
 - Lets recordings >100MB survive Cloudflare's 100MB body cap. See `docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md`.
 
 ### Zammad support integration
@@ -81,33 +81,42 @@ find /var/www/html/themes -type f -exec chmod 644 {} \;
 ./scripts/build-push.sh latest local   s3     # → :latest-s3
 ```
 
+On macOS the build scripts auto-launch Docker Desktop if it's down (`scripts/lib-docker.sh`)
+and, at the end, prompt `Stop it now? [y/N]` whenever Docker is running (default: keep).
+Skip the prompt with `STOP_DOCKER_AFTER_BUILD=1` (auto-stop) or `KEEP_DOCKER=1` (auto-keep);
+non-interactive shells never prompt. Linux just requires the daemon to be up.
+
 ## Fresh Checkout Setup (REQUIRED before first build)
 
 `.gitignore` line 22 (`/apps*/*`) excludes every NC app from version control.
 A fresh `git clone` ships with only a handful of force-added apps under `apps/`.
 The other ~20 bundled apps (notifications, text, activity, twofactor_totp,
-suspicious_login, logreader, password_policy, calendar, contacts, deck, spreed,
+suspicious_login, logreader, password_policy, calendar, contacts, spreed,
 forms, viewer, notify_push, onlyoffice, files_downloadlimit, files_retention,
 external, bruteforcesettings, quota_warning) live in their
 own GitHub repos and must be pulled in **before** `./scripts/build-push.sh`,
 otherwise the resulting image is missing them and `occ app:enable` fails with
 "not found on the appstore" at runtime.
 
-`integration_openai` is the exception: it is a **version-pinned fork**
-(`avuz-conecta/integration_openai`, branch `avuz`) shipped as a git submodule at
-`apps/integration_openai` — NOT rsync'd and NOT App Store-installed. Do not add
-it to the rsync loop below; init it as a submodule instead.
+`integration_openai` and `deck` are the exceptions: both are **version-pinned
+forks** shipped as git submodules — NOT rsync'd and NOT App Store-installed.
+`avuz-conecta/integration_openai` (branch `avuz`) at `apps/integration_openai`,
+and `avuz-conecta/deck` (branch `avuz`, pinned at v1.17.0 + Avuz commits) at
+`apps/deck` — the deck fork carries the board-copy fix and the board-tags feature
+as real commits, plus its committed `vendor/` and built `js/` (the Dockerfile
+can't rebuild either). Do not add them to the rsync loop below; init them as
+submodules instead.
 
 Two things to do on a fresh clone:
 
 ```bash
 # 1. Init submodules: 3rdparty (Composer autoloader) + the integration_openai
-#    fork (or the build is missing them).
-git submodule update --init --recursive 3rdparty apps/integration_openai
+#    and deck forks (or the build is missing them).
+git submodule update --init --recursive 3rdparty apps/integration_openai apps/deck
 
 # 2. Populate apps/ with the bundled NC apps.
 #    Simplest: clone alongside an existing working checkout and rsync them in.
-for app in activity bruteforcesettings calendar contacts deck external \
+for app in activity bruteforcesettings calendar contacts external \
            files_downloadlimit files_retention forms logreader notifications \
            notify_push onlyoffice password_policy quota_warning spreed \
            suspicious_login text twofactor_totp viewer; do

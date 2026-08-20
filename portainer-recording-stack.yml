@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   nextcloud-talk-recording:
-    image: 10.50.100.103:8080/admin/talk-recording:latest
+    image: registry.avuz.app/admin/talk-recording:latest
     container_name: nextcloud-talk-recording
     init: true
     restart: unless-stopped

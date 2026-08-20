@@ -1,0 +1,76 @@
+From 95789325374efc0cb0c108af0c3e9851fc345e36 Mon Sep 17 00:00:00 2001
+From: Patrick Rezende <tricio777@gmail.com>
+Date: Mon, 29 Jun 2026 16:48:26 -0300
+Subject: [PATCH] fix(call): stagger initial offer requests on join
+
+Joining a large call fired requestOffer for every participant in one tick,
+creating all PeerConnections simultaneously. On mobile browsers this
+overwhelms the device, drops the signaling WebSocket (clean 1000 close),
+and the client reconnect-loops without ever joining.
+
+Spread the initial MCU offer requests ~200ms apart so connections are
+established incrementally. Pending staggered requests are cancelled when a
+participant disconnects.
+---
+ src/utils/webrtc/webrtc.js | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/utils/webrtc/webrtc.js b/src/utils/webrtc/webrtc.js
+index c42b72d..3d21d00 100644
+--- a/src/utils/webrtc/webrtc.js
++++ b/src/utils/webrtc/webrtc.js
+@@ -33,6 +33,12 @@ let selfInCall = PARTICIPANT.CALL_FLAG.DISCONNECTED
+ // moderator and discard signaling events if received when not in the call.
+ let localUserInCall = false
+ const delayedConnectionToPeer = []
++// Stagger the initial offer requests when joining a call so a large call does
++// not create every PeerConnection in a single tick. The burst overwhelms
++// mobile browsers, which then drop the signaling socket and reconnect in a
++// loop. ~200ms apart means 18 participants are spread over ~3.6s.
++const REQUEST_OFFER_STAGGER_MS = 200
++const delayedRequestOffer = []
+ let callParticipantCollection = null
+ let localCallParticipantModel = null
+ let showedTURNWarning = false
+@@ -205,6 +211,9 @@ function usersChanged(signaling, newUsers, disconnectedSessionIds) {
+ 
+ 	let playJoinSound = false
+ 	let playLeaveSound = false
++	// Incremented per MCU subscriber so each initial offer request is delayed
++	// a bit more than the previous one (see REQUEST_OFFER_STAGGER_MS).
++	let staggerIndex = 0
+ 
+ 	newUsers.forEach(function(user) {
+ 		if (!user.inCall) {
+@@ -277,7 +286,14 @@ function usersChanged(signaling, newUsers, disconnectedSessionIds) {
+ 		if (!webrtc.webrtc.getPeers(sessionId, 'video').length) {
+ 			if (useMcu && userHasStreams(user)) {
+ 				// TODO(jojo): Already create peer object to avoid duplicate offers.
+-				signaling.requestOffer(user, 'video')
++				// Stagger the initial offer request so joining a large call does
++				// not fire all offers (and create all PeerConnections) in one
++				// tick, which overwhelms mobile browsers and loops the socket.
++				clearTimeout(delayedRequestOffer[user.sessionId])
++				delayedRequestOffer[user.sessionId] = setTimeout(function() {
++					delete delayedRequestOffer[user.sessionId]
++					signaling.requestOffer(user, 'video')
++				}, (staggerIndex++) * REQUEST_OFFER_STAGGER_MS)
+ 
+ 				// Clearing the previous delayedConnectionToPeer should not be
+ 				// needed here, but just in case.
+@@ -337,6 +353,12 @@ function usersChanged(signaling, newUsers, disconnectedSessionIds) {
+ 			delete delayedConnectionToPeer[sessionId]
+ 			playLeaveSound = true
+ 		}
++
++		// Cancel a staggered offer request that has not fired yet.
++		if (delayedRequestOffer[sessionId]) {
++			clearTimeout(delayedRequestOffer[sessionId])
++			delete delayedRequestOffer[sessionId]
++		}
+ 	})
+ 
+ 	previousUsersInRoom = arrayDiff(previousUsersInRoom, disconnectedSessionIds)
+-- 
+2.50.1 (Apple Git-155)
+

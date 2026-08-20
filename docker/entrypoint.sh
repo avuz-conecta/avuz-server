@@ -2,9 +2,34 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-13"
+AVUZ_CONFIG_VERSION="33.0.0-16"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
+AVUZ_KNOWN_APPS="/var/www/html/data/.avuz_known_apps"
+UPGRADE_FAILED_MARKER="/var/www/html/data/.avuz_upgrade_failed"
+
+# Shadow copies of Avuz-owned apps are moved here rather than deleted, so a bad
+# purge is recoverable. Lives on the data volume; one generation is kept.
+AVUZ_SHADOW_QUARANTINE="/var/www/html/data/.avuz_shadow_quarantine"
+
+# Ownership helpers. Shipped in the image via `COPY .` (same path the overlay
+# reapply functions already read at runtime); no separate Dockerfile copy needed.
+source /var/www/html/docker/lib-perms.sh
+source /var/www/html/docker/lib-apps.sh
+source /var/www/html/docker/lib-health.sh
+
+# Boot marker in the health log. Whatever diagnostic block sits directly above it
+# is the reason this container went down — autoheal restarts leave no other trace.
+# Reset the failure counter first: autoheal uses `docker restart`, which keeps /tmp,
+# so without this the count would carry over from before the restart.
+avuz_health_reset_failures "$AVUZ_HEALTH_STATE"
+avuz_health_rotate "$AVUZ_HEALTH_LOG" "$AVUZ_HEALTH_LOG_MAX_BYTES"
+avuz_health_append "$AVUZ_HEALTH_LOG" \
+    "[$(avuz_health_timestamp)] BOOT container started (config $AVUZ_CONFIG_VERSION, host $(hostname))"
+
+# Boot signals consumed by avuz_reconcile_data_ownership in phase 5.
+DID_DB_UPGRADE=0   # set after `occ upgrade` (core rewrite — full data walk)
+DID_CONFIG_RUN=0   # set when run_avuz_configuration runs (appdata + log scope)
 
 # App lists (used for install, upgrade disable/re-enable, and bundled-app enforcement)
 BUNDLED_APPS=(
@@ -52,23 +77,86 @@ ENABLE_APPS=(
     "integration_openai"
 )
 
+# Apps carrying an Avuz overlay or fork. Image-owned: never store-installed,
+# never store-updated, and their custom_apps shadow copies are purged at boot.
+# Adding an app here without adding an overlay is harmless; the reverse is not.
+AVUZ_OWNED_APPS=(
+    "spreed"
+    "deck"
+    "files_downloadlimit"
+    "integration_openai"
+)
+
+# Vanilla apps Avuz does not patch but DOES want tracked from the App Store at
+# boot. Empty on purpose: `occ app:update` refuses to update an app that lives in
+# the bundled apps/ dir while appstoreenabled=false (Avuz's permanent state) —
+# even with a fresh catalog that contains the newer release — so the boot heal is
+# a silent no-op for bundled apps. `forms` was moved OUT of this set and pinned in
+# the image instead (apps/forms shipped at 5.3.5 to match its migrated 5.3 DB
+# schema); see docs/superpowers/plans/2026-07-22-app-sourcing-policy.md and the
+# forms-maxsubmissions drift note. The defensive halves of the policy (owned-app
+# overlay protection, shadow-copy quarantine, path-resolved sentinels, the
+# downgrade guard) still run regardless of this set being empty.
+AVUZ_STORE_APPS=(
+)
+
+# Safety boundary, asserted before anything below reads either list: an app in
+# both AVUZ_OWNED_APPS and AVUZ_STORE_APPS would be store-updated and silently
+# lose its Avuz overlay (integration_openai has no reapply_* function to mask
+# it). Fail closed. Re-checked inside run_avuz_configuration too — harmless,
+# idempotent belt-and-suspenders.
+_avuz_overlap="$(avuz_assert_disjoint "${AVUZ_OWNED_APPS[*]}" "${AVUZ_STORE_APPS[*]}")"
+if [ -n "$_avuz_overlap" ]; then
+    echo "✗ CONFIG ERROR: app(s) in both AVUZ_OWNED_APPS and AVUZ_STORE_APPS: $_avuz_overlap"
+    echo "  A store update would clobber the Avuz overlay. Refusing to boot."
+    exit 1
+fi
+
+# Apps to retire on deploy. Disable only (data kept); never app:remove. Add an
+# app here to turn it off across all stacks; leave empty when nothing is retiring.
+REMOVE_APPS=(
+)
+
 verify_avuz_patches() {
-    # Each entry: "<sentinel>|<target-file>|<recovery-hint>". Sentinels are
-    # unique strings that must appear in the deployed artifact; missing one
-    # means the patch was lost (corrupted image, upstream restore, bad rebase)
-    # and we refuse to boot rather than serve a half-patched stack.
+    # Each entry: "<sentinel>|<appid>|<relative-path>|<recovery-hint>". The
+    # target path is resolved via `occ app:getpath` (avuz_sentinel_target),
+    # NOT hardcoded under /var/www/html/apps — NC picks the highest-version
+    # copy across all app paths, so a store install in custom_apps can
+    # outrank (shadow) the image copy while a hardcoded-path check still
+    # passed against the unused image copy. Sentinels are unique strings
+    # that must appear in the deployed artifact; missing one means the patch
+    # was lost (corrupted image, upstream restore, bad rebase, shadowed by
+    # an unpatched store copy) and we refuse to boot rather than serve a
+    # half-patched stack. files-main.js is not an app; app id "-" keeps the
+    # absolute path as-is.
     local checks=(
-        "AVUZ-CHUNKED-UPLOAD-V1|/var/www/html/apps/spreed/lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
-        "Upload in progress — do not close this tab|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
-        "admin-download-limit|/var/www/html/apps/files_downloadlimit/templates/admin.php|files_downloadlimit overlay missing — upstream 2.0.0 tarball drops this template (GH nextcloud/files_downloadlimit#421); redeploy or rerun reapply_avuz_files_downloadlimit_overlay"
-        "AVUZ-AUDIO-EXTRACT-V1|/var/www/html/apps/integration_openai/lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
+        "AVUZ-CHUNKED-UPLOAD-V2|spreed|lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
+        "Upload in progress — do not close this tab|-|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
+        "admin-download-limit|files_downloadlimit|templates/admin.php|files_downloadlimit overlay missing — upstream 2.0.0 tarball drops this template (GH nextcloud/files_downloadlimit#421); redeploy or rerun reapply_avuz_files_downloadlimit_overlay"
+        "AVUZ-AUDIO-EXTRACT-V1|integration_openai|lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
+        "AVUZ-DECK-CLONE-ORDER-V1|deck|lib/Service/BoardService.php|deck fork missing — board-copy column/card shift fix lost; check the apps/deck submodule shipped and no store copy in custom_apps outranks it"
+        "AVUZ-BOARD-TAGS-V1|deck|lib/Controller/BoardTagController.php|deck fork missing — board tags and overview filters lost; check the apps/deck submodule shipped at 1.17.1 and no store copy in custom_apps outranks it"
     )
     local failed=0
     for entry in "${checks[@]}"; do
         local sentinel="${entry%%|*}"
         local rest="${entry#*|}"
-        local target="${rest%%|*}"
+        local app="${rest%%|*}"
+        rest="${rest#*|}"
+        local relative="${rest%%|*}"
         local hint="${rest#*|}"
+        local target
+        if [ "$app" = "-" ]; then
+            target="$relative"
+        else
+            target="$(avuz_sentinel_target "$app" "$relative")"
+        fi
+        if [ -z "$target" ]; then
+            echo "✗ AVUZ PATCH UNVERIFIABLE: could not resolve app path for '$app'"
+            echo "  $hint"
+            failed=1
+            continue
+        fi
         if ! grep -q "$sentinel" "$target" 2>/dev/null; then
             echo "✗ AVUZ PATCH MISSING: sentinel '$sentinel' not found in $target"
             echo "  $hint"
@@ -98,9 +186,9 @@ reapply_avuz_spreed_overlay() {
 
 # Reapply the files_downloadlimit overlay onto
 # /var/www/html/apps/files_downloadlimit/. The upstream 2.0.0 tarball ships
-# without templates/admin.php (GH nextcloud/files_downloadlimit#421), so every
-# 'occ app:update --all' against the store re-extracts the broken bundle and
-# wipes our restored template. Re-run this after every update.
+# without templates/admin.php (GH nextcloud/files_downloadlimit#421), so any
+# store update of this app re-extracts the broken bundle and wipes our
+# restored template. Re-run this after every update.
 reapply_avuz_files_downloadlimit_overlay() {
     local overlay="/var/www/html/docker/overlays/files_downloadlimit"
     if [ -d "$overlay" ]; then
@@ -181,16 +269,82 @@ PHPEOF
 }
 
 # ──────────────────────────────────────────────
-# Avuz configuration — runs on fresh install, after upgrade, or when config version changes
-# All settings here are persisted in config.php or the DB, so they only need to run once.
+# Makes the bucket reap its own abandoned multipart uploads.
+# Nextcloud never does: writeMultiPart() aborts on a caught exception, but the
+# UploadId lives only in a local variable, so a worker killed outright — OOM,
+# fpm timeout, object store unreachable — strands the parts permanently. They
+# are invisible to every counter we have (absent from ListObjectsV2, from
+# oc_filecache, from every quota figure) while Ceph still bills them. Measured
+# 2026-07: 68 GiB stranded on one tenant, 189 GiB on another still accruing
+# ~60/day. A bucket-side rule is the only thing that collects them.
+# Runs on every boot so a removed rule heals itself. Fail-open by construction:
+# a bucket that cannot be reached must never block startup, hence the short
+# timeouts. Never replaces an existing policy — an operator's own rules win.
+# S3_MPU_ABORT_DAYS tunes the age floor (default 1 day); 0 disables entirely.
 # ──────────────────────────────────────────────
-run_avuz_configuration() {
-    echo "═══ Running Avuz Conecta configuration ═══"
+ensure_objectstore_lifecycle() {
+    [ -f /var/www/html/config/s3.config.php ] || return 0
+    if [ "${S3_MPU_ABORT_DAYS:-1}" = "0" ]; then
+        echo "S3 multipart abort rule disabled (S3_MPU_ABORT_DAYS=0)"
+        return 0
+    fi
 
-    # Re-enable the in-app store for the duration of this run so the
-    # app:install/update calls below can query the store. Re-disabled at the end.
-    php occ config:system:set appstoreenabled --value=true --type=boolean
+    php <<'PHPEOF' || echo "⚠ S3 lifecycle rule not applied — continuing boot"
+<?php
+require '/var/www/html/3rdparty/autoload.php';
+$CONFIG = [];
+include '/var/www/html/config/s3.config.php';
+if (!isset($CONFIG['objectstore']['arguments']['bucket'])) {
+    exit(0);
+}
+$arguments = $CONFIG['objectstore']['arguments'];
+$bucket = $arguments['bucket'];
+$days = (int)(getenv('S3_MPU_ABORT_DAYS') ?: 1);
+$endpoint = (($arguments['use_ssl'] ?? true) ? 'https://' : 'http://') . $arguments['hostname']
+    . (!empty($arguments['port']) ? ':' . $arguments['port'] : '');
 
+$client = new Aws\S3\S3Client([
+    'version' => 'latest',
+    'region' => $arguments['region'] ?? 'us-east-1',
+    'endpoint' => $endpoint,
+    'use_path_style_endpoint' => (bool)($arguments['use_path_style'] ?? false),
+    'credentials' => ['key' => $arguments['key'], 'secret' => $arguments['secret']],
+    'retries' => 1,
+    'http' => ['connect_timeout' => 5, 'timeout' => 15],
+]);
+
+try {
+    $client->getBucketLifecycleConfiguration(['Bucket' => $bucket]);
+    echo "✓ S3 lifecycle policy already present on $bucket\n";
+    exit(0);
+} catch (Aws\S3\Exception\S3Exception $e) {
+    if ($e->getAwsErrorCode() !== 'NoSuchLifecycleConfiguration') {
+        fwrite(STDERR, 'S3 lifecycle check failed: ' . ($e->getAwsErrorCode() ?: 'unreachable') . "\n");
+        exit(1);
+    }
+}
+
+try {
+    $client->putBucketLifecycleConfiguration([
+        'Bucket' => $bucket,
+        'LifecycleConfiguration' => ['Rules' => [[
+            'ID' => 'abort-incomplete-mpu',
+            'Status' => 'Enabled',
+            'Filter' => ['Prefix' => ''],
+            'AbortIncompleteMultipartUpload' => ['DaysAfterInitiation' => $days],
+        ]]],
+    ]);
+} catch (Aws\S3\Exception\S3Exception $e) {
+    fwrite(STDERR, 'S3 lifecycle write failed: ' . ($e->getAwsErrorCode() ?: 'unreachable') . "\n");
+    exit(1);
+}
+echo "✓ S3 lifecycle policy created on $bucket (abort incomplete uploads after {$days}d)\n";
+PHPEOF
+}
+
+# Idempotent settings only — safe to run on every config-version bump. No app
+# enable/update/repair (those live in the gated block in run_avuz_configuration).
+apply_avuz_settings() {
     # Trusted domains & protocol
     # NEXTCLOUD_TRUSTED_DOMAINS accepts comma-separated list, each goes to its
     # own trusted_domains index. Required when serving NC under multiple host
@@ -231,11 +385,22 @@ run_avuz_configuration() {
     # UI preferences
     php occ config:system:set knowledgebaseenabled --type=boolean --value=false
     php occ config:system:set skeletondirectory --value=''
-    php occ config:system:set customclient_desktop --value='https://app3.avuz.cloud/index.php/s/m3KWdzQ5iAFTYXe'
+    php occ config:system:set customclient_desktop --value="${CUSTOMCLIENT_DESKTOP_URL:-https://app3.avuz.app/s/G3EEqzDrMtrMYPE}"
     php occ config:system:set maintenance_window_start --value=1 --type=integer
     php occ config:system:set enforce_theme --value='light'
     php occ config:system:set simpleSignUpLink.shown --type=boolean --value=false
     php occ config:system:set mail_template_class --value='OCA\AvuzTheme\Mail\EMailTemplate'
+
+    # Preview size caps. NC defaults to 4096x4096, and on an S3 primary store
+    # previews are billed but invisible: they live under the uri:oid:preview:
+    # key prefix, are tracked in oc_previews (not oc_filecache), so no quota
+    # counter — user, admin panel or occ — ever reports them. Measured on
+    # eco-ambiental: 66 GiB of previews against 513 GiB of file data, from only
+    # a quarter of the library previewed so far. Dropping to 2048 is 4x fewer
+    # pixels on the largest tier; grid thumbnails are unaffected. Raise per
+    # stack (no rebuild) for tenants who zoom into scans or GIS rasters.
+    php occ config:system:set preview_max_x --value="${PREVIEW_MAX_X:-2048}" --type=integer
+    php occ config:system:set preview_max_y --value="${PREVIEW_MAX_Y:-2048}" --type=integer
 
     # Theming (name, colors, logos, favicon)
     echo "Configuring theming..."
@@ -285,6 +450,19 @@ run_avuz_configuration() {
     fi
     php occ app:enable oidc 2>/dev/null || true
 
+    # Preview Generator — install from App Store on first boot. Provides
+    # `occ preview:generate-all` for bulk pre-warming (core NC only generates
+    # on-demand). Needed after object-store migrations where the preview cache
+    # is rebuilt from scratch. Same install-then-enable pattern as OIDC above.
+    if ! php occ app:list --enabled 2>/dev/null | grep -q "previewgenerator" && \
+       ! [ -d /var/www/html/custom_apps/previewgenerator ]; then
+        echo "Installing Preview Generator from App Store..."
+        php occ app:install previewgenerator 2>/dev/null && echo "✓ Preview Generator installed" || echo "✗ Preview Generator install failed (no internet?)"
+    else
+        echo "✓ Preview Generator already present"
+    fi
+    php occ app:enable previewgenerator 2>/dev/null || true
+
     # Conecta Mail (Roundcube integration) — app id is `conectamail` since 1.1.0
     if [ -n "$ROUNDCUBE_URL" ]; then
         echo "Configuring Conecta Mail integration..."
@@ -317,18 +495,6 @@ run_avuz_configuration() {
     php occ config:app:set password_policy enforceUpperLowerCase --value="1"
     php occ config:app:set password_policy enforceNumericCharacters --value="1"
     php occ config:app:set password_policy enforceSpecialCharacters --value="1"
-
-    # Per-chunk PHP limits — must exceed CHUNK_SIZE (50MB) plus multipart envelope.
-    # The new chunked recording endpoint POSTs each chunk as raw bytes; this ceiling
-    # caps the largest single chunk we will accept.
-    # memory_limit raised above stock 512M so FilesMetadata + heavy occ jobs don't
-    # trip the 300MB Nextcloud cron warning on large libraries.
-    PHP_MEMORY_LIMIT="${PHP_MEMORY_LIMIT:-3072M}"
-    cat > /usr/local/etc/php/conf.d/avuz-upload.ini <<PHPINI
-upload_max_filesize = 64M
-post_max_size = 64M
-memory_limit = ${PHP_MEMORY_LIMIT}
-PHPINI
 
     # Talk defaults
     php occ config:app:set spreed create_samples --value="false"
@@ -415,10 +581,20 @@ PHPINI
     php occ config:system:set app.mail.sieve.timeout --value=5 --type=integer
     php occ config:system:set app.mail.background-sync-interval --value=600 --type=integer
 
-    # Trusted proxies
+    # Trusted proxies — NPM (openresty) fronts this container. nginx already rewrites
+    # REMOTE_ADDR to the real client via CF-Connecting-IP (see docker/nginx.conf), so
+    # NC only needs to trust the loopback socket + the NPM hop(s). TRUSTED_PROXIES is a
+    # comma-separated list of NPM IPs/CIDRs, set per stack (staging vs prod differ).
     php occ config:system:set trusted_proxies 0 --value='127.0.0.1'
     php occ config:system:set trusted_proxies 1 --value='::1'
-    php occ config:system:set trusted_proxies 2 --value='10.50.100.100'
+    IFS=',' read -ra _avuz_trusted_proxies <<< "$TRUSTED_PROXIES"
+    _avuz_proxy_index=2
+    for _proxy in "${_avuz_trusted_proxies[@]}"; do
+        _proxy="${_proxy// /}"
+        [ -z "$_proxy" ] && continue
+        php occ config:system:set trusted_proxies "$_avuz_proxy_index" --value="$_proxy"
+        _avuz_proxy_index=$((_avuz_proxy_index + 1))
+    done
 
     # SMTP (conditional on env vars)
     if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_NAME" ]; then
@@ -455,31 +631,104 @@ PHPINI
 
     # Clear imagePath cache after theme changes
     redis-cli -h "$REDIS_HOST" EVAL "local keys = redis.call('keys', '*imagePath*'); for i=1,#keys do redis.call('del', keys[i]) end; return #keys" 0 || true
+}
 
-    # Database maintenance
+# ──────────────────────────────────────────────
+# Avuz configuration — runs on fresh install, after upgrade, or when config version changes
+# All settings here are persisted in config.php or the DB, so they only need to run once.
+# ──────────────────────────────────────────────
+run_avuz_configuration() {
+    echo "═══ Running Avuz Conecta configuration ═══"
+
+    _avuz_overlap="$(avuz_assert_disjoint "${AVUZ_OWNED_APPS[*]}" "${AVUZ_STORE_APPS[*]}")"
+    if [ -n "$_avuz_overlap" ]; then
+        echo "✗ CONFIG ERROR: app(s) in both AVUZ_OWNED_APPS and AVUZ_STORE_APPS: $_avuz_overlap"
+        echo "  A store update would clobber the Avuz overlay. Refusing to boot."
+        exit 1
+    fi
+
+    # Owned apps must win path resolution before anything else runs.
+    avuz_purge_shadow_copies /var/www/html/custom_apps /var/www/html/apps \
+        "$AVUZ_SHADOW_QUARANTINE" "${AVUZ_OWNED_APPS[@]}"
+
+    # Re-enable the in-app store for the duration of this run so the
+    # app:install/update calls below can query the store. Re-disabled at the end.
+    php occ config:system:set appstoreenabled --value=true --type=boolean
+
+    # Vanilla apps track the store; owned apps are untouched here by construction
+    # (disjointness asserted above).
+    echo "Syncing store-managed apps..."
+    avuz_sync_store_apps "${AVUZ_STORE_APPS[@]}"
+
+    apply_avuz_settings
+
+    # Database maintenance — cheap index check every bump; expensive repair only
+    # on fresh install or a real NC core upgrade.
     echo "Running database maintenance..."
     php occ db:add-missing-indices --no-interaction 2>/dev/null || true
-    php occ maintenance:repair --include-expensive 2>/dev/null || true
+    if [ "$NC_INSTALLED" -eq 0 ] || [ "$DID_DB_UPGRADE" -eq 1 ]; then
+        php occ maintenance:repair --include-expensive 2>/dev/null || true
+    fi
 
-    # Update App Store apps (custom_apps/) to latest compatible versions.
-    # Note: this also updates bundled apps and can overwrite our spreed overlay,
-    # so reapply the overlay immediately after.
-    echo "Updating App Store apps..."
-    php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
-    reapply_avuz_spreed_overlay
-    reapply_avuz_files_downloadlimit_overlay
+    # occ upgrade (does not touch the store) — runs pending core+app migrations
+    # from on-disk code: no store, no overlay clobber. Fail closed: on failure
+    # write the marker, skip the stamp, and exit so the container crash-loops
+    # (visible in Portainer) and the next boot retries. Skip when the core-upgrade
+    # branch already ran occ upgrade this boot.
+    if [ "$DID_DB_UPGRADE" -eq 0 ]; then
+        echo "Running occ upgrade (pending migrations)..."
+        set +e
+        php occ upgrade --no-interaction
+        _avuz_upgrade_rc=$?
+        set -e
+        if php occ maintenance:mode 2>/dev/null | grep -q 'currently enabled'; then
+            _avuz_maint=on
+        else
+            _avuz_maint=off
+        fi
+        _avuz_upgrade_class="$(avuz_classify_upgrade "$_avuz_upgrade_rc" "$_avuz_maint")"
+        if ! avuz_handle_upgrade_result "$_avuz_upgrade_class" "$UPGRADE_FAILED_MARKER"; then
+            echo "✗ occ upgrade FAILED (rc=$_avuz_upgrade_rc, maintenance=$_avuz_maint) — marker written, halting boot"
+            exit 1
+        fi
+        echo "✓ occ upgrade $_avuz_upgrade_class"
+    fi
 
-    # Ensure all managed apps are enabled — use --force for apps that
-    # haven't declared support for this NC version yet (bruteforcesettings, notifications, text)
-    echo "Ensuring managed apps are enabled..."
-    for app in "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"; do
-        php occ app:enable --force "$app" 2>/dev/null || echo "✗ Could not enable $app"
-    done
+    avuz_guard_app_downgrades "${AVUZ_STORE_APPS[*]}" \
+        "${AVUZ_STORE_APPS[@]}" "${AVUZ_OWNED_APPS[@]}"
+
+    # New-app enable via the known-apps manifest: seed on first run (enables
+    # nothing), then enable only managed apps we have never seen. Admin-disabled
+    # apps stay in the manifest and are never resurrected. Guard the seed: a
+    # transient/empty `app:list` must NOT write an empty manifest (that would make
+    # every managed app look new next boot and mass force-enable).
+    _avuz_app_list="$(php occ app:list 2>/dev/null)"
+    if [ -n "$_avuz_app_list" ]; then
+        printf '%s\n' "$_avuz_app_list" | avuz_seed_manifest "$AVUZ_KNOWN_APPS"
+        # Enable only inside this branch: if the manifest was just seeded (or
+        # already exists), new-app detection is trustworthy. On an empty/failed
+        # app:list we skip enabling too — otherwise a missing manifest would make
+        # every managed app look "new" and mass force-enable (resurrecting
+        # admin-disabled apps). Fresh installs still get every app via Phase 4.
+        avuz_enable_new_apps "$AVUZ_KNOWN_APPS" "${BUNDLED_APPS[@]}" "${ENABLE_APPS[@]}"
+    else
+        echo "✗ occ app:list empty/failed — skipping manifest seed + new-app enable this boot"
+    fi
+
+    # Retire apps listed in REMOVE_APPS (disable only, never remove).
+    avuz_retire_apps "${REMOVE_APPS[@]}"
 
     # Lock down the in-app store AFTER all installs/updates above have run.
     # Avuz owns the app upgrade cycle via image rebuilds; this prevents admins
     # (or NC's auto-update) from overwriting our patched spreed.
     php occ config:system:set appstoreenabled --value=false --type=boolean
+
+    # A store install could have landed a higher-version copy of an owned app in
+    # custom_apps. Purge again and re-verify sentinels against the RESOLVED path
+    # so a clobbered overlay fails this boot, not silently at runtime.
+    avuz_purge_shadow_copies /var/www/html/custom_apps /var/www/html/apps \
+        "$AVUZ_SHADOW_QUARANTINE" "${AVUZ_OWNED_APPS[@]}"
+    verify_avuz_patches
 
     # Write stamp so we skip this on plain restarts
     echo "$AVUZ_CONFIG_VERSION" > "$CONFIG_STAMP_FILE"
@@ -490,10 +739,26 @@ PHPINI
 # PHASE 1: Infrastructure (every restart)
 # ──────────────────────────────────────────────
 
-# Fix permissions for mounted volumes
+# Fix permissions for mounted volumes. data/ recursion is deliberately skipped
+# here — occ runs as root (ignores ownership) and php-fpm starts only at phase 5,
+# which reconciles data/ ownership. Recursing data/ now would be a wasted 3h walk
+# on large local-disk clients. See docker/lib-perms.sh.
 echo "Fixing permissions..."
-chown -R www-data:www-data /var/www/html/data /var/www/html/config /var/www/html/custom_apps 2>/dev/null || true
-chmod -R 770 /var/www/html/data /var/www/html/config /var/www/html/custom_apps 2>/dev/null || true
+avuz_fix_perms_small /var/www/html
+
+# PHP runtime limits — written every boot (ungated) so a container recreate cannot
+# regress them, and named zz-* so it wins the conf.d load order over the base image's
+# nextcloud.ini (which sets memory_limit=512M). Env-overridable per deploy.
+#   memory_limit: the TaskProcessing CLI worker (core:audio2text) materializes whole
+#   recording files from S3 in memory; 512M OOMs on large recordings and orphans the
+#   task STATUS_RUNNING (no transcript, no error). See docs/superpowers memory.
+#   upload/post: the chunked recording endpoint POSTs raw ~50MB chunks.
+PHP_MEMORY_LIMIT="${PHP_MEMORY_LIMIT:-3072M}"
+cat > /usr/local/etc/php/conf.d/zz-avuz-upload.ini <<PHPINI
+upload_max_filesize = 64M
+post_max_size = 64M
+memory_limit = ${PHP_MEMORY_LIMIT}
+PHPINI
 
 # Redis
 if [ -z "$REDIS_HOST" ] || [ "$REDIS_HOST" = "localhost" ] || [ "$REDIS_HOST" = "127.0.0.1" ]; then
@@ -522,6 +787,7 @@ done
 # PHASE 1.5: Object store (must precede maintenance:install on fresh stacks)
 # ──────────────────────────────────────────────
 configure_objectstore_s3
+ensure_objectstore_lifecycle
 
 # ──────────────────────────────────────────────
 # PHASE 2: Install or upgrade
@@ -570,8 +836,14 @@ else
     chown -R www-data:www-data /var/www/html/config
     chmod -R 770 /var/www/html/config
 
-    # Force disable maintenance mode via config.php (before any occ commands)
-    sed -i "s/'maintenance' => true/'maintenance' => false/g" /var/www/html/config/config.php 2>/dev/null || true
+    # Force-disable maintenance mode (clears a stale flag) — UNLESS a prior
+    # occ upgrade failed. In that case leave maintenance ON: fail closed to the
+    # maintenance page instead of serving a half-migrated app.
+    if [ -f "$UPGRADE_FAILED_MARKER" ]; then
+        echo "⚠ prior upgrade failed ($UPGRADE_FAILED_MARKER present) — leaving maintenance mode ON"
+    else
+        sed -i "s/'maintenance' => true/'maintenance' => false/g" /var/www/html/config/config.php 2>/dev/null || true
+    fi
 
     # Fix potentially corrupted viewer app
     if [ ! -f /var/www/html/apps/viewer/appinfo/info.xml ]; then
@@ -609,20 +881,17 @@ else
 
         php occ upgrade --no-interaction
         php occ maintenance:mode --off
+        DID_DB_UPGRADE=1   # core upgrade can rewrite anywhere under data/
 
-        # NC upgrade may have rewritten bundled apps; reapply overlays before
-        # the app:update --all below (which can overwrite again).
+        # NC upgrade may have rewritten bundled apps; reapply overlays after the
+        # core upgrade. Store-managed apps (AVUZ_STORE_APPS) are synced inside
+        # the store window in run_avuz_configuration, which always runs next
+        # (NEEDS_CONFIGURATION=1 is set below) — appstoreenabled is false here,
+        # so a store sync attempted at this point would be a guaranteed no-op.
         reapply_avuz_spreed_overlay
         reapply_avuz_files_downloadlimit_overlay
-
-        # Update custom_apps (App Store apps) now that NC core is upgraded.
-        # Reapply overlays afterwards because app:update may pull a fresh
-        # spreed and/or a fresh files_downloadlimit (whose 2.0.0 tarball drops
-        # templates/admin.php — GH issue 421).
-        echo "Updating App Store apps..."
-        php occ app:update --all 2>/dev/null || echo "✗ app:update --all failed (non-fatal)"
-        reapply_avuz_spreed_overlay
-        reapply_avuz_files_downloadlimit_overlay
+        # deck is a submodule now (apps/deck, branch avuz) — its patches are real
+        # commits, not an overlay, so there is nothing to reapply after an upgrade.
 
         # Re-enable apps that were enabled before the upgrade
         # --allow-unstable is required for apps that haven't declared NC33 support yet
@@ -660,12 +929,37 @@ echo "✓ Nextcloud verified"
 # - after upgrade (NEEDS_CONFIGURATION=1)
 # - config version changed (new image deployed)
 CURRENT_STAMP=$(cat "$CONFIG_STAMP_FILE" 2>/dev/null || echo "")
+
+# Owned apps must win path resolution before the sentinel check resolves any
+# path — otherwise a shadow copy makes verify_avuz_patches fail closed on a
+# condition the purge below would have repaired, and the boot never gets there.
+avuz_purge_shadow_copies /var/www/html/custom_apps /var/www/html/apps \
+    "$AVUZ_SHADOW_QUARANTINE" "${AVUZ_OWNED_APPS[@]}"
+
+# Catches drift on plain restarts too (they skip run_avuz_configuration below):
+# if a quarantined shadow was ahead of the image copy, the app's code just
+# landed behind its migrated schema. Owned apps only — they need no store
+# window, the guard only prints a rebuild hint for those. Non-fatal by
+# construction; invoked bare.
+avuz_guard_app_downgrades "${AVUZ_STORE_APPS[*]}" "${AVUZ_OWNED_APPS[@]}"
+
 verify_avuz_patches
 if [ "$NEEDS_CONFIGURATION" -eq 1 ] || [ "$CURRENT_STAMP" != "$AVUZ_CONFIG_VERSION" ]; then
     run_avuz_configuration
+    DID_CONFIG_RUN=1   # occ-as-root wrote appdata_* + nextcloud.log this boot
 else
     echo "✓ Avuz configuration up to date ($AVUZ_CONFIG_VERSION), skipping"
 fi
+
+# Reconcile bundled apps whose image code version jumped ahead of their DB
+# installed_version. A same-core image redeploy that bumps a bundled app (e.g.
+# forms 5.2.5 -> 5.3.5) leaves installed_version stale: `occ upgrade` only fires
+# on a CORE change, so nothing runs the app's own upgrade step. Runs every boot
+# (after apps are enabled), fires only on a real mismatch, self-clears after one
+# reconcile. Non-fatal. Scoped to ENABLE_APPS — the non-core appstore apps we
+# bundle — never the core BUNDLED_APPS (disabling files_sharing/dav at boot is
+# unsafe; those track core and `occ upgrade` handles them).
+avuz_reconcile_app_versions "${ENABLE_APPS[@]}"
 
 # ──────────────────────────────────────────────
 # PHASE 4: Apps (fresh install only)
@@ -688,8 +982,28 @@ chmod +x /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push 2>/dev/nul
 # ──────────────────────────────────────────────
 
 echo "Final permissions check..."
-chown -R www-data:www-data /var/www/html/data /var/www/html/config /var/www/html/custom_apps
-chmod -R 770 /var/www/html/data /var/www/html/config /var/www/html/custom_apps
+avuz_fix_perms_small /var/www/html
+avuz_reconcile_data_ownership /var/www/html/data "$DID_DB_UPGRADE" "$DID_CONFIG_RUN"
 echo "✓ Permissions set"
+
+# ──────────────────────────────────────────────
+# Real client IP for nginx — regenerated every boot (nginx fs is ephemeral).
+# Clients reach us via Cloudflare (proxied *.avuz.app) -> NPM -> this container.
+# Take the true client from CF-Connecting-IP, trusting only the NPM hop(s) in
+# TRUSTED_PROXIES. Without it, Nextcloud brute-force buckets every user under the
+# CF edge (or the NPM IP) -> false "too many login attempts" on password set.
+# ──────────────────────────────────────────────
+mkdir -p /etc/nginx/conf.d
+{
+    echo "real_ip_header CF-Connecting-IP;"
+    echo "real_ip_recursive on;"
+    IFS=',' read -ra _avuz_trusted_proxies <<< "$TRUSTED_PROXIES"
+    for _proxy in "${_avuz_trusted_proxies[@]}"; do
+        _proxy="${_proxy// /}"
+        [ -z "$_proxy" ] && continue
+        echo "set_real_ip_from $_proxy;"
+    done
+} > /etc/nginx/conf.d/avuz-realip.conf
+echo "✓ nginx real-ip trust written for: ${TRUSTED_PROXIES:-<none>}"
 
 exec "$@"

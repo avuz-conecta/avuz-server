@@ -2,8 +2,11 @@ version: '3.8'
 
 services:
   app:
-    image: 10.50.100.103:8080/admin/avuz-conecta:latest
+    image: registry.avuz.app/admin/avuz-conecta:latest
     restart: unless-stopped
+    # Auto-restart on unhealthy is handled by the host's standalone autoheal stack
+    # (portainer-autoheal-stack.yml). The image bakes in `LABEL autoheal=true`, so no
+    # label is needed here — deploy one autoheal stack per host and this is covered.
     ports:
       - "8080:80"
     volumes:
@@ -33,6 +36,11 @@ services:
       - NEXTCLOUD_TRUSTED_DOMAIN=app3.avuz.app
       - NEXTCLOUD_TRUSTED_DOMAINS=app3.avuz.app,recording.avuz.app
       - OVERWRITEPROTOCOL=https
+
+      # TRUSTED_PROXIES — NPM IP(s) as this container sees them (comma-separated).
+      # Feeds NC trusted_proxies + nginx set_real_ip_from so the real client IP is
+      # taken from Cloudflare's CF-Connecting-IP. Set per stack: staging vs prod differ.
+      - TRUSTED_PROXIES=10.50.99.254
 
       # PHP per-request ceiling (not pre-allocated). Stock is 512M; raised so heavy
       # occ jobs (FilesMetadata, scans, previews) don't trip the 300MB cron warning

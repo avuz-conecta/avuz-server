@@ -1,0 +1,39 @@
+version: '3.8'
+
+# One autoheal per Docker host — NOT per client stack.
+#
+# autoheal watches this host's Docker daemon and restarts ANY container labelled
+# `autoheal=true` once Docker marks it unhealthy, regardless of which stack owns it.
+# The avuz-conecta image bakes that label in (Dockerfile `LABEL autoheal=true`), so
+# every NC container on this host is covered with zero per-stack configuration.
+#
+# Deploy exactly one of these stacks on each host that runs avuz-conecta containers
+# (staging host, prod host, any future host). A second one on the same host is
+# harmless but redundant. A host WITHOUT one leaves its containers unhealed — the
+# Docker socket is local, so coverage does not cross hosts.
+#
+# Why this is its own stack: decoupled from any client. Redeploying or deleting a
+# client stack never takes the healer down with it.
+#
+# SECURITY: mounts the Docker socket read-write — root-equivalent control of the
+# host daemon. Publish no ports, pin the image tag, put nothing else in this stack.
+
+services:
+  autoheal:
+    image: willfarrell/autoheal:1.2.0
+    restart: always
+    environment:
+      # Only restart containers carrying this label (the image bakes it in).
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      # How often to poll Docker for unhealthy containers.
+      - AUTOHEAL_INTERVAL=15
+      # Grace window after a restart before autoheal will act on the same container
+      # again. Must stay >= the image's HEALTHCHECK --start-period (300s) or a slow
+      # boot (big occ upgrade) gets restarted mid-work.
+      - AUTOHEAL_START_PERIOD=330
+      # Let supervisord stop php-fpm/nginx cleanly instead of SIGKILL mid-request
+      # (half-written chunk uploads, stale Redis file locks).
+      - AUTOHEAL_DEFAULT_STOP_TIMEOUT=60
+      - TZ=America/Sao_Paulo
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

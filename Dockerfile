@@ -35,6 +35,11 @@ RUN cp -R /var/www/html/docker/overlays/spreed/. /var/www/html/apps/spreed/
 # Without it the Sharing admin page returns 500 with TemplateNotFoundException.
 RUN cp -R /var/www/html/docker/overlays/files_downloadlimit/. /var/www/html/apps/files_downloadlimit/
 
+# Deck is shipped as the avuz-conecta/deck submodule at apps/deck (branch avuz,
+# pinned). It carries the board-copy fix (AVUZ-DECK-CLONE-ORDER-V1) and the
+# board-tags feature (AVUZ-BOARD-TAGS-V1) as real commits, plus its committed
+# vendor/ and built js/ — so no overlay cp is needed here.
+
 # Clean old compiled bundles and rebuild frontend
 RUN npm run build
 
@@ -54,6 +59,10 @@ RUN find /var/www/html/apps -type d -exec chmod 755 {} \; \
   && find /var/www/html/apps -type f -exec chmod 644 {} \; \
   && find /var/www/html/themes -type d -exec chmod 755 {} \; \
   && find /var/www/html/themes -type f -exec chmod 644 {} \;
+
+# Guard against MediaPipe glue/wasm drift (untracked vendored files → silent
+# virtual-background breakage). Fails the build loud on mismatch.
+RUN sh /var/www/html/scripts/verify-mediapipe.sh
 
 # ============================================
 # Final runtime image
@@ -85,12 +94,23 @@ RUN chmod +x /usr/local/bin/merge-l10n.sh
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
 COPY docker/entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /var/www/html/docker/healthcheck.sh
+# Placeholder so nginx.conf's include never dangles; entrypoint regenerates it at
+# boot from TRUSTED_PROXIES (real client IP behind Cloudflare -> NPM).
+RUN mkdir -p /etc/nginx/conf.d && printf 'real_ip_header CF-Connecting-IP;\nreal_ip_recursive on;\n' > /etc/nginx/conf.d/avuz-realip.conf
 
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD curl -f http://localhost/status.php || exit 1
+# Opt this container into auto-restart. autoheal matches container labels, and a
+# Dockerfile LABEL becomes a container label — so every deployment inherits it with
+# no per-stack edit. A host's standalone autoheal service (portainer-autoheal-stack.yml)
+# restarts any container carrying this once Docker marks it unhealthy.
+LABEL autoheal=true
+
+# start-period covers first boot: install/upgrade/occ work can outrun the probe,
+# and without it autoheal would restart a container that is merely still booting.
+HEALTHCHECK --interval=30s --timeout=15s --retries=3 --start-period=300s \
+  CMD /var/www/html/docker/healthcheck.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisor.conf"]
