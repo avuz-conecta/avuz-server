@@ -114,15 +114,15 @@
 		// user message is preceded by one identity line, once per session.
 		const originalSend = zammadChat.sendMessage.bind(zammadChat);
 		zammadChat.sendMessage = function () {
-			if (!identitySent) {
+			const input = document.querySelector('.zammad-chat-input');
+			// Prepend the identity line only for a real first message — skip empty
+			// sends so an empty Enter never posts an identity-only ghost.
+			if (!identitySent && input && (input.textContent || '').trim() !== '') {
 				identitySent = true;
-				const input = document.querySelector('.zammad-chat-input');
-				if (input) {
-					const pending = input.innerHTML;
-					input.textContent = buildIdentityLine(state);
-					originalSend();
-					input.innerHTML = pending;
-				}
+				const pending = input.innerHTML;
+				input.textContent = buildIdentityLine(state);
+				originalSend();
+				input.innerHTML = pending;
 			}
 			return originalSend();
 		};

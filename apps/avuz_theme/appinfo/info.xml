@@ -5,7 +5,7 @@
     <name>Avuz Theme</name>
     <summary>Custom Avuz branding and login layout</summary>
     <description><![CDATA[Provides custom company branding with split-screen login layout featuring network diagram on the left and login form on the right.]]></description>
-    <version>1.1.5</version>
+    <version>1.1.6</version>
     <licence>agpl</licence>
     <author mail="your-email@avuz.com">Avuz Team</author>
     <namespace>AvuzTheme</namespace>
