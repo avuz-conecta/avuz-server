@@ -67,6 +67,7 @@ class FilesPlugin extends ServerPlugin {
 	public const METADATA_ETAG_PROPERTYNAME = '{http://nextcloud.org/ns}metadata_etag';
 	public const UPLOAD_TIME_PROPERTYNAME = '{http://nextcloud.org/ns}upload_time';
 	public const CREATION_TIME_PROPERTYNAME = '{http://nextcloud.org/ns}creation_time';
+	public const LAST_ACTIVITY_PROPERTYNAME = '{http://nextcloud.org/ns}last_activity';
 	public const SHARE_NOTE = '{http://nextcloud.org/ns}note';
 	public const SHARE_HIDE_DOWNLOAD_PROPERTYNAME = '{http://nextcloud.org/ns}hide-download';
 	public const SUBFOLDER_COUNT_PROPERTYNAME = '{http://nextcloud.org/ns}contained-folder-count';
@@ -206,10 +207,19 @@ class FilesPlugin extends ServerPlugin {
 		// First check copyable (move only needs additional delete permission)
 		$this->checkCopy($source, $target);
 
-		// The source needs to be deletable for moving
-		$sourceNodeFileInfo = $sourceNode->getFileInfo();
-		if (!$sourceNodeFileInfo->isDeletable()) {
-			throw new Forbidden($source . ' cannot be deleted');
+		[$sourceDir] = \Sabre\Uri\split($source);
+		[$destinationDir, ] = \Sabre\Uri\split($target);
+
+		if ($sourceDir === $destinationDir) {
+			if (!$sourceNode->canRename()) {
+				throw new Forbidden($source . ' cannot be renamed');
+			}
+		} else {
+			// The source needs to be deletable for moving
+			$sourceNodeFileInfo = $sourceNode->getFileInfo();
+			if (!$sourceNodeFileInfo->isDeletable()) {
+				throw new Forbidden($source . ' cannot be deleted');
+			}
 		}
 
 		// The source is not allowed to be the parent of the target
@@ -446,8 +456,12 @@ class FilesPlugin extends ServerPlugin {
 				return $node->getFileInfo()->getCreationTime();
 			});
 
+			$propFind->handle(self::LAST_ACTIVITY_PROPERTYNAME, function () use ($node) {
+				return $node->getFileInfo()->getLastActivity();
+			});
+
 			foreach ($node->getFileInfo()->getMetadata() as $metadataKey => $metadataValue) {
-				$propFind->handle(self::FILE_METADATA_PREFIX . $metadataKey, $metadataValue);
+				$propFind->handle(self::FILE_METADATA_PREFIX . $metadataKey, fn () => $metadataValue);
 			}
 
 			$propFind->handle(self::HIDDEN_PROPERTYNAME, function () use ($node) {

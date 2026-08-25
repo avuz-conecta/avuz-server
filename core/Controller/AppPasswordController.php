@@ -16,6 +16,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
 use OCP\AppFramework\Http\Attribute\BruteForceProtection;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
+use OCP\AppFramework\Http\Attribute\NoTwoFactorRequired;
 use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
 use OCP\AppFramework\Http\Attribute\UseSession;
 use OCP\AppFramework\Http\DataResponse;
@@ -200,11 +201,11 @@ class AppPasswordController extends OCSController {
 	 *
 	 * @return DataResponse<Http::STATUS_OK, array{apppassword: string}, array{}>
 	 * @throws OCSForbiddenException Creating app password is not allowed
+	 * @NoTwoFactorRequired
 	 *
 	 * 200: App password returned
 	 */
 	#[NoAdminRequired]
-	#[PasswordConfirmationRequired]
 	#[ApiRoute(verb: 'GET', url: '/getapppassword-onetime', root: '/core')]
 	public function getAppPasswordWithOneTimePassword(): DataResponse {
 		// Only allow with one-time app passwords

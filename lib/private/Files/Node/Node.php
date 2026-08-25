@@ -12,6 +12,7 @@ use OC\Files\Mount\MoveableMount;
 use OC\Files\Utils\PathHelper;
 use OCP\EventDispatcher\GenericEvent;
 use OCP\EventDispatcher\IEventDispatcher;
+use OCP\Files\Cache\ICacheEntry;
 use OCP\Files\FileInfo;
 use OCP\Files\InvalidPathException;
 use OCP\Files\IRootFolder;
@@ -284,7 +285,7 @@ class Node implements INode {
 
 			// Manually fetch the parent if the current node doesn't have a file info yet
 			try {
-				$fileInfo = $this->getFileInfo();
+				$fileInfo = $this->getFileInfo(false);
 			} catch (NotFoundException) {
 				$this->parent = $this->root->get($newPath);
 				/** @var \OCP\Files\Folder $this->parent */
@@ -475,6 +476,10 @@ class Node implements INode {
 		return $this->getFileInfo()->getUploadTime();
 	}
 
+	public function getLastActivity(): int {
+		return $this->getFileInfo()->getLastActivity();
+	}
+
 	public function getParentId(): int {
 		return $this->fileInfo->getParentId();
 	}
@@ -485,5 +490,9 @@ class Node implements INode {
 	 */
 	public function getMetadata(): array {
 		return $this->fileInfo->getMetadata();
+	}
+
+	public function getData(): ICacheEntry {
+		return $this->fileInfo->getData();
 	}
 }

@@ -8,6 +8,7 @@
 namespace OC\Files;
 
 use Icewind\Streams\CallbackWrapper;
+use OC\Files\Cache\CacheEntry;
 use OC\Files\Mount\MoveableMount;
 use OC\Files\Storage\Storage;
 use OC\Files\Storage\Wrapper\Quota;
@@ -1384,9 +1385,17 @@ class View {
 				$data = $cache->get($internalPath);
 			} elseif (!Cache\Scanner::isPartialFile($internalPath) && $watcher->needsUpdate($internalPath, $data)) {
 				$this->lockFile($relativePath, ILockingProvider::LOCK_SHARED);
+				$cacheDataBefore = $data instanceof CacheEntry ? $data->getData() : false;
 				$watcher->update($internalPath, $data);
-				$storage->getPropagator()->propagateChange($internalPath, time());
 				$data = $cache->get($internalPath);
+				$cacheDataAfter = $data instanceof CacheEntry ? $data->getData() : false;
+
+				// Only propagate mtime change to parent folders if the scanner actually changed the cached metadata,
+				// to avoid updating folder mtimes on every read for backends that conservatively report directories as updated (e.g. S3)
+				if ($cacheDataAfter !== $cacheDataBefore) {
+					$storage->getPropagator()->propagateChange($internalPath, time());
+					$data = $cache->get($internalPath);
+				}
 				$this->unlockFile($relativePath, ILockingProvider::LOCK_SHARED);
 			}
 		} catch (LockedException $e) {
@@ -1657,6 +1666,9 @@ class View {
 	public function putFileInfo($path, $data) {
 		$this->assertPathLength($path);
 		if ($data instanceof FileInfo) {
+			$data = $data->getData();
+		}
+		if ($data instanceof CacheEntry) {
 			$data = $data->getData();
 		}
 		$path = Filesystem::normalizePath($this->fakeRoot . '/' . $path);

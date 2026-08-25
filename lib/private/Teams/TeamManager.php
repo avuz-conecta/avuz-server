@@ -12,6 +12,7 @@ use OCA\Circles\CirclesManager;
 use OCA\Circles\Exceptions\CircleNotFoundException;
 use OCA\Circles\Model\Circle;
 use OCA\Circles\Model\Member;
+use OCA\Circles\Model\Probes\CircleProbe;
 use OCP\IURLGenerator;
 use OCP\Server;
 use OCP\Teams\ITeamManager;
@@ -71,7 +72,10 @@ class TeamManager implements ITeamManager {
 			return [];
 		}
 
-		if ($this->getTeam($teamId, $userId) === null) {
+		$probe = new CircleProbe();
+		$probe->mustBeMember();
+
+		if ($this->getTeam($teamId, $userId, $probe) === null) {
 			return [];
 		}
 
@@ -84,7 +88,7 @@ class TeamManager implements ITeamManager {
 		return array_values($resources);
 	}
 
-	public function getSharedWithList(array $teams, string $userId): array {
+	public function getSharedWithList(array $teams, string $userId, string $resourceId): array {
 		if (!$this->hasTeamSupport()) {
 			return [];
 		}
@@ -92,7 +96,7 @@ class TeamManager implements ITeamManager {
 		$resources = [];
 		foreach ($this->getProviders() as $provider) {
 			if (method_exists($provider, 'getSharedWithList')) {
-				$resources[] = $provider->getSharedWithList($teams, $userId);
+				$resources[] = $provider->getSharedWithList($teams, $resourceId);
 			} else {
 				foreach ($teams as $team) {
 					$resources[] = [$team => $provider->getSharedWith($team)];
@@ -118,7 +122,7 @@ class TeamManager implements ITeamManager {
 		}, $this->getTeams($provider->getTeamsForResource($resourceId), $userId));
 	}
 
-	private function getTeam(string $teamId, string $userId): ?Circle {
+	private function getTeam(string $teamId, string $userId, ?CircleProbe $probe = null): ?Circle {
 		if (!$this->hasTeamSupport()) {
 			return null;
 		}
@@ -126,7 +130,7 @@ class TeamManager implements ITeamManager {
 		try {
 			$federatedUser = $this->circlesManager->getFederatedUser($userId, Member::TYPE_USER);
 			$this->circlesManager->startSession($federatedUser);
-			return $this->circlesManager->getCircle($teamId);
+			return $this->circlesManager->getCircle($teamId, $probe);
 		} catch (CircleNotFoundException) {
 			return null;
 		}

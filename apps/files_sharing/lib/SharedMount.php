@@ -11,7 +11,6 @@ namespace OCA\Files_Sharing;
 use OC\Files\Filesystem;
 use OC\Files\Mount\MountPoint;
 use OC\Files\Mount\MoveableMount;
-use OC\Files\View;
 use OCA\Files_Sharing\Exceptions\BrokenPath;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\Files\Events\InvalidateMountCacheEvent;
@@ -41,7 +40,6 @@ class SharedMount extends MountPoint implements MoveableMount, ISharedMountPoint
 		$storage,
 		$arguments,
 		IStorageFactory $loader,
-		private View $recipientView,
 		private IEventDispatcher $eventDispatcher,
 		private IUser $user,
 	) {
@@ -60,7 +58,7 @@ class SharedMount extends MountPoint implements MoveableMount, ISharedMountPoint
 	 * @param IShare $share
 	 * @return bool
 	 */
-	private function updateFileTarget($newPath, &$share) {
+	protected function updateFileTarget($newPath, &$share) {
 		$share->setTarget($newPath);
 
 		foreach ($this->groupedShares as $tmpShare) {
@@ -119,6 +117,7 @@ class SharedMount extends MountPoint implements MoveableMount, ISharedMountPoint
 					'exception' => $e,
 				]
 			);
+			$result = false;
 		}
 
 		return $result;
@@ -187,5 +186,9 @@ class SharedMount extends MountPoint implements MoveableMount, ISharedMountPoint
 
 	public function getMountType() {
 		return 'shared';
+	}
+
+	public function getUser(): IUser {
+		return $this->user;
 	}
 }
