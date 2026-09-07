@@ -68,13 +68,95 @@ body:has(.app-dashboard) {
         width: calc(100vw - 32px) !important;
         margin-inline: 16px !important;
     }
+
+    /* Force a single, centered column on mobile (otherwise the columns sit
+       side by side like desktop on wider phones/landscape) and center everything */
+    .booking {
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        width: auto !important;
+    }
+    .booking > div {
+        flex-basis: auto !important;
+        width: 100% !important;
+        max-width: 340px;
+    }
+    .booking__config-user-info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    .booking__date-selection,
+    .booking__slot-selection {
+        padding: 0 !important;
+        text-align: center;
+    }
+    .booking__date-selection {
+        align-items: center;
+    }
+    .booking__date-header {
+        text-align: center;
+    }
+    .booking__slots {
+        align-items: center;
+    }
+
+    /* Date picker flows in place so it centers and drops the reserved-space
+       hack; timezone picker hidden (Sao Paulo is the default for BR clients).
+       Size the picker to the calendar (264px) so the grid is truly centered. */
+    .booking .mx-datepicker {
+        width: max-content !important;
+        margin-inline: auto !important;
+    }
+    .booking .mx-datepicker-main {
+        position: static !important;
+    }
+    .booking__date {
+        margin-top: 0 !important;
+    }
+    .booking__time-zone {
+        margin-top: 16px !important;
+    }
+    .booking__time-zone .v-select {
+        display: none !important;
+    }
+
+    /* Single scroll: no inner scroll areas, content flows into the card scroll */
+    .booking__slots {
+        max-height: none !important;
+        overflow: visible !important;
+    }
+    .booking-appointment-details {
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
     .booking-appointment-details {
         width: calc(100vw - 40px) !important;
         max-width: none !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+    }
+    .booking-appointment-details .booking-details {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        width: 100%;
+    }
+    .booking-appointment-details .booking__date,
+    .booking-appointment-details .booking__time {
+        justify-content: center;
     }
     .booking-appointment-details .appointment-details {
         padding-inline-start: 0 !important;
         max-width: none !important;
+        width: 100%;
+        text-align: center;
     }
     .booking-appointment-details .buttons {
         flex-direction: column !important;
