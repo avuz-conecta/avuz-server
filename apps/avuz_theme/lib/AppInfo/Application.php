@@ -58,5 +58,8 @@ class Application extends App implements IBootstrap {
 
 		// Add hover tooltip to read-only Deck stack titles
 		Util::addScript(self::APP_ID, 'deck-stack-title');
+
+		// Gray out unbookable days on the appointment booking page
+		Util::addScript(self::APP_ID, 'booking-availability');
 	}
 }
