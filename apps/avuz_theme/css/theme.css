@@ -33,3 +33,64 @@ body:has(.app-dashboard) {
 #app-content tbody tr:hover {
     background-color: rgba(140, 160, 170, 0.35) !important;
 }
+
+/*
+ * Appointment booking page (public): the always-open date picker sets an
+ * inline `top` via JS. On short (real-mobile) viewports it flips the calendar
+ * panel above the hidden input (top: -Npx), overlaying the description.
+ * The panel is inline here with space reserved by margins, so pin it to top: 0.
+ */
+.booking .mx-datepicker-main {
+    top: 0 !important;
+}
+
+/* Highlight available (selectable) days in light green so free dates stand out */
+.booking .mx-datepicker td.cell:not(.disabled):not(.not-current-month):not(.active) {
+    background-color: #dcf3e3 !important;
+    border-radius: 6px;
+    color: #137a3a !important;
+    font-weight: 600;
+}
+.booking .mx-datepicker td.cell:not(.disabled):not(.not-current-month):not(.active):hover {
+    background-color: #bfe9cc !important;
+}
+
+/* Days marked unbookable by booking-availability.js are not clickable */
+.booking .mx-datepicker td.cell.avuz-unavailable {
+    pointer-events: none;
+}
+
+/* Appointment details (after picking a slot): on mobile use the full card width
+   and stack the Back / Book buttons instead of cramming them side by side. */
+@media (max-width: 600px) {
+    /* Give the guest card a little breathing room from the screen edges */
+    .app-calendar.nc-guest-content {
+        width: calc(100vw - 32px) !important;
+        margin-inline: 16px !important;
+    }
+    .booking-appointment-details {
+        width: calc(100vw - 40px) !important;
+        max-width: none !important;
+    }
+    .booking-appointment-details .appointment-details {
+        padding-inline-start: 0 !important;
+        max-width: none !important;
+    }
+    .booking-appointment-details .buttons {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px;
+    }
+    .booking-appointment-details .buttons button {
+        width: 100% !important;
+    }
+}
+
+/* Left-align the description and the date/slot columns to the same edge */
+.booking__date-selection,
+.booking__slot-selection {
+    padding-left: 0 !important;
+}
+.booking__date-header {
+    margin-inline-start: 0 !important;
+}
