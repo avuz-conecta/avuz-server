@@ -38,11 +38,19 @@ route. A full-board share behaves exactly as today.
 
 ## Non-goals (Phase 2 — documented, out of this spec)
 
-Filtering a limited user's view in these *separate* Nextcloud subsystems:
+Filtering a limited user's view in these *separate* Nextcloud subsystems that do
+NOT route through Deck's card READ check, so each needs its own pass:
 full-text search (`OCA\Deck\Search`), the CalDAV calendar feed
-(`OCA\Deck\DAV\CalendarPlugin`), the activity stream, and reminders. These do not
-route through Deck's card READ check, so they need their own passes. Out of scope
-here; a limited user must not be told the feature is airtight across them.
+(`OCA\Deck\DAV\CalendarPlugin`), and the activity stream. Reminders are *not* a
+leak — they fire per assignment, so a limited user is only ever reminded of cards
+already assigned to them.
+
+The most visible residual is the **calendar feed**: a limited user's Deck calendar
+would still show every board card with a due date. This was accepted at Q1 (deferred
+to phase 2). It is a known, documented gap for now — not a silent one; the toggle's
+help text says the limit applies "within the board" until the phase-2 passes land.
+(All Deck-app card surfaces — board, archived, single card, comments, attachments,
+dashboard upcoming, All-Boards — ARE enforced in this spec.)
 
 ## Data model
 
@@ -83,43 +91,55 @@ Group/circle matching reuses the existing membership resolution already used by
 `userCan`/`getPermissions` (`IGroupManager` + the circles service), so the same
 inverse-direction membership logic applies — no new membership path.
 
-This method is the single source of truth; both read choke points and the create
-path call it.
+This method is the single source of truth; every read choke point and the create
+path call it. It **memoizes per request** (static map keyed `boardId|userId`) — it
+runs on every card check and board load, so recomputing group/circle membership
+each time would be wasteful.
+
+### Assignment predicate (shared)
+
+"Card is assigned to the user" = a row in `oc_deck_assigned_users` for that card
+where `(participant = :userId AND type = TYPE_USER)` OR
+`(participant IN (:userGroups) AND type = TYPE_GROUP)`. The user's group list is
+resolved once (memoized). One helper builds this predicate for both the list
+queries and the single-card check so they can never diverge.
 
 ## Read enforcement
 
-Deck has exactly two card-read entry points; both must honor the limit.
+The limit is an access boundary, so EVERY Deck route returning card data must honor
+it. Grilling found five; the single-card gate transitively covers comments and
+attachments (both already call `checkPermission(card, READ)`), leaving one gate
+plus four list paths.
 
-### Board view — `StackService::findAll(boardId)` → `CardMapper`
+1. **Single card** — `PermissionService::checkPermission(cardMapper, cardId, READ)`.
+   When READ resolves via a limited grant, additionally require the assignment
+   predicate; else deny (existing `NoPermissionException` / 403). Covers the direct
+   card link/API, **comments**, and **attachment download**
+   (`AttachmentService::display` already checks card READ — verified) with no
+   per-endpoint change. Add helper `cardAssignedToUser(cardId, userId)`; the extra
+   check runs only when the viewer is limited on that card's board, so full readers
+   pay nothing.
+2. **Board view** — `StackService::findAll(boardId)` → `CardMapper`. When limited, a
+   stricter stack-card query `INNER JOIN`s `oc_deck_assigned_users` on the
+   assignment predicate, `DISTINCT` on card id, excluding unassigned. The existing
+   `findToMeOrNotAssignedCards` is NOT reusable — it matches only user-assignment
+   and includes unassigned. Non-limited users keep the current query.
+3. **Archived view** — `StackService::findAllArchived` →
+   `CardMapper::findAllArchived`. Same limited predicate.
+4. **Dashboard "upcoming"** — `OverviewService::findUpcomingCards`. Today it calls
+   `findToMeOrNotAssignedCards` on shared boards, leaking **unassigned** cards of a
+   limited board into the widget. When the viewer is limited on a board, drop the
+   "OR unassigned" branch and apply the group-assignment predicate for that board.
+   Owned boards (owner ⇒ never limited) are untouched.
+5. **All-Boards view (fork)** — `BoardSummaryService` / `MatchingCardMapper` (the
+   "Todos os Painéis" overview with the user filter). Its cross-board card match
+   applies the limited predicate for any board where the viewer is limited, so
+   others' cards never surface there.
 
-When `isLimitedToAssignedCards(boardId, currentUser)` is true, the cards returned
-per stack are filtered to those assigned to the user or to a group they belong to.
-Implementation: a limited variant of the stack card query that `INNER JOIN`s
-`oc_deck_assigned_users` on `card_id` with
-`(participant = :userId AND type = TYPE_USER) OR (participant IN (:userGroups…) AND type = TYPE_GROUP)`,
-`DISTINCT` on card id. Excludes unassigned cards. Note the existing
-`findToMeOrNotAssignedCards` matches only the user-assignment case and includes
-unassigned cards — this query is stricter and adds the group-assignment case, so
-it is new rather than a reuse. Non-limited users keep the existing unfiltered
-query — no behavior change.
-
-Stack card counts and any board-level card aggregation reflect only the visible
-set for a limited viewer (they consume the same filtered list).
-
-### Single card — `PermissionService::checkPermission(cardMapper, cardId, READ)`
-
-When the resolved permission is READ via a limited grant, additionally require the
-card to be assigned to the user (direct user assignment or a group they belong to).
-If not ⇒ deny
-(the existing `NoPermissionException` / 403 path). Because comment, attachment,
-and single-card endpoints all call `checkPermission` on the card mapper with
-`PERMISSION_READ`, this one gate covers direct card link, comments, and
-attachments with no per-endpoint change.
-
-`checkPermission` gains an internal helper `cardAssignedToUser(cardId, userId)`
-(reuses the assignment + membership resolution). The extra assignment check runs
-only when the user is limited on that card's board, so full-board readers pay
-nothing.
+**No-aggregate-leak rule.** Any count or summary a limited user sees — stack card
+counts, board totals, the upcoming widget — is computed over their visible set (same
+filtered lists). Board-level metadata that is not a card (label definitions, stack
+names, board title) is not a leak and stays visible.
 
 ## Create behavior
 
@@ -136,7 +156,10 @@ is intended.
 (`BoardService::addAcl` / `updateAcl` and their controller) accept a
 `cardsOnlyAssigned` boolean and persist it on the `Acl`. It is accepted only when
 the grant does not carry `PERMISSION_MANAGE`; a request that sets both is rejected
-with 400 (managers can't be limited, decision 5).
+with 400 (managers can't be limited, decision 5). **Invariant:** if an existing
+ACL is later updated to add Manage while `cardsOnlyAssigned` is true, `updateAcl`
+clears `cardsOnlyAssigned` (manage ⇒ not limited) rather than 400-ing, so a
+manager promotion never leaves a stale, ignored flag.
 
 **Frontend.** `apps/deck/src/components/board/SharingTabSidebar.vue` (the
 "Compartilhar" tab): each participant row that is not a manager/owner gets a toggle
@@ -170,7 +193,15 @@ Manage is enabled for the row. pt_BR strings added to the theme l10n
 - `checkPermission` on a card: limited user + own card ⇒ allowed; limited user +
   others' card ⇒ 403; full reader ⇒ allowed regardless of assignment.
 - `CardService::create` by a limited user ⇒ new card assigned to creator.
-- API: setting `cardsOnlyAssigned` with Manage ⇒ 400; without Manage ⇒ persisted.
+- Archived view (`StackService::findAllArchived`): limited user sees only own
+  archived cards.
+- `OverviewService::findUpcomingCards`: limited user's upcoming excludes unassigned
+  cards of a limited board and includes their group-assigned ones; owned boards
+  unaffected.
+- All-Boards (`BoardSummaryService`/`MatchingCardMapper`): limited viewer sees only
+  own cards on a limited board; full cards on a non-limited board.
+- API: setting `cardsOnlyAssigned` with Manage ⇒ 400; without Manage ⇒ persisted;
+  updating an existing limited ACL to add Manage ⇒ flag cleared (not 400).
 
 ## Files touched (deck fork `apps/deck`)
 
@@ -178,10 +209,14 @@ Manage is enabled for the row. pt_BR strings added to the theme l10n
 - `lib/Db/Acl.php` (field + type + JSON)
 - `lib/Service/PermissionService.php` (`isLimitedToAssignedCards`,
   `cardAssignedToUser`, gate in `checkPermission`)
-- `lib/Db/CardMapper.php` (limited stack-card query)
-- `lib/Service/StackService.php` (use limited query when limited)
+- `lib/Db/CardMapper.php` (limited stack-card query + limited archived query)
+- `lib/Service/StackService.php` (use limited query in `findAll` + `findAllArchived`)
+- `lib/Service/OverviewService.php` (limited upcoming — drop unassigned, add group)
+- `lib/Service/BoardSummaryService.php` + `lib/Db/MatchingCardMapper.php` (limited
+  All-Boards match)
 - `lib/Service/CardService.php` (auto-assign on create)
-- `lib/Service/BoardService.php` + ACL controller (accept/validate/persist flag)
+- `lib/Service/BoardService.php` + ACL controller (accept/validate/persist flag +
+  clear-on-Manage invariant)
 - `src/components/board/SharingTabSidebar.vue` (+ store ACL action) (toggle)
 - l10n (deck fork + `themes/avuz/apps/deck/l10n/pt_BR.json`)
 - version bump `appinfo/info.xml`
