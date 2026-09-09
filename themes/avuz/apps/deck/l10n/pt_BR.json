@@ -426,8 +426,7 @@
         "You have set the start date of card {card} to {after}": "Você definiu a data de início do cartão {card} para {after}",
         "{user} has set the start date of card {card} to {after}": "{user} definiu a data de início do cartão {card} para {after}",
         "You have updated the start date of card {card} to {after}": "Você atualizou a data de início do cartão {card} para {after}",
-        "{user} has updated the start date of card {card} to {after}": "{user} atualizou a data de início do cartão {card} para {after}",
-        "Only assigned cards": "Apenas cards atribuídos"
+        "{user} has updated the start date of card {card} to {after}": "{user} atualizou a data de início do cartão {card} para {after}"
     },
     "pluralForm": "nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;"
 }
