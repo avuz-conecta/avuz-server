@@ -1,0 +1,6 @@
+node_modules
+dist
+.astro
+**/.env
+capture/.env
+capture/assets/*.y4m

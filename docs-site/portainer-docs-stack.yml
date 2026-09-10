@@ -1,0 +1,6 @@
+services:
+  docs:
+    image: registry.avuz.app/admin/avuzconecta-docs:latest
+    restart: unless-stopped
+    ports:
+      - "8092:80"
