@@ -16,6 +16,7 @@ export default defineConfig({
         { label: 'Drive', items: [{ autogenerate: { directory: 'drive' } }] },
         { label: 'Talk', items: [{ autogenerate: { directory: 'talk' } }] },
         { label: 'Tarefas', items: [{ autogenerate: { directory: 'tarefas' } }] },
+        { label: 'Agenda', items: [{ autogenerate: { directory: 'agenda' } }] },
       ],
       pagefind: true,
     }),
