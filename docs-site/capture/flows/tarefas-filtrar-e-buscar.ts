@@ -179,7 +179,7 @@ export const flow: Flow = {
   capturedForVersion: '33.0.8',
   app: 'tarefas',
   slug: 'filtrar-e-buscar',
-  title: 'Como filtrar e buscar cartões',
+  title: 'Como filtrar cartões',
   description: 'Encontre cartões rapidamente filtrando por etiqueta, responsável ou prazo.',
   tip: 'Combine filtros para focar só no que importa agora.',
   order: 9,

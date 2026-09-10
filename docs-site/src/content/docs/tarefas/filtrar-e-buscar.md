@@ -1,5 +1,5 @@
 ---
-title: "Como filtrar e buscar cartões"
+title: "Como filtrar cartões"
 description: "Encontre cartões rapidamente filtrando por etiqueta, responsável ou prazo."
 sidebar:
   order: 9
