@@ -12,3 +12,4 @@ Crie uma sala, convide participantes e fale por vídeo direto do navegador.
 - [Como ligar câmera e microfone](/talk/camera-e-microfone/)
 - [Como conversar por mensagem](/talk/conversar-por-mensagem/)
 - [Como usar reações e levantar a mão](/talk/reacoes-e-mao/)
+- [Como gerenciar participantes](/talk/gerenciar-participantes/)
