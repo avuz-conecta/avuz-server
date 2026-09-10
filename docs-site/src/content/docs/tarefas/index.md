@@ -12,3 +12,4 @@ O **Tarefas** organiza o trabalho em painéis visuais: listas (colunas) com cart
 - [Como mover cartões entre listas](/tarefas/mover-cartoes/)
 - [Como usar etiquetas](/tarefas/etiquetas/)
 - [Como comentar e anexar num cartão](/tarefas/comentar-e-anexar/)
+- [Como usar uma checklist no cartão](/tarefas/checklist-subtarefas/)
