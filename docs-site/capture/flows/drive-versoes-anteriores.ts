@@ -1,10 +1,10 @@
-import type { Browser } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import type { Flow } from '../run';
 import { login } from '../lib/browser';
 import { CONFIG } from '../config';
-import { shoot } from '../lib/capture-helpers';
+import { moveAndClick, pause } from '../lib/screencast';
 import { webdavUrl } from '../seed/seed';
-import type { Step, TaskDoc } from '../lib/steps';
+import type { Step } from '../lib/steps';
 
 const FILE_NAME = 'relatorio.pdf';
 
@@ -47,44 +47,42 @@ async function createNewVersion(): Promise<void> {
   throw new Error(`Failed to PUT new version of ${FILE_NAME}: ${response.status}`);
 }
 
-async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
+async function setup(browser: Browser): Promise<BrowserContext> {
   await createNewVersion();
+  const { context } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
+  return context;
+}
 
-  const { page } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
-  await page.goto(`${CONFIG.stagingUrl}/apps/files`);
-
+async function record(page: Page): Promise<readonly Step[]> {
   const fileRow = page.getByRole('row', { name: new RegExp(FILE_NAME.replace('.', '\\.')) });
   await fileRow.waitFor({ state: 'visible', timeout: 20000 });
+  await pause(600);
 
-  await fileRow.getByRole('button', { name: 'Ações' }).click();
+  const acoesButton = fileRow.getByRole('button', { name: 'Ações' });
+  await moveAndClick(page, acoesButton, 500);
+
   const fileMenu = page.getByRole('menu');
   const detalhesItem = fileMenu.getByRole('menuitem', { name: 'Detalhes', exact: true });
   await detalhesItem.waitFor({ state: 'visible', timeout: 10000 });
-  await detalhesItem.click();
+  await pause(500);
+  await moveAndClick(page, detalhesItem, 500);
 
   const sidebar = page.getByRole('complementary');
   await sidebar.waitFor({ state: 'visible', timeout: 10000 });
-  let frame = 0;
-  await shoot(page, framesDir, frame++);
+  await pause(700);
 
   const versoesTab = sidebar.getByRole('tab', { name: 'Versões' });
-  await versoesTab.click();
+  await moveAndClick(page, versoesTab, 500);
   const versoesPanel = sidebar.getByRole('tabpanel', { name: 'Versões' });
   await versoesPanel.waitFor({ state: 'visible', timeout: 10000 });
-  await shoot(page, framesDir, frame++);
+  await pause(700);
 
   const versionList = versoesPanel.getByRole('list', { name: 'Versões do arquivo' });
   const previousVersion = versionList.getByRole('listitem').filter({ hasText: 'Versão inicial' });
   await previousVersion.waitFor({ state: 'visible', timeout: 15000 });
-  await shoot(page, framesDir, frame++);
+  await pause(1000);
 
-  const versionActionsButton = previousVersion.getByRole('button', { name: /Ações para versão/ });
-  await versionActionsButton.click();
-  const versionMenu = page.getByRole('menu').last();
-  await versionMenu.getByRole('menuitem', { name: 'Restaurar versão' }).waitFor({ state: 'visible', timeout: 10000 });
-  await shoot(page, framesDir, frame++);
-
-  const steps: readonly Step[] = [
+  return [
     { n: 1, text: `Abra o **Drive** e localize **${FILE_NAME}** na lista de arquivos.` },
     {
       n: 2,
@@ -99,20 +97,17 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
       text: 'Cada versão anterior aparece na lista, com data e tamanho. Clique em **Ações** ao lado de uma versão para **Restaurar versão**, baixá-la ou renomeá-la.',
     },
   ];
-
-  return {
-    title: 'Como ver versões anteriores',
-    description: 'Veja o histórico de alterações de um arquivo e volte a uma versão anterior.',
-    app: 'drive',
-    slug: 'versoes-anteriores',
-    order: 8,
-    media: 'versoes-anteriores.mp4',
-    tip: 'Cada vez que o arquivo muda, o Drive guarda a versão antiga — dá para restaurá-la a qualquer momento pela aba Versões.',
-    steps,
-  };
 }
 
 export const flow: Flow = {
   capturedForVersion: '33.0.8',
-  run,
+  app: 'drive',
+  slug: 'versoes-anteriores',
+  title: 'Como ver versões anteriores',
+  description: 'Veja o histórico de alterações de um arquivo e volte a uma versão anterior.',
+  tip: 'Cada vez que o arquivo muda, o Drive guarda a versão antiga — dá para restaurá-la a qualquer momento pela aba Versões.',
+  order: 8,
+  startUrl: `${CONFIG.stagingUrl}/apps/files`,
+  setup,
+  record,
 };
