@@ -35,6 +35,14 @@ describe('scanText', () => {
     const hits = scanText('a.md', 'Nextcloud Hub 33.0.8');
     expect(hits.map((h) => h.rule)).toContain('nc-version');
   });
+  it('flags a labeled Nextcloud footer version', () => {
+    const hits = scanText('a.md', 'Nextcloud Hub 10 · Version 33.0.8');
+    expect(hits.map((h) => h.rule)).toContain('nc-version');
+    expect(hits.length).toBeGreaterThanOrEqual(1);
+  });
+  it('passes our own capturedForVersion frontmatter stamp', () => {
+    expect(scanText('a.md', 'capturedForVersion: "33.0.8"')).toHaveLength(0);
+  });
   it('flags an internal host', () => {
     const hits = scanText('a.md', 'use registry.avuz.app aqui');
     expect(hits.map((h) => h.rule)).toContain('internal-host');

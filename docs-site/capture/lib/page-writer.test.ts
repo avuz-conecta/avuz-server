@@ -30,7 +30,7 @@ describe('writeTaskPage', () => {
       steps: [{ n: 1, text: 'Passe o mouse no arquivo e clique em **Compartilhar**.' }],
     };
 
-    const path = await writeTaskPage(doc, '33', contentRoot);
+    const path = await writeTaskPage(doc, '33.0.8', contentRoot);
 
     expect(path).toBe(join(contentRoot, 'drive', 'compartilhar-arquivo.md'));
     const written = await readFile(path, 'utf8');
