@@ -1,9 +1,10 @@
-import type { Browser, Page } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import type { Flow } from '../run';
 import { login } from '../lib/browser';
 import { CONFIG } from '../config';
-import { shoot } from '../lib/capture-helpers';
-import type { Step, TaskDoc } from '../lib/steps';
+import { moveAndClick, pause } from '../lib/screencast';
+import { maskRealHost } from '../lib/capture-helpers';
+import type { Step } from '../lib/steps';
 
 const CONVERSATION_NAME = 'Reunião Gravada';
 const CONVERSATION_ACTIONS_LABEL = 'Ações de conversa';
@@ -20,17 +21,20 @@ async function dismissBrowserWarning(page: Page): Promise<void> {
 }
 
 async function createConversation(page: Page): Promise<void> {
-  await page.goto(`${CONFIG.stagingUrl}/apps/spreed`);
-  await dismissBrowserWarning(page);
-  await page.getByRole('button', { name: 'Criar uma nova conversa' }).click();
+  const newConversationButton = page.getByRole('button', { name: 'Criar uma nova conversa' });
+  await moveAndClick(page, newConversationButton, 600);
 
   const createDialog = page.getByRole('dialog');
   const nameField = createDialog.getByPlaceholder('Digite um nome para esta conversa');
   await nameField.waitFor({ state: 'visible', timeout: 15000 });
   await nameField.fill(CONVERSATION_NAME);
+  await pause(500);
 
-  await createDialog.getByRole('button', { name: 'Adicionar participantes' }).click();
-  await createDialog.getByRole('button', { name: 'Criando conversa' }).click();
+  const addParticipantsButton = createDialog.getByRole('button', { name: 'Adicionar participantes' });
+  await moveAndClick(page, addParticipantsButton, 500);
+
+  const createButton = createDialog.getByRole('button', { name: 'Criando conversa' });
+  await moveAndClick(page, createButton, 600);
   await page.getByRole('heading', { name: CONVERSATION_NAME }).waitFor({ state: 'visible', timeout: 20000 });
 }
 
@@ -40,27 +44,24 @@ async function startCall(page: Page): Promise<void> {
   await trigger.waitFor({ state: 'visible', timeout: 15000 });
   for (let attempt = 0; attempt < 20; attempt++) {
     if (!(await trigger.isDisabled())) break;
-    await page.waitForTimeout(1000);
+    await pause(1000);
   }
   await dismissBrowserWarning(page);
-  await trigger.click();
+  await moveAndClick(page, trigger, 600);
 
   const dialog = page.getByRole('dialog');
   const confirmButton = dialog.getByRole('button', { name: label });
   await confirmButton.waitFor({ state: 'visible', timeout: 20000 });
-  await confirmButton.click();
-}
-
-async function openConversationActions(page: Page): Promise<void> {
-  await page.getByRole('button', { name: CONVERSATION_ACTIONS_LABEL, exact: true }).click();
+  await moveAndClick(page, confirmButton, 600);
 }
 
 function findStartRecordingOption(page: Page) {
   return page.getByRole('menuitem', { name: START_RECORDING_LABEL });
 }
 
-async function clickStartRecording(page: Page): Promise<void> {
-  await findStartRecordingOption(page).click();
+async function openConversationActions(page: Page): Promise<void> {
+  const trigger = page.getByRole('button', { name: CONVERSATION_ACTIONS_LABEL, exact: true });
+  await moveAndClick(page, trigger, 600);
 }
 
 async function waitForRecordingIndicator(page: Page, timeoutMs: number): Promise<boolean> {
@@ -71,19 +72,24 @@ async function waitForRecordingIndicator(page: Page, timeoutMs: number): Promise
       .isVisible()
       .catch(() => false);
     if (isStarting) return true;
-    await page.waitForTimeout(RECORDING_POLL_INTERVAL_MS);
+    await pause(RECORDING_POLL_INTERVAL_MS);
   }
   return false;
 }
 
-async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
-  let frame = 0;
+async function setup(browser: Browser): Promise<BrowserContext> {
+  const { context } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
+  return context;
+}
 
-  const { page } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
+async function record(page: Page): Promise<readonly Step[]> {
+  await dismissBrowserWarning(page);
   await createConversation(page);
+  await pause(600);
+
   await startCall(page);
-  await page.waitForTimeout(3000);
-  await shoot(page, framesDir, frame++);
+  await maskRealHost(page);
+  await pause(2000);
 
   await openConversationActions(page);
   const startRecordingOption = findStartRecordingOption(page);
@@ -97,11 +103,11 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
       `BLOCKED: no recording option found in the "${CONVERSATION_ACTIONS_LABEL}" menu. Menu items present: ${menuItems.join(', ')}`,
     );
   }
-  await shoot(page, framesDir, frame++);
+  await pause(800);
 
-  await clickStartRecording(page);
+  await moveAndClick(page, startRecordingOption, 600);
   const recordingStarted = await waitForRecordingIndicator(page, RECORDING_POLL_TIMEOUT_MS);
-  await shoot(page, framesDir, frame++);
+  await pause(1200);
 
   const startedStep: Step = recordingStarted
     ? {
@@ -113,7 +119,7 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
         text: 'A gravação é solicitada ao bot de gravação; se ele não estiver disponível no seu servidor, nenhum indicador aparece e a chamada continua normalmente sem gravar.',
       };
 
-  const steps: readonly Step[] = [
+  return [
     {
       n: 1,
       text: `Entre em uma chamada no **Talk** como organizador: crie uma conversa como **${CONVERSATION_NAME}** e clique em **Iniciar chamada**.`,
@@ -128,22 +134,19 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
     },
     startedStep,
   ];
-
-  return {
-    title: 'Como gravar uma reunião',
-    description: 'Grave a chamada para quem não pôde participar — só o organizador pode iniciar.',
-    app: 'talk',
-    slug: 'gravar-reuniao',
-    order: 10,
-    media: 'gravar-reuniao.mp4',
-    tip: 'Avise os participantes antes de gravar a chamada; a gravação fica disponível para todos assistirem depois.',
-    steps,
-  };
 }
 
 export const flow: Flow = {
   capturedForVersion: '33.0.8',
   fakeMedia: true,
   fakeVideo: 'capture/assets/demo-video.y4m',
-  run,
+  app: 'talk',
+  slug: 'gravar-reuniao',
+  title: 'Como gravar uma reunião',
+  description: 'Grave a chamada para quem não pôde participar — só o organizador pode iniciar.',
+  tip: 'Avise os participantes antes de gravar a chamada; a gravação fica disponível para todos assistirem depois.',
+  order: 10,
+  startUrl: `${CONFIG.stagingUrl}/apps/spreed`,
+  setup,
+  record,
 };
