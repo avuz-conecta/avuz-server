@@ -57,6 +57,13 @@ describe('scanText', () => {
     const hits = scanText('x.astro', 'const u = "staging.avuz.app"');
     expect(hits.map((h) => h.rule)).toContain('staging-host');
   });
+  it('flags the bare brand name "Nextcloud"', () => {
+    const hits = scanText('a.md', 'aberto no Nextcloud');
+    expect(hits.map((h) => h.rule)).toContain('brand-nextcloud');
+  });
+  it('passes brand-neutral prose that never names the underlying platform', () => {
+    expect(scanText('a.md', 'Abra o Drive e clique em Compartilhar')).toHaveLength(0);
+  });
 });
 
 describe('CONTENT_SCAN_EXTENSIONS', () => {

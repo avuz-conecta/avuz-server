@@ -7,7 +7,7 @@ capturedForVersion: "33.0.8"
 ---
 
 1. Abra o **Tarefas** e clique em **Adicionar painel** no menu lateral.
-2. Escolha uma cor para o painel (ex.: **Azul Nextcloud**) e clique em **Escolher**.
+2. Escolha uma cor para o painel e clique em **Escolher**.
 3. Digite um nome para o painel (ex.: **Projeto Marketing**) e confirme em **Salvar painel**.
 4. O painel é criado na hora e abre pronto para receber listas e cartões.
 

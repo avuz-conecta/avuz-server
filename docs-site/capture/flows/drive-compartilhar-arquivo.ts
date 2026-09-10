@@ -1,38 +1,50 @@
-import type { Browser } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import type { Flow } from '../run';
 import { login } from '../lib/browser';
 import { CONFIG } from '../config';
-import { shoot } from '../lib/capture-helpers';
-import type { Step, TaskDoc } from '../lib/steps';
+import { moveAndClick, pause } from '../lib/screencast';
+import { maskRealHost } from '../lib/capture-helpers';
+import type { Step } from '../lib/steps';
 
 const FILE_NAME = 'relatorio.pdf';
 
-async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
-  const { context, page } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+async function setup(browser: Browser): Promise<BrowserContext> {
+  const { context } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
+  return context;
+}
 
-  await page.goto(`${CONFIG.stagingUrl}/apps/files`);
+async function record(page: Page): Promise<readonly Step[]> {
+  // Clipboard permissions apply per-context, so they must be granted on the
+  // recorded context itself (the unrecorded setup context is already closed).
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+
   const fileRow = page.getByRole('row', { name: new RegExp(FILE_NAME.replace('.', '\\.')) });
   await fileRow.waitFor({ state: 'visible', timeout: 20000 });
-  let frame = 0;
-  await shoot(page, framesDir, frame++);
+  await pause(600);
 
-  await fileRow.getByRole('button', { name: 'Opções de compartilhamento' }).click();
+  const shareButton = fileRow.getByRole('button', { name: 'Opções de compartilhamento' });
+  await moveAndClick(page, shareButton, 700);
+
   const sidebar = page.getByRole('complementary');
   await sidebar.getByText('Criar link público').waitFor({ state: 'visible', timeout: 10000 });
-  await shoot(page, framesDir, frame++);
+  await maskRealHost(page);
+  await pause(1000);
 
-  await sidebar.getByRole('button', { name: 'Criar um novo link de compartilhamento' }).click();
+  const createLinkButton = sidebar.getByRole('button', { name: 'Criar um novo link de compartilhamento' });
+  await moveAndClick(page, createLinkButton, 600);
+
   await sidebar.getByText('Link de compartilhamento').waitFor({ state: 'visible', timeout: 10000 });
   await page.getByText('Link copiado').waitFor({ state: 'visible', timeout: 10000 });
-  await shoot(page, framesDir, frame++);
+  await maskRealHost(page);
+  await pause(1200);
 
-  // The toasts above auto-dismiss after a few seconds; wait them out so the
-  // final frame shows the settled share entry instead of stacked toasts.
+  // The toast above auto-dismisses after a few seconds; wait it out so the
+  // recording settles on the final share entry instead of a stacked toast.
   await page.getByText('Link copiado').waitFor({ state: 'hidden', timeout: 15000 });
-  await shoot(page, framesDir, frame++);
+  await maskRealHost(page);
+  await pause(1000);
 
-  const steps: readonly Step[] = [
+  return [
     { n: 1, text: `Abra o **Drive** e localize **${FILE_NAME}** na lista de arquivos.` },
     {
       n: 2,
@@ -47,20 +59,17 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
       text: 'O link é criado e copiado automaticamente, disponível em **Link de compartilhamento** — é só colar onde quiser (e-mail, mensagem) para compartilhar.',
     },
   ];
-
-  return {
-    title: 'Como compartilhar um arquivo',
-    description: 'Gere um link para enviar um arquivo a qualquer pessoa.',
-    app: 'drive',
-    slug: 'compartilhar-arquivo',
-    order: 1,
-    media: 'compartilhar-arquivo.mp4',
-    tip: 'Precisa de mais controle? Defina senha e validade no mesmo painel de compartilhamento.',
-    steps,
-  };
 }
 
 export const flow: Flow = {
   capturedForVersion: '33.0.8',
-  run,
+  app: 'drive',
+  slug: 'compartilhar-arquivo',
+  title: 'Como compartilhar um arquivo',
+  description: 'Gere um link para enviar um arquivo a qualquer pessoa.',
+  tip: 'Precisa de mais controle? Defina senha e validade no mesmo painel de compartilhamento.',
+  order: 3,
+  startUrl: `${CONFIG.stagingUrl}/apps/files`,
+  setup,
+  record,
 };

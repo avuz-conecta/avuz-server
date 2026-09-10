@@ -16,6 +16,7 @@ const RULES: readonly { readonly rule: string; readonly re: RegExp }[] = [
   { rule: 'internal-host', re: /\b(proxy|registry|s3-site[ab])\.avuz\.(app|cloud|com)\b/gi },
   { rule: 'nc-version', re: /\b(nextcloud|hub|nc|vers(?:ion|ão))\b[^\n]{0,15}?\b\d{2}\.\d{1,2}\.\d{1,2}\b/gi },
   { rule: 'client-name', re: new RegExp(`\\b(${CLIENT_NAMES.join('|')})\\b`, 'gi') },
+  { rule: 'brand-nextcloud', re: /\bnextcloud\b/gi },
 ];
 
 export function scanText(file: string, text: string): readonly ScanHit[] {

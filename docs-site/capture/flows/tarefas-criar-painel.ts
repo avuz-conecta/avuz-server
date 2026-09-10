@@ -46,7 +46,7 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
 
   const steps: readonly Step[] = [
     { n: 1, text: 'Abra o **Tarefas** e clique em **Adicionar painel** no menu lateral.' },
-    { n: 2, text: `Escolha uma cor para o painel (ex.: **${BOARD_COLOR}**) e clique em **Escolher**.` },
+    { n: 2, text: 'Escolha uma cor para o painel e clique em **Escolher**.' },
     { n: 3, text: `Digite um nome para o painel (ex.: **${BOARD_NAME}**) e confirme em **Salvar painel**.` },
     { n: 4, text: 'O painel é criado na hora e abre pronto para receber listas e cartões.' },
   ];

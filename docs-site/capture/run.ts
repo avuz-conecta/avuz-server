@@ -1,22 +1,41 @@
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Browser } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { resetTenant } from './seed/seed';
 import { launch } from './lib/browser';
-import { encodeFrames } from './lib/encode';
+import { recordFlow, encodeWebm } from './lib/screencast';
 import { writeTaskPage } from './lib/page-writer';
-import type { TaskDoc } from './lib/steps';
+import type { Step, TaskDoc } from './lib/steps';
 
 export type Flow = {
   readonly capturedForVersion: string;
-  readonly fakeMedia?: boolean;
-  readonly fakeVideo?: string;
-  run(browser: Browser, framesDir: string): Promise<TaskDoc>;
+  readonly app: string;
+  readonly slug: string;
+  readonly title: string;
+  readonly description: string;
+  readonly tip?: string;
+  readonly order: number;
+  readonly startUrl: string; // page navigates here (already authed) to begin recording
+  setup(browser: Browser): Promise<BrowserContext>; // unrecorded login + precondition
+  record(page: Page): Promise<readonly Step[]>; // the demonstrated action; returns annotated steps
 };
 
-async function makeTempFramesDir(): Promise<string> {
-  return mkdtemp(join(tmpdir(), 'avuz-capture-frames-'));
+async function makeTempRecordingDir(): Promise<string> {
+  return mkdtemp(join(tmpdir(), 'avuz-capture-video-'));
+}
+
+function toTaskDoc(flow: Flow, steps: readonly Step[]): TaskDoc {
+  return {
+    title: flow.title,
+    description: flow.description,
+    app: flow.app,
+    slug: flow.slug,
+    order: flow.order,
+    media: `${flow.slug}.mp4`,
+    tip: flow.tip,
+    steps,
+  };
 }
 
 async function main(): Promise<void> {
@@ -26,13 +45,22 @@ async function main(): Promise<void> {
   const flow = mod.flow;
 
   await resetTenant();
-  const browser = await launch({ fakeMedia: flow.fakeMedia, fakeVideo: flow.fakeVideo });
-  const framesDir = await makeTempFramesDir();
+  const browser = await launch({});
   try {
-    const doc = await flow.run(browser, framesDir);
-    await encodeFrames(framesDir, `public/assets/${doc.app}/${doc.media}`);
+    const outDir = await makeTempRecordingDir();
+    const { webmPath, steps } = await recordFlow(browser, {
+      setup: flow.setup,
+      startUrl: flow.startUrl,
+      record: flow.record,
+      outDir,
+    });
+
+    const outMp4 = `public/assets/${flow.app}/${flow.slug}.mp4`;
+    await encodeWebm(webmPath, outMp4);
+
+    const doc = toTaskDoc(flow, steps);
     const path = await writeTaskPage(doc, flow.capturedForVersion, 'src/content/docs');
-    console.log(`✓ ${doc.app}/${doc.slug} → ${path}`);
+    console.log(`✓ ${flow.app}/${flow.slug} → ${path}`);
   } finally {
     await browser.close();
   }
