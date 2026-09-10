@@ -7,3 +7,4 @@ O **Drive** é onde você guarda e organiza seus arquivos na nuvem AvuzConecta.
 Compartilhe por link ou convide colegas para ver e editar juntos.
 
 - [Como compartilhar um arquivo](/drive/compartilhar-arquivo/)
+- [Como enviar arquivos](/drive/enviar-arquivos/)
