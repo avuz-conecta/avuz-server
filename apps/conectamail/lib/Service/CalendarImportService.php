@@ -6,6 +6,7 @@ use OCP\Calendar\ICalendarIsWritable;
 use OCP\Calendar\ICreateFromString;
 use OCP\Calendar\IManager;
 use OCP\IUserManager;
+use Sabre\VObject\Reader;
 
 class ImportException extends \RuntimeException {}
 
@@ -41,11 +42,19 @@ class CalendarImportService {
             return 'already_present';
         }
 
+        // The invite is an iTip message (METHOD:REQUEST). A calendar object stored
+        // on a CalDAV server MUST NOT carry a METHOD property (RFC 4791 / Sabre
+        // rejects it with UnsupportedMediaType). Strip METHOD before storing so we
+        // persist a plain event, not a scheduling message.
+        $vcal = Reader::read($ics);
+        unset($vcal->METHOD);
+        $clean = $vcal->serialize();
+
         $name = md5($uid) . '.ics';
         if (method_exists($target, 'createFromStringMinimal')) {
-            $target->createFromStringMinimal($name, $ics);
+            $target->createFromStringMinimal($name, $clean);
         } else {
-            $target->createFromString($name, $ics);
+            $target->createFromString($name, $clean);
         }
         return 'created';
     }
