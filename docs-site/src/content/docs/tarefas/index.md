@@ -8,3 +8,4 @@ O **Tarefas** organiza o trabalho em painéis visuais: listas (colunas) com cart
 - [Como criar um painel](/tarefas/criar-painel/)
 - [Como adicionar listas](/tarefas/adicionar-listas/)
 - [Como criar um cartão](/tarefas/criar-cartao/)
+- [Como atribuir responsável e prazo](/tarefas/responsavel-e-prazo/)
