@@ -10,3 +10,4 @@ Compartilhe por link ou convide colegas para ver e editar juntos.
 - [Como enviar arquivos](/drive/enviar-arquivos/)
 - [Como criar pastas](/drive/criar-pastas/)
 - [Como compartilhar com uma pessoa](/drive/compartilhar-com-pessoas/)
+- [Como baixar arquivos](/drive/baixar-arquivos/)
