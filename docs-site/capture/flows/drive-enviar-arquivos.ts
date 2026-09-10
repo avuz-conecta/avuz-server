@@ -1,12 +1,12 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import type { Browser } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import type { Flow } from '../run';
 import { login } from '../lib/browser';
 import { CONFIG } from '../config';
-import { shoot } from '../lib/capture-helpers';
-import type { Step, TaskDoc } from '../lib/steps';
+import { moveAndClick, pause } from '../lib/screencast';
+import type { Step } from '../lib/steps';
 
 const FILE_NAME = 'proposta-comercial.pdf';
 
@@ -39,20 +39,21 @@ async function createTempPdf(): Promise<string> {
   return filePath;
 }
 
-async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
-  const { page } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
-  await page.goto(`${CONFIG.stagingUrl}/apps/files`);
+async function setup(browser: Browser): Promise<BrowserContext> {
+  const { context } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
+  return context;
+}
 
+async function record(page: Page): Promise<readonly Step[]> {
   const newButton = page.getByRole('button', { name: 'Novo', exact: true });
   await newButton.waitFor({ state: 'visible', timeout: 20000 });
-  let frame = 0;
-  await shoot(page, framesDir, frame++);
+  await pause(600);
+  await moveAndClick(page, newButton, 500);
 
-  await newButton.click();
   const menu = page.getByRole('menu');
   const uploadMenuItem = menu.getByRole('menuitem', { name: 'Fazer upload de arquivos' });
   await uploadMenuItem.waitFor({ state: 'visible', timeout: 10000 });
-  await shoot(page, framesDir, frame++);
+  await pause(700);
 
   const tempFilePath = await createTempPdf();
   try {
@@ -63,12 +64,12 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
 
     const uploadedRow = page.getByRole('row', { name: new RegExp(FILE_NAME.replace('.', '\\.')) });
     await uploadedRow.waitFor({ state: 'visible', timeout: 20000 });
-    await shoot(page, framesDir, frame++);
+    await pause(1000);
   } finally {
     await rm(dirname(tempFilePath), { recursive: true, force: true });
   }
 
-  const steps: readonly Step[] = [
+  return [
     { n: 1, text: 'Abra o **Drive** e clique em **Novo** na barra superior da lista de arquivos.' },
     {
       n: 2,
@@ -79,20 +80,17 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
       text: `O envio começa na hora: assim que termina, o arquivo (ex.: **${FILE_NAME}**) aparece na lista.`,
     },
   ];
-
-  return {
-    title: 'Como enviar arquivos',
-    description: 'Envie documentos e fotos do seu computador para o Drive.',
-    app: 'drive',
-    slug: 'enviar-arquivos',
-    order: 1,
-    media: 'enviar-arquivos.mp4',
-    tip: 'Também dá para arrastar e soltar os arquivos direto na lista do Drive.',
-    steps,
-  };
 }
 
 export const flow: Flow = {
   capturedForVersion: '33.0.8',
-  run,
+  app: 'drive',
+  slug: 'enviar-arquivos',
+  title: 'Como enviar arquivos',
+  description: 'Envie documentos e fotos do seu computador para o Drive.',
+  tip: 'Também dá para arrastar e soltar os arquivos direto na lista do Drive.',
+  order: 1,
+  startUrl: `${CONFIG.stagingUrl}/apps/files`,
+  setup,
+  record,
 };
