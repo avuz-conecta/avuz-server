@@ -79,6 +79,23 @@ and, at the end, prompt `Stop it now? [y/N]` whenever Docker is running (default
 Skip the prompt with `STOP_DOCKER_AFTER_BUILD=1` (auto-stop) or `KEEP_DOCKER=1` (auto-keep);
 non-interactive shells never prompt. Linux just requires the daemon to be up.
 
+## Building from a git worktree (READ THIS before building from one)
+
+The Docker build context is `.` (the current tree). The gitignored bundled apps
+(see the next section) and the `3rdparty` submodule live on disk **only in the
+primary checkout** — a linked `git worktree` has NONE of them. Building from a
+worktree without fixing this ships a BROKEN image: empty `3rdparty` makes the
+container crash-loop with *"Composer autoloader not found"*, and every gitignored
+app is simply absent.
+
+**You do not need to do anything manual:** `scripts/build-push.sh` detects when
+it is run from a linked worktree and copies the on-disk-only apps + `3rdparty`
+from the primary checkout into the context before building (missing paths only —
+it never overwrites your worktree's own changes). Just run `build-push.sh` from
+the worktree as usual. (The alternative — building from the primary `avuz-customization`
+checkout — also works, but then your worktree's committed changes aren't in the
+image unless they're on that checkout's branch.)
+
 ## Fresh Checkout Setup (REQUIRED before first build)
 
 `.gitignore` line 22 (`/apps*/*`) excludes every NC app from version control.
