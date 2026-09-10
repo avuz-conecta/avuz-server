@@ -1,49 +1,32 @@
-# Starlight Starter Kit: Basics
+# AvuzConecta Docs
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+The pt-BR help center for AvuzConecta, built with [Astro](https://astro.build)
++ [Starlight](https://starlight.astro.build). Task pages walk users through
+real product flows (Drive, Talk, ...) with step-by-step instructions and a
+short screen-capture video.
 
-```
-npm create astro@latest -- --template starlight
-```
+## Commands
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Run from `docs-site/`:
 
-## 🚀 Project Structure
+| Command           | Action                                       |
+| :----------------- | :-------------------------------------------- |
+| `npm install`       | Install dependencies                          |
+| `npm run dev`       | Start the local dev server at `localhost:4321` |
+| `npm run build`     | Build the production site to `./dist/`        |
+| `npm run preview`   | Preview the build locally                     |
+| `npm test`          | Run the capture harness unit tests            |
 
-Inside of your Astro + Starlight project, you'll see the following folders and files:
+## Content
 
-```
-.
-├── public/
-├── src/
-│   ├── assets/
-│   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
-├── astro.config.mjs
-├── package.json
-└── tsconfig.json
-```
+Task pages live under `src/content/docs/<app>/<slug>.md`, one folder per app
+(`drive`, `talk`, ...). **Don't hand-edit a generated page's steps or media** —
+each one is generated from a Playwright flow that ran against staging. See
+`capture/README.md` for the capture harness: how to add a new task page,
+re-capture one after a UI change, and the hygiene rules that keep real
+hostnames, versions, and client names out of the public site.
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+## Deploy
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
-
-Static assets, like favicons, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+Static build served by nginx (`Dockerfile`, `nginx.conf`), deployed via
+`portainer-docs-stack.yml` behind Nginx Proxy Manager. Not Cloudflare Pages.

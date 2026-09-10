@@ -60,7 +60,7 @@ async function putDemoFile(stagingUrl: string, demoUserPassword: string): Promis
       Authorization: basicAuthHeader('demo.ana', demoUserPassword),
       'Content-Type': 'application/pdf',
     },
-    body: minimalPdf() as unknown as string,
+    body: new Uint8Array(minimalPdf()),
   });
   if (response.status === 201 || response.status === 204) return;
   throw new Error(`Failed to put ${DRIVE_FILE}: ${response.status}`);

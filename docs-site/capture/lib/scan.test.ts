@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { scanText } from './scan';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { scanText, scanTree, CONTENT_SCAN_EXTENSIONS } from './scan';
 
 describe('scanText', () => {
   it('flags real staging hostnames', () => {
@@ -49,5 +52,44 @@ describe('scanText', () => {
   });
   it('passes common Portuguese prose containing "garra"', () => {
     expect(scanText('a.md', 'trabalhe com garra e dedicação')).toHaveLength(0);
+  });
+  it('flags a forbidden host inside an .astro-style content string', () => {
+    const hits = scanText('x.astro', 'const u = "staging.avuz.app"');
+    expect(hits.map((h) => h.rule)).toContain('staging-host');
+  });
+});
+
+describe('CONTENT_SCAN_EXTENSIONS', () => {
+  it('content-scans .astro and .css alongside .md and .mdx', () => {
+    expect(CONTENT_SCAN_EXTENSIONS).toEqual(expect.arrayContaining(['.md', '.mdx', '.astro', '.css']));
+  });
+});
+
+describe('scanTree', () => {
+  it('reads .astro file content and flags a forbidden host inside it', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'avuz-scan-tree-'));
+    try {
+      await mkdir(join(root, 'src/components'), { recursive: true });
+      await writeFile(
+        join(root, 'src/components/HomeHero.astro'),
+        '<script>const u = "staging.avuz.app";</script>',
+      );
+      const hits = await scanTree(root);
+      expect(hits.map((h) => h.rule)).toContain('staging-host');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('reads .css file content and flags a forbidden host inside it', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'avuz-scan-tree-'));
+    try {
+      await mkdir(join(root, 'src/styles'), { recursive: true });
+      await writeFile(join(root, 'src/styles/avuz.css'), '/* staging.avuz.app */');
+      const hits = await scanTree(root);
+      expect(hits.map((h) => h.rule)).toContain('staging-host');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

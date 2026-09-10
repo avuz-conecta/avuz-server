@@ -3,6 +3,8 @@ import { join } from 'node:path';
 
 export type ScanHit = { readonly file: string; readonly match: string; readonly rule: string };
 
+export const CONTENT_SCAN_EXTENSIONS: readonly string[] = ['.md', '.mdx', '.astro', '.css'];
+
 const CLIENT_NAMES: readonly string[] = [
   'grupo-vidalar', 'endopasso', 'garra prevestibular', 'eco-ambiental', 'digrepal',
   'comprev', 'abvtex', 'coprel', 'adyl', 'raíven', 'raiven',
@@ -43,7 +45,7 @@ export async function scanTree(root: string): Promise<readonly ScanHit[]> {
   const hits: ScanHit[] = [];
   for (const file of files) {
     hits.push(...scanText(file, file));
-    if (/\.(md|mdx)$/.test(file)) {
+    if (CONTENT_SCAN_EXTENSIONS.some((ext) => file.endsWith(ext))) {
       hits.push(...scanText(file, await readFile(file, 'utf8')));
     }
   }

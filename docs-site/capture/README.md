@@ -40,20 +40,22 @@ the markdown.
    npx playwright install chromium
    ```
 
+4. **`ffmpeg`** must be on `PATH` — `capture/lib/encode.ts` shells out to it
+   to turn captured frames into the task page's `.mp4`.
+
 ## Commands
 
 Node's `--env-file` loads `capture/.env` without a dotenv dependency. The
-`npm run capture` script (`tsx capture/run.ts`) does **not** load the env file
-itself, so run it through `node` directly rather than via `npm run capture --`:
+`npm run capture` / `npm run capture:all` scripts already run through
+`node --env-file=capture/.env --import tsx`, so `npm run` works directly:
 
 ```bash
 # One flow
-node --env-file=capture/.env --import tsx capture/run.ts ./flows/drive-compartilhar-arquivo.ts
+npm run capture -- ./flows/drive-compartilhar-arquivo.ts
 
-# Every flow in capture/flows/ (spawns the above per file)
-node --env-file=capture/.env --import tsx capture/run-all.ts
-# equivalently: npm run capture:all, but only if the env is already exported
-# into the shell (run-all.ts re-spawns `tsx`, not `node --env-file`)
+# Every flow in capture/flows/ (spawns one `tsx capture/run.ts` per file,
+# inheriting the env `--env-file` loaded into this process)
+npm run capture:all
 
 # Hygiene scan over generated content (also runs as part of the Docker build)
 npm run scan -- src
