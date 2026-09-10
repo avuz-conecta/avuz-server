@@ -14,3 +14,4 @@ Compartilhe por link ou convide colegas para ver e editar juntos.
 - [Como restaurar um arquivo da lixeira](/drive/restaurar-da-lixeira/)
 - [Como ver versões anteriores](/drive/versoes-anteriores/)
 - [Como buscar e favoritar arquivos](/drive/buscar-e-favoritar/)
+- [Como solicitar arquivos](/drive/solicitar-arquivos/)
