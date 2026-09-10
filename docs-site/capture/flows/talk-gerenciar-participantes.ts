@@ -144,7 +144,7 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
 
   return {
     title: 'Como gerenciar participantes',
-    description: 'Como moderador, silencie, promova ou remova participantes da reunião.',
+    description: 'Como moderador, promova, ajuste permissões ou remova participantes da reunião.',
     app: 'talk',
     slug: 'gerenciar-participantes',
     order: 7,

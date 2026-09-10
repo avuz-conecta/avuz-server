@@ -1,6 +1,6 @@
 ---
 title: "Como gerenciar participantes"
-description: "Como moderador, silencie, promova ou remova participantes da reunião."
+description: "Como moderador, promova, ajuste permissões ou remova participantes da reunião."
 sidebar:
   order: 7
 capturedForVersion: "33.0.8"
