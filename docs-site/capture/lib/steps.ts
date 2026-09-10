@@ -11,12 +11,17 @@ export type TaskDoc = {
   readonly order: number;
 };
 
+function yamlString(value: string): string {
+  const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return `"${escaped}"`;
+}
+
 export function stepsToMarkdown(doc: TaskDoc, capturedForVersion: string): string {
   const frontmatter = [
     '---',
-    `title: ${doc.title}`,
-    `description: ${doc.description}`,
-    `sidebar:`,
+    `title: ${yamlString(doc.title)}`,
+    `description: ${yamlString(doc.description)}`,
+    'sidebar:',
     `  order: ${doc.order}`,
     `capturedForVersion: "${capturedForVersion}"`,
     '---',
