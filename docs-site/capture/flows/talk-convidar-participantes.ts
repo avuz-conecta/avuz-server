@@ -1,9 +1,10 @@
-import type { Browser, Page } from '@playwright/test';
+import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import type { Flow } from '../run';
 import { login } from '../lib/browser';
 import { CONFIG } from '../config';
-import { shoot } from '../lib/capture-helpers';
-import type { Step, TaskDoc } from '../lib/steps';
+import { moveAndClick, moveTo, pause } from '../lib/screencast';
+import { maskRealHost } from '../lib/capture-helpers';
+import type { Step } from '../lib/steps';
 
 const CONVERSATION_NAME = 'Reunião de Projeto';
 const PARTICIPANT_QUERY = 'Bruno';
@@ -16,75 +17,92 @@ async function dismissBrowserWarning(page: Page): Promise<void> {
   }
 }
 
+async function moveAndForceClick(page: Page, locator: Locator, pauseMs = 400): Promise<void> {
+  const box = await locator.boundingBox();
+  if (!box) throw new Error('moveAndForceClick: element has no bounding box (not visible?)');
+  await moveTo(page, box);
+  await pause(pauseMs);
+  await locator.click({ force: true });
+}
+
 async function createConversation(page: Page): Promise<void> {
-  await page.goto(`${CONFIG.stagingUrl}/apps/spreed`);
-  await dismissBrowserWarning(page);
-  await page.getByRole('button', { name: 'Criar uma nova conversa' }).click();
+  const newConversationButton = page.getByRole('button', { name: 'Criar uma nova conversa' });
+  await moveAndClick(page, newConversationButton, 600);
 
   const createDialog = page.getByRole('dialog');
   const nameField = createDialog.getByPlaceholder('Digite um nome para esta conversa');
   await nameField.waitFor({ state: 'visible', timeout: 15000 });
   await nameField.fill(CONVERSATION_NAME);
+  await pause(500);
 
-  await createDialog.getByRole('button', { name: 'Adicionar participantes' }).click();
-  await createDialog.getByRole('button', { name: 'Criando conversa' }).click();
+  const addParticipantsButton = createDialog.getByRole('button', { name: 'Adicionar participantes' });
+  await moveAndClick(page, addParticipantsButton, 500);
+
+  const createButton = createDialog.getByRole('button', { name: 'Criando conversa' });
+  await moveAndClick(page, createButton, 600);
   await page.getByRole('heading', { name: CONVERSATION_NAME }).waitFor({ state: 'visible', timeout: 20000 });
 }
 
-async function addParticipantBySearch(page: Page, framesDir: string, frame: number): Promise<number> {
-  let nextFrame = frame;
-
+async function addParticipantBySearch(page: Page): Promise<void> {
   const participantSearch = page.getByRole('textbox', { name: 'Procure ou adicione participantes' });
   await participantSearch.waitFor({ state: 'visible', timeout: 15000 });
-  await shoot(page, framesDir, nextFrame++);
+  await pause(600);
 
   await participantSearch.fill(PARTICIPANT_QUERY);
   const participantOption = page.getByRole('checkbox', { name: `Adicionar participante "${PARTICIPANT_NAME}"` });
   await participantOption.waitFor({ state: 'visible', timeout: 15000 });
-  await shoot(page, framesDir, nextFrame++);
+  await pause(500);
 
-  await participantOption.click({ force: true });
+  await moveAndForceClick(page, participantOption, 500);
   await page.getByRole('tab', { name: 'Participantes (2)' }).waitFor({ state: 'visible', timeout: 15000 });
-  await shoot(page, framesDir, nextFrame++);
-
-  return nextFrame;
+  await pause(800);
 }
 
-async function copyConversationLink(page: Page, framesDir: string, frame: number): Promise<number> {
-  let nextFrame = frame;
-
+async function copyConversationLink(page: Page): Promise<void> {
   await dismissBrowserWarning(page);
-  await page.getByRole('button', { name: 'Configurações de conversa' }).click();
+  const settingsButton = page.getByRole('button', { name: 'Configurações de conversa' });
+  await moveAndClick(page, settingsButton, 600);
+
   const settingsDialog = page.getByRole('dialog', { name: 'Configurações de conversa' });
   await settingsDialog.waitFor({ state: 'visible', timeout: 10000 });
 
-  await settingsDialog.getByRole('link', { name: 'Moderação' }).click();
+  const moderationLink = settingsDialog.getByRole('link', { name: 'Moderação' });
+  await moveAndClick(page, moderationLink, 500);
+
   const guestLinkLabel = settingsDialog.getByText('Permitir que os convidados entrem nesta conversa por meio de um link');
   await guestLinkLabel.waitFor({ state: 'visible', timeout: 10000 });
-  await guestLinkLabel.click();
+  await moveAndClick(page, guestLinkLabel, 500);
   await page.locator('.toastify').getByText('Você permitiu convidados').waitFor({ state: 'visible', timeout: 10000 });
+  await pause(600);
 
-  await settingsDialog.getByRole('button', { name: 'Copiar link' }).click({ force: true });
+  const copyLinkButton = settingsDialog.getByRole('button', { name: 'Copiar link' });
+  await moveAndForceClick(page, copyLinkButton, 600);
   await page
     .locator('.toastify')
     .getByText('Link da conversa copiado para a área de transferência')
     .waitFor({ state: 'visible', timeout: 10000 });
-  await shoot(page, framesDir, nextFrame++);
-
-  return nextFrame;
+  await maskRealHost(page);
+  await pause(1200);
 }
 
-async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
-  const { context, page } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+async function setup(browser: Browser): Promise<BrowserContext> {
+  const { context } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
+  return context;
+}
 
-  let frame = 0;
+async function record(page: Page): Promise<readonly Step[]> {
+  // Clipboard permissions apply per-context, so they must be granted on the
+  // recorded context itself (the unrecorded setup context is already closed).
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+
+  await dismissBrowserWarning(page);
   await createConversation(page);
+  await pause(600);
 
-  frame = await addParticipantBySearch(page, framesDir, frame);
-  frame = await copyConversationLink(page, framesDir, frame);
+  await addParticipantBySearch(page);
+  await copyConversationLink(page);
 
-  const steps: readonly Step[] = [
+  return [
     {
       n: 1,
       text: `Abra o **Talk**, clique em **Criar uma nova conversa**: dê um nome como **${CONVERSATION_NAME}** e confirme em **Criando conversa**.`,
@@ -102,20 +120,17 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
       text: 'Para convidar por link, abra **Configurações de conversa** > **Moderação**, ative **Permitir que os convidados entrem nesta conversa por meio de um link** e clique em **Copiar link**: o endereço é copiado, pronto para enviar por e-mail ou mensagem.',
     },
   ];
-
-  return {
-    title: 'Como convidar participantes',
-    description: 'Adicione colegas a uma conversa ou envie o link para entrar na reunião.',
-    app: 'talk',
-    slug: 'convidar-participantes',
-    order: 2,
-    media: 'convidar-participantes.mp4',
-    tip: 'Participantes externos podem entrar na chamada só com o link, sem precisar de conta no AvuzConecta.',
-    steps,
-  };
 }
 
 export const flow: Flow = {
   capturedForVersion: '33.0.8',
-  run,
+  app: 'talk',
+  slug: 'convidar-participantes',
+  title: 'Como convidar participantes',
+  description: 'Adicione colegas a uma conversa ou envie o link para entrar na reunião.',
+  tip: 'Participantes externos podem entrar na chamada só com o link, sem precisar de conta no AvuzConecta.',
+  order: 2,
+  startUrl: `${CONFIG.stagingUrl}/apps/spreed`,
+  setup,
+  record,
 };
