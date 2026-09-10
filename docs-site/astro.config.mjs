@@ -6,6 +6,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'AvuzConecta · Ajuda',
+      favicon: '/favicon.png',
       defaultLocale: 'root',
       locales: { root: { label: 'Português (Brasil)', lang: 'pt-BR' } },
       logo: { src: './src/assets/house-logo.svg', replacesTitle: false },
