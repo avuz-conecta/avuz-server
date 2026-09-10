@@ -7,6 +7,7 @@ export default defineConfig({
     starlight({
       title: 'AvuzConecta · Ajuda',
       favicon: '/favicon.png',
+      customCss: ['./src/styles/avuz.css'],
       defaultLocale: 'root',
       locales: { root: { label: 'Português (Brasil)', lang: 'pt-BR' } },
       logo: { src: './src/assets/house-logo.svg', replacesTitle: false },

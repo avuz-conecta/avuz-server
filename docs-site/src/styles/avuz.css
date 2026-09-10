@@ -1,0 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Questrial&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --sl-font: 'Inter', system-ui, sans-serif;
+  --sl-font-headings: 'Questrial', sans-serif;
+  --sl-color-accent-low: #d7eefb;
+  --sl-color-accent: #2bb5e3;
+  --sl-color-accent-high: #00679e;
+  --sl-color-text-accent: #00679e;
+  --sl-border-radius: 12px;
+}
+:root[data-theme='light'] {
+  --sl-color-accent: #00679e;
+  --sl-color-text-accent: #00679e;
+}
+:root[data-theme='dark'] {
+  --sl-color-accent: #2bb5e3;
+  --sl-color-text-accent: #2bb5e3;
+}
+.site-title { font-family: 'Questrial', sans-serif; }
+h1, h2, h3 { font-family: 'Questrial', sans-serif; }
