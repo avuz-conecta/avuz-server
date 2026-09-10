@@ -1,14 +1,15 @@
-import type { Browser, Page } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import type { Flow } from '../run';
-import { login } from '../lib/browser';
+import { login, loginOnPage } from '../lib/browser';
 import { CONFIG } from '../config';
-import { shoot } from '../lib/capture-helpers';
-import type { Step, TaskDoc } from '../lib/steps';
+import { moveAndClick, pause } from '../lib/screencast';
+import { maskRealHost } from '../lib/capture-helpers';
+import type { Step } from '../lib/steps';
 
 const MEETING_NAME = 'Reunião Semanal';
 const GUEST_DISPLAY_NAME = 'Bruno Lima';
-const CALL_WAIT_TIMEOUT_MS = 40000;
 const CALL_TILE_COUNT = 2;
+const CALL_WAIT_TIMEOUT_MS = 40000;
 
 async function dismissBrowserWarning(page: Page): Promise<void> {
   const closeIcon = page.locator('.toastify').getByText('✖').first();
@@ -17,9 +18,10 @@ async function dismissBrowserWarning(page: Page): Promise<void> {
   }
 }
 
-async function createMeetingWithGuest(host: Page): Promise<void> {
-  await host.goto(`${CONFIG.stagingUrl}/apps/spreed`);
-  await dismissBrowserWarning(host);
+// Ana (the host) runs off-camera in her own spawned context, so her setup
+// is unpaced: it never appears in the recording, only its wall-clock time
+// does, so it stays as fast as the app allows.
+async function createMeetingAsHost(host: Page): Promise<void> {
   await host.getByRole('button', { name: 'Criar uma nova conversa' }).click();
 
   const createDialog = host.getByRole('dialog');
@@ -40,20 +42,38 @@ async function createMeetingWithGuest(host: Page): Promise<void> {
   await host.getByRole('heading', { name: MEETING_NAME }).waitFor({ state: 'visible', timeout: 20000 });
 }
 
-async function startOrJoinCall(page: Page, label: string, timeoutMs: number): Promise<void> {
-  const trigger = page.getByRole('button', { name: label }).first();
-  await trigger.waitFor({ state: 'visible', timeout: timeoutMs });
+async function startCallAsHost(host: Page, label: string): Promise<void> {
+  const trigger = host.getByRole('button', { name: label }).first();
+  await trigger.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
   for (let attempt = 0; attempt < 20; attempt++) {
     if (!(await trigger.isDisabled())) break;
-    await page.waitForTimeout(1000);
+    await pause(1000);
   }
-  await dismissBrowserWarning(page);
+  await dismissBrowserWarning(host);
   await trigger.click();
 
-  const dialog = page.getByRole('dialog');
+  const dialog = host.getByRole('dialog');
   const confirmButton = dialog.getByRole('button', { name: label });
-  await confirmButton.waitFor({ state: 'visible', timeout: timeoutMs });
+  await confirmButton.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
   await confirmButton.click();
+}
+
+// Bruno is the RECORDED user, so his join is deliberately paced (moveAndClick)
+// so it reads clearly on the screencast.
+async function joinCallAsGuest(guest: Page, label: string): Promise<void> {
+  const trigger = guest.getByRole('button', { name: label }).first();
+  await trigger.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
+  for (let attempt = 0; attempt < 20; attempt++) {
+    if (!(await trigger.isDisabled())) break;
+    await pause(1000);
+  }
+  await dismissBrowserWarning(guest);
+  await moveAndClick(guest, trigger, 600);
+
+  const dialog = guest.getByRole('dialog');
+  const confirmButton = dialog.getByRole('button', { name: label });
+  await confirmButton.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
+  await moveAndClick(guest, confirmButton, 600);
 }
 
 async function waitForCallTiles(page: Page, tileCount: number, timeoutMs: number): Promise<void> {
@@ -61,48 +81,56 @@ async function waitForCallTiles(page: Page, tileCount: number, timeoutMs: number
   while (Date.now() < deadline) {
     const visibleTiles = await page.locator('video').count();
     if (visibleTiles >= tileCount) return;
-    await page.waitForTimeout(1000);
+    await pause(1000);
   }
   throw new Error(`BLOCKED: call never rendered ${tileCount} video tiles within ${timeoutMs}ms`);
 }
 
-async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
-  let frame = 0;
+async function setup(browser: Browser): Promise<BrowserContext> {
+  const { context } = await login(browser, 'demo.bruno', CONFIG.demoUserPassword);
+  return context;
+}
 
-  const { page: host } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
-  await createMeetingWithGuest(host);
-  await startOrJoinCall(host, 'Iniciar chamada', 15000);
+async function record(brunoPage: Page): Promise<readonly Step[]> {
+  await dismissBrowserWarning(brunoPage);
 
-  const { page: guest } = await login(browser, 'demo.bruno', CONFIG.demoUserPassword);
-  await guest.goto(`${CONFIG.stagingUrl}/apps/spreed`);
-  await dismissBrowserWarning(guest);
+  // Ana is spawned in a separate context off the SAME browser instance, so
+  // she inherits the fake-media launch flags too. She creates the meeting,
+  // adds Bruno and starts the call so there is something for the RECORDED
+  // user (Bruno) to join. Ana never appears on screen.
+  const brunoBrowser = brunoPage.context().browser();
+  if (!brunoBrowser) throw new Error('recorded context has no browser');
+  const anaContext = await brunoBrowser.newContext({
+    viewport: CONFIG.viewport,
+    permissions: ['camera', 'microphone'],
+  });
+  const anaPage = await anaContext.newPage();
+  await loginOnPage(anaPage, 'demo.ana', CONFIG.demoUserPassword);
+  await anaPage.goto(`${CONFIG.stagingUrl}/apps/spreed`);
+  await dismissBrowserWarning(anaPage);
 
-  const conversationEntry = guest.getByRole('link', { name: new RegExp(MEETING_NAME) }).first();
+  await createMeetingAsHost(anaPage);
+  await startCallAsHost(anaPage, 'Iniciar chamada');
+  await pause(500);
+
+  // Bruno's page was loaded before the conversation existed; reload so his
+  // list reflects Ana's finished setup instead of polling for it live.
+  await brunoPage.reload();
+  await dismissBrowserWarning(brunoPage);
+
+  const conversationEntry = brunoPage.getByRole('link', { name: new RegExp(MEETING_NAME) }).first();
   await conversationEntry.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
-  await conversationEntry.click();
+  await moveAndClick(brunoPage, conversationEntry, 600);
 
-  const joinButton = guest.getByRole('button', { name: 'Entrar na chamada' }).first();
-  await joinButton.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
-  await shoot(guest, framesDir, frame++);
+  await joinCallAsGuest(brunoPage, 'Entrar na chamada');
 
-  for (let attempt = 0; attempt < 20; attempt++) {
-    if (!(await joinButton.isDisabled())) break;
-    await guest.waitForTimeout(1000);
-  }
-  await dismissBrowserWarning(guest);
-  await joinButton.click();
+  await waitForCallTiles(brunoPage, CALL_TILE_COUNT, CALL_WAIT_TIMEOUT_MS);
+  await maskRealHost(brunoPage);
+  await pause(2000);
 
-  const joinDialog = guest.getByRole('dialog');
-  const confirmJoin = joinDialog.getByRole('button', { name: 'Entrar na chamada' });
-  await confirmJoin.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
-  await shoot(guest, framesDir, frame++);
-  await confirmJoin.click();
+  await anaContext.close();
 
-  await waitForCallTiles(guest, CALL_TILE_COUNT, CALL_WAIT_TIMEOUT_MS);
-  await guest.waitForTimeout(2000);
-  await shoot(guest, framesDir, frame++);
-
-  const steps: readonly Step[] = [
+  return [
     {
       n: 1,
       text: `Abra o **Talk** e clique na conversa que mostra o aviso de chamada em andamento, com o botão **Entrar na chamada** (ex.: **${MEETING_NAME}**).`,
@@ -116,22 +144,19 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
       text: 'Você entra na chamada e aparece lado a lado com os demais participantes, prontos para conversar por vídeo.',
     },
   ];
-
-  return {
-    title: 'Como entrar em uma reunião',
-    description: 'Participe de uma chamada em andamento a partir da conversa ou de um link.',
-    app: 'talk',
-    slug: 'entrar-na-reuniao',
-    order: 3,
-    media: 'entrar-na-reuniao.mp4',
-    tip: 'Antes de entrar, dá pra testar a câmera e o microfone na tela de verificação.',
-    steps,
-  };
 }
 
 export const flow: Flow = {
   capturedForVersion: '33.0.8',
   fakeMedia: true,
   fakeVideo: 'capture/assets/demo-video.y4m',
-  run,
+  app: 'talk',
+  slug: 'entrar-na-reuniao',
+  title: 'Como entrar em uma reunião',
+  description: 'Participe de uma chamada em andamento a partir da conversa ou de um link.',
+  tip: 'Antes de entrar, dá pra testar a câmera e o microfone na tela de verificação.',
+  order: 3,
+  startUrl: `${CONFIG.stagingUrl}/apps/spreed`,
+  setup,
+  record,
 };
