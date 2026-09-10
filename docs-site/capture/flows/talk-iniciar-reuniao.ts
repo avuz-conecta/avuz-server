@@ -1,12 +1,15 @@
-import type { Browser, Page } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import type { Flow } from '../run';
-import { login } from '../lib/browser';
+import { login, loginOnPage } from '../lib/browser';
 import { CONFIG } from '../config';
-import { shoot } from '../lib/capture-helpers';
-import type { Step, TaskDoc } from '../lib/steps';
+import { moveAndClick, pause } from '../lib/screencast';
+import { maskRealHost } from '../lib/capture-helpers';
+import type { Step } from '../lib/steps';
 
 const MEETING_NAME = 'Reunião Conecta Demo';
 const GUEST_DISPLAY_NAME = 'Bruno Lima';
+const CALL_TILE_COUNT = 2;
+const CALL_WAIT_TIMEOUT_MS = 40000;
 
 async function dismissBrowserWarning(page: Page): Promise<void> {
   const closeIcon = page.locator('.toastify').getByText('✖').first();
@@ -16,24 +19,28 @@ async function dismissBrowserWarning(page: Page): Promise<void> {
 }
 
 async function createMeeting(host: Page): Promise<void> {
-  await host.goto(`${CONFIG.stagingUrl}/apps/spreed`);
-  await host.getByRole('button', { name: 'Criar uma nova conversa' }).click();
+  const newConversationButton = host.getByRole('button', { name: 'Criar uma nova conversa' });
+  await moveAndClick(host, newConversationButton, 600);
 
   const createDialog = host.getByRole('dialog');
   const nameField = createDialog.getByPlaceholder('Digite um nome para esta conversa');
   await nameField.waitFor({ state: 'visible', timeout: 15000 });
   await nameField.fill(MEETING_NAME);
+  await pause(500);
 
-  await createDialog.getByRole('button', { name: 'Adicionar participantes' }).click();
+  const addParticipantsButton = createDialog.getByRole('button', { name: 'Adicionar participantes' });
+  await moveAndClick(host, addParticipantsButton, 500);
+
   const participantSearch = createDialog.getByLabel('Procurar participantes');
   await participantSearch.waitFor({ state: 'visible', timeout: 15000 });
   await participantSearch.fill('demo.bruno');
 
   const brunoOption = createDialog.getByText(GUEST_DISPLAY_NAME).first();
   await brunoOption.waitFor({ state: 'visible', timeout: 15000 });
-  await brunoOption.click();
+  await moveAndClick(host, brunoOption, 500);
 
-  await createDialog.getByRole('button', { name: 'Criando conversa' }).click();
+  const createButton = createDialog.getByRole('button', { name: 'Criando conversa' });
+  await moveAndClick(host, createButton, 600);
   await host.getByRole('heading', { name: MEETING_NAME }).waitFor({ state: 'visible', timeout: 20000 });
 }
 
@@ -42,41 +49,68 @@ async function startOrJoinCall(page: Page, label: string): Promise<void> {
   await trigger.waitFor({ state: 'visible', timeout: 15000 });
   for (let attempt = 0; attempt < 20; attempt++) {
     if (!(await trigger.isDisabled())) break;
-    await page.waitForTimeout(1000);
+    await pause(1000);
   }
   await dismissBrowserWarning(page);
-  await trigger.click();
+  await moveAndClick(page, trigger, 600);
 
   const dialog = page.getByRole('dialog');
   const confirmButton = dialog.getByRole('button', { name: label });
   await confirmButton.waitFor({ state: 'visible', timeout: 20000 });
-  await confirmButton.click();
+  await moveAndClick(page, confirmButton, 600);
 }
 
-async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
-  let frame = 0;
+async function waitForCallTiles(page: Page, tileCount: number, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const visibleTiles = await page.locator('video').count();
+    if (visibleTiles >= tileCount) return;
+    await pause(1000);
+  }
+  throw new Error(`BLOCKED: call never rendered ${tileCount} video tiles within ${timeoutMs}ms`);
+}
 
-  const { page: host } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
-  await createMeeting(host);
-  await shoot(host, framesDir, frame++);
+async function setup(browser: Browser): Promise<BrowserContext> {
+  const { context } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
+  return context;
+}
 
-  await startOrJoinCall(host, 'Iniciar chamada');
-  await shoot(host, framesDir, frame++);
+async function record(hostPage: Page): Promise<readonly Step[]> {
+  await dismissBrowserWarning(hostPage);
+  await createMeeting(hostPage);
+  await pause(600);
 
-  const { page: guest } = await login(browser, 'demo.bruno', CONFIG.demoUserPassword);
-  await guest.goto(`${CONFIG.stagingUrl}/apps/spreed`);
-  await dismissBrowserWarning(guest);
-  const conversationEntry = guest.getByRole('link', { name: new RegExp(MEETING_NAME) }).first();
-  await conversationEntry.waitFor({ state: 'visible', timeout: 20000 });
+  await startOrJoinCall(hostPage, 'Iniciar chamada');
+  await maskRealHost(hostPage);
+  await pause(800);
+
+  // The guest joins from a separate context spawned off the SAME browser
+  // instance, so it inherits the fake-media launch flags (synthetic camera
+  // feed) just like the host's recorded context.
+  const hostBrowser = hostPage.context().browser();
+  if (!hostBrowser) throw new Error('recorded context has no browser');
+  const guestContext = await hostBrowser.newContext({
+    viewport: CONFIG.viewport,
+    permissions: ['camera', 'microphone'],
+  });
+  const guestPage = await guestContext.newPage();
+  await loginOnPage(guestPage, 'demo.bruno', CONFIG.demoUserPassword);
+  await guestPage.goto(`${CONFIG.stagingUrl}/apps/spreed`);
+  await dismissBrowserWarning(guestPage);
+
+  const conversationEntry = guestPage.getByRole('link', { name: new RegExp(MEETING_NAME) }).first();
+  await conversationEntry.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
   await conversationEntry.click();
 
-  await startOrJoinCall(guest, 'Entrar na chamada');
+  await startOrJoinCall(guestPage, 'Entrar na chamada');
 
-  await host.getByText('entrou na chamada').first().waitFor({ state: 'visible', timeout: 30000 });
-  await host.waitForTimeout(3000);
-  await shoot(host, framesDir, frame++);
+  await waitForCallTiles(hostPage, CALL_TILE_COUNT, CALL_WAIT_TIMEOUT_MS);
+  await maskRealHost(hostPage);
+  await pause(3000);
 
-  const steps: readonly Step[] = [
+  await guestContext.close();
+
+  return [
     {
       n: 1,
       text: `Abra o **Talk** e clique em **Criar uma nova conversa**: dê um nome como **${MEETING_NAME}**, adicione os participantes e confirme em **Criando conversa**.`,
@@ -90,22 +124,19 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
       text: 'Quando os convidados clicam em **Entrar na chamada**, eles aparecem lado a lado com você na chamada de vídeo.',
     },
   ];
-
-  return {
-    title: 'Como iniciar uma reunião',
-    description: 'Crie uma sala no Talk e comece uma chamada de vídeo em segundos.',
-    app: 'talk',
-    slug: 'iniciar-reuniao',
-    order: 1,
-    media: 'iniciar-reuniao.mp4',
-    tip: 'Compartilhe a tela pelo ícone de monitor durante a chamada.',
-    steps,
-  };
 }
 
 export const flow: Flow = {
   capturedForVersion: '33.0.8',
   fakeMedia: true,
   fakeVideo: 'capture/assets/demo-video.y4m',
-  run,
+  app: 'talk',
+  slug: 'iniciar-reuniao',
+  title: 'Como iniciar uma reunião',
+  description: 'Crie uma sala no Talk e comece uma chamada de vídeo em segundos.',
+  tip: 'Compartilhe a tela pelo ícone de monitor durante a chamada.',
+  order: 1,
+  startUrl: `${CONFIG.stagingUrl}/apps/spreed`,
+  setup,
+  record,
 };

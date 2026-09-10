@@ -17,6 +17,8 @@ export type Flow = {
   readonly tip?: string;
   readonly order: number;
   readonly startUrl: string; // page navigates here (already authed) to begin recording
+  readonly fakeMedia?: boolean; // launch chromium with synthetic camera/mic + grant permissions on the recorded context
+  readonly fakeVideo?: string; // y4m file fed to --use-file-for-fake-video-capture when fakeMedia is set
   setup(browser: Browser): Promise<BrowserContext>; // unrecorded login + precondition
   record(page: Page): Promise<readonly Step[]>; // the demonstrated action; returns annotated steps
 };
@@ -45,7 +47,7 @@ async function main(): Promise<void> {
   const flow = mod.flow;
 
   await resetTenant();
-  const browser = await launch({});
+  const browser = await launch({ fakeMedia: flow.fakeMedia, fakeVideo: flow.fakeVideo });
   try {
     const outDir = await makeTempRecordingDir();
     const { webmPath, steps } = await recordFlow(browser, {
@@ -53,6 +55,7 @@ async function main(): Promise<void> {
       startUrl: flow.startUrl,
       record: flow.record,
       outDir,
+      fakeMedia: flow.fakeMedia,
     });
 
     const outMp4 = `public/assets/${flow.app}/${flow.slug}.mp4`;

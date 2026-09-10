@@ -10,16 +10,20 @@ export async function launch(opts: { readonly fakeMedia?: boolean; readonly fake
   return chromium.launch({ args });
 }
 
+export async function loginOnPage(page: Page, uid: string, password: string): Promise<void> {
+  await page.goto(`${CONFIG.stagingUrl}/login`);
+  await page.fill('input[name="user"]', uid);
+  await page.fill('input[name="password"]', password);
+  await page.click('button[type="submit"], input[type="submit"]');
+  await page.waitForURL(/\/apps\/|\/dashboard/, { timeout: 30000 });
+}
+
 export async function login(browser: Browser, uid: string, password: string): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext({
     viewport: CONFIG.viewport,
     permissions: ['camera', 'microphone'],
   });
   const page = await context.newPage();
-  await page.goto(`${CONFIG.stagingUrl}/login`);
-  await page.fill('input[name="user"]', uid);
-  await page.fill('input[name="password"]', password);
-  await page.click('button[type="submit"], input[type="submit"]');
-  await page.waitForURL(/\/apps\/|\/dashboard/, { timeout: 30000 });
+  await loginOnPage(page, uid, password);
   return { context, page };
 }
