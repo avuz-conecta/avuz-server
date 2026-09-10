@@ -67,4 +67,12 @@ class CalendarImportServiceTest extends TestCase {
         $users->method('getByEmail')->willReturn([]);
         (new CalendarImportService($users, $manager))->import('a@b.com', 'x', 'uid-1');
     }
+
+    public function testThrowsWhenEmailAmbiguousAcrossUsers(): void {
+        $this->expectException(ImportException::class);
+        $manager = $this->createMock(IManager::class);
+        $users = $this->createMock(IUserManager::class);
+        $users->method('getByEmail')->willReturn([$this->user('alice'), $this->user('bob')]);
+        (new CalendarImportService($users, $manager))->import('a@b.com', 'x', 'uid-1');
+    }
 }

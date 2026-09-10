@@ -17,8 +17,8 @@ class CalendarImportService {
 
     public function import(string $email, string $ics, string $uid): string {
         $users = $this->userManager->getByEmail($email);
-        if (count($users) === 0) {
-            throw new ImportException('no user for email');
+        if (count($users) !== 1) {
+            throw new ImportException('no unambiguous user for email');
         }
         $uidNc = $users[0]->getUID();
         $calendars = $this->calendarManager->getCalendarsForPrincipal('principals/users/' . $uidNc);
