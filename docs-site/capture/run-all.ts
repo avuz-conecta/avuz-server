@@ -34,7 +34,7 @@ async function main(): Promise<void> {
   }
 
   for (const flowFile of flowFiles) {
-    await runFlow(join('capture/flows', flowFile));
+    await runFlow(`./flows/${flowFile}`);
   }
 
   console.log(`✓ captured ${flowFiles.length} flows`);
