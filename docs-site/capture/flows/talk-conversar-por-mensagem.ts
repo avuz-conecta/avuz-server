@@ -1,9 +1,9 @@
-import type { Browser, Page } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import type { Flow } from '../run';
 import { login } from '../lib/browser';
 import { CONFIG } from '../config';
-import { shoot } from '../lib/capture-helpers';
-import type { Step, TaskDoc } from '../lib/steps';
+import { moveAndClick, pause } from '../lib/screencast';
+import type { Step } from '../lib/steps';
 
 const CONVERSATION_NAME = 'Equipe Comercial';
 const FIRST_MESSAGE = 'Bom dia, equipe! Reunião às 15h.';
@@ -17,17 +17,20 @@ async function dismissBrowserWarning(page: Page): Promise<void> {
 }
 
 async function createConversation(page: Page): Promise<void> {
-  await page.goto(`${CONFIG.stagingUrl}/apps/spreed`);
-  await dismissBrowserWarning(page);
-  await page.getByRole('button', { name: 'Criar uma nova conversa' }).click();
+  const newConversationButton = page.getByRole('button', { name: 'Criar uma nova conversa' });
+  await moveAndClick(page, newConversationButton, 600);
 
   const createDialog = page.getByRole('dialog');
   const nameField = createDialog.getByPlaceholder('Digite um nome para esta conversa');
   await nameField.waitFor({ state: 'visible', timeout: 15000 });
   await nameField.fill(CONVERSATION_NAME);
+  await pause(500);
 
-  await createDialog.getByRole('button', { name: 'Adicionar participantes' }).click();
-  await createDialog.getByRole('button', { name: 'Criando conversa' }).click();
+  const addParticipantsButton = createDialog.getByRole('button', { name: 'Adicionar participantes' });
+  await moveAndClick(page, addParticipantsButton, 500);
+
+  const createButton = createDialog.getByRole('button', { name: 'Criando conversa' });
+  await moveAndClick(page, createButton, 600);
   await page.getByRole('heading', { name: CONVERSATION_NAME }).waitFor({ state: 'visible', timeout: 20000 });
 }
 
@@ -51,33 +54,30 @@ async function waitForChatReady(page: Page): Promise<void> {
 
 async function sendMessage(page: Page, text: string): Promise<void> {
   const input = chatInput(page);
-  await input.click();
-  await input.type(text);
-  await sendButton(page).click();
+  await moveAndClick(page, input, 500);
+  await input.type(text, { delay: 40 });
+  await pause(500);
+
+  await moveAndClick(page, sendButton(page), 500);
   await page.getByText(text).first().waitFor({ state: 'visible', timeout: 15000 });
+  await pause(800);
 }
 
-async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
-  const { page } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
+async function setup(browser: Browser): Promise<BrowserContext> {
+  const { context } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
+  return context;
+}
 
-  let frame = 0;
+async function record(page: Page): Promise<readonly Step[]> {
+  await dismissBrowserWarning(page);
   await createConversation(page);
   await waitForChatReady(page);
-  await shoot(page, framesDir, frame++);
+  await pause(600);
 
-  const input = chatInput(page);
-  await input.click();
-  await input.type(FIRST_MESSAGE);
-  await shoot(page, framesDir, frame++);
-
-  await sendButton(page).click();
-  await page.getByText(FIRST_MESSAGE).first().waitFor({ state: 'visible', timeout: 15000 });
-  await shoot(page, framesDir, frame++);
-
+  await sendMessage(page, FIRST_MESSAGE);
   await sendMessage(page, SECOND_MESSAGE);
-  await shoot(page, framesDir, frame++);
 
-  const steps: readonly Step[] = [
+  return [
     {
       n: 1,
       text: `Abra o **Talk**, clique em **Criar uma nova conversa**: dê um nome como **${CONVERSATION_NAME}** e confirme em **Criando conversa**.`,
@@ -95,20 +95,17 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
       text: 'Continue digitando e enviando mensagens: cada uma entra logo abaixo da anterior, formando o histórico da conversa.',
     },
   ];
-
-  return {
-    title: 'Como conversar por mensagem',
-    description: 'Troque mensagens de texto com uma pessoa ou um grupo, mesmo sem chamada.',
-    app: 'talk',
-    slug: 'conversar-por-mensagem',
-    order: 6,
-    media: 'conversar-por-mensagem.mp4',
-    tip: 'Digite @ seguido do nome da pessoa para mencioná-la e avisá-la diretamente.',
-    steps,
-  };
 }
 
 export const flow: Flow = {
   capturedForVersion: '33.0.8',
-  run,
+  app: 'talk',
+  slug: 'conversar-por-mensagem',
+  title: 'Como conversar por mensagem',
+  description: 'Troque mensagens de texto com uma pessoa ou um grupo, mesmo sem chamada.',
+  tip: 'Digite @ seguido do nome da pessoa para mencioná-la e avisá-la diretamente.',
+  order: 6,
+  startUrl: `${CONFIG.stagingUrl}/apps/spreed`,
+  setup,
+  record,
 };
