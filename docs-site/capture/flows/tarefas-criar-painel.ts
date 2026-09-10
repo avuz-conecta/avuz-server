@@ -46,19 +46,19 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
 
   const steps: readonly Step[] = [
     { n: 1, text: 'Abra o **Tarefas** e clique em **Adicionar painel** no menu lateral.' },
-    { n: 2, text: `Escolha uma cor para o quadro (ex.: **${BOARD_COLOR}**) e clique em **Escolher**.` },
-    { n: 3, text: `Digite um nome para o quadro (ex.: **${BOARD_NAME}**) e confirme em **Salvar painel**.` },
-    { n: 4, text: 'O quadro é criado na hora e abre pronto para receber listas e cartões.' },
+    { n: 2, text: `Escolha uma cor para o painel (ex.: **${BOARD_COLOR}**) e clique em **Escolher**.` },
+    { n: 3, text: `Digite um nome para o painel (ex.: **${BOARD_NAME}**) e confirme em **Salvar painel**.` },
+    { n: 4, text: 'O painel é criado na hora e abre pronto para receber listas e cartões.' },
   ];
 
   return {
-    title: 'Como criar um quadro',
-    description: 'Crie um quadro para organizar tarefas de um projeto ou equipe.',
+    title: 'Como criar um painel',
+    description: 'Crie um painel para organizar tarefas de um projeto ou equipe.',
     app: 'tarefas',
-    slug: 'criar-quadro',
+    slug: 'criar-painel',
     order: 1,
-    media: 'criar-quadro.mp4',
-    tip: 'Use um quadro por projeto ou por equipe para manter as tarefas organizadas.',
+    media: 'criar-painel.mp4',
+    tip: 'Use um painel por projeto ou por equipe para manter as tarefas organizadas.',
     steps,
   };
 }

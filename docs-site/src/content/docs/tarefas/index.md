@@ -1,8 +1,8 @@
 ---
 title: Tarefas
-description: Organize o trabalho da equipe em quadros, listas e cartões.
+description: Organize o trabalho da equipe em painéis, listas e cartões.
 ---
 
-O **Tarefas** organiza o trabalho em quadros visuais: listas (colunas) com cartões que representam cada tarefa. Ideal para acompanhar projetos e dividir responsabilidades.
+O **Tarefas** organiza o trabalho em painéis visuais: listas (colunas) com cartões que representam cada tarefa. Ideal para acompanhar projetos e dividir responsabilidades.
 
-- [Como criar um quadro](/tarefas/criar-quadro/)
+- [Como criar um painel](/tarefas/criar-painel/)
