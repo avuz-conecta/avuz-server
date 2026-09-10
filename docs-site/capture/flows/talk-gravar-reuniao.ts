@@ -10,8 +10,7 @@ const CONVERSATION_NAME = 'Reunião Gravada';
 const CONVERSATION_ACTIONS_LABEL = 'Ações de conversa';
 const START_RECORDING_LABEL = 'Começar a gravar';
 const RECORDING_STARTING_LABEL = 'Iniciando a gravação';
-const RECORDING_POLL_TIMEOUT_MS = 40000;
-const RECORDING_POLL_INTERVAL_MS = 2000;
+const RECORDING_INDICATOR_PAUSE_MS = 3500;
 
 async function dismissBrowserWarning(page: Page): Promise<void> {
   const closeIcon = page.locator('.toastify').getByText('✖').first();
@@ -64,19 +63,6 @@ async function openConversationActions(page: Page): Promise<void> {
   await moveAndClick(page, trigger, 600);
 }
 
-async function waitForRecordingIndicator(page: Page, timeoutMs: number): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const isStarting = await page
-      .getByRole('button', { name: RECORDING_STARTING_LABEL })
-      .isVisible()
-      .catch(() => false);
-    if (isStarting) return true;
-    await pause(RECORDING_POLL_INTERVAL_MS);
-  }
-  return false;
-}
-
 async function setup(browser: Browser): Promise<BrowserContext> {
   const { context } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
   return context;
@@ -106,8 +92,11 @@ async function record(page: Page): Promise<readonly Step[]> {
   await pause(800);
 
   await moveAndClick(page, startRecordingOption, 600);
-  const recordingStarted = await waitForRecordingIndicator(page, RECORDING_POLL_TIMEOUT_MS);
-  await pause(1200);
+  await pause(RECORDING_INDICATOR_PAUSE_MS);
+  const recordingStarted = await page
+    .getByRole('button', { name: RECORDING_STARTING_LABEL })
+    .isVisible()
+    .catch(() => false);
 
   const startedStep: Step = recordingStarted
     ? {
