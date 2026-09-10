@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace OCA\AvuzTheme\AppInfo;
 
 use OCA\AvuzTheme\Listener\BeforeTemplateRenderedListener;
+use OCA\AvuzTheme\Listener\LoginFlowTemplateRenderedListener;
 use OCA\AvuzTheme\Listener\UserCreatedListener;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\AppFramework\Http\Events\BeforeLoginTemplateRenderedEvent;
+use OCP\AppFramework\Http\Events\BeforeTemplateRenderedEvent;
 use OCP\User\Events\UserCreatedEvent;
 use OCP\Util;
 
@@ -25,6 +27,12 @@ class Application extends App implements IBootstrap {
 		$context->registerEventListener(
 			BeforeLoginTemplateRenderedEvent::class,
 			BeforeTemplateRenderedListener::class
+		);
+
+		// Style the device grant / login-flow page (served as guest, not via LoginController)
+		$context->registerEventListener(
+			BeforeTemplateRenderedEvent::class,
+			LoginFlowTemplateRenderedListener::class
 		);
 
 		// Create custom Avuz welcome board for new users instead of default Nextcloud board
