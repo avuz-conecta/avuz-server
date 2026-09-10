@@ -4,15 +4,15 @@ import { join } from 'node:path';
 export type ScanHit = { readonly file: string; readonly match: string; readonly rule: string };
 
 const CLIENT_NAMES: readonly string[] = [
-  'grupo-vidalar', 'endopasso', 'garra', 'eco-ambiental', 'digrepal',
+  'grupo-vidalar', 'endopasso', 'garra prevestibular', 'eco-ambiental', 'digrepal',
   'comprev', 'abvtex', 'coprel', 'adyl', 'raíven', 'raiven',
 ];
 
 const RULES: readonly { readonly rule: string; readonly re: RegExp }[] = [
   { rule: 'staging-host', re: /\b(staging|app\d+|avuzapp\d+)\.avuz\.(app|cloud)\b/gi },
-  { rule: 'meet-host', re: /\bmeet\d+\.avuz\.(app|cloud)\b/gi },
+  { rule: 'meet-host', re: /\bmeet\d*\.avuz\.(app|cloud)\b/gi },
   { rule: 'internal-host', re: /\b(proxy|registry|s3-site[ab])\.avuz\.(app|cloud|com)\b/gi },
-  { rule: 'nc-version', re: /\b(nextcloud[^\n]{0,12})?\b\d{2}\.\d+\.\d+\b/gi },
+  { rule: 'nc-version', re: /\b(nextcloud[^\n]{0,12})?\b\d{2}\.\d{1,2}\.\d{1,2}\b/gi },
   { rule: 'client-name', re: new RegExp(`\\b(${CLIENT_NAMES.join('|')})\\b`, 'gi') },
 ];
 
