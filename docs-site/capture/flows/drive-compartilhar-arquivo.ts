@@ -81,7 +81,7 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
     { n: 1, text: `Abra o **Drive** e localize **${FILE_NAME}** na lista de arquivos.` },
     {
       n: 2,
-      text: 'Clique em **Opções de compartilhamento** na linha do arquivo para abrir o painel **Compartilhando**.',
+      text: 'Clique em **Opções de compartilhamento** na linha do arquivo.',
     },
     {
       n: 3,
@@ -89,7 +89,7 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
     },
     {
       n: 4,
-      text: 'O link fica disponível em **Link de compartilhamento**, pronto para colar onde quiser; ajuste **Somente visualização** ou **Permitir edição** se precisar.',
+      text: 'O link é criado e copiado automaticamente, disponível em **Link de compartilhamento** — é só colar onde quiser (e-mail, mensagem) para compartilhar.',
     },
   ];
 

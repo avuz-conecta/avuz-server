@@ -7,9 +7,9 @@ capturedForVersion: "33.0.8"
 ---
 
 1. Abra o **Drive** e localize **relatorio.pdf** na lista de arquivos.
-2. Clique em **Opções de compartilhamento** na linha do arquivo para abrir o painel **Compartilhando**.
+2. Clique em **Opções de compartilhamento** na linha do arquivo.
 3. Em **Compartilhamentos externos**, clique em **Criar link público**: o Drive gera o link e já copia o endereço, confirmando com **Link copiado**.
-4. O link fica disponível em **Link de compartilhamento**, pronto para colar onde quiser; ajuste **Somente visualização** ou **Permitir edição** se precisar.
+4. O link é criado e copiado automaticamente, disponível em **Link de compartilhamento** — é só colar onde quiser (e-mail, mensagem) para compartilhar.
 
 <video src="/assets/drive/compartilhar-arquivo.mp4" muted autoplay loop playsinline controls></video>
 
