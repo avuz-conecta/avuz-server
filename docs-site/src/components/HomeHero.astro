@@ -1,0 +1,133 @@
+---
+// Overrides Starlight's default Hero (see astro.config.mjs `components.Hero`).
+// Starlight only renders the Hero slot on pages with `hero` frontmatter set
+// (see @astrojs/starlight/components/Page.astro), which today is only
+// src/content/docs/index.mdx with `template: splash`. That gating — not
+// anything in this file — is what keeps the app grid off inner doc pages.
+const APPS = [
+  { slug: 'drive', label: 'Drive', desc: 'Arquivos', icon: '📁' },
+  { slug: 'talk', label: 'Talk', desc: 'Reuniões', icon: '💬' },
+];
+---
+<div class="avuz-hero">
+  <div class="avuz-hero-content">
+    <h1>Como podemos ajudar?</h1>
+    <p>Guias rápidos para cada aplicativo</p>
+    <button type="button" id="avuz-home-search" class="avuz-search" aria-label="Buscar em toda a ajuda">
+      <span aria-hidden="true">🔎</span> Buscar em toda a ajuda…
+    </button>
+  </div>
+</div>
+<ul class="avuz-grid">
+  {APPS.map((app) => (
+    <li>
+      <a class="avuz-card" href={`/${app.slug}/`}>
+        <span class="ic" aria-hidden="true">{app.icon}</span>
+        <b>{app.label}</b>
+        <small>{app.desc}</small>
+      </a>
+    </li>
+  ))}
+</ul>
+<script>
+  // The real search UI (button + Pagefind dialog) lives once per page inside
+  // Starlight's <site-search> custom element, rendered by the site Header
+  // regardless of page template. Rather than re-implementing search here,
+  // this button drives that existing control so there is exactly one
+  // Pagefind instance and one #starlight__search mount point on the page.
+  const trigger = document.getElementById('avuz-home-search');
+  trigger?.addEventListener('click', (event) => {
+    // Stop this click from bubbling to `window`: Starlight's SiteSearch
+    // attaches a window-level "click outside closes the dialog" listener
+    // the instant the dialog opens (synchronously, inside the nested click
+    // below). If this original event keeps bubbling after that, it reaches
+    // `window` and immediately closes the dialog it just opened.
+    event.stopPropagation();
+    document.querySelector<HTMLButtonElement>('site-search button[data-open-modal]')?.click();
+  });
+</script>
+<style>
+  .avuz-hero {
+    position: relative;
+    text-align: center;
+    padding: 3rem 1rem;
+    border-radius: var(--sl-border-radius, 16px);
+    background: linear-gradient(135deg, #2bb5e3, #00679e);
+    overflow: hidden;
+  }
+  /* Scrim keeps white text ≥4.5:1 against the lightest corner of the brand
+     gradient (raw #2bb5e3 under white text is ~2.4:1, well under WCAG AA). */
+  .avuz-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.32);
+  }
+  .avuz-hero-content {
+    position: relative;
+    color: #fff;
+  }
+  .avuz-hero-content h1 {
+    font-family: 'Questrial', sans-serif;
+    margin: 0 0 0.3rem;
+    color: #fff;
+  }
+  .avuz-hero-content p {
+    margin: 0;
+  }
+  .avuz-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    background: #fff;
+    color: #5b6b78;
+    border: 0;
+    border-radius: 30px;
+    padding: 0.6rem 1.2rem;
+    font: inherit;
+    cursor: pointer;
+  }
+  .avuz-search:hover {
+    color: #00679e;
+  }
+  .avuz-search:focus-visible,
+  .avuz-card:focus-visible {
+    outline: 3px solid #2bb5e3;
+    outline-offset: 2px;
+  }
+  .avuz-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .avuz-card {
+    display: block;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 14px;
+    padding: 1rem;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    transition: 0.15s;
+  }
+  .avuz-card:hover {
+    border-color: #2bb5e3;
+    transform: translateY(-2px);
+  }
+  .avuz-card .ic {
+    font-size: 1.8rem;
+    display: block;
+  }
+  .avuz-card b {
+    font-family: 'Questrial', sans-serif;
+    display: block;
+    margin-top: 0.4rem;
+  }
+  .avuz-card small {
+    color: var(--sl-color-gray-3);
+  }
+</style>

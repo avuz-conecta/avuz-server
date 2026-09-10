@@ -11,6 +11,7 @@ export default defineConfig({
       defaultLocale: 'root',
       locales: { root: { label: 'Português (Brasil)', lang: 'pt-BR' } },
       logo: { src: './src/assets/house-logo.svg', replacesTitle: false },
+      components: { Hero: './src/components/HomeHero.astro' },
       sidebar: [
         { label: 'Drive', items: [{ autogenerate: { directory: 'drive' } }] },
         { label: 'Talk', items: [{ autogenerate: { directory: 'talk' } }] },
