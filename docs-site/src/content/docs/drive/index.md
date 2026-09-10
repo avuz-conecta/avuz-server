@@ -8,3 +8,4 @@ Compartilhe por link ou convide colegas para ver e editar juntos.
 
 - [Como compartilhar um arquivo](/drive/compartilhar-arquivo/)
 - [Como enviar arquivos](/drive/enviar-arquivos/)
+- [Como criar pastas](/drive/criar-pastas/)
