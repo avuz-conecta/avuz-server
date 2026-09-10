@@ -195,3 +195,5 @@ scripts/deploy.prod.env
 
 # Bulk user-create input (real emails — keep out of git)
 scripts/users.csv
+
+.superpowers/
