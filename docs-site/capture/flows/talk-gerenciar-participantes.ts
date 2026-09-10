@@ -1,9 +1,10 @@
-import type { Browser, Page } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import type { Flow } from '../run';
-import { login } from '../lib/browser';
+import { login, loginOnPage } from '../lib/browser';
 import { CONFIG } from '../config';
-import { shoot } from '../lib/capture-helpers';
-import type { Step, TaskDoc } from '../lib/steps';
+import { moveAndClick, pause } from '../lib/screencast';
+import { maskRealHost } from '../lib/capture-helpers';
+import type { Step } from '../lib/steps';
 
 const MEETING_NAME = 'Reunião Geral';
 const GUEST_DISPLAY_NAME = 'Bruno Lima';
@@ -18,42 +19,45 @@ async function dismissBrowserWarning(page: Page): Promise<void> {
 }
 
 async function createMeetingWithGuest(host: Page): Promise<void> {
-  await host.goto(`${CONFIG.stagingUrl}/apps/spreed`);
-  await dismissBrowserWarning(host);
-  await host.getByRole('button', { name: 'Criar uma nova conversa' }).click();
+  const newConversationButton = host.getByRole('button', { name: 'Criar uma nova conversa' });
+  await moveAndClick(host, newConversationButton, 600);
 
   const createDialog = host.getByRole('dialog');
   const nameField = createDialog.getByPlaceholder('Digite um nome para esta conversa');
   await nameField.waitFor({ state: 'visible', timeout: 15000 });
   await nameField.fill(MEETING_NAME);
+  await pause(500);
 
-  await createDialog.getByRole('button', { name: 'Adicionar participantes' }).click();
+  const addParticipantsButton = createDialog.getByRole('button', { name: 'Adicionar participantes' });
+  await moveAndClick(host, addParticipantsButton, 500);
+
   const participantSearch = createDialog.getByLabel('Procurar participantes');
   await participantSearch.waitFor({ state: 'visible', timeout: 15000 });
   await participantSearch.fill('demo.bruno');
 
   const brunoOption = createDialog.getByText(GUEST_DISPLAY_NAME).first();
   await brunoOption.waitFor({ state: 'visible', timeout: 15000 });
-  await brunoOption.click();
+  await moveAndClick(host, brunoOption, 500);
 
-  await createDialog.getByRole('button', { name: 'Criando conversa' }).click();
+  const createButton = createDialog.getByRole('button', { name: 'Criando conversa' });
+  await moveAndClick(host, createButton, 600);
   await host.getByRole('heading', { name: MEETING_NAME }).waitFor({ state: 'visible', timeout: 20000 });
 }
 
-async function startOrJoinCall(page: Page, label: string, timeoutMs: number): Promise<void> {
+async function startOrJoinCall(page: Page, label: string): Promise<void> {
   const trigger = page.getByRole('button', { name: label }).first();
-  await trigger.waitFor({ state: 'visible', timeout: timeoutMs });
+  await trigger.waitFor({ state: 'visible', timeout: 15000 });
   for (let attempt = 0; attempt < 20; attempt++) {
     if (!(await trigger.isDisabled())) break;
-    await page.waitForTimeout(1000);
+    await pause(1000);
   }
   await dismissBrowserWarning(page);
-  await trigger.click();
+  await moveAndClick(page, trigger, 600);
 
   const dialog = page.getByRole('dialog');
   const confirmButton = dialog.getByRole('button', { name: label });
-  await confirmButton.waitFor({ state: 'visible', timeout: timeoutMs });
-  await confirmButton.click();
+  await confirmButton.waitFor({ state: 'visible', timeout: 20000 });
+  await moveAndClick(page, confirmButton, 600);
 }
 
 async function waitForCallTiles(page: Page, tileCount: number, timeoutMs: number): Promise<void> {
@@ -61,69 +65,85 @@ async function waitForCallTiles(page: Page, tileCount: number, timeoutMs: number
   while (Date.now() < deadline) {
     const visibleTiles = await page.locator('video').count();
     if (visibleTiles >= tileCount) return;
-    await page.waitForTimeout(1000);
+    await pause(1000);
   }
-  const buttonNames = await page.getByRole('button').allInnerTexts();
-  throw new Error(
-    `BLOCKED: call never rendered ${tileCount} video tiles within ${timeoutMs}ms. Visible buttons: ${JSON.stringify(buttonNames)}`,
-  );
+  throw new Error(`BLOCKED: call never rendered ${tileCount} video tiles within ${timeoutMs}ms`);
 }
 
 async function openParticipantsPanel(host: Page): Promise<void> {
   const participantsTab = host.getByRole('tab', { name: /^Participantes/ });
   await participantsTab.waitFor({ state: 'visible', timeout: 15000 });
-  await participantsTab.click();
+  await moveAndClick(host, participantsTab, 600);
 }
 
 async function openParticipantOptionsMenu(host: Page, participantName: string): Promise<void> {
   const participantRow = host.locator(`li[aria-label='Participante "${participantName}"']`);
   await participantRow.waitFor({ state: 'visible', timeout: 15000 });
   await participantRow.hover();
+  await pause(400);
 
   const optionsButton = host.getByRole('button', { name: `Configurações para o participante "${participantName}"` });
-  await optionsButton.click();
+  await moveAndClick(host, optionsButton, 600);
 }
 
 async function promoteParticipant(host: Page, participantName: string): Promise<void> {
-  await host.getByRole('menuitem', { name: 'Promover a moderador' }).click();
+  const promoteMenuItem = host.getByRole('menuitem', { name: 'Promover a moderador' });
+  await moveAndClick(host, promoteMenuItem, 600);
 
   const participantRow = host.locator(`li[aria-label='Participante "${participantName}"']`);
   await participantRow.getByText('(moderador)').waitFor({ state: 'visible', timeout: 15000 });
 }
 
-async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
-  let frame = 0;
+async function setup(browser: Browser): Promise<BrowserContext> {
+  const { context } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
+  return context;
+}
 
-  const { page: host } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
-  await createMeetingWithGuest(host);
-  await startOrJoinCall(host, 'Iniciar chamada', 15000);
+async function record(anaPage: Page): Promise<readonly Step[]> {
+  await dismissBrowserWarning(anaPage);
+  await createMeetingWithGuest(anaPage);
+  await pause(600);
 
-  const { page: guest } = await login(browser, 'demo.bruno', CONFIG.demoUserPassword);
-  await guest.goto(`${CONFIG.stagingUrl}/apps/spreed`);
-  await dismissBrowserWarning(guest);
+  await startOrJoinCall(anaPage, 'Iniciar chamada');
+  await maskRealHost(anaPage);
+  await pause(800);
 
-  const conversationEntry = guest.getByRole('link', { name: new RegExp(MEETING_NAME) }).first();
+  // Bruno joins from a separate context spawned off the SAME browser
+  // instance, so it inherits the fake-media launch flags (synthetic camera
+  // feed) just like Ana's recorded context.
+  const anaBrowser = anaPage.context().browser();
+  if (!anaBrowser) throw new Error('recorded context has no browser');
+  const brunoContext = await anaBrowser.newContext({
+    viewport: CONFIG.viewport,
+    permissions: ['camera', 'microphone'],
+  });
+  const brunoPage = await brunoContext.newPage();
+  await loginOnPage(brunoPage, 'demo.bruno', CONFIG.demoUserPassword);
+  await brunoPage.goto(`${CONFIG.stagingUrl}/apps/spreed`);
+  await dismissBrowserWarning(brunoPage);
+
+  const conversationEntry = brunoPage.getByRole('link', { name: new RegExp(MEETING_NAME) }).first();
   await conversationEntry.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
   await conversationEntry.click();
 
-  await startOrJoinCall(guest, 'Entrar na chamada', CALL_WAIT_TIMEOUT_MS);
+  await startOrJoinCall(brunoPage, 'Entrar na chamada');
 
-  await waitForCallTiles(host, CALL_TILE_COUNT, CALL_WAIT_TIMEOUT_MS);
-  await host.waitForTimeout(2000);
+  await waitForCallTiles(anaPage, CALL_TILE_COUNT, CALL_WAIT_TIMEOUT_MS);
+  await maskRealHost(anaPage);
+  await pause(1500);
 
-  await openParticipantsPanel(host);
-  await host.waitForTimeout(1000);
-  await shoot(host, framesDir, frame++);
+  await openParticipantsPanel(anaPage);
+  await pause(800);
 
-  await openParticipantOptionsMenu(host, GUEST_DISPLAY_NAME);
-  await host.waitForTimeout(500);
-  await shoot(host, framesDir, frame++);
+  await openParticipantOptionsMenu(anaPage, GUEST_DISPLAY_NAME);
+  await pause(1200);
 
-  await promoteParticipant(host, GUEST_DISPLAY_NAME);
-  await host.waitForTimeout(500);
-  await shoot(host, framesDir, frame++);
+  await promoteParticipant(anaPage, GUEST_DISPLAY_NAME);
+  await pause(1500);
 
-  const steps: readonly Step[] = [
+  await brunoContext.close();
+
+  return [
     {
       n: 1,
       text: 'Durante uma chamada, clique na aba **Participantes** para ver quem está na reunião.',
@@ -141,22 +161,19 @@ async function run(browser: Browser, framesDir: string): Promise<TaskDoc> {
       text: `A pessoa promovida passa a aparecer como **(moderador)** na lista de participantes, com os mesmos poderes de moderação que você.`,
     },
   ];
-
-  return {
-    title: 'Como gerenciar participantes',
-    description: 'Como moderador, promova, ajuste permissões ou remova participantes da reunião.',
-    app: 'talk',
-    slug: 'gerenciar-participantes',
-    order: 7,
-    media: 'gerenciar-participantes.mp4',
-    tip: 'Quem organiza a conversa é moderador por padrão e pode promover outra pessoa a moderador.',
-    steps,
-  };
 }
 
 export const flow: Flow = {
   capturedForVersion: '33.0.8',
   fakeMedia: true,
   fakeVideo: 'capture/assets/demo-video.y4m',
-  run,
+  app: 'talk',
+  slug: 'gerenciar-participantes',
+  title: 'Como gerenciar participantes',
+  description: 'Como moderador, promova, ajuste permissões ou remova participantes da reunião.',
+  tip: 'Quem organiza a conversa é moderador por padrão e pode promover outra pessoa a moderador.',
+  order: 7,
+  startUrl: `${CONFIG.stagingUrl}/apps/spreed`,
+  setup,
+  record,
 };
