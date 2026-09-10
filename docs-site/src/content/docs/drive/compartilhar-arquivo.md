@@ -2,7 +2,7 @@
 title: "Como compartilhar um arquivo"
 description: "Gere um link para enviar um arquivo a qualquer pessoa."
 sidebar:
-  order: 1
+  order: 3
 capturedForVersion: "33.0.8"
 ---
 
