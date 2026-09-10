@@ -7,11 +7,21 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test": "vitest run",
+    "capture": "tsx capture/run.ts",
+    "capture:all": "tsx capture/run-all.ts",
+    "scan": "tsx capture/lib/scan.ts"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.42.0",
     "astro": "^7.2.10",
     "sharp": "^0.35.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   }
 }
