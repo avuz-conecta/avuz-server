@@ -8,6 +8,7 @@ Crie uma sala, convide participantes e fale por vídeo direto do navegador.
 
 - [Como iniciar uma reunião](/talk/iniciar-reuniao/)
 - [Como convidar participantes](/talk/convidar-participantes/)
+- [Como entrar em uma reunião](/talk/entrar-na-reuniao/)
 - [Como ligar câmera e microfone](/talk/camera-e-microfone/)
 - [Como conversar por mensagem](/talk/conversar-por-mensagem/)
 - [Como usar reações e levantar a mão](/talk/reacoes-e-mao/)
