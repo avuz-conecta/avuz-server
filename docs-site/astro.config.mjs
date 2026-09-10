@@ -15,6 +15,7 @@ export default defineConfig({
       sidebar: [
         { label: 'Drive', items: [{ autogenerate: { directory: 'drive' } }] },
         { label: 'Talk', items: [{ autogenerate: { directory: 'talk' } }] },
+        { label: 'Tarefas', items: [{ autogenerate: { directory: 'tarefas' } }] },
       ],
       pagefind: true,
     }),
