@@ -46,19 +46,55 @@ function davRootHref(uid: string): string {
   return `/remote.php/dav/files/${uid}/`;
 }
 
+function calendarsRootHref(uid: string): string {
+  return `/remote.php/dav/calendars/${uid}/`;
+}
+
+export function calendarsRootUrl(baseUrl: string, uid: string): string {
+  return `${stripTrailingSlash(baseUrl)}${calendarsRootHref(uid)}`;
+}
+
+export function calendarUrl(baseUrl: string, uid: string, calendarName: string): string {
+  return `${calendarsRootUrl(baseUrl, uid)}${calendarName}/`;
+}
+
+export function resolveDavHref(baseUrl: string, href: string): string {
+  return `${stripTrailingSlash(baseUrl)}${href}`;
+}
+
 const DAV_HREF_PATTERN = /<d:href>([^<]+)<\/d:href>/g;
 
-export function parseDavEntryNames(xml: string, uid: string): readonly string[] {
-  const root = davRootHref(uid);
+function collectionNamesFromMultistatus(xml: string, rootHref: string): readonly string[] {
   const names: string[] = [];
   for (const match of xml.matchAll(DAV_HREF_PATTERN)) {
     const href = match[1];
-    if (href === root) continue;
+    if (href === rootHref) continue;
     const trimmed = href.endsWith('/') ? href.slice(0, -1) : href;
     const lastSegment = trimmed.slice(trimmed.lastIndexOf('/') + 1);
     names.push(decodeURIComponent(lastSegment));
   }
   return names;
+}
+
+export function parseDavEntryNames(xml: string, uid: string): readonly string[] {
+  return collectionNamesFromMultistatus(xml, davRootHref(uid));
+}
+
+export function parseCalendarNames(xml: string, uid: string): readonly string[] {
+  return collectionNamesFromMultistatus(xml, calendarsRootHref(uid));
+}
+
+export function parseCalendarObjectHrefs(xml: string, uid: string, calendarName: string): readonly string[] {
+  const root = `${calendarsRootHref(uid)}${calendarName}/`;
+  const hrefs: string[] = [];
+  for (const match of xml.matchAll(DAV_HREF_PATTERN)) {
+    const href = match[1];
+    if (href === root) continue;
+    if (!href.startsWith(root)) continue;
+    if (!href.endsWith('.ics')) continue;
+    hrefs.push(decodeURIComponent(href));
+  }
+  return hrefs;
 }
 
 function minimalPdf(): Buffer {
@@ -187,6 +223,71 @@ async function teardownTalkRooms(stagingUrl: string, uid: string, password: stri
   }
 }
 
+const PERSONAL_CALENDAR = 'personal';
+const SYSTEM_CALENDAR_NAMES = new Set(['contact_birthdays', 'inbox', 'outbox', 'trashbin']);
+
+function isExtraCalendar(name: string): boolean {
+  return name !== PERSONAL_CALENDAR && !SYSTEM_CALENDAR_NAMES.has(name);
+}
+
+async function fetchCalendarNames(stagingUrl: string, uid: string, password: string): Promise<readonly string[]> {
+  const response = await fetch(calendarsRootUrl(stagingUrl, uid), {
+    method: 'PROPFIND',
+    headers: { ...davHeaders(uid, password), Depth: '1' },
+  });
+  if (!response.ok) return [];
+  const xml = await response.text();
+  return parseCalendarNames(xml, uid);
+}
+
+async function deleteCalendar(stagingUrl: string, uid: string, password: string, calendarName: string): Promise<void> {
+  const response = await fetch(calendarUrl(stagingUrl, uid, calendarName), {
+    method: 'DELETE',
+    headers: davHeaders(uid, password),
+  });
+  if (response.ok || response.status === 404) return;
+  console.warn(`seed: could not delete calendar "${calendarName}" for ${uid} (status ${response.status})`);
+}
+
+async function teardownExtraCalendars(stagingUrl: string, uid: string, password: string): Promise<void> {
+  const names = await fetchCalendarNames(stagingUrl, uid, password);
+  for (const name of names) {
+    if (!isExtraCalendar(name)) continue;
+    await deleteCalendar(stagingUrl, uid, password, name);
+  }
+}
+
+async function fetchPersonalCalendarEventHrefs(stagingUrl: string, uid: string, password: string): Promise<readonly string[]> {
+  const response = await fetch(calendarUrl(stagingUrl, uid, PERSONAL_CALENDAR), {
+    method: 'PROPFIND',
+    headers: { ...davHeaders(uid, password), Depth: '1' },
+  });
+  if (!response.ok) return [];
+  const xml = await response.text();
+  return parseCalendarObjectHrefs(xml, uid, PERSONAL_CALENDAR);
+}
+
+async function deleteCalendarEvent(stagingUrl: string, uid: string, password: string, href: string): Promise<void> {
+  const response = await fetch(resolveDavHref(stagingUrl, href), {
+    method: 'DELETE',
+    headers: davHeaders(uid, password),
+  });
+  if (response.ok || response.status === 404) return;
+  console.warn(`seed: could not delete calendar event "${href}" for ${uid} (status ${response.status})`);
+}
+
+async function teardownPersonalCalendarEvents(stagingUrl: string, uid: string, password: string): Promise<void> {
+  const hrefs = await fetchPersonalCalendarEventHrefs(stagingUrl, uid, password);
+  for (const href of hrefs) {
+    await deleteCalendarEvent(stagingUrl, uid, password, href);
+  }
+}
+
+async function teardownCalendars(stagingUrl: string, uid: string, password: string): Promise<void> {
+  await teardownExtraCalendars(stagingUrl, uid, password);
+  await teardownPersonalCalendarEvents(stagingUrl, uid, password);
+}
+
 async function fetchDriveEntryNames(stagingUrl: string, uid: string, password: string): Promise<readonly string[]> {
   const response = await fetch(webdavRootUrl(stagingUrl, uid), {
     method: 'PROPFIND',
@@ -258,6 +359,7 @@ async function teardownUserWorkspaces(stagingUrl: string, password: string): Pro
   for (const user of DEMO_USERS) {
     await teardownCategory(`Deck boards (${user.uid})`, () => teardownDeckBoards(stagingUrl, user.uid, password));
     await teardownCategory(`Talk rooms (${user.uid})`, () => teardownTalkRooms(stagingUrl, user.uid, password));
+    await teardownCategory(`Calendars (${user.uid})`, () => teardownCalendars(stagingUrl, user.uid, password));
   }
   await teardownCategory('Drive clutter (demo.ana)', () => teardownDriveClutter(stagingUrl, password));
 }
