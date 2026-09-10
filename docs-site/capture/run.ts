@@ -30,7 +30,7 @@ async function main(): Promise<void> {
   const framesDir = await makeTempFramesDir();
   try {
     const doc = await flow.run(browser, framesDir);
-    await encodeFrames(framesDir, `src/assets/${doc.app}/${doc.media}`);
+    await encodeFrames(framesDir, `public/assets/${doc.app}/${doc.media}`);
     const path = await writeTaskPage(doc, flow.capturedForVersion, 'src/content/docs');
     console.log(`✓ ${doc.app}/${doc.slug} → ${path}`);
   } finally {

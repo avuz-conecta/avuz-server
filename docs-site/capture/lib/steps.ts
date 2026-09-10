@@ -28,7 +28,7 @@ export function stepsToMarkdown(doc: TaskDoc, capturedForVersion: string): strin
   ].join('\n');
 
   const steps = doc.steps.map((step) => `${step.n}. ${step.text}`).join('\n');
-  const video = `<video src="../../assets/${doc.app}/${doc.media}" muted autoplay loop playsinline controls></video>`;
+  const video = `<video src="/assets/${doc.app}/${doc.media}" muted autoplay loop playsinline controls></video>`;
   const tip = doc.tip ? `\n:::tip\n${doc.tip}\n:::\n` : '';
 
   return `${frontmatter}\n\n${steps}\n\n${video}\n${tip}`;
