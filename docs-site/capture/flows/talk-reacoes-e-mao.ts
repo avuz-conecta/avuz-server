@@ -33,8 +33,11 @@ async function createConversation(page: Page): Promise<void> {
   const createDialog = page.getByRole('dialog');
   const nameField = createDialog.getByPlaceholder('Digite um nome para esta conversa');
   await nameField.waitFor({ state: 'visible', timeout: 15000 });
+  // Fill instantly (not typed): with the mouse stationary, per-key typing is a
+  // tiny frame delta that reads as a frozen frame to freezedetect, so it only
+  // lengthens the static window. Instant fill keeps the name-entry near zero.
   await nameField.fill(CONVERSATION_NAME);
-  await pause(500);
+  await pause(300);
 
   const createButton = createDialog.getByRole('button', { name: 'Criando conversa' });
   await moveAndClick(page, createButton, 600);
@@ -72,18 +75,18 @@ async function disableCameraInCall(page: Page): Promise<void> {
 
 async function openReactionPicker(page: Page): Promise<void> {
   const trigger = page.getByRole('button', { name: 'Enviar reação' });
-  await moveAndClick(page, trigger, 600);
+  await moveAndClick(page, trigger, 350);
 }
 
 async function sendClapReaction(page: Page): Promise<void> {
   // The emoji picker items expose an accessible role of "menuitem", not "button".
   const reaction = page.getByRole('menuitem', { name: CLAP_REACTION_LABEL });
-  await moveAndClick(page, reaction, 600);
+  await moveAndClick(page, reaction, 350);
 }
 
 async function toggleRaiseHand(page: Page, label: string): Promise<void> {
   const button = page.getByRole('button', { name: label });
-  await moveAndClick(page, button, 600);
+  await moveAndClick(page, button, 350);
 }
 
 async function setup(browser: Browser): Promise<BrowserContext> {
@@ -99,18 +102,21 @@ async function record(page: Page): Promise<readonly Step[]> {
   await startCall(page);
   await maskRealHost(page);
   await disableCameraInCall(page);
-  await pause(1500);
+  // Camera-off scenes are static avatar frames, so a hold over ~1s reads as a
+  // frozen screen. Keep the payoff holds short (~0.9s) — enough to register
+  // the state change without freezing.
+  await pause(900);
 
   await openReactionPicker(page);
   await page.getByRole('menuitem', { name: CLAP_REACTION_LABEL }).waitFor({ state: 'visible', timeout: 10000 });
-  await pause(1000);
+  await pause(900);
 
   await sendClapReaction(page);
-  await pause(1500);
+  await pause(900);
 
   await toggleRaiseHand(page, RAISE_HAND_LABEL);
   await page.getByRole('button', { name: LOWER_HAND_LABEL }).waitFor({ state: 'visible', timeout: 10000 });
-  await pause(1500);
+  await pause(900);
 
   return [
     {

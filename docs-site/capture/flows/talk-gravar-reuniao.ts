@@ -10,7 +10,7 @@ const CONVERSATION_NAME = 'Reunião Gravada';
 const CONVERSATION_ACTIONS_LABEL = 'Ações de conversa';
 const START_RECORDING_LABEL = 'Começar a gravar';
 const RECORDING_STARTING_LABEL = 'Iniciando a gravação';
-const RECORDING_INDICATOR_PAUSE_MS = 3500;
+const RECORDING_INDICATOR_PAUSE_MS = 2500;
 
 async function dismissBrowserWarning(page: Page): Promise<void> {
   const closeIcon = page.locator('.toastify').getByText('✖').first();
@@ -32,8 +32,11 @@ async function createConversation(page: Page): Promise<void> {
   const createDialog = page.getByRole('dialog');
   const nameField = createDialog.getByPlaceholder('Digite um nome para esta conversa');
   await nameField.waitFor({ state: 'visible', timeout: 15000 });
+  // Fill instantly (not typed): with the mouse stationary, per-key typing is a
+  // tiny frame delta that reads as a frozen frame to freezedetect, so it only
+  // lengthens the static window. Instant fill keeps the name-entry near zero.
   await nameField.fill(CONVERSATION_NAME);
-  await pause(500);
+  await pause(300);
 
   const createButton = createDialog.getByRole('button', { name: 'Criando conversa' });
   await moveAndClick(page, createButton, 600);
@@ -93,7 +96,9 @@ async function record(page: Page): Promise<readonly Step[]> {
   // Camera-A: kill the video feed before anything else happens, so the
   // color-bar window is a fraction of a second, never a showcased pause.
   await disableCameraInCall(page);
-  await pause(1200);
+  // Camera-off scenes are static avatar frames, so a hold over ~1s reads as a
+  // frozen screen. Keep this to ~0.9s before opening the actions menu.
+  await pause(900);
 
   await openConversationActions(page);
   const startRecordingOption = findStartRecordingOption(page);

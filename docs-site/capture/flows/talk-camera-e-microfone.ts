@@ -28,8 +28,11 @@ async function createConversation(page: Page): Promise<void> {
   const createDialog = page.getByRole('dialog');
   const nameField = createDialog.getByPlaceholder('Digite um nome para esta conversa');
   await nameField.waitFor({ state: 'visible', timeout: 15000 });
+  // Fill instantly (not typed): with the mouse stationary, per-key typing is a
+  // tiny frame delta that reads as a frozen frame to freezedetect, so it only
+  // lengthens the static window. Instant fill keeps the name-entry near zero.
   await nameField.fill(CONVERSATION_NAME);
-  await pause(500);
+  await pause(300);
 
   const createButton = createDialog.getByRole('button', { name: 'Criando conversa' });
   await moveAndClick(page, createButton, 600);
@@ -67,7 +70,10 @@ async function disableCameraInCall(page: Page): Promise<void> {
 
 async function toggleMicrophone(page: Page, label: string): Promise<void> {
   const button = page.getByRole('button', { name: label, exact: true });
-  await moveAndClick(page, button, 600);
+  // Short pre-click pause: both mic toggles hit the SAME button, so the cursor
+  // barely moves and this pause is pure static — keep it brief so the two
+  // toggles don't chain into one long frozen span.
+  await moveAndClick(page, button, 300);
 }
 
 // Points the cursor at the camera button while it reads "Ativar vídeo"
@@ -96,18 +102,22 @@ async function record(page: Page): Promise<readonly Step[]> {
   // Camera-A: kill the video feed before anything else happens, so the
   // color-bar window is a fraction of a second, never a showcased pause.
   await disableCameraInCall(page);
-  await pause(1200);
+  await pause(900);
 
+  // Both mic toggles hit the SAME button, so no cursor motion separates them:
+  // holding ~0.9s each chains into one long frozen span. Keep each hold short
+  // enough (with the 300ms pre-click pause) that the between-toggle static
+  // stays under freezedetect's 1.2s floor while the label change still reads.
   await toggleMicrophone(page, 'Desativar microfone');
   await page.getByRole('button', { name: 'Ativar microfone', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-  await pause(1200);
+  await pause(600);
 
   await toggleMicrophone(page, 'Ativar microfone');
   await page.getByRole('button', { name: 'Desativar microfone', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-  await pause(1200);
+  await pause(600);
 
   await showcaseCameraButtonOff(page);
-  await pause(1200);
+  await pause(900);
 
   return [
     {

@@ -29,8 +29,11 @@ async function createConversation(page: Page): Promise<void> {
   const createDialog = page.getByRole('dialog');
   const nameField = createDialog.getByPlaceholder('Digite um nome para esta conversa');
   await nameField.waitFor({ state: 'visible', timeout: 15000 });
-  await nameField.fill(CONVERSATION_NAME);
-  await pause(500);
+  // Type the name (rather than fill) so the otherwise-static dialog shows real
+  // motion — a static screen held while filling instantly reads as a frozen
+  // frame to freezedetect.
+  await nameField.pressSequentially(CONVERSATION_NAME, { delay: 45 });
+  await pause(300);
 
   const createButton = createDialog.getByRole('button', { name: 'Criando conversa' });
   await moveAndClick(page, createButton, 600);
@@ -57,13 +60,17 @@ async function waitForChatReady(page: Page): Promise<void> {
 
 async function sendMessage(page: Page, text: string): Promise<void> {
   const input = chatInput(page);
-  await moveAndClick(page, input, 500);
-  await input.type(text, { delay: 40 });
-  await pause(500);
+  await moveAndClick(page, input, 300);
+  // Type fast: while typing, the mouse is stationary and each character is a
+  // tiny frame delta, so the whole typing window reads as a frozen frame to
+  // freezedetect. A shorter per-key delay keeps that static window brief while
+  // still showing the text being typed.
+  await input.type(text, { delay: 22 });
+  await pause(250);
 
-  await moveAndClick(page, sendButton(page), 500);
+  await moveAndClick(page, sendButton(page), 300);
   await page.getByText(text).first().waitFor({ state: 'visible', timeout: 15000 });
-  await pause(800);
+  await pause(500);
 }
 
 async function setup(browser: Browser): Promise<BrowserContext> {
@@ -75,7 +82,7 @@ async function record(page: Page): Promise<readonly Step[]> {
   await dismissBrowserWarning(page);
   await createConversation(page);
   await waitForChatReady(page);
-  await pause(600);
+  await pause(300);
 
   await sendMessage(page, FIRST_MESSAGE);
   await sendMessage(page, SECOND_MESSAGE);

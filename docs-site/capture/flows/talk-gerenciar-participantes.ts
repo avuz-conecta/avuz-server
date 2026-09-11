@@ -1,6 +1,6 @@
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import type { Flow } from '../run';
-import { login, loginOnPage } from '../lib/browser';
+import { login } from '../lib/browser';
 import { CONFIG } from '../config';
 import { moveAndClick, pause } from '../lib/screencast';
 import { maskRealHost } from '../lib/capture-helpers';
@@ -105,9 +105,59 @@ async function promoteParticipant(host: Page, participantName: string): Promise<
   await participantRow.getByText('(moderador)').waitFor({ state: 'visible', timeout: 15000 });
 }
 
+// Bruno (the guest) runs OFF the recording. He logs in and lands on the Talk
+// app in setup() — the slow part — so nothing of his login/navigation reaches
+// the video; he only exists to make a second avatar tile Ana can moderate.
+// His actual join happens later, once Ana's call is live.
+let guestContext: BrowserContext | null = null;
+let guestPage: Page | null = null;
+
+// Off-camera join: unpaced plain clicks (no moveAndClick pauses) so Ana's
+// recorded screen freezes for as little wall-clock as possible. The guest page
+// is refreshed so the just-created conversation shows, then waits for Ana's
+// live call before clicking "Entrar na chamada".
+async function joinCallUnpaced(page: Page, label: string): Promise<void> {
+  const trigger = page.getByRole('button', { name: label }).first();
+  await trigger.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
+  for (let attempt = 0; attempt < 40; attempt++) {
+    if (!(await trigger.isDisabled())) break;
+    await pause(500);
+  }
+  await dismissBrowserWarning(page);
+  await trigger.click();
+
+  const dialog = page.getByRole('dialog');
+  const confirmButton = dialog.getByRole('button', { name: label });
+  await confirmButton.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
+  await confirmButton.click();
+}
+
+async function disableCameraUnpaced(page: Page): Promise<void> {
+  const disableButton = page.getByRole('button', { name: 'Desativar vídeo' }).first();
+  await disableButton.waitFor({ state: 'visible', timeout: 15000 });
+  await disableButton.click();
+  await page.getByRole('button', { name: 'Ativar vídeo' }).waitFor({ state: 'visible', timeout: 10000 });
+}
+
+async function joinCallAsGuestOffCamera(meetingName: string): Promise<void> {
+  if (!guestPage) throw new Error('guest page was not initialised in setup()');
+  await guestPage.goto(`${CONFIG.stagingUrl}/apps/spreed`);
+  await dismissBrowserWarning(guestPage);
+  const conversationEntry = guestPage.getByRole('link', { name: new RegExp(meetingName) }).first();
+  await conversationEntry.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
+  await conversationEntry.click();
+  await joinCallUnpaced(guestPage, 'Entrar na chamada');
+  await disableCameraUnpaced(guestPage);
+}
+
 async function setup(browser: Browser): Promise<BrowserContext> {
-  const { context } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
-  return context;
+  const ana = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
+  const guest = await login(browser, 'demo.bruno', CONFIG.demoUserPassword);
+  guestContext = guest.context;
+  guestPage = guest.page;
+  await guestPage.goto(`${CONFIG.stagingUrl}/apps/spreed`);
+  await dismissBrowserWarning(guestPage);
+  return ana.context;
 }
 
 async function record(anaPage: Page): Promise<readonly Step[]> {
@@ -115,34 +165,19 @@ async function record(anaPage: Page): Promise<readonly Step[]> {
   await createMeetingWithGuest(anaPage);
   await pause(300);
 
+  // Kick off Bruno's join concurrently: it refreshes his Talk list and then
+  // blocks on "Entrar na chamada" until Ana's call is live, so his page load
+  // overlaps Ana's own recorded call-start instead of freezing her screen.
+  const guestJoin = joinCallAsGuestOffCamera(MEETING_NAME);
+
   await startOrJoinCall(anaPage, 'Iniciar chamada');
   await maskRealHost(anaPage);
   // Turn the camera off promptly — any color-bar frame before this registers
   // is brief, and the recorded "showcase" pause happens later, once both
   // parties' tiles are clean avatars.
   await disableCameraInCall(anaPage);
-  await pause(300);
 
-  // Bruno joins from a separate context spawned off the SAME browser
-  // instance, so it inherits the fake-media launch flags (synthetic camera
-  // feed) just like Ana's recorded context.
-  const anaBrowser = anaPage.context().browser();
-  if (!anaBrowser) throw new Error('recorded context has no browser');
-  const brunoContext = await anaBrowser.newContext({
-    viewport: CONFIG.viewport,
-    permissions: ['camera', 'microphone'],
-  });
-  const brunoPage = await brunoContext.newPage();
-  await loginOnPage(brunoPage, 'demo.bruno', CONFIG.demoUserPassword);
-  await brunoPage.goto(`${CONFIG.stagingUrl}/apps/spreed`);
-  await dismissBrowserWarning(brunoPage);
-
-  const conversationEntry = brunoPage.getByRole('link', { name: new RegExp(MEETING_NAME) }).first();
-  await conversationEntry.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
-  await conversationEntry.click();
-
-  await startOrJoinCall(brunoPage, 'Entrar na chamada');
-  await disableCameraInCall(brunoPage);
+  await guestJoin;
 
   await waitForCallParticipants(anaPage, CALL_PARTICIPANT_COUNT, CALL_WAIT_TIMEOUT_MS);
   await maskRealHost(anaPage);
@@ -157,7 +192,10 @@ async function record(anaPage: Page): Promise<readonly Step[]> {
   await promoteParticipant(anaPage, GUEST_DISPLAY_NAME);
   await pause(500);
 
-  await brunoContext.close();
+  if (guestContext) {
+    await guestContext.close();
+    guestContext = null;
+  }
 
   return [
     {
