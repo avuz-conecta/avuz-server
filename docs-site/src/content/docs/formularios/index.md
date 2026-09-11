@@ -13,3 +13,4 @@ Os **Formulários** permitem criar pesquisas e questionários para coletar respo
 - [Como tornar uma pergunta obrigatória](/formularios/pergunta-obrigatoria/)
 - [Como compartilhar um formulário](/formularios/compartilhar-formulario/)
 - [Como ver as respostas](/formularios/ver-respostas/)
+- [Como exportar as respostas](/formularios/exportar-respostas/)
