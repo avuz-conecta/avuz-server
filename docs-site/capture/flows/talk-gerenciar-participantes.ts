@@ -9,7 +9,7 @@ import type { Step } from '../lib/steps';
 const MEETING_NAME = 'Reunião Geral';
 const GUEST_DISPLAY_NAME = 'Bruno Lima';
 const CALL_WAIT_TIMEOUT_MS = 40000;
-const CALL_TILE_COUNT = 2;
+const CALL_PARTICIPANT_COUNT = 2;
 
 async function dismissBrowserWarning(page: Page): Promise<void> {
   const closeIcon = page.locator('.toastify').getByText('✖').first();
@@ -20,16 +20,16 @@ async function dismissBrowserWarning(page: Page): Promise<void> {
 
 async function createMeetingWithGuest(host: Page): Promise<void> {
   const newConversationButton = host.getByRole('button', { name: 'Criar uma nova conversa' });
-  await moveAndClick(host, newConversationButton, 600);
+  await moveAndClick(host, newConversationButton, 350);
 
   const createDialog = host.getByRole('dialog');
   const nameField = createDialog.getByPlaceholder('Digite um nome para esta conversa');
   await nameField.waitFor({ state: 'visible', timeout: 15000 });
   await nameField.fill(MEETING_NAME);
-  await pause(500);
+  await pause(300);
 
   const addParticipantsButton = createDialog.getByRole('button', { name: 'Adicionar participantes' });
-  await moveAndClick(host, addParticipantsButton, 500);
+  await moveAndClick(host, addParticipantsButton, 300);
 
   const participantSearch = createDialog.getByLabel('Procurar participantes');
   await participantSearch.waitFor({ state: 'visible', timeout: 15000 });
@@ -37,10 +37,10 @@ async function createMeetingWithGuest(host: Page): Promise<void> {
 
   const brunoOption = createDialog.getByText(GUEST_DISPLAY_NAME).first();
   await brunoOption.waitFor({ state: 'visible', timeout: 15000 });
-  await moveAndClick(host, brunoOption, 500);
+  await moveAndClick(host, brunoOption, 300);
 
   const createButton = createDialog.getByRole('button', { name: 'Criando conversa' });
-  await moveAndClick(host, createButton, 600);
+  await moveAndClick(host, createButton, 350);
   await host.getByRole('heading', { name: MEETING_NAME }).waitFor({ state: 'visible', timeout: 20000 });
 }
 
@@ -52,43 +52,54 @@ async function startOrJoinCall(page: Page, label: string): Promise<void> {
     await pause(1000);
   }
   await dismissBrowserWarning(page);
-  await moveAndClick(page, trigger, 600);
+  await moveAndClick(page, trigger, 350);
 
   const dialog = page.getByRole('dialog');
   const confirmButton = dialog.getByRole('button', { name: label });
   await confirmButton.waitFor({ state: 'visible', timeout: 20000 });
-  await moveAndClick(page, confirmButton, 600);
+  await moveAndClick(page, confirmButton, 350);
 }
 
-async function waitForCallTiles(page: Page, tileCount: number, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const visibleTiles = await page.locator('video').count();
-    if (visibleTiles >= tileCount) return;
-    await pause(1000);
-  }
-  throw new Error(`BLOCKED: call never rendered ${tileCount} video tiles within ${timeoutMs}ms`);
+// Turns the camera off via the in-call toolbar, right after a party joins.
+// The tile switches from the synthetic color-bar feed to a clean avatar
+// (initials circle) as soon as Talk registers the track is off.
+async function disableCameraInCall(page: Page): Promise<void> {
+  const disableButton = page.getByRole('button', { name: 'Desativar vídeo' }).first();
+  await disableButton.waitFor({ state: 'visible', timeout: 15000 });
+  await moveAndClick(page, disableButton, 300);
+  await page.getByRole('button', { name: 'Ativar vídeo' }).waitFor({ state: 'visible', timeout: 10000 });
+}
+
+// Robust presence check that does NOT depend on <video> elements: with
+// cameras off, Talk keeps a hidden <video> per tile (display:none) instead of
+// omitting it, so counting video nodes is unreliable either way. The call
+// header's participant badge (aria-label "N participante(s) na chamada") is
+// the stable signal that both avatar tiles have actually joined.
+async function waitForCallParticipants(page: Page, participantCount: number, timeoutMs: number): Promise<void> {
+  const label = new RegExp(`^${participantCount} participantes? na chamada$`);
+  const participantBadge = page.getByRole('button', { name: label });
+  await participantBadge.waitFor({ state: 'visible', timeout: timeoutMs });
 }
 
 async function openParticipantsPanel(host: Page): Promise<void> {
   const participantsTab = host.getByRole('tab', { name: /^Participantes/ });
   await participantsTab.waitFor({ state: 'visible', timeout: 15000 });
-  await moveAndClick(host, participantsTab, 600);
+  await moveAndClick(host, participantsTab, 350);
 }
 
 async function openParticipantOptionsMenu(host: Page, participantName: string): Promise<void> {
   const participantRow = host.locator(`li[aria-label='Participante "${participantName}"']`);
   await participantRow.waitFor({ state: 'visible', timeout: 15000 });
   await participantRow.hover();
-  await pause(400);
+  await pause(200);
 
   const optionsButton = host.getByRole('button', { name: `Configurações para o participante "${participantName}"` });
-  await moveAndClick(host, optionsButton, 600);
+  await moveAndClick(host, optionsButton, 350);
 }
 
 async function promoteParticipant(host: Page, participantName: string): Promise<void> {
   const promoteMenuItem = host.getByRole('menuitem', { name: 'Promover a moderador' });
-  await moveAndClick(host, promoteMenuItem, 600);
+  await moveAndClick(host, promoteMenuItem, 350);
 
   const participantRow = host.locator(`li[aria-label='Participante "${participantName}"']`);
   await participantRow.getByText('(moderador)').waitFor({ state: 'visible', timeout: 15000 });
@@ -102,11 +113,15 @@ async function setup(browser: Browser): Promise<BrowserContext> {
 async function record(anaPage: Page): Promise<readonly Step[]> {
   await dismissBrowserWarning(anaPage);
   await createMeetingWithGuest(anaPage);
-  await pause(600);
+  await pause(300);
 
   await startOrJoinCall(anaPage, 'Iniciar chamada');
   await maskRealHost(anaPage);
-  await pause(800);
+  // Turn the camera off promptly — any color-bar frame before this registers
+  // is brief, and the recorded "showcase" pause happens later, once both
+  // parties' tiles are clean avatars.
+  await disableCameraInCall(anaPage);
+  await pause(300);
 
   // Bruno joins from a separate context spawned off the SAME browser
   // instance, so it inherits the fake-media launch flags (synthetic camera
@@ -127,19 +142,20 @@ async function record(anaPage: Page): Promise<readonly Step[]> {
   await conversationEntry.click();
 
   await startOrJoinCall(brunoPage, 'Entrar na chamada');
+  await disableCameraInCall(brunoPage);
 
-  await waitForCallTiles(anaPage, CALL_TILE_COUNT, CALL_WAIT_TIMEOUT_MS);
+  await waitForCallParticipants(anaPage, CALL_PARTICIPANT_COUNT, CALL_WAIT_TIMEOUT_MS);
   await maskRealHost(anaPage);
-  await pause(1500);
+  await pause(500);
 
   await openParticipantsPanel(anaPage);
-  await pause(800);
+  await pause(300);
 
   await openParticipantOptionsMenu(anaPage, GUEST_DISPLAY_NAME);
-  await pause(1200);
+  await pause(400);
 
   await promoteParticipant(anaPage, GUEST_DISPLAY_NAME);
-  await pause(1500);
+  await pause(500);
 
   await brunoContext.close();
 
