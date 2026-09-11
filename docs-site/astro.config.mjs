@@ -17,6 +17,7 @@ export default defineConfig({
         { label: 'Talk', items: [{ autogenerate: { directory: 'talk' } }] },
         { label: 'Tarefas', items: [{ autogenerate: { directory: 'tarefas' } }] },
         { label: 'Agenda', items: [{ autogenerate: { directory: 'agenda' } }] },
+        { label: 'Formulários', items: [{ autogenerate: { directory: 'formularios' } }] },
       ],
       pagefind: true,
     }),
