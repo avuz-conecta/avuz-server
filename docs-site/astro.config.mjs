@@ -21,6 +21,7 @@ export default defineConfig({
         { label: 'Contatos', items: [{ autogenerate: { directory: 'contatos' } }] },
         { label: 'Painel', items: [{ autogenerate: { directory: 'painel' } }] },
         { label: 'Atividade', items: [{ autogenerate: { directory: 'atividade' } }] },
+        { label: 'Minha conta', items: [{ autogenerate: { directory: 'minha-conta' } }] },
       ],
       pagefind: true,
     }),
