@@ -2,7 +2,7 @@ import type { Browser, BrowserContext, Page } from '@playwright/test';
 import type { Flow } from '../run';
 import { login } from '../lib/browser';
 import { CONFIG } from '../config';
-import { moveAndClick, pause } from '../lib/screencast';
+import { moveAndClick, moveTo, pause } from '../lib/screencast';
 import { maskRealHost } from '../lib/capture-helpers';
 import type { Step } from '../lib/steps';
 
@@ -50,14 +50,32 @@ async function startCall(page: Page): Promise<void> {
   await moveAndClick(page, confirmButton, 600);
 }
 
+// Turns the camera off via the in-call toolbar, right after joining. This
+// MUST be the very first action taken once the call view is up — before any
+// other pause or click — so the synthetic color-bar feed is on screen for
+// only a fraction of a second before the tile becomes a clean avatar.
+// Proven pattern, reused from talk-iniciar-reuniao.ts's disableCameraInCall.
+async function disableCameraInCall(page: Page): Promise<void> {
+  const disableButton = page.getByRole('button', { name: 'Desativar vídeo' }).first();
+  await disableButton.waitFor({ state: 'visible', timeout: 15000 });
+  await moveAndClick(page, disableButton, 300);
+  await page.getByRole('button', { name: 'Ativar vídeo' }).waitFor({ state: 'visible', timeout: 10000 });
+}
+
 async function toggleMicrophone(page: Page, label: string): Promise<void> {
   const button = page.getByRole('button', { name: label, exact: true });
   await moveAndClick(page, button, 600);
 }
 
-async function toggleCamera(page: Page, label: string): Promise<void> {
-  const button = page.getByRole('button', { name: label }).first();
-  await moveAndClick(page, button, 600);
+// Points the cursor at the camera button while it reads "Ativar vídeo"
+// (camera off) WITHOUT clicking it. This flow is camera-A: the synthetic
+// feed never turns back on, so the tile stays a clean avatar for the whole
+// clip instead of flashing color bars when the fake track restarts.
+async function showcaseCameraButtonOff(page: Page): Promise<void> {
+  const cameraButton = page.getByRole('button', { name: 'Ativar vídeo' }).first();
+  const box = await cameraButton.boundingBox();
+  if (!box) throw new Error('showcaseCameraButtonOff: camera button has no bounding box (not visible?)');
+  await moveTo(page, box);
 }
 
 async function setup(browser: Browser): Promise<BrowserContext> {
@@ -72,18 +90,20 @@ async function record(page: Page): Promise<readonly Step[]> {
 
   await startCall(page);
   await maskRealHost(page);
-  await pause(2000);
+  // Camera-A: kill the video feed before anything else happens, so the
+  // color-bar window is a fraction of a second, never a showcased pause.
+  await disableCameraInCall(page);
+  await pause(1200);
 
   await toggleMicrophone(page, 'Desativar microfone');
   await page.getByRole('button', { name: 'Ativar microfone', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   await pause(1200);
 
-  await toggleCamera(page, 'Desativar vídeo');
-  await page.getByRole('button', { name: 'Ativar vídeo' }).waitFor({ state: 'visible', timeout: 10000 });
+  await toggleMicrophone(page, 'Ativar microfone');
+  await page.getByRole('button', { name: 'Desativar microfone', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   await pause(1200);
 
-  await toggleCamera(page, 'Ativar vídeo');
-  await page.getByRole('button', { name: 'Desativar vídeo' }).waitFor({ state: 'visible', timeout: 10000 });
+  await showcaseCameraButtonOff(page);
   await pause(1200);
 
   return [
@@ -97,11 +117,11 @@ async function record(page: Page): Promise<readonly Step[]> {
     },
     {
       n: 3,
-      text: 'Clique em **Desativar vídeo** para desligar a câmera; sua imagem é substituída por um avatar e o botão passa a mostrar **Ativar vídeo**.',
+      text: 'Clique em **Ativar microfone** para reativar o som a qualquer momento; o botão volta a mostrar **Desativar microfone**.',
     },
     {
       n: 4,
-      text: 'Clique em **Ativar vídeo** para ligar a câmera de novo a qualquer momento durante a chamada.',
+      text: 'O botão de vídeo liga e desliga sua câmera durante a chamada; quando desativada (**Ativar vídeo**), sua imagem aparece como um avatar para os demais participantes.',
     },
   ];
 }
