@@ -12,3 +12,4 @@ Os **Formulários** permitem criar pesquisas e questionários para coletar respo
 - [Como adicionar perguntas](/formularios/adicionar-perguntas/)
 - [Como tornar uma pergunta obrigatória](/formularios/pergunta-obrigatoria/)
 - [Como compartilhar um formulário](/formularios/compartilhar-formulario/)
+- [Como ver as respostas](/formularios/ver-respostas/)
