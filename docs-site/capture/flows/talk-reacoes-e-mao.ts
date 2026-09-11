@@ -18,6 +18,14 @@ async function dismissBrowserWarning(page: Page): Promise<void> {
   }
 }
 
+// Creates a solo conversation WITHOUT ever opening the "Adicionar
+// participantes" picker. That picker lists every real user on the tenant,
+// which is a privacy leak in a screencast — this flow showcases reactions
+// and raise-hand, not participants, so a solo conversation is enough. The
+// name-entry dialog already exposes a direct "Criando conversa" button once
+// the name field is filled; clicking it skips the picker entirely. (Found
+// while re-capturing this flow for the camera-timing fix below — the old
+// two-step Adicionar-participantes flow flashed the tenant's real user list.)
 async function createConversation(page: Page): Promise<void> {
   const newConversationButton = page.getByRole('button', { name: 'Criar uma nova conversa' });
   await moveAndClick(page, newConversationButton, 600);
@@ -27,9 +35,6 @@ async function createConversation(page: Page): Promise<void> {
   await nameField.waitFor({ state: 'visible', timeout: 15000 });
   await nameField.fill(CONVERSATION_NAME);
   await pause(500);
-
-  const addParticipantsButton = createDialog.getByRole('button', { name: 'Adicionar participantes' });
-  await moveAndClick(page, addParticipantsButton, 500);
 
   const createButton = createDialog.getByRole('button', { name: 'Criando conversa' });
   await moveAndClick(page, createButton, 600);
