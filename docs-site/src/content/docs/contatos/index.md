@@ -10,3 +10,4 @@ Os **Contatos** guardam as informações das pessoas com quem você se comunica 
 
 - [Como criar um contato](/contatos/criar-contato/)
 - [Como editar um contato](/contatos/editar-contato/)
+- [Como organizar contatos em grupos](/contatos/criar-grupo/)
