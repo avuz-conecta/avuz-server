@@ -11,7 +11,10 @@ export default defineConfig({
       defaultLocale: 'root',
       locales: { root: { label: 'Português (Brasil)', lang: 'pt-BR' } },
       logo: { src: './src/assets/avuz-logo.png', replacesTitle: false },
-      components: { Hero: './src/components/HomeHero.astro' },
+      components: {
+        Hero: './src/components/HomeHero.astro',
+        SocialIcons: './src/components/SupportButton.astro',
+      },
       head: [
         {
           // Starlight doesn't scroll its sidebar to the active page on load, so
