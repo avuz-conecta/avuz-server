@@ -11,6 +11,10 @@ export default defineConfig({
       defaultLocale: 'root',
       locales: { root: { label: 'Português (Brasil)', lang: 'pt-BR' } },
       logo: { src: './src/assets/avuz-logo.png', replacesTitle: false },
+      // Task pages are single-topic step lists with no subheadings, so the
+      // right-hand "Nesta página" TOC only ever shows the page's own title —
+      // identical on every page. Drop it (and reclaim the content width).
+      tableOfContents: false,
       components: {
         Hero: './src/components/HomeHero.astro',
         SocialIcons: './src/components/SupportButton.astro',
