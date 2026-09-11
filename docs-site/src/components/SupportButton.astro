@@ -9,7 +9,6 @@ const FULL_LABEL = 'Não encontrou o que precisa? Fale com o nosso suporte no Wh
 ---
 <a class="avuz-support" href={HREF} target="_blank" rel="noopener noreferrer" title={FULL_LABEL} aria-label={FULL_LABEL}>
   <span class="label">Precisa de ajuda? <b>Fale com o suporte</b></span>
-  <span class="label-short"><b>Suporte</b></span>
 </a>
 <style>
   .avuz-support {
@@ -35,20 +34,7 @@ const FULL_LABEL = 'Não encontrou o que precisa? Fale com o nosso suporte no Wh
     outline-offset: 3px;
     border-radius: 3px;
   }
-  .avuz-support .label b,
-  .avuz-support .label-short b {
+  .avuz-support .label b {
     font-weight: 600;
-  }
-  .avuz-support .label-short {
-    display: none;
-  }
-  /* Tight header space on small screens: short cue only. */
-  @media (max-width: 50rem) {
-    .avuz-support .label {
-      display: none;
-    }
-    .avuz-support .label-short {
-      display: inline;
-    }
   }
 </style>

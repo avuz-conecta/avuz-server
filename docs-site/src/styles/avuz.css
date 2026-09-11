@@ -28,3 +28,16 @@ a.site-title img {
   height: 1.35rem;
   width: auto;
 }
+
+/* On narrow phones the full "AvuzConecta · Ajuda" title clips in the top bar
+   (its wrapper uses overflow:clip). Shrink the title + logo so it fits whole. */
+@media (max-width: 30rem) {
+  .site-title {
+    font-size: 0.95rem;
+    gap: 0.4rem;
+  }
+  .site-title img,
+  a.site-title img {
+    height: 1.1rem;
+  }
+}
