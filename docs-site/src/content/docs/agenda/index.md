@@ -11,3 +11,4 @@ A **Agenda** reúne seus compromissos e reuniões. Crie eventos, convide pessoas
 - [Como definir lembretes](/agenda/lembretes/)
 - [Como compartilhar um calendário](/agenda/compartilhar-calendario/)
 - [Como mudar a visualização](/agenda/mudar-visualizacao/)
+- [Como editar ou excluir um evento](/agenda/editar-ou-excluir/)
