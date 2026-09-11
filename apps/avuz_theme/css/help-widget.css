@@ -1,0 +1,135 @@
+/**
+ * Subtle floating help launcher + support panel.
+ *
+ * Muted at rest, brand accent (#00679e) only on hover/focus. Uses Nextcloud
+ * theme variables so it adapts to light/dark. z-index sits above ordinary
+ * content but well below NC modals/dialogs (~10000+), so it never covers them.
+ */
+
+#avuz-help-widget {
+	position: fixed;
+	right: 18px;
+	/* Clear the app's own bottom-anchored UI (Talk bar, buttons, etc). */
+	bottom: 76px;
+	z-index: 1500;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 10px;
+}
+
+/* Launcher: small, round, low-emphasis at rest. */
+#avuz-help-widget .avuz-help-launcher {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	border-radius: 50%;
+	border: 1px solid var(--color-border);
+	background-color: var(--color-main-background);
+	color: var(--color-text-maxcontrast, var(--color-main-text));
+	opacity: 0.72;
+	cursor: pointer;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+	transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+#avuz-help-widget .avuz-help-launcher:hover,
+#avuz-help-widget .avuz-help-launcher:focus-visible,
+#avuz-help-widget.avuz-help-open .avuz-help-launcher {
+	opacity: 1;
+	color: #00679e;
+	border-color: #00679e;
+	box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+	transform: translateY(-1px);
+}
+
+#avuz-help-widget .avuz-help-launcher:focus-visible {
+	outline: 2px solid #00679e;
+	outline-offset: 2px;
+}
+
+/* Panel: hidden until open, quiet card above the launcher. */
+#avuz-help-widget .avuz-help-panel {
+	display: flex;
+	flex-direction: column;
+	min-width: 210px;
+	padding: 6px;
+	border-radius: var(--border-radius-large, 12px);
+	border: 1px solid var(--color-border);
+	background-color: var(--color-main-background);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+	opacity: 0;
+	visibility: hidden;
+	transform: translateY(6px);
+	pointer-events: none;
+	transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+}
+
+#avuz-help-widget.avuz-help-open .avuz-help-panel {
+	opacity: 1;
+	visibility: visible;
+	transform: translateY(0);
+	pointer-events: auto;
+}
+
+/* Options: quiet text + small leading icon, brand accent on hover only. */
+#avuz-help-widget .avuz-help-option {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 9px 12px;
+	border-radius: var(--border-radius, 8px);
+	color: var(--color-main-text);
+	text-decoration: none;
+	font-size: 14px;
+	line-height: 1.3;
+	transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+#avuz-help-widget .avuz-help-option:hover,
+#avuz-help-widget .avuz-help-option:focus-visible {
+	background-color: var(--color-background-hover);
+	color: #00679e;
+}
+
+#avuz-help-widget .avuz-help-option:focus-visible {
+	outline: 2px solid #00679e;
+	outline-offset: -2px;
+}
+
+#avuz-help-widget .avuz-help-option svg {
+	flex: 0 0 auto;
+	color: var(--color-text-maxcontrast, var(--color-main-text));
+	transition: color 0.15s ease;
+}
+
+#avuz-help-widget .avuz-help-option:hover svg,
+#avuz-help-widget .avuz-help-option:focus-visible svg {
+	color: #00679e;
+}
+
+#avuz-help-widget .avuz-help-option-label {
+	flex: 1 1 auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#avuz-help-widget .avuz-help-launcher,
+	#avuz-help-widget .avuz-help-panel,
+	#avuz-help-widget .avuz-help-option,
+	#avuz-help-widget .avuz-help-option svg {
+		transition: none;
+	}
+
+	#avuz-help-widget .avuz-help-launcher:hover,
+	#avuz-help-widget .avuz-help-launcher:focus-visible,
+	#avuz-help-widget.avuz-help-open .avuz-help-launcher {
+		transform: none;
+	}
+
+	#avuz-help-widget .avuz-help-panel {
+		transform: none;
+	}
+}
