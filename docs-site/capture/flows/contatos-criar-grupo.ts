@@ -8,12 +8,27 @@ import type { Step } from '../lib/steps';
 const CONTACT_NAME = 'Carla Mendes';
 const GROUP_NAME = 'Clientes';
 
+async function contactExists(page: Page, name: string): Promise<boolean> {
+  return page
+    .getByText(name, { exact: true })
+    .first()
+    .isVisible()
+    .catch(() => false);
+}
+
+// A "Novo contato" save silently never enables when the typed name already
+// matches an existing contact (the form doesn't error, it just never offers
+// Salvar), so setup skips the seed contact when it is already in the address
+// book instead of recreating it on every run.
 async function setup(browser: Browser): Promise<BrowserContext> {
   const { context, page } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
   await page.goto(`${CONFIG.stagingUrl}/apps/contacts`);
 
   const newContactButton = page.getByRole('button', { name: 'Novo contato', exact: true });
   await newContactButton.waitFor({ state: 'visible', timeout: 20000 });
+
+  if (await contactExists(page, CONTACT_NAME)) return context;
+
   await newContactButton.click();
 
   const nameField = page.getByRole('textbox', { name: 'Nome', exact: true });

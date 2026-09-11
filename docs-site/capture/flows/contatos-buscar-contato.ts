@@ -21,7 +21,16 @@ async function contactExists(page: Page, name: string): Promise<boolean> {
 // matches an existing contact (the form doesn't error, it just never offers
 // Salvar), so setup skips names that are already in the address book instead
 // of recreating them on every run.
+//
+// Creating several contacts back-to-back is fragile: after a save the app keeps
+// showing the just-saved contact, and clicking "Novo contato" from that state
+// can leave a stale form node that detaches mid-fill (Salvar never enables on
+// the node we hold). Each creation therefore starts from a freshly reloaded,
+// settled list, re-queries its fields, and waits for Salvar to actually enable
+// before clicking.
 async function createContact(page: Page, name: string): Promise<void> {
+  await page.goto(`${CONFIG.stagingUrl}/apps/contacts`);
+
   const newContactButton = page.getByRole('button', { name: 'Novo contato', exact: true });
   await newContactButton.waitFor({ state: 'visible', timeout: 20000 });
   await newContactButton.click();
@@ -31,6 +40,15 @@ async function createContact(page: Page, name: string): Promise<void> {
   await nameField.fill(name);
 
   const saveButton = page.getByRole('button', { name: 'Salvar', exact: true });
+  await saveButton.waitFor({ state: 'visible', timeout: 10000 });
+  await page.waitForFunction(
+    (label) => {
+      const button = [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === label);
+      return !!button && !(button as HTMLButtonElement).disabled;
+    },
+    'Salvar',
+    { timeout: 20000 },
+  );
   await saveButton.click({ timeout: 20000 });
 
   const contactListEntry = page.getByText(name).first();
