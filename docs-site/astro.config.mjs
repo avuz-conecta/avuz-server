@@ -20,6 +20,7 @@ export default defineConfig({
         { label: 'Formulários', items: [{ autogenerate: { directory: 'formularios' } }] },
         { label: 'Contatos', items: [{ autogenerate: { directory: 'contatos' } }] },
         { label: 'Painel', items: [{ autogenerate: { directory: 'painel' } }] },
+        { label: 'Atividade', items: [{ autogenerate: { directory: 'atividade' } }] },
       ],
       pagefind: true,
     }),
