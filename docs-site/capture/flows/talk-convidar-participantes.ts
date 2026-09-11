@@ -25,6 +25,14 @@ async function moveAndForceClick(page: Page, locator: Locator, pauseMs = 400): P
   await locator.click({ force: true });
 }
 
+// Creates the conversation WITHOUT clicking the create dialog's own
+// "Adicionar participantes" button. That button switches the dialog into a
+// search-participants panel that briefly shows an unfiltered/recent list of
+// every real user on the tenant before anything is typed — a privacy leak
+// in a screencast. It's also redundant here: the actual invite of Bruno is
+// demonstrated afterward via addParticipantBySearch() on the conversation's
+// own Participants panel, so this dialog only needs the direct "Criando
+// conversa" button once the name field is filled.
 async function createConversation(page: Page): Promise<void> {
   const newConversationButton = page.getByRole('button', { name: 'Criar uma nova conversa' });
   await moveAndClick(page, newConversationButton, 600);
@@ -35,20 +43,22 @@ async function createConversation(page: Page): Promise<void> {
   await nameField.fill(CONVERSATION_NAME);
   await pause(500);
 
-  const addParticipantsButton = createDialog.getByRole('button', { name: 'Adicionar participantes' });
-  await moveAndClick(page, addParticipantsButton, 500);
-
   const createButton = createDialog.getByRole('button', { name: 'Criando conversa' });
   await moveAndClick(page, createButton, 600);
   await page.getByRole('heading', { name: CONVERSATION_NAME }).waitFor({ state: 'visible', timeout: 20000 });
 }
 
+// Types the participant query the INSTANT the search field appears — no
+// pause beforehand. The Participants panel's "Procure ou adicione
+// participantes" field shows an unfiltered/recent list of every real tenant
+// user until a query narrows it, so any delay before filling it is a
+// privacy leak in the recording. Filling immediately means only "Bruno
+// Lima" (demo.bruno) is ever on screen.
 async function addParticipantBySearch(page: Page): Promise<void> {
   const participantSearch = page.getByRole('textbox', { name: 'Procure ou adicione participantes' });
   await participantSearch.waitFor({ state: 'visible', timeout: 15000 });
-  await pause(600);
-
   await participantSearch.fill(PARTICIPANT_QUERY);
+
   const participantOption = page.getByRole('checkbox', { name: `Adicionar participante "${PARTICIPANT_NAME}"` });
   await participantOption.waitFor({ state: 'visible', timeout: 15000 });
   await pause(500);
