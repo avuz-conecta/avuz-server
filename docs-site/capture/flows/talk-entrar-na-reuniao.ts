@@ -1,6 +1,6 @@
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import type { Flow } from '../run';
-import { login, loginOnPage } from '../lib/browser';
+import { login } from '../lib/browser';
 import { CONFIG } from '../config';
 import { moveAndClick, pause } from '../lib/screencast';
 import { maskRealHost } from '../lib/capture-helpers';
@@ -106,7 +106,24 @@ async function waitForCallParticipants(page: Page, participantCount: number, tim
   await participantBadge.waitFor({ state: 'visible', timeout: timeoutMs });
 }
 
+// Ana (the host) is set up OFF the recording: creating the meeting and
+// starting the call takes ~10s of wall-clock, and if that happens inside
+// record() the recorded user (Bruno) just stares at a static conversation
+// list the whole time. Doing it in setup() — which recordFlow runs before it
+// starts capturing — means Bruno's video opens on a call that is already live,
+// so it captures only his own join.
+let anaContext: BrowserContext | null = null;
+
 async function setup(browser: Browser): Promise<BrowserContext> {
+  const ana = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
+  anaContext = ana.context;
+  await ana.page.goto(`${CONFIG.stagingUrl}/apps/spreed`);
+  await dismissBrowserWarning(ana.page);
+  await createMeetingAsHost(ana.page);
+  await startCallAsHost(ana.page, 'Iniciar chamada');
+  // Turn Ana's camera off so she never renders as a color-bar feed for Bruno.
+  await disableCameraAsHost(ana.page);
+
   const { context } = await login(browser, 'demo.bruno', CONFIG.demoUserPassword);
   return context;
 }
@@ -114,33 +131,8 @@ async function setup(browser: Browser): Promise<BrowserContext> {
 async function record(brunoPage: Page): Promise<readonly Step[]> {
   await dismissBrowserWarning(brunoPage);
 
-  // Ana is spawned in a separate context off the SAME browser instance, so
-  // she inherits the fake-media launch flags too. She creates the meeting,
-  // adds Bruno and starts the call so there is something for the RECORDED
-  // user (Bruno) to join. Ana never appears on screen.
-  const brunoBrowser = brunoPage.context().browser();
-  if (!brunoBrowser) throw new Error('recorded context has no browser');
-  const anaContext = await brunoBrowser.newContext({
-    viewport: CONFIG.viewport,
-    permissions: ['camera', 'microphone'],
-  });
-  const anaPage = await anaContext.newPage();
-  await loginOnPage(anaPage, 'demo.ana', CONFIG.demoUserPassword);
-  await anaPage.goto(`${CONFIG.stagingUrl}/apps/spreed`);
-  await dismissBrowserWarning(anaPage);
-
-  await createMeetingAsHost(anaPage);
-  await startCallAsHost(anaPage, 'Iniciar chamada');
-  // Turn Ana's camera off promptly so she never renders as a color-bar
-  // feed — her tile only ever exists for Bruno's (recorded) call.
-  await disableCameraAsHost(anaPage);
-  await pause(500);
-
-  // Bruno's page was loaded before the conversation existed; reload so his
-  // list reflects Ana's finished setup instead of polling for it live.
-  await brunoPage.reload();
-  await dismissBrowserWarning(brunoPage);
-
+  // The meeting is already live (Ana set it up in setup()), so Bruno's fresh
+  // list shows it right away — no reload, no waiting on a static screen.
   const conversationEntry = brunoPage.getByRole('link', { name: new RegExp(MEETING_NAME) }).first();
   await conversationEntry.waitFor({ state: 'visible', timeout: CALL_WAIT_TIMEOUT_MS });
   await moveAndClick(brunoPage, conversationEntry, 600);
@@ -155,9 +147,15 @@ async function record(brunoPage: Page): Promise<readonly Step[]> {
 
   await waitForCallParticipants(brunoPage, CALL_PARTICIPANT_COUNT, CALL_WAIT_TIMEOUT_MS);
   await maskRealHost(brunoPage);
-  await pause(2000);
+  // Short payoff hold: cameras are off so both tiles are static avatars — a
+  // long pause here reads as a frozen screen. trimTrailingFreeze() in the
+  // encode step removes any remaining static tail deterministically.
+  await pause(900);
 
-  await anaContext.close();
+  if (anaContext) {
+    await anaContext.close();
+    anaContext = null;
+  }
 
   return [
     {

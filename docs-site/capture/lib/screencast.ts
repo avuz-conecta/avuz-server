@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rename } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { dirname } from 'node:path';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
@@ -127,6 +127,69 @@ export async function moveAndClick(page: Page, locator: Locator, pauseMs = 400):
   await moveTo(page, box);
   await pause(pauseMs);
   await locator.click();
+}
+
+function runFfmpeg(args: readonly string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn('ffmpeg', [...args]);
+    let stderr = '';
+    ffmpeg.stderr.on('data', (chunk) => {
+      stderr += String(chunk);
+    });
+    ffmpeg.on('error', reject);
+    ffmpeg.on('close', (code) => {
+      if (code === 0) return resolve(stderr);
+      reject(new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-500)}`));
+    });
+  });
+}
+
+async function probeDurationSeconds(mp4Path: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const ffprobe = spawn('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', mp4Path]);
+    let out = '';
+    ffprobe.stdout.on('data', (chunk) => {
+      out += String(chunk);
+    });
+    ffprobe.on('error', reject);
+    ffprobe.on('close', (code) => {
+      const seconds = Number.parseFloat(out.trim());
+      if (code === 0 && Number.isFinite(seconds)) return resolve(seconds);
+      reject(new Error(`ffprobe failed to read duration of ${mp4Path}`));
+    });
+  });
+}
+
+type FreezeSpan = { readonly start: number; readonly end: number };
+
+function lastFreezeSpan(freezeLog: string, videoDurationSeconds: number): FreezeSpan | null {
+  const starts = [...freezeLog.matchAll(/freeze_start:\s*([\d.]+)/g)].map((match) => Number.parseFloat(match[1]));
+  const ends = [...freezeLog.matchAll(/freeze_end:\s*([\d.]+)/g)].map((match) => Number.parseFloat(match[1]));
+  if (starts.length === 0) return null;
+  const start = starts[starts.length - 1];
+  // A freeze that runs to the end has no matching freeze_end line; ffmpeg emits
+  // one only when motion resumes. Fewer ends than starts => the last span is open.
+  const end = ends.length < starts.length ? videoDurationSeconds : ends[ends.length - 1];
+  return { start, end };
+}
+
+// Removes a static tail: a frozen run that reaches (near) the end of the clip
+// is trimmed to `tailSeconds` after it began. Camera-off Talk scenes are all
+// identical avatar frames, so a long trailing wait reads as a frozen screen;
+// this ends the video shortly after the last real motion. No-op when the clip
+// does not end on a freeze, so it is safe to run on every capture.
+export async function trimTrailingFreeze(mp4Path: string, tailSeconds = 1, minFreezeSeconds = 1.5): Promise<void> {
+  const duration = await probeDurationSeconds(mp4Path);
+  const freezeLog = await runFfmpeg(['-i', mp4Path, '-vf', 'freezedetect=n=-55dB:d=1', '-map', '0:v:0', '-f', 'null', '-']);
+  const span = lastFreezeSpan(freezeLog, duration);
+  if (!span) return;
+  const reachesEnd = duration - span.end <= 0.6;
+  if (!reachesEnd || span.end - span.start < minFreezeSeconds) return;
+  const cutSeconds = Math.min(duration, span.start + tailSeconds);
+  if (cutSeconds >= duration - 0.1) return;
+  const trimmedPath = `${mp4Path}.trimmed.mp4`;
+  await runFfmpeg(['-y', '-i', mp4Path, '-t', cutSeconds.toFixed(2), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', trimmedPath]);
+  await rename(trimmedPath, mp4Path);
 }
 
 export async function encodeWebm(webmPath: string, outMp4: string): Promise<void> {

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { resetTenant } from './seed/seed';
 import { launch } from './lib/browser';
-import { recordFlow, encodeWebm } from './lib/screencast';
+import { recordFlow, encodeWebm, trimTrailingFreeze } from './lib/screencast';
 import { writeTaskPage } from './lib/page-writer';
 import type { Step, TaskDoc } from './lib/steps';
 
@@ -60,6 +60,7 @@ async function main(): Promise<void> {
 
     const outMp4 = `public/assets/${flow.app}/${flow.slug}.mp4`;
     await encodeWebm(webmPath, outMp4);
+    await trimTrailingFreeze(outMp4);
 
     const doc = toTaskDoc(flow, steps);
     const path = await writeTaskPage(doc, flow.capturedForVersion, 'src/content/docs');
