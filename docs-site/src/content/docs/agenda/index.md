@@ -12,3 +12,4 @@ A **Agenda** reúne seus compromissos e reuniões. Crie eventos, convide pessoas
 - [Como compartilhar um calendário](/agenda/compartilhar-calendario/)
 - [Como mudar a visualização](/agenda/mudar-visualizacao/)
 - [Como editar ou excluir um evento](/agenda/editar-ou-excluir/)
+- [Como anexar uma reunião do Talk a um evento](/agenda/anexar-reuniao-talk/)
