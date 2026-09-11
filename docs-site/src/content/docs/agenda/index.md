@@ -7,3 +7,4 @@ A **Agenda** reúne seus compromissos e reuniões. Crie eventos, convide pessoas
 
 - [Como criar um evento](/agenda/criar-evento/)
 - [Como convidar participantes](/agenda/convidar-participantes/)
+- [Como criar um evento recorrente](/agenda/evento-recorrente/)
