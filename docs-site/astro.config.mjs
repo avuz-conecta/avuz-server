@@ -18,6 +18,7 @@ export default defineConfig({
         { label: 'Tarefas', items: [{ autogenerate: { directory: 'tarefas' } }] },
         { label: 'Agenda', items: [{ autogenerate: { directory: 'agenda' } }] },
         { label: 'Formulários', items: [{ autogenerate: { directory: 'formularios' } }] },
+        { label: 'Contatos', items: [{ autogenerate: { directory: 'contatos' } }] },
       ],
       pagefind: true,
     }),
