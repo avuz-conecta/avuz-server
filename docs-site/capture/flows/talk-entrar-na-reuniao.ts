@@ -8,7 +8,7 @@ import type { Step } from '../lib/steps';
 
 const MEETING_NAME = 'Reunião Semanal';
 const GUEST_DISPLAY_NAME = 'Bruno Lima';
-const CALL_TILE_COUNT = 2;
+const CALL_PARTICIPANT_COUNT = 2;
 const CALL_WAIT_TIMEOUT_MS = 40000;
 
 async function dismissBrowserWarning(page: Page): Promise<void> {
@@ -76,14 +76,34 @@ async function joinCallAsGuest(guest: Page, label: string): Promise<void> {
   await moveAndClick(guest, confirmButton, 600);
 }
 
-async function waitForCallTiles(page: Page, tileCount: number, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const visibleTiles = await page.locator('video').count();
-    if (visibleTiles >= tileCount) return;
-    await pause(1000);
-  }
-  throw new Error(`BLOCKED: call never rendered ${tileCount} video tiles within ${timeoutMs}ms`);
+// Turns the camera off via the in-call toolbar, right after a party joins.
+// The tile switches from the synthetic color-bar feed to a clean avatar
+// (initials circle) as soon as Talk registers the track is off. Ana runs
+// off-screen, so her toggle stays unpaced (plain click); Bruno is the
+// RECORDED user, so his toggle is paced (moveAndClick) to read clearly.
+async function disableCameraAsHost(host: Page): Promise<void> {
+  const disableButton = host.getByRole('button', { name: 'Desativar vídeo' }).first();
+  await disableButton.waitFor({ state: 'visible', timeout: 15000 });
+  await disableButton.click();
+  await host.getByRole('button', { name: 'Ativar vídeo' }).waitFor({ state: 'visible', timeout: 10000 });
+}
+
+async function disableCameraAsGuest(guest: Page): Promise<void> {
+  const disableButton = guest.getByRole('button', { name: 'Desativar vídeo' }).first();
+  await disableButton.waitFor({ state: 'visible', timeout: 15000 });
+  await moveAndClick(guest, disableButton, 300);
+  await guest.getByRole('button', { name: 'Ativar vídeo' }).waitFor({ state: 'visible', timeout: 10000 });
+}
+
+// Robust presence check that does NOT depend on <video> elements: with
+// cameras off, Talk keeps a hidden <video> per tile (display:none) instead of
+// omitting it, so counting video nodes is unreliable either way. The call
+// header's participant badge (aria-label "N participante(s) na chamada") is
+// the stable signal that both avatar tiles have actually joined.
+async function waitForCallParticipants(page: Page, participantCount: number, timeoutMs: number): Promise<void> {
+  const label = new RegExp(`^${participantCount} participantes? na chamada$`);
+  const participantBadge = page.getByRole('button', { name: label });
+  await participantBadge.waitFor({ state: 'visible', timeout: timeoutMs });
 }
 
 async function setup(browser: Browser): Promise<BrowserContext> {
@@ -111,6 +131,9 @@ async function record(brunoPage: Page): Promise<readonly Step[]> {
 
   await createMeetingAsHost(anaPage);
   await startCallAsHost(anaPage, 'Iniciar chamada');
+  // Turn Ana's camera off promptly so she never renders as a color-bar
+  // feed — her tile only ever exists for Bruno's (recorded) call.
+  await disableCameraAsHost(anaPage);
   await pause(500);
 
   // Bruno's page was loaded before the conversation existed; reload so his
@@ -123,8 +146,14 @@ async function record(brunoPage: Page): Promise<readonly Step[]> {
   await moveAndClick(brunoPage, conversationEntry, 600);
 
   await joinCallAsGuest(brunoPage, 'Entrar na chamada');
+  await maskRealHost(brunoPage);
+  // Turn Bruno's camera off right after joining — any color-bar frame
+  // before this registers is brief, and the recorded "showcase" pause
+  // happens later, once both tiles are clean avatars.
+  await disableCameraAsGuest(brunoPage);
+  await pause(300);
 
-  await waitForCallTiles(brunoPage, CALL_TILE_COUNT, CALL_WAIT_TIMEOUT_MS);
+  await waitForCallParticipants(brunoPage, CALL_PARTICIPANT_COUNT, CALL_WAIT_TIMEOUT_MS);
   await maskRealHost(brunoPage);
   await pause(2000);
 
