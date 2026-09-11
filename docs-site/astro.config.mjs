@@ -10,7 +10,7 @@ export default defineConfig({
       customCss: ['./src/styles/avuz.css'],
       defaultLocale: 'root',
       locales: { root: { label: 'Português (Brasil)', lang: 'pt-BR' } },
-      logo: { src: './src/assets/house-logo.svg', replacesTitle: false },
+      logo: { src: './src/assets/avuz-logo.png', replacesTitle: false },
       components: { Hero: './src/components/HomeHero.astro' },
       sidebar: [
         { label: 'Drive', items: [{ autogenerate: { directory: 'drive' } }] },
