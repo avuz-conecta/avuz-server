@@ -4,16 +4,20 @@
 // (see @astrojs/starlight/components/Page.astro), which today is only
 // src/content/docs/index.mdx with `template: splash`. That gating — not
 // anything in this file — is what keeps the app grid off inner doc pages.
+// Icons are the same Lucide-style app glyphs shipped by the AvuzConecta theme
+// (themes/avuz/apps/<app>/img/*.svg). Each `icon` holds the inner SVG markup;
+// the wrapper <svg> below supplies a currentColor stroke so every glyph
+// inherits the card's text color (and the brand color on hover).
 const APPS = [
-  { slug: 'drive', label: 'Drive', desc: 'Arquivos', icon: '📁' },
-  { slug: 'talk', label: 'Talk', desc: 'Reuniões', icon: '💬' },
-  { slug: 'tarefas', label: 'Tarefas', desc: 'Painéis e tarefas', icon: '✅' },
-  { slug: 'agenda', label: 'Agenda', desc: 'Compromissos', icon: '📅' },
-  { slug: 'formularios', label: 'Formulários', desc: 'Pesquisas', icon: '📝' },
-  { slug: 'contatos', label: 'Contatos', desc: 'Agenda de contatos', icon: '👥' },
-  { slug: 'painel', label: 'Painel', desc: 'Tela inicial', icon: '🏠' },
-  { slug: 'atividade', label: 'Atividade', desc: 'Histórico', icon: '⚡' },
-  { slug: 'minha-conta', label: 'Minha conta', desc: 'Conta e perfil', icon: '⚙️' },
+  { slug: 'drive', label: 'Drive', desc: 'Arquivos', icon: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>' },
+  { slug: 'talk', label: 'Talk', desc: 'Reuniões', icon: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>' },
+  { slug: 'tarefas', label: 'Tarefas', desc: 'Painéis e tarefas', icon: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 7v7"/><path d="M12 7v4"/><path d="M16 7v9"/>' },
+  { slug: 'agenda', label: 'Agenda', desc: 'Compromissos', icon: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>' },
+  { slug: 'formularios', label: 'Formulários', desc: 'Pesquisas', icon: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>' },
+  { slug: 'contatos', label: 'Contatos', desc: 'Agenda de contatos', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
+  { slug: 'painel', label: 'Painel', desc: 'Tela inicial', icon: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>' },
+  { slug: 'atividade', label: 'Atividade', desc: 'Histórico', icon: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>' },
+  { slug: 'minha-conta', label: 'Minha conta', desc: 'Conta e perfil', icon: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>' },
 ];
 ---
 <div class="avuz-hero">
@@ -29,7 +33,7 @@ const APPS = [
   {APPS.map((app) => (
     <li>
       <a class="avuz-card" href={`/${app.slug}/`}>
-        <span class="ic" aria-hidden="true">{app.icon}</span>
+        <svg class="ic" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" set:html={app.icon} />
         <b>{app.label}</b>
         <small>{app.desc}</small>
       </a>
@@ -126,8 +130,17 @@ const APPS = [
     transform: translateY(-2px);
   }
   .avuz-card .ic {
-    font-size: 1.8rem;
     display: block;
+    width: 2rem;
+    height: 2rem;
+    margin: 0 auto;
+    color: #00679e;
+  }
+  .avuz-card:hover .ic {
+    color: #2bb5e3;
+  }
+  :global([data-theme='dark']) .avuz-card .ic {
+    color: #2bb5e3;
   }
   .avuz-card b {
     font-family: 'Questrial', sans-serif;
