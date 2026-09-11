@@ -45,7 +45,7 @@ async function record(page: Page): Promise<readonly Step[]> {
   await pause(1000);
 
   return [
-    { n: 1, text: `Abra o **Drive** e localize **${FILE_NAME}** na lista de arquivos.` },
+    { n: 1, text: `Abra o **Drive** e localize o arquivo (ex.: **${FILE_NAME}**) na lista de arquivos.` },
     {
       n: 2,
       text: 'Clique em **Ações** na linha do arquivo e selecione **Excluir arquivo**.',

@@ -6,7 +6,7 @@ sidebar:
 capturedForVersion: "33.0.8"
 ---
 
-1. Abra o **Drive** e localize **relatorio.pdf** na lista de arquivos.
+1. Abra o **Drive** e localize o arquivo (ex.: **relatorio.pdf**) na lista de arquivos.
 2. Clique em **Opções de compartilhamento** na linha do arquivo.
 3. Em **Compartilhamentos externos**, clique em **Criar link público**: o Drive gera o link e já copia o endereço, confirmando com **Link copiado**.
 4. O link é criado e copiado automaticamente, disponível em **Link de compartilhamento** — é só colar onde quiser (e-mail, mensagem) para compartilhar.

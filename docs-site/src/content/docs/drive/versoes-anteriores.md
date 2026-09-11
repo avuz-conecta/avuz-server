@@ -6,7 +6,7 @@ sidebar:
 capturedForVersion: "33.0.8"
 ---
 
-1. Abra o **Drive** e localize **relatorio.pdf** na lista de arquivos.
+1. Abra o **Drive** e localize o arquivo (ex.: **relatorio.pdf**) na lista de arquivos.
 2. Clique em **Ações** na linha do arquivo e selecione **Detalhes** para abrir o painel lateral.
 3. No painel, clique na aba **Versões** para ver o histórico de alterações do arquivo.
 4. Cada versão anterior aparece na lista, com data e tamanho. Clique em **Ações** ao lado de uma versão para **Restaurar versão**, baixá-la ou renomeá-la.

@@ -6,7 +6,7 @@ sidebar:
 capturedForVersion: "33.0.8"
 ---
 
-1. Abra o **Drive** e localize **relatorio.pdf** na lista de arquivos.
+1. Abra o **Drive** e localize o arquivo (ex.: **relatorio.pdf**) na lista de arquivos.
 2. Clique em **Ações** na linha do arquivo.
 3. Selecione **Baixar**: o arquivo é salvo no seu computador, na pasta padrão de downloads do navegador.
 

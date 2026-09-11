@@ -6,7 +6,7 @@ sidebar:
 capturedForVersion: "33.0.8"
 ---
 
-1. Abra o **Drive** e localize **relatorio.pdf** na lista de arquivos.
+1. Abra o **Drive** e localize o arquivo (ex.: **relatorio.pdf**) na lista de arquivos.
 2. Clique em **Ações** na linha do arquivo e selecione **Excluir arquivo**.
 3. Abra **Arquivos excluídos** no menu lateral para ver o arquivo na lixeira.
 4. Clique em **Restaurar** na linha do arquivo.

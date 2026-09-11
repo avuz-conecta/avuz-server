@@ -52,7 +52,7 @@ async function record(page: Page): Promise<readonly Step[]> {
     },
     {
       n: 4,
-      text: `Abra **Favoritos** no menu lateral para ver **${FILE_NAME}** marcado com uma estrela na lista.`,
+      text: `Abra **Favoritos** no menu lateral para ver o arquivo (ex.: **${FILE_NAME}**) marcado com uma estrela na lista.`,
     },
   ];
 }
