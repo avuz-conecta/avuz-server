@@ -1,6 +1,9 @@
 ---
 title: Talk
 description: Faça reuniões por vídeo, converse e compartilhe a tela.
+sidebar:
+  order: 0
+  label: Visão geral
 ---
 
 O **Talk** é a ferramenta de reuniões e conversas do AvuzConecta.

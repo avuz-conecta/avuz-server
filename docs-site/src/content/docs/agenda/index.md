@@ -1,6 +1,9 @@
 ---
 title: Agenda
 description: Organize compromissos, reuniões e lembretes em um só lugar.
+sidebar:
+  order: 0
+  label: Visão geral
 ---
 
 A **Agenda** reúne seus compromissos e reuniões. Crie eventos, convide pessoas e receba lembretes para não perder nada.

@@ -21,3 +21,10 @@
 }
 .site-title { font-family: 'Questrial', system-ui, sans-serif; }
 h1, h2, h3 { font-family: 'Questrial', system-ui, sans-serif; }
+
+/* Header logo: AvuzConecta three-dots — a touch smaller */
+.site-title img,
+a.site-title img {
+  height: 1.35rem;
+  width: auto;
+}

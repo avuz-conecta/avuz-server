@@ -1,6 +1,9 @@
 ---
 title: Drive
 description: Guarde, organize e compartilhe seus arquivos com segurança.
+sidebar:
+  order: 0
+  label: Visão geral
 ---
 
 O **Drive** é onde você guarda e organiza seus arquivos na nuvem AvuzConecta.

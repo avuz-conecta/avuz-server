@@ -1,6 +1,9 @@
 ---
 title: Tarefas
 description: Organize o trabalho da equipe em painéis, listas e cartões.
+sidebar:
+  order: 0
+  label: Visão geral
 ---
 
 O **Tarefas** organiza o trabalho em painéis visuais: listas (colunas) com cartões que representam cada tarefa. Ideal para acompanhar projetos e dividir responsabilidades.
