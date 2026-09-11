@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Questrial&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --sl-font: 'Inter', system-ui, sans-serif;
+  --sl-font-headings: 'Questrial', sans-serif;
+  --sl-color-accent-low: #d7eefb;
+  --sl-color-accent: #2bb5e3;
+  --sl-color-accent-high: #00679e;
+  --sl-color-text-accent: #00679e;
+  --sl-border-radius: 12px;
+}
+:root[data-theme='light'] {
+  --sl-color-accent: #00679e;
+  --sl-color-text-accent: #00679e;
+}
+:root[data-theme='dark'] {
+  --sl-color-accent: #2bb5e3;
+  --sl-color-text-accent: #2bb5e3;
+  --sl-color-accent-low: #003653;
+  --sl-color-accent-high: #bfe6f7;
+}
+.site-title { font-family: 'Questrial', system-ui, sans-serif; }
+h1, h2, h3 { font-family: 'Questrial', system-ui, sans-serif; }
+
+/* Header logo: AvuzConecta three-dots — a touch smaller */
+.site-title img,
+a.site-title img {
+  height: 1.35rem;
+  width: auto;
+}
+
+/* On narrow phones the full "AvuzConecta · Ajuda" title clips in the top bar
+   (its wrapper uses overflow:clip). Shrink the title + logo so it fits whole. */
+@media (max-width: 30rem) {
+  .site-title {
+    font-size: 0.95rem;
+    gap: 0.4rem;
+  }
+  .site-title img,
+  a.site-title img {
+    height: 1.1rem;
+  }
+}

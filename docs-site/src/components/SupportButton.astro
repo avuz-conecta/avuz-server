@@ -1,0 +1,40 @@
+---
+// Rendered in Starlight's header (overrides the SocialIcons slot, right of
+// search). A quiet text link — WhatsApp is the support channel, but the cue
+// should be gentle, not a loud call-to-action.
+const PHONE = '5554993370993';
+const MESSAGE = 'Olá! Vim da Central de Ajuda do AvuzConecta e preciso de suporte.';
+const HREF = `https://wa.me/${PHONE}?text=${encodeURIComponent(MESSAGE)}`;
+const FULL_LABEL = 'Não encontrou o que precisa? Fale com o nosso suporte no WhatsApp.';
+---
+<a class="avuz-support" href={HREF} target="_blank" rel="noopener noreferrer" title={FULL_LABEL} aria-label={FULL_LABEL}>
+  <span class="label">Precisa de ajuda? <b>Fale com o suporte</b></span>
+</a>
+<style>
+  .avuz-support {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-xs);
+    line-height: 1.2;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color 0.15s;
+  }
+  .avuz-support:hover {
+    color: var(--sl-color-accent, #00679e);
+  }
+  .avuz-support:hover .label b {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .avuz-support:focus-visible {
+    outline: 2px solid var(--sl-color-accent, #2bb5e3);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+  .avuz-support .label b {
+    font-weight: 600;
+  }
+</style>

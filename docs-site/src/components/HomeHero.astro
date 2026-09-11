@@ -1,0 +1,153 @@
+---
+// Overrides Starlight's default Hero (see astro.config.mjs `components.Hero`).
+// Starlight only renders the Hero slot on pages with `hero` frontmatter set
+// (see @astrojs/starlight/components/Page.astro), which today is only
+// src/content/docs/index.mdx with `template: splash`. That gating — not
+// anything in this file — is what keeps the app grid off inner doc pages.
+// Icons are the same Lucide-style app glyphs shipped by the AvuzConecta theme
+// (themes/avuz/apps/<app>/img/*.svg). Each `icon` holds the inner SVG markup;
+// the wrapper <svg> below supplies a currentColor stroke so every glyph
+// inherits the card's text color (and the brand color on hover).
+const APPS = [
+  { slug: 'agenda', label: 'Agenda', desc: 'Compromissos', icon: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>' },
+  { slug: 'atividade', label: 'Atividade', desc: 'Histórico', icon: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>' },
+  { slug: 'contatos', label: 'Contatos', desc: 'Agenda de contatos', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
+  { slug: 'drive', label: 'Drive', desc: 'Arquivos', icon: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>' },
+  { slug: 'formularios', label: 'Formulários', desc: 'Pesquisas', icon: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>' },
+  { slug: 'minha-conta', label: 'Minha conta', desc: 'Conta e perfil', icon: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>' },
+  { slug: 'painel', label: 'Painel', desc: 'Tela inicial', icon: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>' },
+  { slug: 'talk', label: 'Talk', desc: 'Reuniões', icon: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>' },
+  { slug: 'tarefas', label: 'Tarefas', desc: 'Painéis e tarefas', icon: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 7v7"/><path d="M12 7v4"/><path d="M16 7v9"/>' },
+];
+---
+<div class="avuz-hero">
+  <div class="avuz-hero-content">
+    <h1>Como podemos ajudar?</h1>
+    <p>Guias rápidos para cada aplicativo</p>
+    <button type="button" id="avuz-home-search" class="avuz-search" aria-label="Buscar em toda a ajuda">
+      <span aria-hidden="true">🔎</span> Buscar em toda a ajuda…
+    </button>
+  </div>
+</div>
+<ul class="avuz-grid">
+  {APPS.map((app) => (
+    <li>
+      <a class="avuz-card" href={`/${app.slug}/`}>
+        <svg class="ic" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" set:html={app.icon} />
+        <b>{app.label}</b>
+        <small>{app.desc}</small>
+      </a>
+    </li>
+  ))}
+</ul>
+<script>
+  // The real search UI (button + Pagefind dialog) lives once per page inside
+  // Starlight's <site-search> custom element, rendered by the site Header
+  // regardless of page template. Rather than re-implementing search here,
+  // this button drives that existing control so there is exactly one
+  // Pagefind instance and one #starlight__search mount point on the page.
+  const trigger = document.getElementById('avuz-home-search');
+  trigger?.addEventListener('click', (event) => {
+    // Stop this click from bubbling to `window`: Starlight's SiteSearch
+    // attaches a window-level "click outside closes the dialog" listener
+    // the instant the dialog opens (synchronously, inside the nested click
+    // below). If this original event keeps bubbling after that, it reaches
+    // `window` and immediately closes the dialog it just opened.
+    event.stopPropagation();
+    document.querySelector<HTMLButtonElement>('site-search button[data-open-modal]')?.click();
+  });
+</script>
+<style>
+  .avuz-hero {
+    position: relative;
+    text-align: center;
+    padding: 3rem 1rem;
+    border-radius: var(--sl-border-radius, 16px);
+    background: linear-gradient(135deg, #2bb5e3, #00679e);
+    overflow: hidden;
+  }
+  /* Scrim keeps white text ≥4.5:1 against the lightest corner of the brand
+     gradient (raw #2bb5e3 under white text is ~2.4:1, well under WCAG AA). */
+  .avuz-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.32);
+  }
+  .avuz-hero-content {
+    position: relative;
+    color: #fff;
+  }
+  .avuz-hero-content h1 {
+    font-family: 'Questrial', sans-serif;
+    margin: 0 0 0.3rem;
+    color: #fff;
+  }
+  .avuz-hero-content p {
+    margin: 0;
+  }
+  .avuz-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    background: #fff;
+    color: #5b6b78;
+    border: 0;
+    border-radius: 30px;
+    padding: 0.6rem 1.2rem;
+    font: inherit;
+    cursor: pointer;
+  }
+  .avuz-search:hover {
+    color: #00679e;
+  }
+  .avuz-search:focus-visible,
+  .avuz-card:focus-visible {
+    outline: 3px solid #2bb5e3;
+    outline-offset: 2px;
+  }
+  .avuz-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .avuz-card {
+    display: block;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 14px;
+    padding: 1rem;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    transition: 0.15s;
+  }
+  .avuz-card:hover {
+    border-color: #2bb5e3;
+    transform: translateY(-2px);
+  }
+  .avuz-card .ic {
+    display: block;
+    width: 2rem;
+    height: 2rem;
+    margin: 0 auto;
+    color: #00679e;
+  }
+  .avuz-card:hover .ic {
+    color: #2bb5e3;
+  }
+  :global([data-theme='dark']) .avuz-card .ic {
+    color: #2bb5e3;
+  }
+  .avuz-card b {
+    font-family: 'Questrial', sans-serif;
+    display: block;
+    margin-top: 0.4rem;
+  }
+  .avuz-card small {
+    color: var(--sl-color-gray-3);
+  }
+</style>
