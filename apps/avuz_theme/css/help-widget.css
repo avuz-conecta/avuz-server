@@ -9,8 +9,7 @@
 #avuz-help-widget {
 	position: fixed;
 	right: 18px;
-	/* Clear the app's own bottom-anchored UI (Talk bar, buttons, etc). */
-	bottom: 76px;
+	bottom: 18px;
 	z-index: 1500;
 	display: flex;
 	flex-direction: column;
