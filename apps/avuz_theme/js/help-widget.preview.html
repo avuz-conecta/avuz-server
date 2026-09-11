@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Avuz help widget — preview</title>
+
+	<!--
+		Standalone dev preview. NOT loaded by Application.php.
+		Defines the Nextcloud CSS variables the widget relies on (light :root +
+		a .dark variant), links the real css and js, and fakes a page background
+		so the widget can be reviewed without a running Nextcloud.
+	-->
+	<style>
+		:root {
+			--color-main-background: #ffffff;
+			--color-main-text: #222222;
+			--color-text-maxcontrast: #6b6b6b;
+			--color-border: #dbdbdb;
+			--color-background-hover: #f0f0f0;
+			--border-radius: 8px;
+			--border-radius-large: 12px;
+		}
+
+		.dark {
+			--color-main-background: #171717;
+			--color-main-text: #ededed;
+			--color-text-maxcontrast: #a0a0a0;
+			--color-border: #3b3b3b;
+			--color-background-hover: #2a2a2a;
+		}
+
+		html, body {
+			margin: 0;
+			min-height: 100%;
+		}
+
+		body {
+			font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+			background-color: var(--color-main-background);
+			color: var(--color-main-text);
+			padding: 32px;
+		}
+
+		.preview-toolbar {
+			display: flex;
+			gap: 12px;
+			align-items: center;
+			margin-bottom: 24px;
+		}
+
+		.preview-note {
+			max-width: 560px;
+			line-height: 1.5;
+			color: var(--color-text-maxcontrast);
+		}
+
+		/* Stand-in for an app's bottom-anchored UI, to check the launcher clears it. */
+		.fake-bottom-bar {
+			position: fixed;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			height: 56px;
+			background: var(--color-background-hover);
+			border-top: 1px solid var(--color-border);
+			display: flex;
+			align-items: center;
+			padding: 0 16px;
+			color: var(--color-text-maxcontrast);
+			font-size: 13px;
+		}
+	</style>
+
+	<link rel="stylesheet" href="../css/help-widget.css">
+</head>
+<body>
+	<div class="preview-toolbar">
+		<button type="button" id="toggle-theme">Alternar tema (claro/escuro)</button>
+	</div>
+
+	<h1>Preview do widget de ajuda</h1>
+	<p class="preview-note">
+		Passe o mouse ou toque no botão "?" no canto inferior direito. Ele deve
+		estar discreto em repouso e assumir o azul da marca (#00679e) só no
+		hover/foco. O painel abre com duas opções e fecha ao clicar fora,
+		tirar o mouse ou pressionar Esc.
+	</p>
+
+	<div class="fake-bottom-bar">Barra inferior falsa (o launcher deve ficar acima dela)</div>
+
+	<script>
+		document.getElementById('toggle-theme').addEventListener('click', function () {
+			document.documentElement.classList.toggle('dark');
+		});
+	</script>
+
+	<script src="./help-widget.js"></script>
+</body>
+</html>

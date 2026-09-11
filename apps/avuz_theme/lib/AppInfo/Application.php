@@ -47,6 +47,9 @@ class Application extends App implements IBootstrap {
 		// Inject settings page CSS fixes
 		Util::addStyle(self::APP_ID, 'settings');
 
+		// Inject floating help + support widget CSS
+		Util::addStyle(self::APP_ID, 'help-widget');
+
 		// Inject Lucide library
 		Util::addScript(self::APP_ID, 'lucide');
 
@@ -61,5 +64,8 @@ class Application extends App implements IBootstrap {
 
 		// Gray out unbookable days on the appointment booking page
 		Util::addScript(self::APP_ID, 'booking-availability');
+
+		// Inject floating help + support widget
+		Util::addScript(self::APP_ID, 'help-widget');
 	}
 }
