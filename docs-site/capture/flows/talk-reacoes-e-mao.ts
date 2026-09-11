@@ -53,6 +53,18 @@ async function startCall(page: Page): Promise<void> {
   await moveAndClick(page, confirmButton, 600);
 }
 
+// Turns the camera off via the in-call toolbar, right after joining. The
+// tile switches from the synthetic color-bar feed to a clean avatar
+// (initials circle) as soon as Talk registers the track is off — same
+// pattern as talk-iniciar-reuniao.ts's disableCameraInCall. The showcase
+// (reaction + raise hand) happens after this, so no bars are recorded.
+async function disableCameraInCall(page: Page): Promise<void> {
+  const disableButton = page.getByRole('button', { name: 'Desativar vídeo' }).first();
+  await disableButton.waitFor({ state: 'visible', timeout: 15000 });
+  await moveAndClick(page, disableButton, 300);
+  await page.getByRole('button', { name: 'Ativar vídeo' }).waitFor({ state: 'visible', timeout: 10000 });
+}
+
 async function openReactionPicker(page: Page): Promise<void> {
   const trigger = page.getByRole('button', { name: 'Enviar reação' });
   await moveAndClick(page, trigger, 600);
@@ -81,7 +93,8 @@ async function record(page: Page): Promise<readonly Step[]> {
 
   await startCall(page);
   await maskRealHost(page);
-  await pause(2000);
+  await disableCameraInCall(page);
+  await pause(1500);
 
   await openReactionPicker(page);
   await page.getByRole('menuitem', { name: CLAP_REACTION_LABEL }).waitFor({ state: 'visible', timeout: 10000 });
