@@ -63,6 +63,18 @@ async function openConversationActions(page: Page): Promise<void> {
   await moveAndClick(page, trigger, 600);
 }
 
+// Turns the camera off via the in-call toolbar, right after joining. This
+// MUST be the very first action taken once the call view is up — before any
+// other pause or click — so the synthetic color-bar feed is on screen for
+// only a fraction of a second before the tile becomes a clean avatar.
+// Proven pattern, reused from talk-camera-e-microfone.ts's disableCameraInCall.
+async function disableCameraInCall(page: Page): Promise<void> {
+  const disableButton = page.getByRole('button', { name: 'Desativar vídeo' }).first();
+  await disableButton.waitFor({ state: 'visible', timeout: 15000 });
+  await moveAndClick(page, disableButton, 300);
+  await page.getByRole('button', { name: 'Ativar vídeo' }).waitFor({ state: 'visible', timeout: 10000 });
+}
+
 async function setup(browser: Browser): Promise<BrowserContext> {
   const { context } = await login(browser, 'demo.ana', CONFIG.demoUserPassword);
   return context;
@@ -75,7 +87,10 @@ async function record(page: Page): Promise<readonly Step[]> {
 
   await startCall(page);
   await maskRealHost(page);
-  await pause(2000);
+  // Camera-A: kill the video feed before anything else happens, so the
+  // color-bar window is a fraction of a second, never a showcased pause.
+  await disableCameraInCall(page);
+  await pause(1200);
 
   await openConversationActions(page);
   const startRecordingOption = findStartRecordingOption(page);
