@@ -9,3 +9,4 @@ sidebar:
 Os **Formulários** permitem criar pesquisas e questionários para coletar respostas de forma organizada.
 
 - [Como criar um formulário](/formularios/criar-formulario/)
+- [Como adicionar perguntas](/formularios/adicionar-perguntas/)
