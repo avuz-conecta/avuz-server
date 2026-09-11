@@ -9,3 +9,4 @@ A **Agenda** reúne seus compromissos e reuniões. Crie eventos, convide pessoas
 - [Como convidar participantes](/agenda/convidar-participantes/)
 - [Como criar um evento recorrente](/agenda/evento-recorrente/)
 - [Como definir lembretes](/agenda/lembretes/)
+- [Como compartilhar um calendário](/agenda/compartilhar-calendario/)
