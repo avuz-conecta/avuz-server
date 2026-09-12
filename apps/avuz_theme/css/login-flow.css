@@ -35,3 +35,22 @@ body#body-login .button-vue--vue-primary:active {
     border-color: #222222 !important;
     color: #ffffff !important;
 }
+
+/* ── Card: keep side spacing so the guest-box never touches the screen edges ── */
+body#body-login .guest-box,
+body#body-login footer.guest-box {
+    box-sizing: border-box !important;
+    max-width: calc(100% - 32px) !important;
+    margin-inline: auto !important;
+}
+
+/* ── Note cards (NcNoteCard): brand-align the info blue, soften the warning ──
+   info/warning backgrounds read --color-info / --color-warning; their left
+   border + heading read --color-info-text / --color-warning-text. Scope the
+   overrides to the login pages so global colors are untouched. */
+body#body-login {
+    --color-info: #e4f5fb !important;
+    --color-info-text: #1e9bc7 !important;
+    --color-warning: #f5efe2 !important;
+    --color-warning-text: #b08d3e !important;
+}
