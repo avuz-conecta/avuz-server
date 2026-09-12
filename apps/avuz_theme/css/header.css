@@ -17,12 +17,14 @@ body {
     font-family: 'Questrial', sans-serif !important;
 }
 
-/* Increase logo size */
+/* Remove the home (house) logo icon and its home link. Keep #nextcloud as an
+   invisible spacer so center-header.js still centers the app menu. */
 #header #nextcloud .logo {
-    width: 150px !important;
-    background-size: 32px auto !important;
-    top: 5px !important;
-    background-position: left center !important;
+    display: none !important;
+}
+
+#header #nextcloud {
+    pointer-events: none !important;
 }
 
 /* Center the app menu icons in the header */
