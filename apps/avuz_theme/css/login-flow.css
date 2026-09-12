@@ -36,9 +36,10 @@ body#body-login .button-vue--vue-primary:active {
     color: #ffffff !important;
 }
 
-/* ── Card: keep side spacing so the guest-box never touches the screen edges ── */
-body#body-login .guest-box,
-body#body-login footer.guest-box {
+/* ── Card: keep side spacing so the grant card never touches the screen edges.
+   The card is NcGuestContent rendered as .picker-window (LoginFlowContainer),
+   not .guest-box. ── */
+body#body-login .picker-window {
     box-sizing: border-box !important;
     max-width: calc(100% - 32px) !important;
     margin-inline: auto !important;
