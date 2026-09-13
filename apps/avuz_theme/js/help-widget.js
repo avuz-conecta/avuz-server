@@ -48,7 +48,7 @@
 		var panel = document.createElement('div');
 		panel.className = 'avuz-help-panel';
 		panel.setAttribute('role', 'menu');
-		panel.appendChild(buildOption(DOCS_URL, DOCS_GLYPH, 'Documentação'));
+		panel.appendChild(buildOption(DOCS_URL, DOCS_GLYPH, 'Tutoriais'));
 		panel.appendChild(buildOption(SUPPORT_URL, SUPPORT_GLYPH, 'Falar com o suporte'));
 
 		var launcher = document.createElement('button');
