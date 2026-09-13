@@ -1,0 +1,57 @@
+/**
+ * Avuz Login-Flow / Grant Page
+ * The device grant page ("Conectar à sua conta") is served by
+ * ClientFlowLoginController via renderAs 'guest', so it is NOT a LoginController
+ * template and never fires BeforeLoginTemplateRenderedEvent — login.css does not
+ * load there. This sheet is injected by LoginFlowTemplateRenderedListener and
+ * fixes the two things the guest layout leaves at Nextcloud defaults:
+ *   1. the gradient theming logo (#header .logo, background = --image-logo)
+ *   2. the teal primary NcButton (.button-vue--vue-primary)
+ * Introduced: Avuz Conecta (NC 34.x)
+ */
+
+/* ── Logo: swap the gradient theming logo for the flat Avuz wordmark ── */
+body#body-login #header.header-guest .logo {
+    background-image: url('../img/logo-login.png') !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: contain !important;
+    width: 200px !important;
+    height: 100px !important;
+    margin: 0 auto !important;
+}
+
+/* ── Primary "Entrar" button: black bg / white text, matching the login form ── */
+body#body-login .button-vue--vue-primary {
+    background-color: #000000 !important;
+    border-color: #000000 !important;
+    color: #ffffff !important;
+}
+
+body#body-login .button-vue--vue-primary:hover:not(:disabled),
+body#body-login .button-vue--vue-primary:focus:not(:disabled),
+body#body-login .button-vue--vue-primary:active {
+    background-color: #222222 !important;
+    border-color: #222222 !important;
+    color: #ffffff !important;
+}
+
+/* ── Card: keep side spacing so the grant card never touches the screen edges.
+   The card is NcGuestContent rendered as .picker-window (LoginFlowContainer),
+   not .guest-box. ── */
+body#body-login .picker-window {
+    box-sizing: border-box !important;
+    max-width: calc(100% - 32px) !important;
+    margin-inline: auto !important;
+}
+
+/* ── Note cards (NcNoteCard): brand-align the info blue, soften the warning ──
+   info/warning backgrounds read --color-info / --color-warning; their left
+   border + heading read --color-info-text / --color-warning-text. Scope the
+   overrides to the login pages so global colors are untouched. */
+body#body-login {
+    --color-info: #e4f5fb !important;
+    --color-info-text: #1e9bc7 !important;
+    --color-warning: #f5efe2 !important;
+    --color-warning-text: #b08d3e !important;
+}
