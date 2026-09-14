@@ -18,7 +18,7 @@ body#body-login #header.header-guest .logo {
     background-size: contain !important;
     width: 160px !important;
     height: 80px !important;
-    margin: 0 auto !important;
+    margin: 2rem auto 0 !important;
 }
 
 /* ── Primary "Entrar" button: black bg / white text, matching the login form ── */
@@ -36,10 +36,11 @@ body#body-login .button-vue--vue-primary:active {
     color: #ffffff !important;
 }
 
-/* ── Card: keep side spacing so the grant card never touches the screen edges.
-   The card is NcGuestContent rendered as .picker-window (LoginFlowContainer),
-   not .guest-box. ── */
-body#body-login .picker-window {
+/* ── Card: keep side spacing so the card never touches the screen edges.
+   Grant page = NcGuestContent as .picker-window (LoginFlowContainer);
+   error/token pages (403 / error) = a server-rendered .guest-box. ── */
+body#body-login .picker-window,
+body#body-login .guest-box {
     box-sizing: border-box !important;
     max-width: calc(100% - 32px) !important;
     margin-inline: auto !important;

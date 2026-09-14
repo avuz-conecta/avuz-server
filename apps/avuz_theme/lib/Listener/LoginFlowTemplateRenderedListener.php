@@ -18,7 +18,10 @@ use OCP\Util;
  * @template-implements IEventListener<BeforeTemplateRenderedEvent>
  */
 class LoginFlowTemplateRenderedListener implements IEventListener {
-	private const LOGIN_FLOW_TEMPLATE = 'loginflow';
+	// The device login-flow renders the grant page ('loginflow') and, on a bad
+	// or expired state token, an error page ('403' / 'error') — all as guest
+	// StandaloneTemplateResponses from ClientFlowLoginController. Style them all.
+	private const LOGIN_FLOW_TEMPLATES = ['loginflow', '403', 'error'];
 
 	public function handle(Event $event): void {
 		if (!($event instanceof BeforeTemplateRenderedEvent)) {
@@ -30,7 +33,7 @@ class LoginFlowTemplateRenderedListener implements IEventListener {
 			return;
 		}
 
-		if ($response->getTemplateName() !== self::LOGIN_FLOW_TEMPLATE) {
+		if (!in_array($response->getTemplateName(), self::LOGIN_FLOW_TEMPLATES, true)) {
 			return;
 		}
 
