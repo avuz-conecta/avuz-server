@@ -419,8 +419,8 @@ apply_avuz_settings() {
     if [ -f /var/www/html/apps/avuz_theme/img/favicon-32.png ]; then
         php occ theming:config favicon /var/www/html/apps/avuz_theme/img/favicon-32.png || true
     fi
-    if [ -f /var/www/html/apps/avuz_theme/img/logo2.png ]; then
-        php occ theming:config logo /var/www/html/apps/avuz_theme/img/logo2.png || true
+    if [ -f /var/www/html/apps/avuz_theme/img/logo-login.png ]; then
+        php occ theming:config logo /var/www/html/apps/avuz_theme/img/logo-login.png || true
     fi
     if [ -f /var/www/html/apps/avuz_theme/img/house-logo.svg ]; then
         php occ theming:config logoheader /var/www/html/apps/avuz_theme/img/house-logo.svg || true
