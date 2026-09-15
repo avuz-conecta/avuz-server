@@ -7,6 +7,10 @@
  * site and a WhatsApp support link. The panel collapses on outside-click,
  * mouse-leave and Esc.
  *
+ * It auto-hides while an OnlyOffice document is open (that editor's zoom
+ * controls sit bottom-right, exactly where this launcher lives), and offers a
+ * dismiss X that hides it until the next page load.
+ *
  * Pure DOM enhancement: vanilla JS, no framework, no build step, no requests.
  */
 (function helpWidget() {
@@ -14,15 +18,24 @@
 
 	var ROOT_ID = 'avuz-help-widget';
 	var OPEN_CLASS = 'avuz-help-open';
+	var HIDDEN_EDITOR_CLASS = 'avuz-help-hidden-editor';
+	var DISMISSED_CLASS = 'avuz-help-dismissed';
 	var DOCS_URL = 'https://ajuda.avuz.app';
 	var SUPPORT_MESSAGE = 'Olá, preciso de ajuda, vim através do suporte no AvuzConecta';
 	var SUPPORT_URL = 'https://wa.me/5554993370993?text=' + encodeURIComponent(SUPPORT_MESSAGE);
 	var LAUNCHER_LABEL = 'Ajuda e suporte';
+	var DISMISS_LABEL = 'Ocultar até recarregar a página';
 	var LEAVE_DELAY_MS = 200;
+	// OnlyOffice mounts a full-page editor (#iframeEditor) plus the DocsAPI
+	// iframe (#onlyofficeFrame / name="frameEditor"). #iframeEditor is present
+	// from the editor template's first render; the inline Viewer injects the
+	// iframe dynamically, which the MutationObserver below catches.
+	var ONLYOFFICE_SELECTOR = '#iframeEditor, #onlyofficeFrame, iframe[name^="frameEditor"]';
 
 	var HELP_GLYPH = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>';
 	var DOCS_GLYPH = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>';
 	var SUPPORT_GLYPH = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>';
+	var CLOSE_GLYPH = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>';
 
 	var leaveTimer = null;
 
@@ -51,6 +64,14 @@
 		panel.appendChild(buildOption(DOCS_URL, DOCS_GLYPH, 'Tutoriais'));
 		panel.appendChild(buildOption(SUPPORT_URL, SUPPORT_GLYPH, 'Falar com o suporte'));
 
+		var dismiss = document.createElement('button');
+		dismiss.type = 'button';
+		dismiss.className = 'avuz-help-dismiss';
+		dismiss.setAttribute('aria-label', DISMISS_LABEL);
+		dismiss.title = DISMISS_LABEL;
+		dismiss.innerHTML = CLOSE_GLYPH;
+		panel.appendChild(dismiss);
+
 		var launcher = document.createElement('button');
 		launcher.type = 'button';
 		launcher.className = 'avuz-help-launcher';
@@ -62,7 +83,7 @@
 		root.appendChild(panel);
 		root.appendChild(launcher);
 
-		return { root: root, panel: panel, launcher: launcher };
+		return { root: root, panel: panel, launcher: launcher, dismiss: dismiss };
 	}
 
 	function isOpen(root) {
@@ -89,6 +110,11 @@
 		open(widget);
 	}
 
+	function dismissWidget(widget) {
+		close(widget);
+		widget.root.classList.add(DISMISSED_CLASS);
+	}
+
 	function clearLeaveTimer() {
 		if (leaveTimer !== null) {
 			window.clearTimeout(leaveTimer);
@@ -104,9 +130,44 @@
 		}, LEAVE_DELAY_MS);
 	}
 
+	function isEditorOpen() {
+		return !!document.querySelector(ONLYOFFICE_SELECTOR);
+	}
+
+	function applyEditorState(widget) {
+		widget.root.classList.toggle(HIDDEN_EDITOR_CLASS, isEditorOpen());
+	}
+
+	// Watches for an OnlyOffice editor appearing/disappearing (the inline
+	// Viewer injects it without a page load) and toggles the hidden state.
+	// Mutation bursts are coalesced to one check per frame.
+	function watchEditor(widget) {
+		applyEditorState(widget);
+		if (typeof MutationObserver !== 'function') {
+			return;
+		}
+		var pending = false;
+		var observer = new MutationObserver(function onMutate() {
+			if (pending) {
+				return;
+			}
+			pending = true;
+			window.requestAnimationFrame(function onFrame() {
+				pending = false;
+				applyEditorState(widget);
+			});
+		});
+		observer.observe(document.body, { childList: true, subtree: true });
+	}
+
 	function wire(widget) {
 		widget.launcher.addEventListener('click', function onClick() {
 			toggle(widget);
+		});
+
+		widget.dismiss.addEventListener('click', function onDismiss(event) {
+			event.stopPropagation();
+			dismissWidget(widget);
 		});
 
 		widget.root.addEventListener('mouseenter', function onEnter() {
@@ -146,6 +207,7 @@
 		var widget = build();
 		document.body.appendChild(widget.root);
 		wire(widget);
+		watchEditor(widget);
 	}
 
 	if (document.readyState === 'loading') {

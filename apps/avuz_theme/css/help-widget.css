@@ -132,3 +132,52 @@
 		transform: none;
 	}
 }
+
+/* Hidden while an OnlyOffice document is open, or after the user dismisses it
+   (dismiss lasts until the next page load — the script re-injects fresh). */
+#avuz-help-widget.avuz-help-hidden-editor,
+#avuz-help-widget.avuz-help-dismissed {
+	display: none;
+}
+
+/* Anchor the dismiss X inside the panel. */
+#avuz-help-widget .avuz-help-panel {
+	position: relative;
+}
+
+#avuz-help-widget .avuz-help-dismiss {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background-color: transparent;
+	color: var(--color-text-maxcontrast, var(--color-main-text));
+	opacity: 0.6;
+	cursor: pointer;
+	transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+#avuz-help-widget .avuz-help-dismiss:hover,
+#avuz-help-widget .avuz-help-dismiss:focus-visible {
+	opacity: 1;
+	color: #00679e;
+	background-color: var(--color-background-hover);
+}
+
+#avuz-help-widget .avuz-help-dismiss:focus-visible {
+	outline: 2px solid #00679e;
+	outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#avuz-help-widget .avuz-help-dismiss {
+		transition: none;
+	}
+}
