@@ -61,6 +61,18 @@ gov.br has an advanced-signature API, but **only public bodies (Gestor Público)
 
 ---
 
+## 3.5 Three go-to-market options (2026-09-16 update)
+
+Framed for the business partners as a **Buy → Host → Build** spectrum (control & margin rise, time-to-market lengthens). Shareable brief: https://claude.ai/artifact/7DPMaYupAaUeF5cPQ6MmpY
+
+| # | Option | Verb | Effort | Per-doc cost | Margin | Lead candidates |
+|---|---|---|---|---|---|---|
+| 01 | Resell a white-label partner | Buy | Low (weeks) | Yes (or flat plan) | The spread | **PlugSign (TecnoSpeed)**, **ZapSign** — both meeting-booked |
+| 02 | Self-host LibreSign | Host | Medium (1–2 mo) | ~Zero | Fattest | LibreSign (LibreCode, AGPL) |
+| 03 | Build own avançada engine | Build | High (months) | Near-zero | Max | — (future) |
+
+**Recommendation:** lead with 01 (decide PlugSign vs ZapSign after the meetings); hold 02 as the higher-margin play if we commit ops effort; park 03. A provider-abstraction layer keeps all three swappable.
+
 ## 4. Provider intelligence dossier
 
 All five named providers researched against six dimensions. Prices are public retail/list values (to mark up against); **wholesale/reseller rates are quote-only for every provider.**
@@ -122,6 +134,30 @@ All five named providers researched against six dimensions. Prices are public re
 - **Pricing:** most expensive, **USD-denominated**, per-seat + committed volume. Wrong posture and wrong economics for reselling to Brazilian SMBs under our brand. **Not recommended.**
 
 ---
+
+### 4.7 PlugSign (TecnoSpeed) — textbook white-label resell fit ★
+- **Product:** PlugSign, TecnoSpeed's e-signature API (developer-infra company, "a fábrica de software dos desenvolvedores"). Docs: plugsign.readme.io (LLM index at /llms.txt). Prod base `app.plugsign.com.br` or the reseller's **custom domain**.
+- **API:** mature REST, full lifecycle + batch (lote up to 50), folders/tags/departments, reminders (email + WhatsApp). Webhooks: `REQUESTS_UPDATED`, `FILE_UPLOADED`, etc. Audit: `GET File history` (date/hour/IP), `GET File legacy history` (survives deletion).
+- **White-label:** "100% white label" — logo, colors, **domain**, per-sub-account SMTP + WhatsApp. Signer never sees TecnoSpeed. (Iframe/embed widget **not confirmed** in reachable docs — confirmed model is API + hosted signer page on our domain; ask their dev support about in-app iframe.)
+- **Reseller:** **"Software House" plan** — unlimited docs/signers, explicit resale, unlimited sub-accounts. Real OEM API: `POST Create company`, per-sub-account custom limits, token provisioning/rotation, reseller analytics endpoints. One PlugSign "company" per AvuzConecta tenant.
+- **ICP-Brasil:** consumes certs (A1/A3 via `POST Sign file`); **not an accredited AC**. Advanced tier needs no cert.
+- **Auth/limits:** Bearer token per company (no expiry); free sandbox; rate limits not published. Traction: 4,100+ software houses, 1M+ docs.
+- **Pricing:** volume-based, **as low as R$0.29/doc** at high volume; Software House tier = flat/unlimited. Wholesale negotiated.
+
+### 4.8 LibreSign (LibreCode) — self-host, zero per-doc ★
+- **What:** native Nextcloud PDF-signing app by Brazilian coop LibreCode. AGPL-3.0. v14.1.0 (2026-07-15), actively maintained (3 parallel branches, ~811★, UN Digital Public Good 2025). Installs like any NC app; embeds in the **Files UI we already ship**.
+- **Capabilities:** PDF sign in Files UI; external signer via secure link (no account); sequential + parallel multi-signer; QR-code validation + CRL; envelopes/batch; cryptographically-signed audit log (IP/timestamp/UA/cert/hash); **coordinate-based field placement** (no drag-drop builder); SES/AES/QES levels.
+- **ICP-Brasil:** accepts ICP-Brasil certs via **PFX/PKCS#12 upload (A1)**; **A3 hardware token not native** (server-side signer). Built-in **cfssl CA** auto-issues per-user certs (SES/AES-grade, not qualified). Standard: **PAdES** + DocMDP.
+- **License economics:** AGPL — running **unmodified** as a hosted service = fine, no per-doc fee. If we **patch it** (our spreed/deck habit), §13 network-use clause requires publishing the modified LibreSign source to signing users. Does **not** force open-sourcing the rest of AvuzConecta. NC is already AGPL — same regime.
+- **Infra lift:** bake **Java + JSignPdf + cfssl** into the image (overlay pattern we know); OnlyOffice (already fleet-wide) converts non-PDF. NC 25+.
+- **Support:** LibreCode sells optional paid Business/API-integration plans (contact-sales) as a backstop.
+- **Gaps vs commercial:** no WhatsApp/SMS OTP, no selfie/biometrics, weak A3, no templates, basic dashboards; we own support + legal-defensibility.
+
+### 4.9 Additional resell-grade players (found 2026-09-16)
+- **Signater** — deepest **true white-label**: custom domain+TLS, our SMTP, our OAuth, our captcha, our sealing cert, full UI/email rebrand; **multi-tenant sub-accounts**; REST API + webhooks + sandbox. Reseller = Enterprise, sales-led. signater.com/recursos/white-label/
+- **Assinadoc** — white-label **reseller program**: superadmin, **we set our own plans/prices/limits**, automatic billing, multi-tenant sub-accounts, account manager, **unlimited-document** economics (no per-doc passthrough). REST API + webhooks + WhatsApp. Retail R$26–135/mo as floor. assinadoc.com
+- **BRy / Syngular** — **PKI heavyweight** (accredited AC + ACT, >30% ICP-Brasil issuance share). BRy Framework API (PAdES/CAdES/XAdES + timestamp). White-label portal exists. **Enterprise contract, not a resell SKU.** Pick **only if qualified ICP-Brasil / timestamps are the priority.**
+- **Bench/skip:** **Assinafy** = branding is cosmetic Pro-tier only, **no reseller/sub-account program** (reputation overstated). **Contraktor** = API yes, no rebrand-resell. **Certisign / Soluti-VIDaaS** = cert issuers, enterprise. **Plurio, SignDocs** = PlugSign-like integrator plays, worth a look if widening.
 
 ## 5. The commercial blocker — questions for each vendor's sales team
 
