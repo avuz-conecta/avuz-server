@@ -2,13 +2,16 @@
 
 ## What
 Patched build of Nextcloud Calendar **v6.2.1**. The quick popover (click an
-empty slot / click an event) gets the same color row as "Mais detalhes":
-eyedropper icon + `PropertyColor` (NcColorPicker swatch, reset button). Users
-pick the event color without opening the full editor.
+empty slot / click an event) shows the same color control as "Mais detalhes"
+— eyedropper icon + `PropertyColor` (NcColorPicker swatch, reset button) —
+inline to the right of the calendar name in the header. Users pick the event
+color without opening the full editor. In view mode a custom color shows as a
+read-only swatch.
 
 Also: the swatch follows the calendar color when the user switches calendar in
 the popover header and the event has no custom color (upstream set it once on
-mount).
+mount), and the read-only swatch has a size (upstream rendered it 0×0, in
+the full editor too).
 
 ## Files here
 - `js/*.js` — only the 3 bundles that change. The calendar build is
