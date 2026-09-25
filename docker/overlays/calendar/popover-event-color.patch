@@ -73,7 +73,7 @@ index 609b97b..a408288 100644
  		 * Checks is the calendar event has attendees, but organizer or not
  		 *
 diff --git a/src/views/EditSimple.vue b/src/views/EditSimple.vue
-index fd8c1e8..5e91c05 100644
+index fd8c1e8..9d853e4 100644
 --- a/src/views/EditSimple.vue
 +++ b/src/views/EditSimple.vue
 @@ -115,12 +115,23 @@
@@ -122,7 +122,7 @@ index fd8c1e8..5e91c05 100644
  		PropertyText,
  		PropertyTitleTimePicker,
  		PropertyTitle,
-@@ -841,9 +854,32 @@ export default {
+@@ -841,9 +854,44 @@ export default {
  
  		:deep(.calendar-picker-header) {
  			margin-inline-start: 0;
@@ -140,6 +140,11 @@ index fd8c1e8..5e91c05 100644
 +			flex-shrink: 0;
 +			gap: var(--default-grid-baseline);
 +
++			// The reset button is taller than the swatch; keep both centered on the header line
++			:deep(.property-color__input) {
++				align-items: center;
++			}
++
 +			// Match the calendar dot and the read-only swatch instead of a full-size button
 +			:deep(.property-color__input .property-color__color-preview) {
 +				--button-size: calc(var(--default-grid-baseline) * 5);
@@ -149,6 +154,13 @@ index fd8c1e8..5e91c05 100644
 +				min-height: var(--button-size);
 +				padding: 0;
 +				border-radius: var(--border-radius);
++
++				// NcButton's focus ring is sized for a 34px button; keep it visible but slim
++				&:focus-visible {
++					outline: 2px solid var(--color-main-text);
++					outline-offset: 2px;
++					box-shadow: none !important;
++				}
 +			}
 +		}
 +
