@@ -73,7 +73,7 @@ index 609b97b..a408288 100644
  		 * Checks is the calendar event has attendees, but organizer or not
  		 *
 diff --git a/src/views/EditSimple.vue b/src/views/EditSimple.vue
-index fd8c1e8..ac2de74 100644
+index fd8c1e8..5e91c05 100644
 --- a/src/views/EditSimple.vue
 +++ b/src/views/EditSimple.vue
 @@ -115,12 +115,23 @@
@@ -122,7 +122,7 @@ index fd8c1e8..ac2de74 100644
  		PropertyText,
  		PropertyTitleTimePicker,
  		PropertyTitle,
-@@ -841,9 +854,21 @@ export default {
+@@ -841,9 +854,32 @@ export default {
  
  		:deep(.calendar-picker-header) {
  			margin-inline-start: 0;
@@ -139,6 +139,17 @@ index fd8c1e8..ac2de74 100644
 +		.event-popover__color {
 +			flex-shrink: 0;
 +			gap: var(--default-grid-baseline);
++
++			// Match the calendar dot and the read-only swatch instead of a full-size button
++			:deep(.property-color__input .property-color__color-preview) {
++				--button-size: calc(var(--default-grid-baseline) * 5);
++				width: var(--button-size);
++				min-width: var(--button-size);
++				height: var(--button-size);
++				min-height: var(--button-size);
++				padding: 0;
++				border-radius: var(--border-radius);
++			}
 +		}
 +
  		.event-popover__cancelled {
