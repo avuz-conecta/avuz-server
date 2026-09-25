@@ -1,0 +1,269 @@
+diff --git a/src/components/Editor/Properties/PropertyColor.vue b/src/components/Editor/Properties/PropertyColor.vue
+index 3639c0b..729c9bd 100644
+--- a/src/components/Editor/Properties/PropertyColor.vue
++++ b/src/components/Editor/Properties/PropertyColor.vue
+@@ -88,6 +88,12 @@ export default {
+ 		}
+ 	},
+ 
++	watch: {
++		calendarColor() {
++			this.defaultColor()
++		},
++	},
++
+ 	mounted() {
+ 		this.defaultColor()
+ 	},
+@@ -122,3 +128,11 @@ export default {
+ 	},
+ }
+ </script>
++
++<style lang="scss" scoped>
++.property-color__input--readonly .property-color__color-preview {
++	width: calc(var(--default-grid-baseline) * 5);
++	height: calc(var(--default-grid-baseline) * 5);
++	border-radius: var(--border-radius);
++}
++</style>
+diff --git a/src/mixins/EditorMixin.js b/src/mixins/EditorMixin.js
+index 85c746f..273aa80 100644
+--- a/src/mixins/EditorMixin.js
++++ b/src/mixins/EditorMixin.js
+@@ -611,6 +611,17 @@ export default {
+ 				location,
+ 			})
+ 		},
++		/**
++		 * Updates the custom color of this event
++		 *
++		 * @param {string|null} customColor New color as HEX, null resets to the calendar color
++		 */
++		updateColor(customColor) {
++			this.calendarObjectInstanceStore.changeCustomColor({
++				calendarObjectInstance: this.calendarObjectInstance,
++				customColor,
++			})
++		},
+ 		/**
+ 		 * Updates the start date of this event
+ 		 *
+diff --git a/src/views/EditFull.vue b/src/views/EditFull.vue
+index 609b97b..a408288 100644
+--- a/src/views/EditFull.vue
++++ b/src/views/EditFull.vue
+@@ -627,18 +627,6 @@ export default {
+ 			})
+ 		},
+ 
+-		/**
+-		 * Updates the color of the event
+-		 *
+-		 * @param {string} customColor The new color
+-		 */
+-		updateColor(customColor) {
+-			this.calendarObjectInstanceStore.changeCustomColor({
+-				calendarObjectInstance: this.calendarObjectInstance,
+-				customColor,
+-			})
+-		},
+-
+ 		/**
+ 		 * Checks is the calendar event has attendees, but organizer or not
+ 		 *
+diff --git a/src/views/EditSimple.vue b/src/views/EditSimple.vue
+index fd8c1e8..ac2de74 100644
+--- a/src/views/EditSimple.vue
++++ b/src/views/EditSimple.vue
+@@ -115,12 +115,23 @@
+ 
+ 					<!-- Header -->
+ 					<div class="event-popover__header">
+-						<CalendarPickerHeader
+-							:value="selectedCalendar"
+-							:calendars="calendars"
+-							:is-read-only="isReadOnlyOrViewing || !canModifyCalendar"
+-							:is-viewed-by-attendee="isViewedByOrganizer === false"
+-							@update:value="changeCalendar" />
++						<div class="event-popover__calendar-row">
++							<CalendarPickerHeader
++								:value="selectedCalendar"
++								:calendars="calendars"
++								:is-read-only="isReadOnlyOrViewing || !canModifyCalendar"
++								:is-viewed-by-attendee="isViewedByOrganizer === false"
++								@update:value="changeCalendar" />
++							<PropertyColor
++								v-if="!isReadOnlyOrViewing || color !== null"
++								class="event-popover__color"
++								data-avuz-patch="AVUZ-POPOVER-COLOR-V1"
++								:calendar-color="selectedCalendarColor"
++								:is-read-only="isReadOnlyOrViewing"
++								:prop-model="rfcProps.color"
++								:value="color"
++								@update:value="updateColor" />
++						</div>
+ 
+ 						<PropertyTitle
+ 							:value="titleOrPlaceholder"
+@@ -267,6 +278,7 @@ import CalendarPickerHeader from '../components/Editor/CalendarPickerHeader.vue'
+ import InvitationResponseButtons
+ 	from '../components/Editor/InvitationResponseButtons.vue'
+ import InviteesList from '../components/Editor/Invitees/InviteesList.vue'
++import PropertyColor from '../components/Editor/Properties/PropertyColor.vue'
+ import PropertyText from '../components/Editor/Properties/PropertyText.vue'
+ import PropertyTitle from '../components/Editor/Properties/PropertyTitle.vue'
+ import PropertyTitleTimePicker
+@@ -283,6 +295,7 @@ export default {
+ 	components: {
+ 		NcCheckboxRadioSwitch,
+ 		SaveButtons,
++		PropertyColor,
+ 		PropertyText,
+ 		PropertyTitleTimePicker,
+ 		PropertyTitle,
+@@ -841,9 +854,21 @@ export default {
+ 
+ 		:deep(.calendar-picker-header) {
+ 			margin-inline-start: 0;
++			min-width: 0;
++		}
++
++		.event-popover__calendar-row {
++			display: flex;
++			align-items: center;
++			gap: calc(var(--default-grid-baseline) * 2);
+ 			margin-bottom: calc(var(--default-grid-baseline) * 2);
+ 		}
+ 
++		.event-popover__color {
++			flex-shrink: 0;
++			gap: var(--default-grid-baseline);
++		}
++
+ 		.event-popover__cancelled {
+ 			opacity: .7;
+ 		}
+diff --git a/tests/javascript/unit/components/Editor/Properties/PropertyColor.test.js b/tests/javascript/unit/components/Editor/Properties/PropertyColor.test.js
+new file mode 100644
+index 0000000..5ef1c84
+--- /dev/null
++++ b/tests/javascript/unit/components/Editor/Properties/PropertyColor.test.js
+@@ -0,0 +1,100 @@
++/**
++ * SPDX-FileCopyrightText: 2026 Avuz Conecta
++ * SPDX-License-Identifier: AGPL-3.0-or-later
++ */
++
++import Vue from 'vue'
++import PropertyColor from '../../../../../../src/components/Editor/Properties/PropertyColor.vue'
++import { getRFCProperties } from '../../../../../../src/models/rfcProps.js'
++
++const CALENDAR_BLUE = '#0082c9'
++const CALENDAR_RED = '#e9322d'
++const EVENT_GREEN = '#008000'
++
++Vue.prototype.$t = (_app, text) => text
++
++async function mountPropertyColor(propsData) {
++	const PropertyColorConstructor = Vue.extend(PropertyColor)
++	const propertyColor = new PropertyColorConstructor({
++		propsData: {
++			propModel: getRFCProperties().color,
++			isReadOnly: false,
++			...propsData,
++		},
++	}).$mount()
++	await Vue.nextTick()
++	return propertyColor
++}
++
++function previewColor(propertyColor) {
++	return propertyColor.$el.querySelector('.property-color__color-preview').style.backgroundColor
++}
++
++function rgb(hex) {
++	const element = document.createElement('div')
++	element.style.backgroundColor = hex
++	return element.style.backgroundColor
++}
++
++describe('components/Editor/Properties/PropertyColor', () => {
++	describe('when the event has no custom color', () => {
++		it('previews the calendar color', async () => {
++			const propertyColor = await mountPropertyColor({ calendarColor: CALENDAR_BLUE, value: null })
++
++			expect(previewColor(propertyColor)).toEqual(rgb(CALENDAR_BLUE))
++		})
++
++		it('follows the calendar color when the user picks another calendar', async () => {
++			const propertyColor = await mountPropertyColor({ calendarColor: CALENDAR_BLUE, value: null })
++
++			propertyColor.$props.calendarColor = CALENDAR_RED
++			await Vue.nextTick()
++
++			expect(previewColor(propertyColor)).toEqual(rgb(CALENDAR_RED))
++		})
++
++		it('hides the reset button', async () => {
++			const propertyColor = await mountPropertyColor({ calendarColor: CALENDAR_BLUE, value: null })
++
++			expect(propertyColor.$el.querySelectorAll('button')).toHaveLength(1)
++		})
++	})
++
++	describe('when the event has a custom color', () => {
++		it('previews the event color', async () => {
++			const propertyColor = await mountPropertyColor({ calendarColor: CALENDAR_BLUE, value: EVENT_GREEN })
++
++			expect(previewColor(propertyColor)).toEqual(rgb(EVENT_GREEN))
++		})
++
++		it('keeps the event color when the user picks another calendar', async () => {
++			const propertyColor = await mountPropertyColor({ calendarColor: CALENDAR_BLUE, value: EVENT_GREEN })
++
++			propertyColor.$props.calendarColor = CALENDAR_RED
++			await Vue.nextTick()
++
++			expect(previewColor(propertyColor)).toEqual(rgb(EVENT_GREEN))
++		})
++
++		it('emits null and falls back to the calendar color on reset', async () => {
++			const propertyColor = await mountPropertyColor({ calendarColor: CALENDAR_BLUE, value: EVENT_GREEN })
++			const emitted = []
++			propertyColor.$on('update:value', (color) => emitted.push(color))
++
++			propertyColor.$el.querySelectorAll('button')[1].click()
++			await Vue.nextTick()
++
++			expect(emitted).toEqual([null])
++			expect(previewColor(propertyColor)).toEqual(rgb(CALENDAR_BLUE))
++		})
++	})
++
++	describe('when read-only', () => {
++		it('shows the color without a picker', async () => {
++			const propertyColor = await mountPropertyColor({ calendarColor: CALENDAR_BLUE, value: EVENT_GREEN, isReadOnly: true })
++
++			expect(propertyColor.$el.querySelector('button')).toBeNull()
++			expect(previewColor(propertyColor)).toEqual(rgb(EVENT_GREEN))
++		})
++	})
++})
+diff --git a/vitest.config.js b/vitest.config.js
+index 3b06614..a6b4e11 100644
+--- a/vitest.config.js
++++ b/vitest.config.js
+@@ -22,6 +22,12 @@ export default defineConfig({
+ 		],
+ 		globals: true,
+ 		environment: 'jsdom',
++		// Mounting @nextcloud/vue components pulls in ESM-only deps
++		server: {
++			deps: {
++				inline: [/@nextcloud\/vue/, 'splitpanes'],
++			},
++		},
+ 		// Required for transforming CSS files
+ 		pool: 'vmForks',
+ 		// Increase timeouts for slow CI environments

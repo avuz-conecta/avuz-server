@@ -30,6 +30,15 @@ COPY . /var/www/html/
 # relative path under apps/spreed/. Net-new files are added by the same cp -R.
 RUN cp -R /var/www/html/docker/overlays/spreed/. /var/www/html/apps/spreed/
 
+# Apply Avuz calendar overlay (event color picker in the new-event popover).
+# The js/ files are a rebuilt bundle of one exact calendar version; overlaying
+# them onto any other version breaks the app, so the build fails instead.
+# Rebuild recipe: docker/overlays/calendar/README.md.
+ARG AVUZ_CALENDAR_OVERLAY_VERSION=6.2.1
+RUN grep -q "<version>${AVUZ_CALENDAR_OVERLAY_VERSION}</version>" /var/www/html/apps/calendar/appinfo/info.xml \
+    || { echo "calendar is not ${AVUZ_CALENDAR_OVERLAY_VERSION} — rebuild docker/overlays/calendar (see its README)"; exit 1; } \
+    && cp -R /var/www/html/docker/overlays/calendar/js/. /var/www/html/apps/calendar/js/
+
 # Apply Avuz files_downloadlimit overlay (restores templates/admin.php that
 # upstream 2.0.0 tarball drops — GH issue nextcloud/files_downloadlimit#421).
 # Without it the Sharing admin page returns 500 with TemplateNotFoundException.

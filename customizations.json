@@ -389,6 +389,21 @@
       "description": "Fork of nextcloud/nextcloud-talk-recording maintained in github.com/avuz-conecta/talk-recording (private). Pinned to upstream v0.2.1. BackendNotifier.uploadRecording branches on the spreed 'recording-chunked-v1' capability and, for files >CHUNK_SIZE (50MB), uploads via the new POST /store-chunked/{init,put,finalize} endpoints; falls back to upstream single-multipart POST otherwise. Sends actualSize at finalize so the server compares against bytes actually streamed (not the init-time os.path.getsize, which may be stale if ffmpeg is still flushing). Chunk POSTs include explicit Content-Type: application/octet-stream so PHP does not drain php://input trying to url-decode raw bytes. Image published as 10.50.100.103:8080/admin/talk-recording (built linux/amd64), referenced from portainer-recording-stack.yml; replaces nextcloud/aio-talk-recording.",
       "risk": "medium",
       "notes": "Source + Dockerfile + scripts/build.sh + avuz-entrypoint.sh live in github.com/avuz-conecta/talk-recording. avuz-entrypoint.sh renders /etc/nextcloud-talk-recording/server.conf from env vars at container start (NC_DOMAINS comma-separated for multiple NC backends sharing one bot, RECORDING_SECRET, INTERNAL_SECRET, HPB_*, SKIP_VERIFY, ALLOW_ALL; also accepts the legacy NC_DOMAIN single-host fallback). Upstream pin tracked in that repo's AVUZ_FORK.md. Rebase against newer upstream = pull next upstream tag in avuz-conecta/talk-recording, re-apply chunked-upload + entrypoint commits, rebuild, redeploy."
+    },
+    {
+      "id": "calendar-popover-event-color",
+      "type": "overlay",
+      "paths": [
+        "docker/overlays/calendar/js/calendar-main.js",
+        "docker/overlays/calendar/js/calendar-reference.js",
+        "docker/overlays/calendar/js/calendar-src_models_attendee_js-src_views_Calendar_vue-data_image_svg_xml_3csvg_20viewBox_270_200_2016-a1a05a.js",
+        "docker/overlays/calendar/popover-event-color.patch",
+        "docker/entrypoint.sh",
+        "Dockerfile"
+      ],
+      "description": "Event color picker in the calendar new-event popover (EditSimple), reusing PropertyColor from the full editor ('Mais detalhes'). Rebuilt calendar 6.2.1 bundle; only the 3 changed js files ship.",
+      "risk": "medium",
+      "notes": "Dockerfile fails the build unless apps/calendar is 6.2.1 (AVUZ_CALENDAR_OVERLAY_VERSION). Sentinel 'AVUZ-POPOVER-COLOR-V1' in js/calendar-main.js; calendar is in AVUZ_OWNED_APPS; reapply_avuz_calendar_overlay after core upgrades. Rebuild on every calendar upgrade: docker/overlays/calendar/README.md."
     }
   ]
 }
