@@ -3142,7 +3142,7 @@ final class ZapSignClient {
 		if ($payload === null) {
 			return new HttpRequest($method, $url, $headers, null, $timeoutSeconds);
 		}
-		$body = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+		$body = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION);
 		return new HttpRequest($method, $url, $headers + ['Content-Type' => 'application/json'], $body, $timeoutSeconds);
 	}
 
