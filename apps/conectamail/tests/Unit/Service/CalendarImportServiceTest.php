@@ -33,7 +33,8 @@ class CalendarImportServiceTest extends TestCase {
             public function isWritable(): bool { return true; }
             public function isDeleted(): bool { return false; }
             public function search(string $pattern, array $searchProperties=[], array $options=[], ?int $limit=null, ?int $offset=null): array { return $this->searchResult; }
-            public function createFromString(string $name, string $calendarData): void { $this->created[] = [$name,$calendarData]; }
+            public function createFromString(string $name, string $calendarData): void { $this->created[] = [$name,$calendarData,'full']; }
+            public function createFromStringMinimal(string $name, string $calendarData): void { $this->created[] = [$name,$calendarData,'minimal']; }
         };
     }
 
@@ -47,6 +48,19 @@ class CalendarImportServiceTest extends TestCase {
         $this->assertSame('created', $svc->import('a@b.com', "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n", 'uid-1'));
         $this->assertCount(1, $cal->created);
         $this->assertSame(md5('uid-1').'.ics', $cal->created[0][0]);
+    }
+
+    public function testStoresViaMinimalCalDavToAvoidResendingInvitations(): void {
+        $cal = $this->writableCalendar([]);
+        $manager = $this->createMock(IManager::class);
+        $manager->method('getCalendarsForPrincipal')->willReturn([$cal]);
+        $users = $this->createMock(IUserManager::class);
+        $users->method('getByEmail')->willReturn([$this->user('alice')]);
+        $svc = new CalendarImportService($users, $manager);
+
+        $svc->import('a@b.com', "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n", 'uid-1');
+
+        $this->assertSame('minimal', $cal->created[0][2]);
     }
 
     public function testSkipsWhenUidPresent(): void {
