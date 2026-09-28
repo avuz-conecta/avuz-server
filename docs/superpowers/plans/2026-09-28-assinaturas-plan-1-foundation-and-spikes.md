@@ -1729,7 +1729,7 @@ final class ZapSignSettingsTest extends TestCase {
 			}
 			$this->originalValues[$key] = [
 				'value' => $this->appConfig->getValueString(Application::APP_ID, $key),
-				'sensitive' => $this->appConfig->isSensitiveKey(Application::APP_ID, $key),
+				'sensitive' => $this->appConfig->isSensitive(Application::APP_ID, $key),
 			];
 			$this->appConfig->deleteKey(Application::APP_ID, $key);
 		}
