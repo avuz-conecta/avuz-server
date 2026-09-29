@@ -2,6 +2,7 @@
 
 namespace OCA\Roundcube\Service;
 
+use OCP\IAppConfig;
 use OCP\IConfig;
 use OCP\IUserManager;
 
@@ -12,6 +13,7 @@ class CredentialService
 
     public function __construct(
         private IConfig $config,
+        private IAppConfig $appConfig,
         private IUserManager $userManager,
     ) {}
 
@@ -35,7 +37,7 @@ class CredentialService
 
     public function getRoundcubeOrigin(): string
     {
-        $baseUrl = rtrim($this->config->getAppValue(self::APP_ID, 'roundcube_url', ''), '/');
+        $baseUrl = rtrim($this->appConfig->getValueString(self::APP_ID, 'roundcube_url', ''), '/');
         $parsed = parse_url($baseUrl);
         $origin = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
         if (!empty($parsed['port'])) {
@@ -46,7 +48,7 @@ class CredentialService
 
     public function buildIframeUrl(string $userId): string
     {
-        $baseUrl = rtrim($this->config->getAppValue(self::APP_ID, 'roundcube_url', ''), '/');
+        $baseUrl = rtrim($this->appConfig->getValueString(self::APP_ID, 'roundcube_url', ''), '/');
         if (empty($baseUrl)) {
             return '';
         }
@@ -84,7 +86,7 @@ class CredentialService
 
     private function resolveProvider(): string
     {
-        $value = $this->config->getAppValue(self::APP_ID, 'provider', (string) getenv('ROUNDCUBE_PROVIDER'));
+        $value = $this->appConfig->getValueString(self::APP_ID, 'provider', (string) getenv('ROUNDCUBE_PROVIDER'));
         return $value !== '' ? $value : 'zoho';
     }
 
@@ -113,12 +115,12 @@ class CredentialService
 
     private function getSsoSecret(): string
     {
-        return $this->config->getAppValue(self::APP_ID, 'sso_secret', (string) getenv('ROUNDCUBE_SSO_SECRET'));
+        return $this->appConfig->getValueString(self::APP_ID, 'sso_secret', (string) getenv('ROUNDCUBE_SSO_SECRET'));
     }
 
     private function getCredentialKey(): string
     {
-        $raw = $this->config->getAppValue(self::APP_ID, 'credential_key', (string) getenv('ROUNDCUBE_CREDENTIAL_KEY'));
+        $raw = $this->appConfig->getValueString(self::APP_ID, 'credential_key', (string) getenv('ROUNDCUBE_CREDENTIAL_KEY'));
         return substr(hash('sha256', $raw, true), 0, 32);
     }
 }

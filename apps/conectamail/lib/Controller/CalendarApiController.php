@@ -9,14 +9,14 @@ use OCA\Roundcube\Service\SignatureVerifier;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\JSONResponse;
-use OCP\IConfig;
+use OCP\IAppConfig;
 use OCP\IRequest;
 use Sabre\VObject\Reader;
 
 class CalendarApiController extends Controller {
     public function __construct(
         IRequest $request,
-        private IConfig $config,
+        private IAppConfig $appConfig,
         private CalendarImportService $importService,
     ) {
         parent::__construct('conectamail', $request);
@@ -29,7 +29,7 @@ class CalendarApiController extends Controller {
     public function import(): JSONResponse {
         $body = file_get_contents('php://input') ?: '';
         $envelope = $this->request->getHeader('X-Avuz-Signature');
-        $secret = $this->config->getAppValue('conectamail', 'sso_secret', (string) getenv('ROUNDCUBE_SSO_SECRET'));
+        $secret = $this->appConfig->getValueString('conectamail', 'sso_secret', (string) getenv('ROUNDCUBE_SSO_SECRET'));
         try {
             $payload = (new SignatureVerifier($secret))->verify($envelope, $body);
         } catch (SignatureException $e) {

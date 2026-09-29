@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-19"
+AVUZ_CONFIG_VERSION="33.0.0-20"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 AVUZ_KNOWN_APPS="/var/www/html/data/.avuz_known_apps"
@@ -358,6 +358,20 @@ echo "✓ S3 lifecycle policy created on $bucket (abort incomplete uploads after
 PHPEOF
 }
 
+# Stores an app config value encrypted at rest ($AppConfigEncryption$ prefix).
+# IAppConfig refuses to flip an existing key's sensitivity through a value set,
+# so a plaintext key is deleted first. Already-sensitive keys are set in place
+# (no DB write when the value is unchanged). Readers must use IAppConfig — the
+# deprecated IConfig::getAppValue returns the ciphertext.
+set_sensitive_app_config() {
+    local app="$1" key="$2" value="$3"
+    if ! php occ config:app:get "$app" "$key" --details --output=json 2>/dev/null \
+        | grep -q '"sensitive":true'; then
+        php occ config:app:delete "$app" "$key" >/dev/null 2>&1 || true
+    fi
+    php occ config:app:set "$app" "$key" --sensitive --value="$value"
+}
+
 # Idempotent settings only — safe to run on every config-version bump. No app
 # enable/update/repair (those live in the gated block in run_avuz_configuration).
 apply_avuz_settings() {
@@ -472,8 +486,8 @@ apply_avuz_settings() {
         php occ app:disable roundcube 2>/dev/null || true
         php occ app:enable conectamail 2>/dev/null || true
         php occ config:app:set conectamail roundcube_url --value="$ROUNDCUBE_URL"
-        php occ config:app:set conectamail sso_secret --value="$ROUNDCUBE_SSO_SECRET"
-        php occ config:app:set conectamail credential_key --value="$ROUNDCUBE_CREDENTIAL_KEY"
+        set_sensitive_app_config conectamail sso_secret "$ROUNDCUBE_SSO_SECRET"
+        set_sensitive_app_config conectamail credential_key "$ROUNDCUBE_CREDENTIAL_KEY"
 
         # One-shot migration: move per-user mail creds from old app id `roundcube`
         # to `conectamail`. Idempotent — after first deploy the WHERE matches 0 rows.
