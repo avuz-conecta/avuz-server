@@ -15,9 +15,11 @@
 #   ./scripts/bulk-create-users.sh users.csv
 #
 # CSV, one user per line (see scripts/users.csv.example):
-#   email,Group Name[,Display Name]
-#   alice@example.com,Marketing
-#   bob@example.com,Vendas,Bob Silva        # 3rd column optional
+#   email[,Group Name][,Display Name]
+#   alice@example.com,Marketing              # group only
+#   bob@example.com,Vendas,Bob Silva         # group + name
+#   carol@example.com,,Carol Souza           # no group, name only (empty middle)
+# Group is optional: leave the middle column empty to create a user in no group.
 #
 # Lines starting with # and blank lines are ignored. A UTF-8 BOM and CRLF line
 # endings (OnlyOffice / Excel exports) are tolerated.
@@ -45,8 +47,8 @@ ensure_group() {
 create_user() {
   local email="$1" group="$2" name="${3:-}" out code
   local fields=(--data-urlencode "userid=${email}"
-                --data-urlencode "email=${email}"
-                --data-urlencode "groups[]=${group}")
+                --data-urlencode "email=${email}")
+  [[ -n "$group" ]] && fields+=(--data-urlencode "groups[]=${group}")
   [[ -n "$name" ]] && fields+=(--data-urlencode "displayName=${name}")
   out=$(curl -sS "${AUTH[@]}" -X POST "${API}/users" "${fields[@]}")
   code=$(echo "$out" | ocs_status)
@@ -64,7 +66,7 @@ while IFS=',' read -r email group name || [[ -n "$email" ]]; do
   group="$(echo "$group" | tr -d '\r' | xargs)"
   name="$(echo "${name:-}" | tr -d '\r' | xargs)"
   [[ -z "$email" || "$email" == \#* ]] && continue
-  ensure_group "$group"
+  [[ -n "$group" ]] && ensure_group "$group"
   create_user "$email" "$group" "$name"
 done < "$CSV"
 
