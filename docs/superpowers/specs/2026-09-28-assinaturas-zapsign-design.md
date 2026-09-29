@@ -128,11 +128,11 @@ Retry policy is per method:
 
 | Method type | Retry |
 |---|---|
-| Idempotent (GETs, place-signatures replace-all, update deadline) | Backoff on 429, 5xx and timeouts; honors `Retry-After`; 3 tries |
+| Idempotent (GETs, place-signatures replace-all, update deadline) | Backoff on 5xx and timeouts; 3 tries. A 429 is **not** retried in the client: it throws, and the job layer reschedules (see below) |
 | `createDocument`, `uploadExtraDocument` | **Never retried automatically** (see §6) |
 | Cooldown 429s (reminders) | Never retried |
 
-Any 429 sets a short **global backoff** that all jobs respect, because tenants on one host share ZapSign's per-IP limit.
+Any 429 sets a short **global backoff** that honors `Retry-After` and that all jobs respect, because tenants on one host share ZapSign's per-IP limit. The client then throws `ZapSignRateLimited`: the poller stops its run, SendJob fails the step for a later retry, and per-signer reminder cooldowns stay separate from the global pause.
 
 ### Other units
 
@@ -209,7 +209,7 @@ All tables are prefixed `oc_assinaturas_`.
 | `create_attempted_at` | Set before the create call; tells resume to look up by folder instead of creating |
 | `lease_until` | Lease for `sending` and `finalizing` |
 | `zapsign_token` | Main document token. Unique; null until created |
-| `account_fingerprint` | `hash(token) + environment` at send time. Only matching envelopes sync |
+| `account_fingerprint` | `sha256(environment | instance URL)` at send time, never the token, so rotating a leaked token keeps live envelopes syncing. Only matching envelopes sync |
 | `sandbox` | |
 | `signing_order` | |
 | `deadline_at` | UTC; the wizard sets it to 23:59:59 in the tenant timezone, which defaults to `America/Sao_Paulo` |
@@ -323,13 +323,12 @@ Settled by Spike 1 ([`sandbox-findings.md`](../../zapsign/sandbox-findings.md)).
 
 - **Webhook:** checks the secret, then looks up the envelope by main or extra document token.
   - Unknown token: `200`, ignored.
-  - Known token: set `next_sync_at = now` (coalesced, at most once per 30 seconds per envelope), queue a sync, return `200`.
+  - Known token: queue one `SyncEnvelopeJob` for the envelope unless one is already queued (coalesced), return `200`.
 - **Tiered poller:** picks envelopes where `next_sync_at <= now` **and** `account_fingerprint` matches the current account. Each run:
   - makes at most 60 API calls;
   - uses jitter;
   - respects the global backoff;
-  - prefers `listDocumentsWithSigners` pages over one GET per envelope;
-  - ignores list rows that aren't known main documents (the list returns extra documents as separate rows).
+  - uses one `getDocument` per due envelope in v1. Reading `listDocumentsWithSigners` pages instead is a later optimization; it would have to ignore list rows that aren't known main documents, because the list returns extra documents as separate rows.
 - **Next-sync schedule** after each check:
 
   | Envelope age / state | Next sync |
@@ -545,7 +544,7 @@ Nextcloud notifications are sent for:
 | Case | Behavior |
 |---|---|
 | Create or upload outcome unknown (timeout, crash) | Envelope → `failed` via the lease. Resume looks up by folder and adopts what exists. It never blindly re-creates |
-| 429 from ZapSign | Global backoff and honor `Retry-After`. Cooldown 429s are never retried |
+| 429 from ZapSign | Global backoff honoring `Retry-After`; the job layer reschedules (the client never retries a 429). Cooldown 429s are never retried |
 | 5xx or timeout on an idempotent call | Backoff, 3 tries |
 | Other 4xx | Mapped to a pt_BR message |
 | 402 (no plan) or 403 (wrong-environment token) | Admin panel turns red; one notification per state change |
