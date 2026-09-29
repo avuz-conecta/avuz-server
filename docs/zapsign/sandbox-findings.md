@@ -89,12 +89,18 @@ Real payloads are recorded (emails, IP and geolocation scrubbed) in the app repo
 | 6a. Maximum extra documents per envelope | **9 extras = 10 files** in the sandbox ("Limite de documentos extra (9) atingido."). The docs say 14 and the commercial terms mention 20 → **confirm the production plan's limit** | `send-limits` |
 | 6b. 11 MB PDF accepted? | **Accepted.** Keep our 10 MB validation as the documented bound unless ZapSign confirms more | `send-limits` |
 
-## Questions for ZapSign (updated)
-1. Can the "Block signature out of the defined order" preference be set via API per sub-account?
-2. The activity-log endpoint returns 403: is it plan-gated?
-3. What is the webhook retry policy? We observed at most one retry about 5 seconds later.
-4. Envelope file limit on our production plan (sandbox: 10 files).
-5. Partner white-label scope:
-   - Can the Reply-To and the "solicitada por <owner email>" text use the tenant sender?
-   - Can the ZapSign footer be removed, and "via ZapSign" dropped?
-6. The email triggered by the release call (update signer) omits the creation-time `custom_message`. Is that expected, and does passing `custom_message` in the update apply it?
+## Questions for ZapSign (checked against their docs 2026-09-29; none are answered there)
+
+1. **Out-of-order signing preference via API.** The docs ("Grupo de signatários") confirm the UI preference *Configurações > Organização > Preferências > "Bloquear assinatura fora da ordem definida para signatários"*, and that without it signers can sign out of order. Nothing documents setting it via API. The partner `POST /partner/company/` accepts only branding fields. Can we set it per sub-account programmatically?
+2. **Activity log returns 403.** The docs ("Histórico de atividades do documento") show `GET /docs/signer-log/{doc_token}` with the regular API token, list only 401/404 errors, and name no plan restriction. The sandbox returns **403 "Access denied"** (text/html). Is it sandbox-only, plan-gated, or a different auth?
+3. **Webhook retry policy.** The docs ("Logs de Webhooks") say only that ZapSign retries more than once on a non-200 status, with 7 days of logs. We observed one retry about 5 seconds later, then nothing. What are the attempt count and intervals?
+4. **Envelope file and size limits.** The docs say 14 extras (15 files) and 10 MB per PDF, with no plan dependency. The sandbox rejected the 10th extra ("Limite de documentos extra (9) atingido") and accepted an 11 MB PDF. What are the real limits on our production plan?
+5. **White-label scope for partners.** The help article says only "sem mencionar nossa marca" via the partner program. What can we control?
+   - the email text "solicitada por <account owner email>";
+   - Reply-To (today it's the account owner);
+   - "via ZapSign" in the sender name;
+   - the "O que é a ZapSign?" footer;
+   - the signing domain;
+   - evidence-page branding.
+6. **Message on a signer we release later.** The update-signer endpoint (`POST /signers/{token}/`) doesn't list `custom_message` among its fields. The email triggered by releasing a signer that way omits the creation-time `custom_message`, while ZapSign's own group-progression emails show it. How do we include a personalized message in the first signer's email when we create with emails off and release after placing signatures?
+7. **Billing: envelope vs document (most important).** The docs ("Adicionar anexo") state *"Cada documento extra conta igual a um documento principal… 14 documentos extras… contará como 15 créditos"*, and that unsigned or deleted documents don't recover credits. Our commercial terms are **per envelope**, and the partner usage CSV has separate `documents_created` and `envelopes_created` columns. Please confirm **in writing** which applies to our partner contract, and whether cancelled envelopes are billed.
