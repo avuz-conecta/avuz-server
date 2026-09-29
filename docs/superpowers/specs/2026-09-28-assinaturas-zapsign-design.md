@@ -291,7 +291,7 @@ If no row changed, the request fails with 409 and the UI shows the current state
 
 Send runs in `SendJob`. Each step is persisted before the next starts.
 
-1. **Validate**: re-read each file. If its etag differs from the one captured at placement, stop with "o arquivo mudou; revise o posicionamento". Enforce magic-byte PDF, not encrypted, ≤10 MB decoded, and envelope limits.
+1. **Validate**: re-read each file. If its etag differs from the one captured at placement, stop with "o arquivo mudou; revise o posicionamento". Enforce magic-byte PDF, not encrypted, and the envelope limits (20 files, 20 MB total).
 2. **Create main document**:
    - Persist `create_attempted_at` first.
    - `POST /docs` with `base64_pdf`, Avuz branding, `external_id = uuid`, `folder_path = /assinaturas/<uuid>`, `allow_refuse_signature = true`, `date_limit_to_sign`, and signers with **per-signer `send_automatic_email: false`**. Never use doc-level `disable_signer_emails`.
@@ -528,7 +528,7 @@ Nextcloud notifications are sent for:
   - IDs from the client are never trusted on their own (no IDOR).
   - Drive I/O runs as the owner through their folder view.
 - **Validation:**
-  - Files: magic-byte PDF check; encrypted PDFs rejected; already-signed PDFs rejected with an explanation; ≤10 MB decoded per file; up to 10 files.
+  - Files: magic-byte PDF check; encrypted PDFs rejected; already-signed PDFs rejected with an explanation; up to 20 files and 20 MB in total per envelope (ZapSign partner plan, confirmed 2026-09-29).
   - Signers: email format, name length, ≤20 signers.
   - Fields: inside page bounds, coordinates within 0..1.
 - **CSP:** the pdf.js worker is served from `'self'` with `isEvalSupported: false`. Add `'wasm-unsafe-eval'` only if the scanned-PDF test in Spike 3 needs it. The policy applies to the app page only. No iframes.
@@ -639,7 +639,7 @@ Tests describe behavior, use third-person verbs, and group cases with `describe`
    - Does the payload of an extra document carry its own token or the main one?
    - Actual retry behavior.
 5. **Inbox noise.** Does the Avuz master (partner owner) inbox receive emails for every tenant's envelopes? If so, set `created_by` / owner email preferences to avoid it.
-6. **Limits.** Files per envelope (docs say 15; commercial terms may say 20) and size limits (docs say 10 MB per file).
+6. **Limits.** Answered 2026-09-29: 20 files and 20 MB per envelope on the partner plan.
 
 ## 13. Questions for ZapSign (asked in parallel)
 
