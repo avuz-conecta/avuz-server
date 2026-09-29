@@ -4,6 +4,32 @@ Crawled 2026-09-28 from docs.zapsign.com.br (llms-full.txt, 537 pages), official
 PT docs are canonical and often more complete. Append `.md` to any doc URL for raw markdown.
 ⚠️ = ambiguous/undocumented — verify in sandbox. 🔍 = found only in SDK/help center.
 
+## Resolved by the sandbox spikes (2026-09-29)
+
+These override the ⚠️ items below. Evidence is in [`sandbox-findings.md`](sandbox-findings.md).
+
+- **Statuses:**
+  - document: `pending`, `signed`, **`recusado`** (company cancel *and* signer refusal);
+  - signer detail: `new`, `signed`, **`rejeitou`**;
+  - signer list: `assinou`, `recusou`.
+- **`order_group`:** 0 is accepted. Signer objects don't echo `order_group`.
+- **Sandbox `sign_url`:** `https://sandbox.app.zapsign.com.br/verificar/{signer_token}`. Documents report `sandbox: false` even in the sandbox.
+- **`folder_path`:** returned with a trailing slash. `GET /docs/?folder_path=` matches with or without it and returns only main documents.
+- **Webhook types:**
+  - any string is accepted, so acceptance proves nothing;
+  - seen delivering: `all` (created/signed/refused), `doc_created`, `doc_signed`, `doc_refused`, `doc_viewed`, `doc_read_confirmation`, `signature_notification_sent`;
+  - a company cancel fires `doc_signed` with status `recusado`;
+  - the top-level `token` is always the main document;
+  - `extra_docs` order varies between deliveries.
+- **Webhook retries:** at most one quick retry (about 5 seconds) was observed. The custom header is delivered verbatim.
+- **`signed_file`:** populated after the **first** signature while status is still `pending`. An evidence page is appended to **each** file (main and extras), and each file is PAdES-sealed.
+- **Activity log** (`/docs/signer-log/...`): **403 Access denied**.
+- **`GET /info-plan`:** **404** in the sandbox.
+- **List endpoint:** paginated `{count,next,previous,results}`. **Extra documents appear as separate rows** with no signers.
+- **Limits:** 9 extra documents (10 files) per envelope in the sandbox; an 11 MB PDF was accepted.
+- **Emails:** the creation-time `custom_message` shows in ZapSign-originated emails but not in the email triggered by a bare `POST /signers/{t}/ {send_automatic_email:true}`. A duplicate release within seconds sends no second email (HTTP 200, no 429).
+- **Order enforcement:** notifications follow the order, but signing via the direct link is **not blocked** unless the account preference is on.
+
 ## TL;DR
 1. **Auth:** static token per account, `Authorization: Bearer <token>`. Each tenant sub-account gets its **own** `api_token`, returned **only once** by `POST /api/v1/partner/company/`. No endpoint lists sub-accounts or retrieves/rotates their tokens → store at creation.
 2. **Signed PDF:** single PDF, PAdES-sealed by ZapSign's ICP-Brasil cert (CN "ZAPSIGN PROCESSAMENTO DE DADOS LTDA", AC Certisign Multipla G7). **Signature report (evidence) appended as last page(s)** (help center). Separate activity log: `GET /api/v1/docs/signer-log/{doc_token}?download_pdf=true`.

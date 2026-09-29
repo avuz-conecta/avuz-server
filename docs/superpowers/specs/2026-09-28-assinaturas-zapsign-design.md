@@ -48,7 +48,7 @@ This is the design driver.
 
 ### v1
 
-- Send an **envelope** of up to 15 PDFs to the same signers. Files come from the Files action or the in-app file picker.
+- Send an **envelope** of up to 10 PDFs to the same signers (sandbox-measured limit; raise to the production plan's limit once ZapSign confirms it). Files come from the Files action or the in-app file picker.
 - Up to 20 signers (name and email), with optional signing order.
 - Visual placement editor with one tab per file. Signature and initials boxes, plus a "Rubricar todas as páginas" action.
 - Options: deadline, reminder interval, message.
@@ -57,7 +57,7 @@ This is the design driver.
   - timeline;
   - per-signer status;
   - actions: remind, **correct email** (before signing), **extend deadline**, cancel;
-  - downloads: each signed file, each original as sent, activity log.
+  - downloads: each signed file, each original as sent. The activity-log API returns 403 (see [`sandbox-findings.md`](../../zapsign/sandbox-findings.md)); the evidence page inside each signed PDF is the legal record.
 - **Bounced-email detection**: the signer is marked "e-mail não entregue" and the sender is notified.
 - Signed PDFs saved to Drive automatically.
 - Nextcloud notifications to the sender for: completed, refused, expired, send failure, bounced email, save failure.
@@ -298,10 +298,10 @@ Send runs in `SendJob`. Each step is persisted before the next starts.
    - Persist the doc and signer tokens.
    - **Never auto-retried.** If the outcome is unknown (timeout, crash), resume first calls `findDocumentsByFolder(/assinaturas/<uuid>)` and adopts an existing document instead of creating a new one.
 3. **Upload extra documents**, one call per file, persisting each token right after its response. Also never auto-retried. On resume, re-fetch the envelope:
-   - if ZapSign has one more extra document than we persisted, adopt it;
+   - adopt any extra-document token we haven't persisted yet, matching by **token** (ZapSign's `extra_docs` order is not stable);
    - then continue with the next file.
 4. **Place signatures** per document token from `fields`. This is replace-all, so it is safe to retry. Skipped for documents with no fields.
-5. **Release** order group 1, or all signers when unordered. Set `released_at` per signer. The exact mechanism is decided by Spike 1.
+5. **Release** order group 1, or all signers when unordered: `releaseSigner` with the signer's `custom_message` in the same call. Set `released_at` per signer.
 6. Move to `pending`.
 
 On failure: go to `failed`, keep `send_step`, notify the sender.
@@ -312,11 +312,12 @@ On failure: go to `failed`, keep `send_step`, notify the sender.
 
 ### Release and reminders
 
-These depend on Spike 1.
+Settled by Spike 1 ([`sandbox-findings.md`](../../zapsign/sandbox-findings.md)).
 
-- **Signing order:** ZapSign may auto-email the next group once the previous group signs. If it doesn't when emails were off at creation, SyncJob releases the next group once the previous one has signed.
-- **Reminders are ours.** SyncJob re-sends to released, unsigned signers every `reminder_days`, respecting ZapSign's 30-minute cooldown. We don't depend on `reminder_every_n_days`, which only works with automatic send. The same scheduler will drive the v2 WhatsApp channel.
-- **Final signed copy to signers:** if Spike 1 shows ZapSign no longer emails it, the app sends the signed PDFs to signers itself, via the Nextcloud mailer.
+- **Signing order:** we release only group 1. ZapSign emails each next group automatically once the previous one signs, even though emails were off at creation. Its notifications also enforce the order: releasing a later group emails the current group instead.
+- **Order on the link itself is enforced only if** the sub-account preference "Block signature out of the defined order" is on (runbook step, §4). With the default setting, a signer who has the link can sign out of order.
+- **Reminders are ours.** SyncJob re-sends to released, unsigned signers every `reminder_days`. We don't depend on `reminder_every_n_days`, which only works with automatic send. The same scheduler will drive the v2 WhatsApp channel. A duplicate release within seconds sends no second email, and the sandbox showed no 429 for it.
+- **Final signed copy to signers:** ZapSign emails it to every signer. The app doesn't send it.
 
 ### Syncing
 
@@ -327,7 +328,8 @@ These depend on Spike 1.
   - makes at most 60 API calls;
   - uses jitter;
   - respects the global backoff;
-  - prefers `listDocumentsWithSigners` pages over one GET per envelope.
+  - prefers `listDocumentsWithSigners` pages over one GET per envelope;
+  - ignores list rows that aren't known main documents (the list returns extra documents as separate rows).
 - **Next-sync schedule** after each check:
 
   | Envelope age / state | Next sync |
@@ -341,7 +343,7 @@ These depend on Spike 1.
 
 ### Status mapping
 
-The source of truth is ZapSign's state on re-fetch. Evaluate these rules in order:
+The source of truth is ZapSign's state on re-fetch. Event names can't be trusted: a company cancel fires `doc_signed` with status `recusado`, and a signer refusal fires `doc_refused` followed by `doc_signed` with status `recusado`. Evaluate these rules in order:
 
 | Observed | Local result |
 |---|---|
@@ -360,6 +362,7 @@ Signer status mapping:
 | Detail endpoint | `new` | `pending` |
 | Detail endpoint | `link-opened` | `viewed` |
 | Detail endpoint | `signed` | `signed` |
+| Detail endpoint | `rejeitou` | `refused` |
 | List endpoint | `nao_abriu` | `pending` |
 | List endpoint | `abriu` | `viewed` |
 | List endpoint | `assinou` | `signed` |
@@ -426,7 +429,7 @@ pt_BR first, using Nextcloud l10n. Screens meet WCAG 2.0 AA: keyboard reachable,
 
 Auto-saves as a draft. Nothing is billed until Send.
 
-1. **Documentos.** Add, remove or reorder files (up to 15). Set the envelope title.
+1. **Documentos.** Add, remove or reorder files (up to 10). Set the envelope title.
 2. **Signatários.**
    - Name and email per signer, with a color per signer.
    - "Ordem de assinatura" toggle with drag-reorder.
@@ -435,6 +438,9 @@ Auto-saves as a draft. Nothing is billed until Send.
    - Palette per signer: *Assinatura* and *Rubrica*.
    - Drag, resize (**aspect ratio locked**), delete.
    - "Rubricar todas as páginas" is computed in absolute page points, so it also works on documents with mixed page sizes.
+   - Each signature box previews ZapSign's **full stamp footprint**: the drawn signature sits in the box and the attestation text ("Assinado digitalmente via ZapSign por … / Data …") prints to its right, about 2.5× the box width. The editor warns when that text would run past the right edge.
+   - Boxes stay clear of the bottom-left footer line ZapSign adds to every page.
+   - ZapSign places boxes in the page's displayed space (rotation and CropBox handled), so what the user sees is what gets signed.
    - Keyboard: focus a box, arrow keys move it, shift+arrows resize it.
 4. **Revisar e enviar.**
    - Deadline, reminder interval ("lembrar a cada N dias"), message.
@@ -452,7 +458,6 @@ Auto-saves as a draft. Nothing is billed until Send.
   - *Copiar link*, owner only, audited.
 - **Envelope actions:** *Prorrogar prazo*, *Cancelar* (reason required), *Excluir* (admin only).
 - **Per file:** *Baixar assinado*, *Baixar original enviado* (served from ZapSign, i.e. the exact bytes that were sent), *Abrir no Drive*.
-- **Envelope-wide:** *Relatório de atividades (PDF)*.
 
 ### Notifications to the sender
 
@@ -468,7 +473,7 @@ Nextcloud notifications are sent for:
 ### Admin panel (Administração → Assinaturas, read-only)
 
 - Environment badge.
-- Token validity and plan/credits, via `info-plan`, cached for 10 minutes.
+- Token validity via a cheap `GET /docs/?page=1`. Plan and credits via `info-plan` when available (it returns 404 in the sandbox). Both cached for 10 minutes.
 - Webhook registrations by type.
 - Company name in use.
 - **Envelopes this month:** created, completed, cancelled/failed-but-billed.
@@ -482,7 +487,8 @@ Nextcloud notifications are sent for:
 - `brand_logo` = one **central static URL** for the Avuz logo, not the tenant host.
 - `brand_primary_color = #2bb5e3`.
 - `lang = pt-br`.
-- The message is prefixed: "Maria Souza, da {ZAPSIGN_COMPANY_NAME}, enviou documentos para sua assinatura." Where ZapSign carries the message (per-signer `custom_message`) is confirmed in Spike 1.
+- The message is prefixed: "Maria Souza, da {ZAPSIGN_COMPANY_NAME}, enviou documentos para sua assinatura." It goes in each signer's `custom_message`, at creation **and** in the release call. ZapSign-originated emails show it; the email triggered by a bare release didn't. Staging E2E verifies that sending it in the release call fixes that.
+- **Known branding limits** (partner question): the email reads "Avuz Conecta via ZapSign", says the request came from the **ZapSign account owner's email**, and sets **Reply-To to that owner**. It also keeps the ZapSign footer.
 
 ---
 
@@ -523,7 +529,7 @@ Nextcloud notifications are sent for:
   - IDs from the client are never trusted on their own (no IDOR).
   - Drive I/O runs as the owner through their folder view.
 - **Validation:**
-  - Files: magic-byte PDF check; encrypted PDFs rejected; already-signed PDFs rejected with an explanation; ≤10 MB decoded per file; up to 15 files.
+  - Files: magic-byte PDF check; encrypted PDFs rejected; already-signed PDFs rejected with an explanation; ≤10 MB decoded per file; up to 10 files.
   - Signers: email format, name length, ≤20 signers.
   - Fields: inside page bounds, coordinates within 0..1.
 - **CSP:** the pdf.js worker is served from `'self'` with `isEvalSupported: false`. Add `'wasm-unsafe-eval'` only if the scanned-PDF test in Spike 3 needs it. The policy applies to the app page only. No iframes.
@@ -611,6 +617,9 @@ Tests describe behavior, use third-person verbs, and group cases with `describe`
 
 ## 12. Sandbox spikes (first plan tasks)
 
+**Answered 2026-09-29.** Full results in [`sandbox-findings.md`](../../zapsign/sandbox-findings.md). Decisions are folded into §2, §6 and §7 above.
+
+
 1. **Release and emails.** With per-signer `send_automatic_email: false` at creation:
    - Does updating a signer to `true` send the **first** email?
    - Does the next order group get emailed automatically after the previous one signs?
@@ -634,6 +643,9 @@ Tests describe behavior, use third-person verbs, and group cases with `describe`
 6. **Limits.** Files per envelope (docs say 15; commercial terms may say 20) and size limits (docs say 10 MB per file).
 
 ## 13. Questions for ZapSign (asked in parallel)
+
+Updated after the spikes: see the question list at the end of [`sandbox-findings.md`](../../zapsign/sandbox-findings.md).
+
 
 - Webhook retry count and interval; HMAC signing or a source IP list.
 - Canonical document statuses; is there an `expired` status?
