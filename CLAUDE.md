@@ -157,6 +157,32 @@ See `docs/s3-deployment.md` for end-to-end deployment. Key points:
 - Use `portainer-stack-s3.yml` as the deployment template — it has distinct
   volume names so it can coexist with the local-disk stack on the same host.
 
+## Preview storage tools (`scripts/previews/`)
+
+NC 33 previews on S3 live under `uri:oid:preview:<snowflake id>`, tracked in
+`oc_previews` only — no quota counter shows them. `lib.php` holds the tested
+logic (`php scripts/previews/tests/lib.test.php`); `run.sh` bundles it with an
+entry script and runs it in a container as www-data:
+
+    scripts/previews/run.sh <staging|prod> scan  <container>   # bucket vs DB, read-only
+    scripts/previews/run.sh <staging|prod> purge <container>   # dry run
+    scripts/previews/run.sh <staging|prod> purge <container> --execute
+    scripts/previews/run.sh <staging|prod> purge <container> --sweep-only --cutoff=<ISO 8601>
+
+`purge` preconditions: S3 and not multibucket; `preview_max_x/y` = 1280; no
+legacy rows (`old_file_id` not null — truncating them orphans their
+`urn:oid:` objects); the `preview` object-store alias resolves to `root`.
+`--execute` / `--sweep-only` refuse when one fails; a dry run only reports.
+It truncates `oc_previews` + `oc_preview_generation` (5 s lock wait, then
+`FAIL lock wait exceeded — retry later`), then deletes preview objects older
+than start − 10 min from the instance's own bucket only. `--sweep-only`
+refuses a cutoff later than the oldest remaining `oc_previews` row: reuse the
+cutoff printed by the original run. Never roll an image with
+`AVUZ_CONFIG_VERSION` < `33.0.0-21` to a purged tenant (it resets the cap to
+2048). Portainer exec does not return the container's exit code — read the
+`precondition FAIL` / `ABORTED` lines. Design:
+`docs/superpowers/specs/2026-09-29-preview-storage-reduction-design.md`.
+
 ## File Structure
 ```
 apps/avuz_theme/
