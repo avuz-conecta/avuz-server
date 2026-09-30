@@ -123,6 +123,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ### Task 2: Preview tools library (TDD)
 
+> **As built (review fix round, approved 2026-09-30):** the committed `scripts/previews/lib.php` supersedes the code below. Changes: `parsePurgeOptions(array $arguments, \DateTimeImmutable $now)` accepts only DATE_ATOM cutoffs at least `CUTOFF_MARGIN` (`PT10M`, now a lib constant) in the past and rejects `--execute` with `--sweep-only`; `S3BucketClient` sends `@http` timeout 10 s (`REQUEST_TIMEOUT_SECONDS`) and `@retries` 0 per request; `nextContinuationToken()` aborts on a truncated listing without a token; `walkBucket` turns page-processing exceptions into `page processing error: …` and keeps partial counts. 62 checks.
+
 **Files:**
 - Create: `scripts/previews/tests/lib.test.php`
 - Create: `scripts/previews/lib.php`
@@ -718,6 +720,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ### Task 3: scan / purge entry scripts and runner
 
+> **As built:** `purge.php` takes one `$now` for parsing and the default cutoff, uses lib's `CUTOFF_MARGIN`, and in `--sweep-only` refuses (`precondition FAIL cutoff … is later than the oldest remaining preview (…)`) when the cutoff is later than the oldest remaining `oc_previews` row. The committed files supersede the code below.
+
 **Files:**
 - Create: `scripts/previews/scan.php`
 - Create: `scripts/previews/purge.php`
@@ -1251,7 +1255,15 @@ scripts/previews/run.sh prod scan <container>
 scripts/portainer-exec-prod.sh -u www-data <container> sh -c 'LOG=$(php occ config:system:get logfile || echo /var/www/html/data/nextcloud.log); tail -n 5000 "$LOG" | grep "Unable to read preview" | tail -3'
 ```
 
-Expected: scan `db_current` small (only previews regenerated since the purge), `delta_bucket_minus_db` ≈ 0 plus at most a handful from the 10-min window; no `Unable to read preview` lines stamped after the purge.
+Expected: scan `db_current` small (only previews regenerated since the purge); `delta_bucket_minus_db` = the window orphans (previews created between the cutoff and the truncate — their rows were truncated but their objects are newer than the cutoff); no `Unable to read preview` lines stamped after the purge.
+
+Clear the window orphans with a second sweep (at least 10 minutes after the purge; validated on staging 2026-09-30, delta 14 → 0):
+
+```bash
+scripts/previews/run.sh prod purge <container> --sweep-only --cutoff=<Step 4 cutoff + 10 minutes, DATE_ATOM>
+```
+
+If it prints `precondition FAIL cutoff … is later than the oldest remaining preview (<time>)`, re-run with `--cutoff=<that time>` — the guard protects previews whose object was written before the truncate but whose row landed after it.
 
 Spot-check the regenerated max tier (run once users have browsed a bit, e.g. next morning):
 
