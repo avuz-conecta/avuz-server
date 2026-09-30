@@ -227,7 +227,15 @@ function parsePurgeOptions(array $arguments, \DateTimeImmutable $now): PurgeOpti
 }
 
 /** @return list<string> */
-function purgePreconditionProblems(bool $hasObjectStore, bool $multibucket, int $previewMaxX, int $previewMaxY, int $requiredPreviewMax): array {
+function purgePreconditionProblems(
+	bool $hasObjectStore,
+	bool $multibucket,
+	int $previewMaxX,
+	int $previewMaxY,
+	int $requiredPreviewMax,
+	int $legacyPreviewCount,
+	bool $previewStoreIsRoot,
+): array {
 	$problems = [];
 	if (!$hasObjectStore) {
 		$problems[] = 'no primary object store (local-disk instance)';
@@ -238,7 +246,20 @@ function purgePreconditionProblems(bool $hasObjectStore, bool $multibucket, int 
 	if ($previewMaxX !== $requiredPreviewMax || $previewMaxY !== $requiredPreviewMax) {
 		$problems[] = "preview_max_x/y is {$previewMaxX}/{$previewMaxY}, expected {$requiredPreviewMax}";
 	}
+	if ($legacyPreviewCount > 0) {
+		$problems[] = "{$legacyPreviewCount} legacy previews (old_file_id) would be orphaned by truncation";
+	}
+	if (!$previewStoreIsRoot) {
+		$problems[] = 'preview object store differs from root';
+	}
 	return $problems;
+}
+
+function sweepCutoffProblem(?\DateTimeImmutable $oldestRemainingPreview, \DateTimeImmutable $cutoff): ?string {
+	if ($oldestRemainingPreview === null || $oldestRemainingPreview >= $cutoff) {
+		return null;
+	}
+	return "cutoff {$cutoff->format(DATE_ATOM)} is later than the oldest remaining preview ({$oldestRemainingPreview->format(DATE_ATOM)}); use the cutoff printed by the original run";
 }
 
 /**

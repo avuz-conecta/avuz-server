@@ -21,6 +21,7 @@ final class FakeBucketClient implements BucketClient {
 	 * @param ?int $failListOnCall 1-based list call that throws
 	 * @param list<float> $listLatencies seconds added per list call, by call index (default 0.1)
 	 * @param list<string> $deleteErrors returned by every delete call
+	 * @param bool $ignorePrefix list every key whatever the requested prefix, like a store that misbehaves
 	 */
 	public function __construct(
 		array $objects,
@@ -30,6 +31,7 @@ final class FakeBucketClient implements BucketClient {
 		private readonly array $deleteErrors = [],
 		private readonly float $deleteLatency = 0.1,
 		private readonly bool $throwOnDelete = false,
+		private readonly bool $ignorePrefix = false,
 	) {
 		ksort($objects, SORT_STRING);
 		$this->objects = $objects;
@@ -43,7 +45,7 @@ final class FakeBucketClient implements BucketClient {
 		}
 		$matching = array_filter(
 			$this->objects,
-			fn (string $key): bool => str_starts_with($key, $prefix) && ($continuationToken === null || strcmp($key, $continuationToken) > 0),
+			fn (string $key): bool => ($this->ignorePrefix || str_starts_with($key, $prefix)) && ($continuationToken === null || strcmp($key, $continuationToken) > 0),
 			ARRAY_FILTER_USE_KEY,
 		);
 		$pageObjects = array_slice($matching, 0, $pageSize, true);
@@ -188,10 +190,30 @@ foreach (['missing' => null, 'empty' => ''] as $description => $token) {
 }
 
 // ── purgePreconditionProblems ──
-assertSameValue('S3 at 1280 has no problems', [], purgePreconditionProblems(true, false, 1280, 1280, 1280));
-assertSameValue('local instance is refused', ['no primary object store (local-disk instance)'], purgePreconditionProblems(false, false, 1280, 1280, 1280));
-assertSameValue('multibucket is refused', ['multibucket object store is not supported'], purgePreconditionProblems(true, true, 1280, 1280, 1280));
-assertSameValue('old cap is refused', ['preview_max_x/y is 2048/2048, expected 1280'], purgePreconditionProblems(true, false, 2048, 2048, 1280));
+assertSameValue('S3 at 1280 with no legacy previews has no problems', [], purgePreconditionProblems(true, false, 1280, 1280, 1280, 0, true));
+assertSameValue('local instance is refused', ['no primary object store (local-disk instance)'], purgePreconditionProblems(false, false, 1280, 1280, 1280, 0, true));
+assertSameValue('multibucket is refused', ['multibucket object store is not supported'], purgePreconditionProblems(true, true, 1280, 1280, 1280, 0, true));
+assertSameValue('old cap is refused', ['preview_max_x/y is 2048/2048, expected 1280'], purgePreconditionProblems(true, false, 2048, 2048, 1280, 0, true));
+assertSameValue('legacy previews are refused', ['3 legacy previews (old_file_id) would be orphaned by truncation'], purgePreconditionProblems(true, false, 1280, 1280, 1280, 3, true));
+assertSameValue('a preview store other than root is refused', ['preview object store differs from root'], purgePreconditionProblems(true, false, 1280, 1280, 1280, 0, false));
+assertSameValue('every problem is reported together', [
+	'no primary object store (local-disk instance)',
+	'multibucket object store is not supported',
+	'preview_max_x/y is 2048/1280, expected 1280',
+	'2 legacy previews (old_file_id) would be orphaned by truncation',
+	'preview object store differs from root',
+], purgePreconditionProblems(false, true, 2048, 1280, 1280, 2, false));
+
+// ── sweepCutoffProblem ──
+$cutoff = cutoffAt(5000);
+assertSameValue('sweepCutoffProblem accepts a table with no previews', null, sweepCutoffProblem(null, $cutoff));
+assertSameValue('sweepCutoffProblem accepts an oldest preview exactly at the cutoff', null, sweepCutoffProblem($cutoff, $cutoff));
+assertSameValue('sweepCutoffProblem accepts an oldest preview after the cutoff', null, sweepCutoffProblem(cutoffAt(5001), $cutoff));
+assertSameValue(
+	'sweepCutoffProblem rejects an oldest preview before the cutoff',
+	"cutoff {$cutoff->format(DATE_ATOM)} is later than the oldest remaining preview ({$cutoff->modify('-1 second')->format(DATE_ATOM)}); use the cutoff printed by the original run",
+	sweepCutoffProblem($cutoff->modify('-1 second'), $cutoff),
+);
 
 // ── walkBucket ──
 $time = new FakeTime();
@@ -234,9 +256,19 @@ assertSameValue('sweep keeps previews at or after the cutoff', 300, $sweep->kept
 assertSameValue('sweep skips non-numeric preview keys', 1, $sweep->foreignKeys);
 assertSameValue('sweep leaves file objects in place', true, in_array('urn:oid:42', $client->keys(), true));
 assertSameValue('sweep leaves exactly the kept and foreign keys', 302, count($client->keys()));
+
 assertSameValue('sweep deletes in batches of at most the page size', true, max(array_map('count', $client->deleteBatches)) <= 1000);
 assertSameValue('sweep sends one delete per page with purgeable keys', 2, count($client->deleteBatches));
 assertSameValue('sweep completes without abort', null, $sweep->walk->abortReason);
+
+$time = new FakeTime();
+$objects = previewObjects(1, 10) + ['urn:oid:42' => 999, 'uri:oid:preview:bad' => 7];
+$client = new FakeBucketClient($objects, $time, ignorePrefix: true);
+$sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, new PauseRecorder()));
+assertSameValue('sweep counts keys that are not previews as foreign', 2, $sweep->foreignKeys);
+assertSameValue('sweep never deletes file objects listed by the store', true, in_array('urn:oid:42', $client->keys(), true));
+assertSameValue('sweep never deletes non-numeric preview keys listed by the store', true, in_array('uri:oid:preview:bad', $client->keys(), true));
+assertSameValue('sweep still deletes the previews among foreign keys', 10, $sweep->deleted);
 
 $time = new FakeTime();
 $client = new FakeBucketClient(previewObjects(1, 1500), $time);
