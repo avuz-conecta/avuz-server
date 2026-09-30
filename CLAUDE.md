@@ -169,12 +169,17 @@ entry script and runs it in a container as www-data:
     scripts/previews/run.sh <staging|prod> purge <container> --execute
     scripts/previews/run.sh <staging|prod> purge <container> --sweep-only --cutoff=<ISO 8601>
 
-`purge` refuses unless the instance is S3 (not multibucket) and
-`preview_max_x/y` = 1280. It truncates `oc_previews` + `oc_preview_generation`
-first, then deletes preview objects older than start − 10 min from the
-instance's own bucket only. `--sweep-only` refuses a cutoff later than the
-oldest remaining `oc_previews` row: reuse the cutoff printed by the original
-run. Portainer exec does not return the container's exit code — read the
+`purge` preconditions: S3 and not multibucket; `preview_max_x/y` = 1280; no
+legacy rows (`old_file_id` not null — truncating them orphans their
+`urn:oid:` objects); the `preview` object-store alias resolves to `root`.
+`--execute` / `--sweep-only` refuse when one fails; a dry run only reports.
+It truncates `oc_previews` + `oc_preview_generation` (5 s lock wait, then
+`FAIL lock wait exceeded — retry later`), then deletes preview objects older
+than start − 10 min from the instance's own bucket only. `--sweep-only`
+refuses a cutoff later than the oldest remaining `oc_previews` row: reuse the
+cutoff printed by the original run. Never roll an image with
+`AVUZ_CONFIG_VERSION` < `33.0.0-21` to a purged tenant (it resets the cap to
+2048). Portainer exec does not return the container's exit code — read the
 `precondition FAIL` / `ABORTED` lines. Design:
 `docs/superpowers/specs/2026-09-29-preview-storage-reduction-design.md`.
 

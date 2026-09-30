@@ -137,7 +137,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `walkBucket(BucketClient, string $prefix, Guardrails, \Closure(BucketPage): ?string $onPage): WalkOutcome` — `WalkOutcome{pages, objects, bytes, slowestSeconds, elapsedSeconds, abortReason}`
   - `sweepPreviews(BucketClient, string $prefix, \DateTimeImmutable $cutoff, \Closure(string): \DateTimeImmutable $createdAt, bool $dryRun, Guardrails): SweepOutcome` — `SweepOutcome{purgeable, purgeableBytes, deleted, deletedBytes, kept, keptBytes, foreignKeys, slowestDeleteSeconds, walk}`
   - `parsePurgeOptions(list<string>): PurgeOptions{mode: PurgeMode, cutoff: ?DateTimeImmutable}`; `enum PurgeMode: string { DryRun='dry-run'; Execute='execute'; SweepOnly='sweep-only' }`
-  - `purgePreconditionProblems(bool $hasObjectStore, bool $multibucket, int $previewMaxX, int $previewMaxY, int $requiredPreviewMax): list<string>`
+  - `purgePreconditionProblems(bool $hasObjectStore, bool $multibucket, int $previewMaxX, int $previewMaxY, int $requiredPreviewMax, int $legacyPreviewCount, bool $previewStoreIsRoot): list<string>`
+  - `sweepCutoffProblem(?\DateTimeImmutable $oldestRemainingPreview, \DateTimeImmutable $cutoff): ?string`
   - `previewIdFromKey(string $key, string $prefix): ?string`, `previewKeyPrefix(array $objectStoreArguments): string`, `gibibytes(int|float): string`, `const DEFAULT_PREVIEW_PREFIX = 'uri:oid:preview:'`
 
 - [ ] **Step 1: Write the failing tests**
@@ -720,7 +721,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ### Task 3: scan / purge entry scripts and runner
 
-> **As built:** `purge.php` takes one `$now` for parsing and the default cutoff, uses lib's `CUTOFF_MARGIN`, and in `--sweep-only` refuses (`precondition FAIL cutoff … is later than the oldest remaining preview (…)`) when the cutoff is later than the oldest remaining `oc_previews` row. The committed files supersede the code below.
+> **As built:** `purge.php` takes one `$now` for parsing and the default cutoff, uses lib's `CUTOFF_MARGIN`, and in `--sweep-only` refuses (`precondition FAIL cutoff … is later than the oldest remaining preview (…)`) when the cutoff is later than the oldest remaining `oc_previews` row. Added after the final review: `purge` also refuses (dry run reports) when `oc_previews` holds legacy rows (`old_file_id IS NOT NULL` — truncating them would orphan their `urn:oid:` objects forever) or when the `preview` object-store alias differs from `root`; `--execute` sets a 5 s session lock wait before truncating and exits 1 with `FAIL lock wait exceeded — retry later` if a table is locked; `scan` prints `preview_max_x/y` first. The committed files supersede the code below.
 
 **Files:**
 - Create: `scripts/previews/scan.php`
@@ -1150,7 +1151,7 @@ Expected: `deleted 0 objects`; `kept_newer_than_cutoff ~60 objects`. The regrown
 - [ ] **Step 7: No broken-preview errors**
 
 ```bash
-scripts/portainer-exec.sh -u www-data avuz-conecta-s3-app-1 sh -c 'LOG=$(php occ config:system:get logfile || echo /var/www/html/data/nextcloud.log); tail -n 5000 "$LOG" | grep -c "Unable to read preview" || true'
+scripts/portainer-exec.sh -u www-data avuz-conecta-s3-app-1 sh -c 'LOG=$(php occ config:system:get logfile || echo /var/www/html/data/nextcloud.log); grep "Unable to read preview" "$LOG" | grep -c "<YYYY-MM-DD of the purge>" || true'
 ```
 
 Expected: `0` for entries after the purge time (if older entries exist, check their timestamps predate the cutoff).
@@ -1204,6 +1205,8 @@ Expected: build ends with a pushed `:staging` digest (build-push exits 0 even on
 
 Expected: `1280`; `33.0.0-21`.
 
+**Gate:** no image with `AVUZ_CONFIG_VERSION` < `33.0.0-21` may be rolled to a purged tenant. An older image (the pending fleet `:latest` built 2026-09-26 is config 33.0.0-19, and so is any rollback) re-runs `run_avuz_configuration` with the old 2048 default and silently overwrites the `occ`-set 1280 after a purge. Rebuild `:latest` from `avuz-customization` after this merge before the next fleet roll (or roll the fleet first, then purge).
+
 The prod image ships with the **next fleet rollout** (not part of this plan; add to the pending-rollout list). Prod clients get 1280 via `occ` in Task 6 meanwhile.
 
 ---
@@ -1219,6 +1222,8 @@ The prod image ships with the **next fleet rollout** (not part of this plan; add
 Order: arkua → comprev → cfm-advogados → consultt-agro → progetti → ramires → eco-ambiental → grupo-vidalar (own window).
 
 Containers: `arkua-app-1`, `comprev-app-1`, `cfm-advogados-app-1`, `consultt-agro-app-1`, `progetti-app-1`, `ramires-app-1`, `eco-ambiental-app-1`, `grupo-vidalar-app-1`.
+
+**Gate:** no image with `AVUZ_CONFIG_VERSION` < `33.0.0-21` may be rolled to a purged tenant. Rebuild `:latest` from `avuz-customization` after this merge before the next fleet roll (or roll the fleet first, then purge). Check before every client: a pending older image would undo the cap.
 
 For **each** client, repeat Steps 1–6. Do not batch clients in one command.
 
@@ -1248,11 +1253,15 @@ scripts/previews/run.sh prod purge <container> --execute | tee "$SCRATCH/purge-<
 
 Expected: `sweep complete`; `deleted` ≈ dry-run `purgeable`. If `ABORTED`: do not retry blindly — report the reason; after Patrick's go, run the printed `resume` line (`--sweep-only --cutoff=…`).
 
+If the output stream ends without a `sweep` line (e.g. VPN drop), the tool may still be running in the container. Check `scripts/portainer-exec-prod.sh <container> sh -c 'ps aux | grep "[p]hp -r"'` before re-running anything.
+
+After the first multi-page client (comprev), read `slowest delete` in its output. If it approaches 5 s, stop and tune `slowRequestSeconds` / batch size before eco-ambiental and vidalar.
+
 - [ ] **Step 5: Verify**
 
 ```bash
 scripts/previews/run.sh prod scan <container>
-scripts/portainer-exec-prod.sh -u www-data <container> sh -c 'LOG=$(php occ config:system:get logfile || echo /var/www/html/data/nextcloud.log); tail -n 5000 "$LOG" | grep "Unable to read preview" | tail -3'
+scripts/portainer-exec-prod.sh -u www-data <container> sh -c 'LOG=$(php occ config:system:get logfile || echo /var/www/html/data/nextcloud.log); grep "Unable to read preview" "$LOG" | grep "<YYYY-MM-DD of the purge>" | tail -3'
 ```
 
 Expected: scan `db_current` small (only previews regenerated since the purge); `delta_bucket_minus_db` = the window orphans (previews created between the cutoff and the truncate — their rows were truncated but their objects are newer than the cutoff); no `Unable to read preview` lines stamped after the purge.

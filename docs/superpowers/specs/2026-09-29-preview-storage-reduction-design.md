@@ -1,7 +1,7 @@
 # Preview storage reduction — design
 
 **Date:** 2026-09-29
-**Status:** approved design, not implemented
+**Status:** implemented; staging-validated 2026-09-30; prod pending
 
 ## Result we want
 
@@ -39,7 +39,7 @@ Total ≈ 348.5 GiB. No client has dangling rows (DB row without object). The fu
 ### 1. Preview cap 2048 → 1280
 
 - `docker/entrypoint.sh`: default `PREVIEW_MAX_X/Y` 2048 → 1280; update the comment with the 2026-09-29 measurements; bump `AVUZ_CONFIG_VERSION` `33.0.0-20` → `33.0.0-21`.
-- Ships with the next fleet rollout.
+- Ships with the next fleet rollout. No image with `AVUZ_CONFIG_VERSION` < `33.0.0-21` may be rolled to a purged tenant: an older image (the pending fleet `:latest` built 2026-09-26 is 33.0.0-19, and so is any rollback) re-applies the 2048 default and overwrites the `occ`-set 1280. Rebuild `:latest` from `avuz-customization` after the merge before the next fleet roll, or roll the fleet first, then purge.
 - On purge night, each client first gets `occ config:system:set preview_max_x|preview_max_y --value=1280 --type=integer`, so regenerated previews come out small before the image lands.
 - Per-stack override (`PREVIEW_MAX_X/Y` env) stays available for tenants who need sharper viewer images.
 
@@ -77,24 +77,24 @@ Modes:
 
 ### 4. Rollout order
 
-Off-hours only. Each prod client needs the user's explicit go, one at a time.
+Off-hours only. Each prod client needs the user's explicit go, one at a time. Gate: no image with `AVUZ_CONFIG_VERSION` < `33.0.0-21` may be rolled to a purged tenant (see section 1).
 
 1. **Staging** (`avuz-conecta-s3-app-1`): generate real previews into `avuz-conecta-hml`, dry run, execute, confirm thumbnails regenerate at ≤ 1280 and no preview errors appear. This also clears the staging rows that point at the prod bucket.
 2. **Small**: arkua → comprev → cfm-advogados → consultt-agro.
 3. **Medium**: progetti → ramires.
 4. **eco-ambiental**.
-5. **grupo-vidalar**, its own window (~1.14 M objects ≈ 1,150 list + 1,150 delete requests, ~20 min).
+5. **grupo-vidalar**, its own window (~1.14 M objects ≈ 1,150 list + 1,150 delete requests, ~30–60 min).
 
 ### 5. Verification per client
 
-- Re-run `preview-scan.php`: bucket previews are all newer than the cutoff; delta bucket − DB ≈ 0.
+- Re-run `scripts/previews/scan.php`: bucket previews are all newer than the cutoff; delta bucket − DB ≈ 0.
 - NC log has no `Unable to read preview` entries after the purge.
 - Next business morning: watch app container CPU. vidalar's PDF thumbnails will regenerate as users browse.
 - Spot check: a regenerated max preview row has `width`/`height` ≤ 1280.
 
 ## Out of scope
 
-- **Local-disk clients** (avuz-app3, cartorio-veranopolis, digrepal, endopasso): previews live in `appdata_<id>/preview/` on disk and interact with `oc_filecache`, so the purge differs. Phase 2: measure them with `preview-scan.php`, then write a short addendum before touching them.
+- **Local-disk clients** (avuz-app3, cartorio-veranopolis, digrepal, endopasso): previews live in `appdata_<id>/preview/` on disk and interact with `oc_filecache`, so the purge differs. Phase 2: measure them with `scripts/previews/scan.php`, then write a short addendum before touching them.
 - Changing `jpeg_quality` or preview format.
 - Pre-warming previews after the purge (user chose on-demand regeneration).
 
