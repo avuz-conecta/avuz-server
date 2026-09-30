@@ -57,14 +57,14 @@ Additional constraints for Plan 2a:
 
 **Errors and logging**
 - **Never** store or log ZapSign error messages; they can carry signer PII.
-- Store only our own error codes: `provider_unreachable`, `provider_busy`, `provider_plan_required`, `provider_access_denied`, `provider_not_found`, `provider_rejected`, `provider_error`, `file_missing`, `file_changed`, `file_not_pdf`, `file_encrypted`, `file_already_signed`, `file_too_large`, `signer_mismatch`, `extra_documents_ambiguous`, `send_interrupted`.
+- Store only our own error codes: `provider_unreachable`, `provider_busy`, `provider_plan_required`, `provider_access_denied`, `provider_not_found`, `provider_rejected`, `provider_error`, `file_missing`, `file_changed`, `file_not_pdf`, `file_encrypted`, `file_already_signed`, `file_too_large`, `signer_mismatch`, `extra_documents_ambiguous`, `send_interrupted`, `envelope_too_large`, `file_not_downloadable`, `create_outcome_pending` (the last three added by review fixes).
 
 **Time**
 - Timestamps are epoch seconds (UTC).
 - A deadline is the end of the chosen day (23:59:59) in the system `default_timezone`, falling back to `America/Sao_Paulo`.
 
 **Limits**
-- 10 files per envelope (sandbox-measured), 10 MB per file, 20 signers.
+- 20 files and 20 MB in total per envelope (ZapSign partner plan, confirmed 2026-09-29; the sandbox still stops at 10 files), 20 signers.
 - Title ≤ 255 characters, signer name ≤ 255, message ≤ 500.
 - `reminderDays` from 1 to 30.
 

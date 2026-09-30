@@ -317,6 +317,8 @@ Settled by Spike 1 ([`sandbox-findings.md`](../../zapsign/sandbox-findings.md)).
 - **Signing order:** we release only group 1. ZapSign emails each next group automatically once the previous one signs, even though emails were off at creation. Its notifications also enforce the order: releasing a later group emails the current group instead.
 - **Order on the link itself is enforced only if** the sub-account preference "Block signature out of the defined order" is on (runbook step, §4). With the default setting, a signer who has the link can sign out of order.
 - **Reminders are ours.** SyncJob re-sends to released, unsigned signers every `reminder_days`. We don't depend on `reminder_every_n_days`, which only works with automatic send. The same scheduler will drive the v2 WhatsApp channel. A duplicate release within seconds sends no second email, and the sandbox showed no 429 for it.
+- **Release retries (decided 2026-09-29):** if a release's response is lost, the Send fails and *Tentar novamente* releases again. A second invitation email is accepted (it works like one extra reminder), and a cooldown 429 on re-release counts as released.
+- **First-email message (E2E 2026-09-29):** `custom_message` sent with our release call does NOT appear in the first email; ZapSign's automatic group-2 email does show it. Open with ZapSign (Q6).
 - **Final signed copy to signers:** ZapSign emails it to every signer. The app doesn't send it.
 
 ### Syncing
