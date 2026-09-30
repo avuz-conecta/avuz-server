@@ -104,3 +104,29 @@ Real payloads are recorded (emails, IP and geolocation scrubbed) in the app repo
    - evidence-page branding.
 6. **Message on a signer we release later.** The update-signer endpoint (`POST /signers/{token}/`) doesn't list `custom_message` among its fields. The email triggered by releasing a signer that way omits the creation-time `custom_message`, while ZapSign's own group-progression emails show it. How do we include a personalized message in the first signer's email when we create with emails off and release after placing signatures?
 7. **Billing: envelope vs document (most important).** The docs ("Adicionar anexo") state *"Cada documento extra conta igual a um documento principal… 14 documentos extras… contará como 15 créditos"*, and that unsigned or deleted documents don't recover credits. Our commercial terms are **per envelope**, and the partner usage CSV has separate `documents_created` and `envelopes_created` columns. Please confirm **in writing** which applies to our partner contract, and whether cancelled envelopes are billed.
+
+## ZapSign answers (2026-09-29, from their team)
+
+| Q | Answer | Consequence |
+|---|---|---|
+| 7. Billing | **Per envelope**, as in our proposal. One envelope = up to 20 files / up to 20 MB | Billing risk closed. Our limits keep every envelope inside one billing unit |
+| 4. Limits | Partner plan: **20 files per envelope, up to 20 MB** (read as total; confirm if it's per file) | App limits: 20 files, 20 MB total (commit `b2dbf45`). Sandbox still stops at 10 files |
+| 5. White-label | Not a white-label product. **Customizable:** the "Sua assinatura foi solicitada por …" text and the Reply-To, via an endpoint (name it — ask). "via ZapSign" in the sender name should disappear once the sender is configured (they'll confirm). **Fixed:** the signing-page domain and the evidence page stay ZapSign (legal validity). They asked where the "O que é a ZapSign?" footer appears | Plan 4 tenant setup sets sender text + Reply-To per sub-account. Send them a screenshot of the footer |
+| 2. Activity log 403 | They asked whether it still fails **after activating the test plan** | Re-test `signer-log` in the sandbox |
+| 1, 3, 6 | Pending: they're checking internally (out-of-order block via API, webhook retries, `custom_message` on release) | Plan 2a already assumes the worst case for all three |
+
+## Plan 2a end-to-end run (2026-09-29, sandbox)
+
+Envelope `10ee29c9…`: Contrato + Anexo, 2 ordered signers, driven through the real services (`tests/e2e/lifecycle.php`).
+
+| Check | Result |
+|---|---|
+| Send (create → extras → place → release group 1) | `pending`, `send_step` 4. Only signer 1 released and emailed |
+| Folder lookup right after create | Finds the document at once (1 match, externalId = uuid). The 600 s settle window has ample margin |
+| Group 2 email | Sent by ZapSign automatically after signer 1 signed |
+| **Q6 `custom_message` on release** | **Not shown** in the first email, even though we pass `custom_message` in the release call. It **is shown** in ZapSign's own group-2 email. Still open with ZapSign |
+| Signed-file host | `zapsign.s3.amazonaws.com` for the main and extra docs. Allowlist confirmed |
+| Completion | `completed`; `Contrato … (assinado).pdf` and `Anexo … (assinado).pdf` saved next to the originals (~290 KB each, evidence page included) |
+| Logs | No sign URLs, signed-file URLs, S3 signatures or auth headers |
+| **Q2 activity log** | With the test plan active: `GET /docs/signer-log/{doc}` now answers `application/pdf`. `info-plan` works too. The earlier 403/404 were plan-gated |
+| Sender line | "Sua assinatura foi solicitada por patrick@avuz.cloud de Avuz Conecta"; From "Avuz Conecta via ZapSign"; Reply-To = account owner. Customizable in the ZapSign panel (Patrick) |
