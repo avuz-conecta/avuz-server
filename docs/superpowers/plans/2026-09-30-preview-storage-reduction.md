@@ -1040,7 +1040,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 Staging is autonomous. Target: `avuz-conecta-s3-app-1` (stack 63, bucket `avuz-conecta-hml`).
 
-**Already done 2026-09-30 (prototype tools):** cap set to 1280, `oc_previews` truncated (136,754 rows that pointed at eco-ambiental's prod bucket), and the orphaned `oc_preview_locations` row for `eco-ambiental-avuz-conecta` deleted. Staging now starts from 0 previews and no reference to any prod bucket.
+**Rebuilt 2026-09-30:** the instance was an eco-ambiental prod DB clone whose previews pointed at the prod bucket. It was wiped (bucket, DB, host dirs) and reinstalled fresh on image `:staging` with `PREVIEW_MAX_X/Y=1280` in the stack env. It starts with only `admin`, 0 previews, and no reference to any prod bucket. Step 1 below is therefore already satisfied (re-running it is harmless).
 
 **Files:**
 - Create (scratchpad, not committed): `$SCRATCH/seed-previews.php`
