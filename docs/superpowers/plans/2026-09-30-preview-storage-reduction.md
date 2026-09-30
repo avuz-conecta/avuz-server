@@ -984,8 +984,8 @@ scripts/previews/run.sh staging purge avuz-conecta-s3-app-1 --sweep-only
 ```
 
 Expected, in order:
-1. Two `target` blocks: `eco-ambiental-avuz-conecta` → `ABORTED (list request error … AccessDenied …)` (staging rows point at the prod bucket; staging creds are denied — correct), and `avuz-conecta-hml … (root bucket, no preview rows)` → `complete`.
-2. `mode dry-run`, `precondition FAIL preview_max_x/y is 2048/2048, expected 1280`, `bucket avuz-conecta-hml`, `table previews: <n> rows (would truncate)`, `sweep complete`, `deleted 0 objects`. It must **not** mention `eco-ambiental-avuz-conecta` (own-bucket guard).
+1. One `target` block: `avuz-conecta-hml` → `complete`. (Before the 2026-09-30 staging fix there was also an `eco-ambiental-avuz-conecta` block ending in AccessDenied.)
+2. `mode dry-run`, no `precondition FAIL` (staging cap is already 1280), `bucket avuz-conecta-hml`, `table previews: <n> rows (would truncate)`, `sweep complete`, `deleted 0 objects`. It must **not** mention any other bucket (own-bucket guard).
 3. `precondition FAIL no primary object store (local-disk instance)` and nothing after it.
 4. `error: --sweep-only needs --cutoff=<ISO 8601> from the original run`.
 
@@ -1038,7 +1038,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ### Task 4: End-to-end purge on staging
 
-Staging is autonomous. Target: `avuz-conecta-s3-app-1` (stack 63, bucket `avuz-conecta-hml`). This also clears its 136k rows that point at eco-ambiental's prod bucket.
+Staging is autonomous. Target: `avuz-conecta-s3-app-1` (stack 63, bucket `avuz-conecta-hml`).
+
+**Already done 2026-09-30 (prototype tools):** cap set to 1280, `oc_previews` truncated (136,754 rows that pointed at eco-ambiental's prod bucket), and the orphaned `oc_preview_locations` row for `eco-ambiental-avuz-conecta` deleted. Staging now starts from 0 previews and no reference to any prod bucket.
 
 **Files:**
 - Create (scratchpad, not committed): `$SCRATCH/seed-previews.php`
@@ -1103,7 +1105,7 @@ Expected: `seeded 30 files …`; scan shows a `avuz-conecta-hml` target with ~60
 scripts/previews/run.sh staging purge avuz-conecta-s3-app-1
 ```
 
-Expected: no `precondition FAIL`; `table previews: <136k + ~60> rows (would truncate)`; `purgeable ~60 objects`; `deleted 0`.
+Expected: no `precondition FAIL`; `table previews: ~60 rows (would truncate)`; `purgeable ~60 objects`; `deleted 0`.
 
 - [ ] **Step 4: Execute**
 
@@ -1122,7 +1124,7 @@ scripts/portainer-exec.sh -u www-data avuz-conecta-s3-app-1 php -r "eval(base64_
 scripts/previews/run.sh staging scan avuz-conecta-s3-app-1
 ```
 
-Expected: first scan — only the `avuz-conecta-hml` target (eco-ambiental location row now has no previews but still exists; its block may still show AccessDenied — fine), `db_current 0`, `bucket_current 0`. Second scan — ~60 previews again, **smaller GiB** than Step 2.
+Expected: first scan — only the `avuz-conecta-hml` target, `db_current 0`, `bucket_current 0`. Second scan — ~60 previews again, **smaller GiB** than Step 2.
 
 Confirm the max tier is ≤ 1280:
 
@@ -1277,7 +1279,7 @@ Add a row to the results table below and report it to Patrick before asking for 
 
 - [ ] **Step 1:** Update `ceph-migration-preview-dangling-rows.md`: NC 33 has no distributed preview cache (no `FLUSHALL` needed); keep `preview_locations`/`preview_versions` when truncating on a live instance; point at `scripts/previews/`.
 - [ ] **Step 2:** Update `s3-storage-accounting-gaps.md` "Budget previews" line with the 2026-09-29 baseline, the 1280 cap, and purge results.
-- [ ] **Step 3:** Add a memory: staging `avuz-conecta-s3` DB was cloned from eco-ambiental prod — its `oc_preview_locations` pointed at the prod bucket (cleared by Task 4); any future prod→staging DB clone must clear `oc_previews` first.
+- [x] **Step 3:** Memory `staging-s3-cloned-prod-db.md` written 2026-09-30 (staging `avuz-conecta-s3` = eco-ambiental prod DB clone; preview rows pointed at the prod bucket; cleared).
 - [ ] **Step 4:** Update `fleet-rollout-latest.md` / `staging-environments.md` pending-rollout note: config `33.0.0-21` (preview cap 1280) waits for the next fleet roll.
 - [ ] **Step 5:** Update `MEMORY.md` index lines accordingly.
 
