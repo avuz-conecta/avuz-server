@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-20"
+AVUZ_CONFIG_VERSION="33.0.0-21"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 AVUZ_KNOWN_APPS="/var/www/html/data/.avuz_known_apps"
@@ -424,13 +424,15 @@ apply_avuz_settings() {
     # Preview size caps. NC defaults to 4096x4096, and on an S3 primary store
     # previews are billed but invisible: they live under the uri:oid:preview:
     # key prefix, are tracked in oc_previews (not oc_filecache), so no quota
-    # counter — user, admin panel or occ — ever reports them. Measured on
-    # eco-ambiental: 66 GiB of previews against 513 GiB of file data, from only
-    # a quarter of the library previewed so far. Dropping to 2048 is 4x fewer
-    # pixels on the largest tier; grid thumbnails are unaffected. Raise per
-    # stack (no rebuild) for tenants who zoom into scans or GIS rasters.
-    php occ config:system:set preview_max_x --value="${PREVIEW_MAX_X:-2048}" --type=integer
-    php occ config:system:set preview_max_y --value="${PREVIEW_MAX_Y:-2048}" --type=integer
+    # counter — user, admin panel or occ — ever reports them. NC always renders
+    # the max-size tier first and derives smaller ones from it, so the cap
+    # drives the cost. Measured 2026-09-29 at 2048: 348 GiB of previews across
+    # the 8 S3 clients (grupo-vidalar 196, eco-ambiental 98). 1280 is ~2.5x
+    # fewer pixels; grid thumbnails are unaffected, viewer images stay sharp on
+    # 1080p. Raise per stack (no rebuild) for tenants who zoom into scans or GIS
+    # rasters. Purge + regrow: scripts/previews/run.sh.
+    php occ config:system:set preview_max_x --value="${PREVIEW_MAX_X:-1280}" --type=integer
+    php occ config:system:set preview_max_y --value="${PREVIEW_MAX_Y:-1280}" --type=integer
 
     # Theming (name, colors, logos, favicon)
     echo "Configuring theming..."
