@@ -47,9 +47,10 @@ Total ≈ 348.5 GiB. No client has dangling rows (DB row without object). The fu
 
 Committed to the repo:
 
-- `scripts/preview-scan.php` — the read-only bucket-vs-DB scan used for the baseline.
-- `scripts/preview-purge.php` — the purge.
-- `scripts/preview-purge.sh <container> [--execute | --sweep-only]` — base64-evals the PHP inside the container as `www-data` via `scripts/portainer-exec-prod.sh` (or `PORTAINER_EXEC=scripts/portainer-exec.sh` for staging).
+- `scripts/previews/lib.php` — tested logic; `scripts/previews/tests/lib.test.php`.
+- `scripts/previews/scan.php` — the read-only bucket-vs-DB scan used for the baseline.
+- `scripts/previews/purge.php` — the purge.
+- `scripts/previews/run.sh <staging|prod> <scan|purge> <container> [flags]` — bundles `lib.php` + the entry script and base64-evals it inside the container as `www-data` via `scripts/portainer-exec.sh` / `portainer-exec-prod.sh`.
 
 Purge steps, in order:
 
