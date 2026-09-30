@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Avuz\PreviewTools;
 
 const DEFAULT_PREVIEW_PREFIX = 'uri:oid:preview:';
+const CUTOFF_MARGIN = 'PT10M';
+const REQUEST_TIMEOUT_SECONDS = 10;
 
 final class BucketObject {
 	public function __construct(
@@ -33,6 +35,11 @@ interface BucketClient {
 }
 
 final class S3BucketClient implements BucketClient {
+	private const BOUNDED_REQUEST = [
+		'@http' => ['timeout' => REQUEST_TIMEOUT_SECONDS, 'connect_timeout' => REQUEST_TIMEOUT_SECONDS],
+		'@retries' => 0,
+	];
+
 	public function __construct(
 		private readonly \Aws\S3\S3Client $client,
 		private readonly string $bucket,
@@ -44,12 +51,12 @@ final class S3BucketClient implements BucketClient {
 		if ($continuationToken !== null) {
 			$request['ContinuationToken'] = $continuationToken;
 		}
-		$result = $this->client->listObjectsV2($request);
+		$result = $this->client->listObjectsV2($request + self::BOUNDED_REQUEST);
 		$objects = array_map(
 			fn (array $object): BucketObject => new BucketObject($object['Key'], (int)$object['Size']),
 			$result['Contents'] ?? [],
 		);
-		return new BucketPage($objects, $result['IsTruncated'] ? $result['NextContinuationToken'] : null);
+		return new BucketPage($objects, nextContinuationToken((bool)$result['IsTruncated'], $result['NextContinuationToken'] ?? null));
 	}
 
 	public function deleteKeys(array $keys): array {
@@ -62,7 +69,7 @@ final class S3BucketClient implements BucketClient {
 				'Objects' => array_map(fn (string $key): array => ['Key' => $key], $keys),
 				'Quiet' => true,
 			],
-		]);
+		] + self::BOUNDED_REQUEST);
 		return array_map(
 			fn (array $error): string => "{$error['Key']}: {$error['Code']} {$error['Message']}",
 			$result['Errors'] ?? [],
@@ -157,34 +164,65 @@ function previewIdFromKey(string $key, string $prefix): ?string {
 	return $previewId;
 }
 
+function nextContinuationToken(bool $isTruncated, ?string $token): ?string {
+	if (!$isTruncated) {
+		return null;
+	}
+	if ($token === null || $token === '') {
+		throw new \RuntimeException('listing truncated without a continuation token');
+	}
+	return $token;
+}
+
+function parseCutoff(string $value, \DateTimeImmutable $now): \DateTimeImmutable {
+	$cutoff = \DateTimeImmutable::createFromFormat(DATE_ATOM, $value);
+	$parseErrors = \DateTimeImmutable::getLastErrors();
+	if ($cutoff === false || ($parseErrors !== false && ($parseErrors['warning_count'] > 0 || $parseErrors['error_count'] > 0))) {
+		throw new \InvalidArgumentException("--cutoff must look like 2026-10-01T02:00:00+00:00, got {$value}");
+	}
+	if ($cutoff > $now->sub(new \DateInterval(CUTOFF_MARGIN))) {
+		throw new \InvalidArgumentException('--cutoff must be at least 10 minutes in the past');
+	}
+	return $cutoff;
+}
+
 /**
  * @param list<string> $arguments CLI flags after `--`
  * @throws \InvalidArgumentException
  */
-function parsePurgeOptions(array $arguments): PurgeOptions {
-	$mode = PurgeMode::DryRun;
+function parsePurgeOptions(array $arguments, \DateTimeImmutable $now): PurgeOptions {
+	$execute = false;
+	$sweepOnly = false;
 	$cutoff = null;
 	foreach ($arguments as $argument) {
 		if ($argument === '--execute') {
-			$mode = PurgeMode::Execute;
+			$execute = true;
 			continue;
 		}
 		if ($argument === '--sweep-only') {
-			$mode = PurgeMode::SweepOnly;
+			$sweepOnly = true;
 			continue;
 		}
 		if (str_starts_with($argument, '--cutoff=')) {
-			$cutoff = new \DateTimeImmutable(substr($argument, strlen('--cutoff=')));
+			$cutoff = parseCutoff(substr($argument, strlen('--cutoff=')), $now);
 			continue;
 		}
 		throw new \InvalidArgumentException("unknown flag {$argument}");
 	}
-	if ($mode === PurgeMode::SweepOnly && $cutoff === null) {
+	if ($execute && $sweepOnly) {
+		throw new \InvalidArgumentException('--execute and --sweep-only are mutually exclusive');
+	}
+	if ($sweepOnly && $cutoff === null) {
 		throw new \InvalidArgumentException('--sweep-only needs --cutoff=<ISO 8601> from the original run');
 	}
-	if ($mode !== PurgeMode::SweepOnly && $cutoff !== null) {
+	if (!$sweepOnly && $cutoff !== null) {
 		throw new \InvalidArgumentException('--cutoff only applies to --sweep-only');
 	}
+	$mode = match (true) {
+		$sweepOnly => PurgeMode::SweepOnly,
+		$execute => PurgeMode::Execute,
+		default => PurgeMode::DryRun,
+	};
 	return new PurgeOptions($mode, $cutoff);
 }
 
@@ -235,7 +273,11 @@ function walkBucket(BucketClient $client, string $prefix, Guardrails $guardrails
 			$outcome->abortReason = sprintf('slow list request %.1fs', $requestSeconds);
 			break;
 		}
-		$outcome->abortReason = $onPage($page);
+		try {
+			$outcome->abortReason = $onPage($page);
+		} catch (\Throwable $error) {
+			$outcome->abortReason = "page processing error: {$error->getMessage()}";
+		}
 		if ($outcome->abortReason !== null) {
 			break;
 		}

@@ -29,6 +29,7 @@ final class FakeBucketClient implements BucketClient {
 		private readonly array $listLatencies = [],
 		private readonly array $deleteErrors = [],
 		private readonly float $deleteLatency = 0.1,
+		private readonly bool $throwOnDelete = false,
 	) {
 		ksort($objects, SORT_STRING);
 		$this->objects = $objects;
@@ -58,6 +59,9 @@ final class FakeBucketClient implements BucketClient {
 	public function deleteKeys(array $keys): array {
 		$this->time->now += $this->deleteLatency;
 		$this->deleteBatches[] = $keys;
+		if ($this->throwOnDelete) {
+			throw new \RuntimeException('delete connection reset');
+		}
 		if ($this->deleteErrors !== []) {
 			return $this->deleteErrors;
 		}
@@ -131,17 +135,56 @@ assertSameValue('previewKeyPrefix defaults to uri:oid:preview:', 'uri:oid:previe
 assertSameValue('previewKeyPrefix honours objectPrefix', 'tenant:preview:', previewKeyPrefix(['objectPrefix' => 'tenant:']));
 
 // ── parsePurgeOptions ──
-assertSameValue('no flags means dry run', PurgeMode::DryRun, parsePurgeOptions([])->mode);
-assertSameValue('--execute selects execute', PurgeMode::Execute, parsePurgeOptions(['--execute'])->mode);
-assertSameValue('--sweep-only keeps the given cutoff', '2026-10-01T02:00:00+00:00', parsePurgeOptions(['--sweep-only', '--cutoff=2026-10-01T02:00:00+00:00'])->cutoff?->format(DATE_ATOM));
-foreach ([['--sweep-only'], ['--execute', '--cutoff=2026-10-01T02:00:00+00:00'], ['--force']] as $invalidArguments) {
+$now = new \DateTimeImmutable('2026-10-01T03:00:00+00:00');
+$cutoffEleven = $now->sub(new \DateInterval('PT11M'))->format(DATE_ATOM);
+$cutoffFive = $now->sub(new \DateInterval('PT5M'))->format(DATE_ATOM);
+$cutoffFuture = $now->add(new \DateInterval('PT1H'))->format(DATE_ATOM);
+assertSameValue('no flags means dry run', PurgeMode::DryRun, parsePurgeOptions([], $now)->mode);
+assertSameValue('--execute selects execute', PurgeMode::Execute, parsePurgeOptions(['--execute'], $now)->mode);
+assertSameValue('--sweep-only keeps a cutoff 11 minutes in the past', $cutoffEleven, parsePurgeOptions(['--sweep-only', "--cutoff={$cutoffEleven}"], $now)->cutoff?->format(DATE_ATOM));
+assertSameValue('--sweep-only accepts a cutoff exactly at the margin', '2026-10-01T02:50:00+00:00', parsePurgeOptions(['--sweep-only', '--cutoff=2026-10-01T02:50:00+00:00'], $now)->cutoff?->format(DATE_ATOM));
+$invalidArgumentSets = [
+	'a missing cutoff for --sweep-only' => ['--sweep-only'],
+	'--cutoff without --sweep-only' => ['--execute', "--cutoff={$cutoffEleven}"],
+	'an unknown flag' => ['--force'],
+	'--cutoff=now' => ['--sweep-only', '--cutoff=now'],
+	'a future cutoff' => ['--sweep-only', "--cutoff={$cutoffFuture}"],
+	'a cutoff 5 minutes in the past' => ['--sweep-only', "--cutoff={$cutoffFive}"],
+	'a malformed cutoff' => ['--sweep-only', '--cutoff=garbage'],
+	'a date-only cutoff' => ['--sweep-only', '--cutoff=2026-09-01'],
+	'an empty cutoff' => ['--sweep-only', '--cutoff='],
+	'--execute with --sweep-only' => ['--execute', '--sweep-only', "--cutoff={$cutoffEleven}"],
+	'--sweep-only with --execute' => ['--sweep-only', '--execute', "--cutoff={$cutoffEleven}"],
+];
+foreach ($invalidArgumentSets as $description => $invalidArguments) {
 	$rejected = false;
 	try {
-		parsePurgeOptions($invalidArguments);
+		parsePurgeOptions($invalidArguments, $now);
 	} catch (\InvalidArgumentException) {
 		$rejected = true;
 	}
-	assertSameValue('parsePurgeOptions rejects ' . implode(' ', $invalidArguments), true, $rejected);
+	assertSameValue("parsePurgeOptions rejects {$description}", true, $rejected);
+}
+$rejectionMessage = '';
+try {
+	parsePurgeOptions(['--sweep-only', "--cutoff={$cutoffFive}"], $now);
+} catch (\InvalidArgumentException $error) {
+	$rejectionMessage = $error->getMessage();
+}
+assertSameValue('a too recent cutoff explains the 10 minute rule', true, str_contains($rejectionMessage, 'at least 10 minutes in the past'));
+
+// ── nextContinuationToken ──
+assertSameValue('nextContinuationToken returns null on the last page', null, nextContinuationToken(false, null));
+assertSameValue('nextContinuationToken ignores a token on the last page', null, nextContinuationToken(false, 'abc'));
+assertSameValue('nextContinuationToken returns the token of a truncated page', 'abc', nextContinuationToken(true, 'abc'));
+foreach (['missing' => null, 'empty' => ''] as $description => $token) {
+	$rejectionMessage = '';
+	try {
+		nextContinuationToken(true, $token);
+	} catch (\RuntimeException $error) {
+		$rejectionMessage = $error->getMessage();
+	}
+	assertSameValue("nextContinuationToken rejects a truncated page with a {$description} token", 'listing truncated without a continuation token', $rejectionMessage);
 }
 
 // ── purgePreconditionProblems ──
@@ -173,6 +216,14 @@ $walk = walkBucket($client, DEFAULT_PREVIEW_PREFIX, testGuardrails($time, new Pa
 assertSameValue('walk stops on a slow list request', 'slow list request 6.0s', $walk->abortReason);
 assertSameValue('walk stops after the slow page', 2, $client->listCalls);
 
+$time = new FakeTime();
+$client = new FakeBucketClient(previewObjects(1, 2500), $time);
+$walk = walkBucket($client, DEFAULT_PREVIEW_PREFIX, testGuardrails($time, new PauseRecorder()), function (BucketPage $_page): ?string {
+	throw new \RuntimeException('page handler exploded');
+});
+assertSameValue('walk reports a page processing error', 'page processing error: page handler exploded', $walk->abortReason);
+assertSameValue('walk keeps counts of the page that failed to process', 1000, $walk->objects);
+
 // ── sweepPreviews ──
 $time = new FakeTime();
 $objects = previewObjects(1, 1500) + previewObjects(5000, 300) + ['urn:oid:42' => 999, 'uri:oid:preview:bad' => 7];
@@ -181,7 +232,7 @@ $sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdA
 assertSameValue('sweep deletes previews older than the cutoff', 1500, $sweep->deleted);
 assertSameValue('sweep keeps previews at or after the cutoff', 300, $sweep->kept);
 assertSameValue('sweep skips non-numeric preview keys', 1, $sweep->foreignKeys);
-assertSameValue('sweep never lists file objects', true, in_array('urn:oid:42', $client->keys(), true));
+assertSameValue('sweep leaves file objects in place', true, in_array('urn:oid:42', $client->keys(), true));
 assertSameValue('sweep leaves exactly the kept and foreign keys', 302, count($client->keys()));
 assertSameValue('sweep deletes in batches of at most the page size', true, max(array_map('count', $client->deleteBatches)) <= 1000);
 assertSameValue('sweep sends one delete per page with purgeable keys', 2, count($client->deleteBatches));
@@ -199,6 +250,24 @@ $client = new FakeBucketClient(previewObjects(1, 1500), $time, deleteErrors: ['u
 $sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, new PauseRecorder()));
 assertSameValue('sweep stops on delete errors', '1 delete errors, first: uri:oid:preview:1: AccessDenied denied', $sweep->walk->abortReason);
 assertSameValue('sweep counts nothing as deleted when the store refuses', 0, $sweep->deleted);
+
+$time = new FakeTime();
+$client = new FakeBucketClient(previewObjects(1, 1500), $time, throwOnDelete: true);
+$sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, new PauseRecorder()));
+assertSameValue('sweep stops when the delete request throws', 'delete request error: delete connection reset', $sweep->walk->abortReason);
+assertSameValue('sweep counts nothing as deleted when the delete request throws', 0, $sweep->deleted);
+
+$time = new FakeTime();
+$client = new FakeBucketClient(previewObjects(1, 1500), $time);
+$decodeCreatedAt = function (string $previewId): \DateTimeImmutable {
+	if ($previewId === '999') {
+		throw new \RuntimeException('undecodable snowflake');
+	}
+	return (new \DateTimeImmutable())->setTimestamp((int)$previewId);
+};
+$sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), $decodeCreatedAt, false, testGuardrails($time, new PauseRecorder()));
+assertSameValue('sweep reports a page processing error', 'page processing error: undecodable snowflake', $sweep->walk->abortReason);
+assertSameValue('sweep keeps the deletions of pages before the failing one', 1000, $sweep->deleted);
 
 $time = new FakeTime();
 $client = new FakeBucketClient(previewObjects(1, 1500), $time, deleteLatency: 7.0);
