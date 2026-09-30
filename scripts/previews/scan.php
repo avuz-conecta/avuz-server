@@ -6,8 +6,11 @@ namespace Avuz\PreviewTools;
 
 require '/var/www/html/lib/base.php';
 
+$config = \OCP\Server::get(\OCP\IConfig::class);
 $db = \OCP\Server::get(\OCP\IDBConnection::class);
 $storeConfig = \OCP\Server::get(\OC\Files\ObjectStore\PrimaryObjectStoreConfig::class);
+
+echo "preview_max_x/y\t{$config->getSystemValueInt('preview_max_x', 4096)}/{$config->getSystemValueInt('preview_max_y', 4096)}\n";
 
 if (!$storeConfig->hasObjectStore()) {
 	echo "storage\tlocal — nothing to scan\n";

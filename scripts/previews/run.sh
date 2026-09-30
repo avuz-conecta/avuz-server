@@ -23,7 +23,10 @@ case "$ENVIRONMENT" in
   prod)    EXEC="$SCRIPTS_DIR/portainer-exec-prod.sh" ;;
   *)       die "environment must be staging or prod, got '$ENVIRONMENT'" ;;
 esac
-[ -f "$SCRIPT_DIR/$TOOL.php" ] && [ "$TOOL" != "lib" ] || die "unknown tool '$TOOL' (scan | purge)"
+case "$TOOL" in
+  scan|purge) ;;
+  *) die "unknown tool '$TOOL' (scan | purge)" ;;
+esac
 
 BUNDLE_BASE64="$(cat "$SCRIPT_DIR/lib.php" "$SCRIPT_DIR/$TOOL.php" | grep -v '^<?php' | base64 | tr -d '\n')"
 exec "$EXEC" -u www-data "$CONTAINER" php -r "eval(base64_decode('$BUNDLE_BASE64'));" -- "$@"
