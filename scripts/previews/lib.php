@@ -85,6 +85,7 @@ final class Guardrails {
 	 */
 	public function __construct(
 		public readonly int $pageSize,
+		public readonly int $deleteBatchSize,
 		public readonly int $pauseMicroseconds,
 		public readonly float $slowRequestSeconds,
 		public readonly int $progressEveryPages,
@@ -97,6 +98,7 @@ final class Guardrails {
 	public static function production(): self {
 		return new self(
 			pageSize: 1000,
+			deleteBatchSize: 200,
 			pauseMicroseconds: 200_000,
 			slowRequestSeconds: 5.0,
 			progressEveryPages: 100,
@@ -332,9 +334,30 @@ function sweepPreviews(
 ): SweepOutcome {
 	$sweep = new SweepOutcome();
 
-	$onPage = function (BucketPage $page) use ($sweep, $prefix, $cutoff, $createdAt, $dryRun, $client, $guardrails): ?string {
-		$purgeableKeys = [];
-		$purgeableBytes = 0;
+	/** @param list<BucketObject> $batch */
+	$deleteBatch = function (array $batch) use ($sweep, $client, $guardrails): ?string {
+		($guardrails->pause)($guardrails->pauseMicroseconds);
+		$requestStartedAt = ($guardrails->clock)();
+		try {
+			$errors = $client->deleteKeys(array_map(fn (BucketObject $object): string => $object->key, $batch));
+		} catch (\Throwable $error) {
+			return "delete request error: {$error->getMessage()}";
+		}
+		$requestSeconds = ($guardrails->clock)() - $requestStartedAt;
+		$sweep->slowestDeleteSeconds = max($sweep->slowestDeleteSeconds, $requestSeconds);
+		if ($errors !== []) {
+			return sprintf('%d delete errors, first: %s', count($errors), $errors[0]);
+		}
+		$sweep->deleted += count($batch);
+		$sweep->deletedBytes += array_sum(array_map(fn (BucketObject $object): int => $object->size, $batch));
+		if ($requestSeconds > $guardrails->slowRequestSeconds) {
+			return sprintf('slow delete request %.1fs', $requestSeconds);
+		}
+		return null;
+	};
+
+	$onPage = function (BucketPage $page) use ($sweep, $prefix, $cutoff, $createdAt, $dryRun, $deleteBatch, $guardrails): ?string {
+		$purgeableObjects = [];
 		foreach ($page->objects as $object) {
 			$previewId = previewIdFromKey($object->key, $prefix);
 			if ($previewId === null) {
@@ -346,32 +369,19 @@ function sweepPreviews(
 				$sweep->keptBytes += $object->size;
 				continue;
 			}
-			$purgeableKeys[] = $object->key;
-			$purgeableBytes += $object->size;
+			$purgeableObjects[] = $object;
+			$sweep->purgeable++;
+			$sweep->purgeableBytes += $object->size;
 		}
-		$sweep->purgeable += count($purgeableKeys);
-		$sweep->purgeableBytes += $purgeableBytes;
 
-		if ($dryRun || $purgeableKeys === []) {
+		if ($dryRun) {
 			return null;
 		}
-
-		($guardrails->pause)($guardrails->pauseMicroseconds);
-		$requestStartedAt = ($guardrails->clock)();
-		try {
-			$errors = $client->deleteKeys($purgeableKeys);
-		} catch (\Throwable $error) {
-			return 'delete request error: ' . $error->getMessage();
-		}
-		$requestSeconds = ($guardrails->clock)() - $requestStartedAt;
-		$sweep->slowestDeleteSeconds = max($sweep->slowestDeleteSeconds, $requestSeconds);
-		if ($errors !== []) {
-			return sprintf('%d delete errors, first: %s', count($errors), $errors[0]);
-		}
-		$sweep->deleted += count($purgeableKeys);
-		$sweep->deletedBytes += $purgeableBytes;
-		if ($requestSeconds > $guardrails->slowRequestSeconds) {
-			return sprintf('slow delete request %.1fs', $requestSeconds);
+		foreach (array_chunk($purgeableObjects, $guardrails->deleteBatchSize) as $batch) {
+			$abortReason = $deleteBatch($batch);
+			if ($abortReason !== null) {
+				return $abortReason;
+			}
 		}
 		return null;
 	};

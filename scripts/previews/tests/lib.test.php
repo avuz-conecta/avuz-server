@@ -83,9 +83,10 @@ final class PauseRecorder {
 	public int $calls = 0;
 }
 
-function testGuardrails(FakeTime $time, PauseRecorder $pauses, int $pageSize = 1000): Guardrails {
+function testGuardrails(FakeTime $time, PauseRecorder $pauses, int $pageSize = 1000, int $deleteBatchSize = 1000): Guardrails {
 	return new Guardrails(
 		pageSize: $pageSize,
+		deleteBatchSize: $deleteBatchSize,
 		pauseMicroseconds: 200_000,
 		slowRequestSeconds: 5.0,
 		progressEveryPages: 100,
@@ -313,5 +314,31 @@ $guardrails = testGuardrails($time, new PauseRecorder());
 sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, $guardrails);
 $rerun = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, $guardrails);
 assertSameValue('re-running a finished sweep deletes nothing', 0, $rerun->deleted);
+
+// ── delete batches smaller than a page ──
+$time = new FakeTime();
+$client = new FakeBucketClient(previewObjects(1000, 1500), $time);
+$sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, new PauseRecorder(), deleteBatchSize: 200));
+assertSameValue('sweep splits each page into delete batches of at most deleteBatchSize', true, max(array_map('count', $client->deleteBatches)) <= 200);
+assertSameValue('sweep sends ceil(page / deleteBatchSize) deletes per page', 8, count($client->deleteBatches));
+assertSameValue('sweep deletes every purgeable object across small batches', 1500, $sweep->deleted);
+assertSameValue('sweep leaves no purgeable objects behind with small batches', 0, count($client->keys()));
+
+$time = new FakeTime();
+$pauses = new PauseRecorder();
+$client = new FakeBucketClient(previewObjects(1000, 400), $time);
+sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, $pauses, deleteBatchSize: 200));
+assertSameValue('sweep pauses before every delete batch', 2, $pauses->calls);
+
+$time = new FakeTime();
+$client = new FakeBucketClient(previewObjects(1000, 1000), $time, deleteLatency: 7.0);
+$sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, new PauseRecorder(), deleteBatchSize: 200));
+assertSameValue('sweep stops at the first slow delete batch', 1, count($client->deleteBatches));
+assertSameValue('sweep counts only the completed slow batch as deleted', 200, $sweep->deleted);
+
+$time = new FakeTime();
+$client = new FakeBucketClient(previewObjects(1000, 600), $time, deleteErrors: ['uri:oid:preview:1000: SlowDown please']);
+$sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, new PauseRecorder(), deleteBatchSize: 200));
+assertSameValue('sweep stops after the first refused delete batch', 1, count($client->deleteBatches));
 
 exit($failures === 0 ? 0 : 1);
