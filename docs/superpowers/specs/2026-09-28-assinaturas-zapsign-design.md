@@ -405,6 +405,20 @@ A save failure sets `save_status = save_failed` and notifies the sender. SyncJob
 
 pt_BR first, using Nextcloud l10n. Screens meet WCAG 2.0 AA: keyboard reachable, labelled controls, and status not conveyed by color alone.
 
+### Frontend decisions (Patrick, 2026-10-02)
+
+| # | Topic | Decision |
+|---|---|---|
+| 1 | Look and feel | **Avuz's own visual identity** inside the app (not plain Nextcloud defaults). It still builds on `@nextcloud/vue` components for accessibility, restyled to the Avuz identity (primary `#2bb5e3`, link `#00679e`, Questrial, Lucide-style icons). The design is mocked up and approved before Plan 3b is written |
+| 2 | Wizard | **Full page** at `/envelopes/:uuid` while the envelope is a draft (steps in the page, not a modal) |
+| 3 | Mobile | The whole app, **placement editor included, works on phones**: touch drag, resize and zoom |
+| 4 | Placement | Boxes are **placed automatically** (each signer's signature on the last page, staggered), and the user can always edit them by hand |
+| 5 | Dashboard search | **Server-side** filters and search (title, file name, signer) with paging |
+| 6 | Signer input | **Typed by hand** (name and email); no contacts/users autocomplete in v1 |
+| 7 | Initials ("Rubricar todas as páginas") | Chosen **per document** that needs them, placed **at the footer** of every page of that document (above ZapSign's footer line) |
+| 8 | Files sidebar | **Yes**: a sidebar tab shows a file's signing status |
+| 9 | Illustrations | No Avuz artwork exists; produce it with Claude Design or Fable when needed |
+
 ### Access
 
 - Enforcement lives in the app, not in Nextcloud's "limit to groups" setting. Core treats group-limited apps as disabled for anonymous requests ([`lib/private/App/AppManager.php:365`](../../../lib/private/App/AppManager.php)), which would 404 the webhook.
