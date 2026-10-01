@@ -130,3 +130,34 @@ Envelope `10ee29c9…`: Contrato + Anexo, 2 ordered signers, driven through the 
 | Logs | No sign URLs, signed-file URLs, S3 signatures or auth headers |
 | **Q2 activity log** | With the test plan active: `GET /docs/signer-log/{doc}` now answers `application/pdf`. `info-plan` works too. The earlier 403/404 were plan-gated |
 | Sender line | "Sua assinatura foi solicitada por patrick@avuz.cloud de Avuz Conecta"; From "Avuz Conecta via ZapSign"; Reply-To = account owner. Customizable in the ZapSign panel (Patrick) |
+
+## Plan 2b spike (2026-09-30, sandbox)
+
+| # | Question | Observed | Consequence |
+|---|---|---|---|
+| S1 | `email_bounce` payload | **None arrived** in ~60 min for `@simulator.amazonses.com` (ZapSign does not send through Amazon SES) or for a nonexistent `@avuz.cloud` mailbox. The custom header does arrive on webhooks (`doc_created` carried `X-Assinaturas-Spike`). Documented payload: `{email, token, type, status, status_code, error, delivered:false, event_type:"email_bounce"}`, where **`token` is the SIGNER token** | Build bounce handling from the documented payload (fixture `recorded-email-bounce.json`). Verify a real bounce on staging/production in Plan 4 |
+| S2 | Does `updateSignerEmail` alone invite? | **No.** It only changes the email (confirmed via `getDocument`) | `RELEASE_AFTER_EMAIL_UPDATE = true`: a correction must release again |
+| S3 | Resend cooldown | **Silent.** A release within 30 min of the signer's last email answers HTTP 200 but sends nothing. There is no 429 and `resend_attempts` stays null (5 releases at 19:29–19:32 dropped; 19:50, 31 min after the 19:19 invite, sent). Attempts don't reset the window; sends do | We must enforce the 30-min cooldown ourselves, from `max(released_at, last_reminder_at)`. Don't count on a 429 |
+| S3b | Can a corrected address be invited at once? | **Yes** (12 s after a send to the old alias, the new alias received an invitation, a few minutes late). One anomaly: a release 2 min after correcting the bounce-simulator signer never arrived | A correction invites immediately. Our own cooldown doesn't block it |
+| S4 | `original_file` host | `zapsign.s3.amazonaws.com` (main and extra) | Already allowlisted |
+| S5 | Activity report | `application/pdf`, 112 KB | Download works |
+| S6 | Cancel with `notify_signer: true` | Signers **receive a cancellation email** | The UI copy should say the signers are notified |
+
+## Plan 2b end-to-end run (2026-10-01, sandbox)
+
+| Check | Result |
+|---|---|
+| Remind right after send | Refused locally (429 `reminder_cooldown`, ~1790 s), with no ZapSign call |
+| Correct email right after send | ZapSign updated the email, but **the re-invite was silently dropped**. The 30-min window is **per signer, even after a correction**, so the spike's S3b was wrong (the `+spike2d` email was the cancel notice). The app wrongly reported `invited: true`. **Fix needed** |
+| Signing code after a correction | Opening the OLD invitation link sends the signing code to the **corrected** address. A wrong recipient can't sign |
+| Copy link | Returned (host `sandbox.app.zapsign.com.br`), recorded as `link_copied` |
+| Extend deadline | `deadline_extended` with the end of day in BRT |
+| Remind group 2 right after group 1 signed | Refused locally (next-group auto-email counted) |
+| Completion | Both `(assinado)` PDFs saved. Downloads: signed 292 KB, original 823 B, activity report 119 KB |
+| Expire → cancel (envelope B) | `expired`, then `cancelled`, confirmed by ZapSign |
+| **Second cancel of a closed document** | **HTTP 403** (`ZapSignAccessDenied`), not 400. Admin delete's "already closed" check must treat 403 as a candidate too. **Fix needed** |
+| Admin delete (envelope C) | Cancelled at ZapSign, rows removed |
+| Cancel emails | ZapSign emails **all** signers, including signing-order groups never invited (they get "cancelado" for a document they never saw) |
+| Notifications | `expired` delivered to the owner via the listener (envelope D). The driver needed `OC_App::loadApps()`; cron loads apps, so production is unaffected |
+| Admin status | Health `ok` plus plan info (`Plan Teste Sandbox Parcerias`, 50 credits); usage counts correct for the month |
+| Logs | 0 sign URLs, S3 signatures, tokens or auth headers |
