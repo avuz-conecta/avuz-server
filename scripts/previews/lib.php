@@ -6,6 +6,7 @@ namespace Avuz\PreviewTools;
 const DEFAULT_PREVIEW_PREFIX = 'uri:oid:preview:';
 const CUTOFF_MARGIN = 'PT10M';
 const REQUEST_TIMEOUT_SECONDS = 10;
+const DELETE_TIMEOUT_SECONDS = 30;
 
 final class BucketObject {
 	public function __construct(
@@ -39,6 +40,10 @@ final class S3BucketClient implements BucketClient {
 		'@http' => ['timeout' => REQUEST_TIMEOUT_SECONDS, 'connect_timeout' => REQUEST_TIMEOUT_SECONDS],
 		'@retries' => 0,
 	];
+	private const BOUNDED_DELETE = [
+		'@http' => ['timeout' => DELETE_TIMEOUT_SECONDS, 'connect_timeout' => REQUEST_TIMEOUT_SECONDS],
+		'@retries' => 0,
+	];
 
 	public function __construct(
 		private readonly \Aws\S3\S3Client $client,
@@ -69,7 +74,7 @@ final class S3BucketClient implements BucketClient {
 				'Objects' => array_map(fn (string $key): array => ['Key' => $key], $keys),
 				'Quiet' => true,
 			],
-		] + self::BOUNDED_REQUEST);
+		] + self::BOUNDED_DELETE);
 		return array_map(
 			fn (array $error): string => "{$error['Key']}: {$error['Code']} {$error['Message']}",
 			$result['Errors'] ?? [],
@@ -88,6 +93,7 @@ final class Guardrails {
 		public readonly int $deleteBatchSize,
 		public readonly int $pauseMicroseconds,
 		public readonly float $slowRequestSeconds,
+		public readonly float $slowDeleteSeconds,
 		public readonly int $progressEveryPages,
 		public readonly \Closure $clock,
 		public readonly \Closure $pause,
@@ -101,6 +107,7 @@ final class Guardrails {
 			deleteBatchSize: 200,
 			pauseMicroseconds: 200_000,
 			slowRequestSeconds: 5.0,
+			slowDeleteSeconds: 20.0,
 			progressEveryPages: 100,
 			clock: fn (): float => hrtime(true) / 1e9,
 			pause: function (int $microseconds): void {
@@ -334,9 +341,11 @@ function sweepPreviews(
 ): SweepOutcome {
 	$sweep = new SweepOutcome();
 
+	$previousDeleteMicroseconds = 0;
+
 	/** @param list<BucketObject> $batch */
-	$deleteBatch = function (array $batch) use ($sweep, $client, $guardrails): ?string {
-		($guardrails->pause)($guardrails->pauseMicroseconds);
+	$deleteBatch = function (array $batch) use ($sweep, $client, $guardrails, &$previousDeleteMicroseconds): ?string {
+		($guardrails->pause)(max($guardrails->pauseMicroseconds, $previousDeleteMicroseconds));
 		$requestStartedAt = ($guardrails->clock)();
 		try {
 			$errors = $client->deleteKeys(array_map(fn (BucketObject $object): string => $object->key, $batch));
@@ -344,13 +353,14 @@ function sweepPreviews(
 			return "delete request error: {$error->getMessage()}";
 		}
 		$requestSeconds = ($guardrails->clock)() - $requestStartedAt;
+		$previousDeleteMicroseconds = (int)round($requestSeconds * 1_000_000);
 		$sweep->slowestDeleteSeconds = max($sweep->slowestDeleteSeconds, $requestSeconds);
 		if ($errors !== []) {
 			return sprintf('%d delete errors, first: %s', count($errors), $errors[0]);
 		}
 		$sweep->deleted += count($batch);
 		$sweep->deletedBytes += array_sum(array_map(fn (BucketObject $object): int => $object->size, $batch));
-		if ($requestSeconds > $guardrails->slowRequestSeconds) {
+		if ($requestSeconds > $guardrails->slowDeleteSeconds) {
 			return sprintf('slow delete request %.1fs', $requestSeconds);
 		}
 		return null;

@@ -81,18 +81,22 @@ final class FakeBucketClient implements BucketClient {
 
 final class PauseRecorder {
 	public int $calls = 0;
+	/** @var list<int> */
+	public array $microseconds = [];
 }
 
-function testGuardrails(FakeTime $time, PauseRecorder $pauses, int $pageSize = 1000, int $deleteBatchSize = 1000): Guardrails {
+function testGuardrails(FakeTime $time, PauseRecorder $pauses, int $pageSize = 1000, int $deleteBatchSize = 1000, float $slowDeleteSeconds = 5.0): Guardrails {
 	return new Guardrails(
 		pageSize: $pageSize,
 		deleteBatchSize: $deleteBatchSize,
 		pauseMicroseconds: 200_000,
 		slowRequestSeconds: 5.0,
+		slowDeleteSeconds: $slowDeleteSeconds,
 		progressEveryPages: 100,
 		clock: fn (): float => $time->now,
-		pause: function (int $_microseconds) use ($pauses): void {
+		pause: function (int $microseconds) use ($pauses): void {
 			$pauses->calls++;
+			$pauses->microseconds[] = $microseconds;
 		},
 		progress: function (string $_line): void {
 		},
@@ -340,5 +344,19 @@ $time = new FakeTime();
 $client = new FakeBucketClient(previewObjects(1000, 600), $time, deleteErrors: ['uri:oid:preview:1000: SlowDown please']);
 $sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, new PauseRecorder(), deleteBatchSize: 200));
 assertSameValue('sweep stops after the first refused delete batch', 1, count($client->deleteBatches));
+
+// ── adaptive delete throttle ──
+$time = new FakeTime();
+$pauses = new PauseRecorder();
+$client = new FakeBucketClient(previewObjects(1000, 600), $time, deleteLatency: 7.0);
+$sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, $pauses, deleteBatchSize: 200, slowDeleteSeconds: 20.0));
+assertSameValue('sweep tolerates deletes slower than the list threshold but under slowDeleteSeconds', null, $sweep->walk->abortReason);
+assertSameValue('sweep deletes everything when deletes are slow but tolerated', 600, $sweep->deleted);
+assertSameValue('sweep waits as long as the previous delete took before the next one', [200_000, 7_000_000, 7_000_000], $pauses->microseconds);
+
+$time = new FakeTime();
+$client = new FakeBucketClient(previewObjects(1000, 600), $time, deleteLatency: 25.0);
+$sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, new PauseRecorder(), deleteBatchSize: 200, slowDeleteSeconds: 20.0));
+assertSameValue('sweep still stops on a delete slower than slowDeleteSeconds', 'slow delete request 25.0s', $sweep->walk->abortReason);
 
 exit($failures === 0 ? 0 : 1);

@@ -175,7 +175,9 @@ legacy rows (`old_file_id` not null — truncating them orphans their
 `--execute` / `--sweep-only` refuse when one fails; a dry run only reports.
 It truncates `oc_previews` + `oc_preview_generation` (5 s lock wait, then
 `FAIL lock wait exceeded — retry later`), then deletes preview objects older
-than start − 10 min from the instance's own bucket only. `--sweep-only`
+than start − 10 min from the instance's own bucket only, in 200-key
+deletes throttled to Ceph's pace (wait ≥ previous delete's duration; abort
+on errors or a delete > 20 s). `--sweep-only`
 refuses a cutoff later than the oldest remaining `oc_previews` row: reuse the
 cutoff printed by the original run. Never roll an image with
 `AVUZ_CONFIG_VERSION` < `33.0.0-21` to a purged tenant (it resets the cap to
