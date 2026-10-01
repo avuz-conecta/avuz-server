@@ -142,3 +142,22 @@ Envelope `10ee29c9…`: Contrato + Anexo, 2 ordered signers, driven through the 
 | S4 | `original_file` host | `zapsign.s3.amazonaws.com` (main and extra) | Already allowlisted |
 | S5 | Activity report | `application/pdf`, 112 KB | Download works |
 | S6 | Cancel with `notify_signer: true` | Signers **receive a cancellation email** | The UI copy should say the signers are notified |
+
+## Plan 2b end-to-end run (2026-10-01, sandbox)
+
+| Check | Result |
+|---|---|
+| Remind right after send | Refused locally (429 `reminder_cooldown`, ~1790 s), with no ZapSign call |
+| Correct email right after send | ZapSign updated the email, but **the re-invite was silently dropped**. The 30-min window is **per signer, even after a correction**, so the spike's S3b was wrong (the `+spike2d` email was the cancel notice). The app wrongly reported `invited: true`. **Fix needed** |
+| Signing code after a correction | Opening the OLD invitation link sends the signing code to the **corrected** address. A wrong recipient can't sign |
+| Copy link | Returned (host `sandbox.app.zapsign.com.br`), recorded as `link_copied` |
+| Extend deadline | `deadline_extended` with the end of day in BRT |
+| Remind group 2 right after group 1 signed | Refused locally (next-group auto-email counted) |
+| Completion | Both `(assinado)` PDFs saved. Downloads: signed 292 KB, original 823 B, activity report 119 KB |
+| Expire → cancel (envelope B) | `expired`, then `cancelled`, confirmed by ZapSign |
+| **Second cancel of a closed document** | **HTTP 403** (`ZapSignAccessDenied`), not 400. Admin delete's "already closed" check must treat 403 as a candidate too. **Fix needed** |
+| Admin delete (envelope C) | Cancelled at ZapSign, rows removed |
+| Cancel emails | ZapSign emails **all** signers, including signing-order groups never invited (they get "cancelado" for a document they never saw) |
+| Notifications | `expired` delivered to the owner via the listener (envelope D). The driver needed `OC_App::loadApps()`; cron loads apps, so production is unaffected |
+| Admin status | Health `ok` plus plan info (`Plan Teste Sandbox Parcerias`, 50 credits); usage counts correct for the month |
+| Logs | 0 sign URLs, S3 signatures, tokens or auth headers |
