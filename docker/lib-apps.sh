@@ -379,10 +379,12 @@ avuz_reconcile_app_versions() {
             echo "Reconciling $app: on-disk code $code is ahead of installed $installed — disable+enable to run app upgrade"
             enabled="$(_avuz_occ config:app:get "$app" enabled 2>/dev/null)" || true
             _avuz_occ app:disable "$app" || true
-            _avuz_occ app:enable --force "$app" || true
-            case "$enabled" in
-                "["*) _avuz_occ config:app:set "$app" enabled --value="$enabled" >/dev/null || true ;;
-            esac
+            # Restore groups only on success: writing `enabled` reopens a failed app.
+            if _avuz_occ app:enable --force "$app"; then
+                case "$enabled" in
+                    "["*) _avuz_occ config:app:set "$app" enabled --value="$enabled" >/dev/null || true ;;
+                esac
+            fi
         fi
     done
     return 0
