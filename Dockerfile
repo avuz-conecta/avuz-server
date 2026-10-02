@@ -49,6 +49,21 @@ RUN cp -R /var/www/html/docker/overlays/files_downloadlimit/. /var/www/html/apps
 # board-tags feature (AVUZ-BOARD-TAGS-V1) as real commits, plus its committed
 # vendor/ and built js/ — so no overlay cp is needed here.
 
+# Assinaturas (Avuz's own ZapSign e-signature app) ships as the
+# avuz-conecta/assinaturas submodule at apps/assinaturas (branch main) with its
+# built js/ and dist/ committed — the Dockerfile cannot build it. Fail loud if
+# the submodule was not initialized, then drop what only development needs
+# (sources, tests with local preview fixtures, design mockups, docs).
+RUN test -f apps/assinaturas/js/assinaturas-main.mjs \
+      || { echo "apps/assinaturas has no built js — run: git submodule update --init apps/assinaturas"; exit 1; } \
+    && rm -rf apps/assinaturas/.git apps/assinaturas/src apps/assinaturas/tests \
+              apps/assinaturas/design apps/assinaturas/docs apps/assinaturas/scripts \
+              apps/assinaturas/node_modules apps/assinaturas/.superpowers \
+              apps/assinaturas/package.json apps/assinaturas/package-lock.json \
+              apps/assinaturas/vite.config.ts apps/assinaturas/tsconfig.json \
+              apps/assinaturas/tsconfig.node.json apps/assinaturas/eslint.config.js \
+              apps/assinaturas/composer.lock apps/assinaturas/.nvmrc apps/assinaturas/.gitignore
+
 # Clean old compiled bundles and rebuild frontend
 RUN npm run build
 

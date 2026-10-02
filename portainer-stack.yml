@@ -101,6 +101,13 @@ services:
       - AI_STT_MODEL=whisper-v3
       - AI_STT_LANGUAGE=pt
 
+      # Assinaturas — ZapSign e-signature (optional). Empty token = app disabled,
+      # data kept. Provisioning: docs/assinaturas-tenant-runbook.md
+      - ZAPSIGN_API_TOKEN=                 # tenant sub-account token (shown once at creation)
+      - ZAPSIGN_ENVIRONMENT=production     # sandbox on staging
+      - ZAPSIGN_COMPANY_NAME=              # tenant company, shown to signers
+      - ZAPSIGN_WEBHOOK_SECRET=            # optional; empty = app-generated
+
 volumes:
   nextcloud_data:
   nextcloud_config:

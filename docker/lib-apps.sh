@@ -18,6 +18,47 @@ _avuz_occ() {
     php occ "$@"
 }
 
+# occ with a wall-clock bound: <seconds> <occ args>. Falls back to plain occ when
+# the image has no `timeout` binary.
+_avuz_occ_bounded() {
+    local seconds="$1"; shift
+    if [ -n "${AVUZ_OCC_DRYRUN:-}" ]; then
+        echo "OCC $*"
+        return 0
+    fi
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "$seconds" php occ "$@"
+        return
+    fi
+    php occ "$@"
+}
+
+# Writes one app config value read from an env var: <app> <key> <ENV_VAR> [--sensitive].
+# Keeps secrets off argv, which admin_audit logs for every occ command.
+_avuz_php_config() {
+    if [ -n "${AVUZ_OCC_DRYRUN:-}" ]; then
+        echo "PHPCFG $*"
+        return 0
+    fi
+    php /var/www/html/docker/set-app-config-from-env.php "$@"
+}
+
+# Stores an app config value encrypted at rest ($AppConfigEncryption$ prefix).
+# IAppConfig refuses to flip an existing key's sensitivity through a value set,
+# so a plaintext key is deleted first. Already-sensitive keys are set in place
+# (no DB write when the value is unchanged). Readers must use IAppConfig — the
+# deprecated IConfig::getAppValue returns the ciphertext.
+avuz_set_sensitive_app_config() {
+    local app="$1" key="$2" value="$3" value_type="${4:-}"
+    local type_option=()
+    [ -n "$value_type" ] && type_option=(--type="$value_type")
+    if ! _avuz_occ config:app:get "$app" "$key" --details --output=json 2>/dev/null \
+        | grep -q '"sensitive":true'; then
+        _avuz_occ config:app:delete "$app" "$key" >/dev/null 2>&1 || true
+    fi
+    _avuz_occ config:app:set "$app" "$key" ${type_option[@]+"${type_option[@]}"} --sensitive --value="$value"
+}
+
 # Pure: classify an `occ upgrade` run. Failure IFF it left maintenance mode stuck
 # on (mid-migration abort) or exited non-zero. A benign no-op ("already latest")
 # exits 0 with maintenance off -> ok. Signature confirmed by the Task 1 probe.
@@ -325,8 +366,10 @@ avuz_should_reconcile() {
 # upgrade step. A no-op `app:enable --force` on an already-enabled app does NOT
 # trigger it either — only disable-then-enable does. Idempotent: fires only on a
 # real code>installed mismatch, which self-clears after one reconcile. Non-fatal.
+# `app:enable --force` opens the app to everyone, so an admin's group
+# restriction (a JSON group list in `enabled`) is written back afterwards.
 avuz_reconcile_app_versions() {
-    local app code installed base
+    local app code installed base enabled
     for app in "$@"; do
         base="$(avuz_app_path "$app")"
         [ -n "$base" ] || continue
@@ -334,8 +377,14 @@ avuz_reconcile_app_versions() {
         installed="$(_avuz_occ config:app:get "$app" installed_version 2>/dev/null | tr -d '[:space:]')"
         if [ "$(avuz_should_reconcile "$app" "$code" "$installed")" = "yes" ]; then
             echo "Reconciling $app: on-disk code $code is ahead of installed $installed — disable+enable to run app upgrade"
+            enabled="$(_avuz_occ config:app:get "$app" enabled 2>/dev/null)" || true
             _avuz_occ app:disable "$app" || true
-            _avuz_occ app:enable --force "$app" || true
+            # Restore groups only on success: writing `enabled` reopens a failed app.
+            if _avuz_occ app:enable --force "$app"; then
+                case "$enabled" in
+                    "["*) _avuz_occ config:app:set "$app" enabled --value="$enabled" >/dev/null || true ;;
+                esac
+            fi
         fi
     done
     return 0
