@@ -16,6 +16,7 @@ AVUZ_SHADOW_QUARANTINE="/var/www/html/data/.avuz_shadow_quarantine"
 # reapply functions already read at runtime); no separate Dockerfile copy needed.
 source /var/www/html/docker/lib-perms.sh
 source /var/www/html/docker/lib-apps.sh
+source /var/www/html/docker/lib-integrations.sh
 source /var/www/html/docker/lib-health.sh
 
 # Boot marker in the health log. Whatever diagnostic block sits directly above it
@@ -470,12 +471,7 @@ apply_avuz_settings() {
     # Conecta Mail (Roundcube integration) — app id is `conectamail` since 1.1.0
     if [ -n "$ROUNDCUBE_URL" ]; then
         echo "Configuring Conecta Mail integration..."
-        # retire the pre-rename app entry (no-op once cleared)
-        php occ app:disable roundcube 2>/dev/null || true
-        php occ app:enable conectamail 2>/dev/null || true
-        php occ config:app:set conectamail roundcube_url --value="$ROUNDCUBE_URL"
-        avuz_set_sensitive_app_config conectamail sso_secret "$ROUNDCUBE_SSO_SECRET"
-        avuz_set_sensitive_app_config conectamail credential_key "$ROUNDCUBE_CREDENTIAL_KEY"
+        avuz_configure_conectamail
 
         # One-shot migration: move per-user mail creds from old app id `roundcube`
         # to `conectamail`. Idempotent — after first deploy the WHERE matches 0 rows.
@@ -508,24 +504,10 @@ apply_avuz_settings() {
     php occ config:app:set spreed call_recording_summary --value="no"
 
     # ── Talk recording backend ──
-    # Gated on TALK_RECORDING_URL + TALK_RECORDING_SECRET. Stored as
-    # JSON in spreed:recording_servers (see Config::getRecordingServers()).
+    # Gated on TALK_RECORDING_URL + TALK_RECORDING_SECRET.
     if [ -n "$TALK_RECORDING_URL" ] && [ -n "$TALK_RECORDING_SECRET" ]; then
         echo "Configuring Talk recording backend..."
-        TALK_RECORDING_VERIFY="${TALK_RECORDING_VERIFY:-true}"
-        # Build JSON without jq (not present in image)
-        php -r '
-            $cfg = [
-                "servers" => [[
-                    "server" => $argv[1],
-                    "verify" => filter_var($argv[2], FILTER_VALIDATE_BOOLEAN),
-                ]],
-                "secret" => $argv[3],
-            ];
-            echo json_encode($cfg);
-        ' "$TALK_RECORDING_URL" "$TALK_RECORDING_VERIFY" "$TALK_RECORDING_SECRET" \
-          | xargs -0 -I{} php occ config:app:set spreed recording_servers --value="{}"
-        php occ config:app:set spreed call_recording --value="yes"
+        avuz_configure_talk_recording
         echo "✓ Talk recording backend configured"
     else
         echo "→ TALK_RECORDING_URL/SECRET not set, skipping recording backend config"
@@ -540,40 +522,7 @@ apply_avuz_settings() {
     # OpenRouter without code changes.
     if [ -n "$AI_API_KEY" ]; then
         echo "Configuring AI provider (integration_openai)..."
-
-        # integration_openai ships as a version-pinned fork submodule (apps/),
-        # not from the App Store (see .gitmodules). The files are already in the
-        # image. Enable it here so it's on before the config:app:set calls below;
-        # it is also enabled via the BUNDLED_APPS loops (keep both).
-        php occ app:enable --force integration_openai 2>/dev/null || true
-
-        # Pilot defaults: LLM via OpenRouter (Anthropic Claude Haiku) + STT
-        # via Fireworks AI (whisper-large-v3). Two providers via the split
-        # AI_*/AI_STT_* env vars below. Override any of them to swap stacks.
-        AI_BASE_URL="${AI_BASE_URL:-https://openrouter.ai/api/v1}"
-        AI_LLM_MODEL="${AI_LLM_MODEL:-anthropic/claude-haiku-4-5}"
-        AI_STT_BASE_URL="${AI_STT_BASE_URL:-https://api.fireworks.ai/inference/v1}"
-        AI_STT_MODEL="${AI_STT_MODEL:-whisper-v3}"
-        AI_STT_LANGUAGE="${AI_STT_LANGUAGE:-pt}"
-
-        # Text/chat completions (used by core:text2text:summary etc.)
-        php occ config:app:set integration_openai url --value="$AI_BASE_URL"
-        php occ config:app:set integration_openai api_key --value="$AI_API_KEY"
-        php occ config:app:set integration_openai default_completion_model_id --value="$AI_LLM_MODEL"
-        php occ config:app:set integration_openai chat_endpoint_enabled --value="1"
-
-        # Speech-to-text (used by core:audio2text). Independent provider:
-        # AI_STT_BASE_URL + AI_STT_API_KEY required (Fireworks key, distinct
-        # from the OpenRouter key used for AI_API_KEY above).
-        php occ config:app:set integration_openai stt_url --value="$AI_STT_BASE_URL"
-        php occ config:app:set integration_openai stt_api_key --value="${AI_STT_API_KEY:-$AI_API_KEY}"
-        php occ config:app:set integration_openai default_stt_model_id --value="$AI_STT_MODEL"
-        php occ config:app:set integration_openai stt_provider_enabled --value="1"
-        php occ config:app:set integration_openai stt_language --value="$AI_STT_LANGUAGE"
-
-        # Re-enable Talk AI summary now that LLM is wired up.
-        php occ config:app:set spreed call_recording_summary --value="yes"
-
+        avuz_configure_ai_provider
         echo "✓ AI provider configured (base=$AI_BASE_URL llm=$AI_LLM_MODEL stt=$AI_STT_MODEL)"
     else
         echo "→ AI_API_KEY not set, skipping AI provider config (Talk transcription disabled)"
@@ -603,27 +552,14 @@ apply_avuz_settings() {
     # SMTP (conditional on env vars)
     if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_NAME" ]; then
         echo "Configuring SMTP..."
-        php occ config:system:set mail_smtpmode --value='smtp'
-        php occ config:system:set mail_smtphost --value="$SMTP_HOST"
-        php occ config:system:set mail_smtpport --value="$SMTP_PORT" --type=integer
-        php occ config:system:set mail_smtpsecure --value="$SMTP_SECURE"
-        php occ config:system:set mail_smtpauth --value=1 --type=integer
-        php occ config:system:set mail_smtpauthtype --value="$SMTP_AUTHTYPE"
-        php occ config:system:set mail_smtpname --value="$SMTP_NAME"
-        php occ config:system:set mail_smtppassword --value="$SMTP_PASSWORD"
-        php occ config:system:set mail_from_address --value="$SMTP_FROM"
-        php occ config:system:set mail_domain --value="$SMTP_DOMAIN"
+        avuz_configure_smtp
         echo "✓ SMTP configured"
     fi
 
     # OnlyOffice (conditional on env vars)
     if [ -n "$ONLYOFFICE_URL" ] && [ -n "$ONLYOFFICE_SECRET" ]; then
         echo "Configuring OnlyOffice..."
-        php occ config:app:set onlyoffice DocumentServerUrl --value="$ONLYOFFICE_URL"
-        php occ config:app:set onlyoffice jwt_secret --value="$ONLYOFFICE_SECRET"
-        php occ config:app:set onlyoffice jwt_header --value="Authorization"
-        php occ config:app:set onlyoffice defFormats --value='{"csv":"true","doc":"true","docm":"true","docx":"true","docxf":"true","dot":"true","dotm":"true","dotx":"true","epub":"true","fb2":"true","fodp":"true","fods":"true","fodt":"true","htm":"true","html":"true","hwp":"true","hwpx":"true","key":"true","md":"true","mht":"true","mhtml":"true","numbers":"true","odg":"true","odp":"true","ods":"true","odt":"true","otp":"true","ots":"true","ott":"true","oxps":"true","pages":"true","pdf":"true","pot":"true","potm":"true","potx":"true","pps":"true","ppsm":"true","ppsx":"true","ppt":"true","pptm":"true","pptx":"true","rtf":"true","stw":"true","sxc":"true","sxi":"true","sxw":"true","txt":"true","vsdm":"true","vssm":"true","vssx":"true","vstm":"true","vstx":"true","wps":"true","xls":"true","xlsb":"true","xlsm":"true","xlsx":"true","xlt":"true","xltm":"true","xltx":"true","xml":"true","xps":"true","djvu":"true"}'
-        php occ config:app:set onlyoffice editFormats --value='{"csv":"true","odp":"true","ods":"true","odt":"true","rtf":"true","txt":"true","doc":"true","docm":"true","docx":"true","docxf":"true","dotx":"true","epub":"true","fb2":"true","html":"true","otp":"true","ots":"true","ott":"true","potm":"true","potx":"true","ppsm":"true","ppsx":"true","ppt":"true","pptm":"true","pptx":"true","xls":"true","xlsm":"true","xlsx":"true","xltm":"true","xltx":"true","htm":"true","fodt":"true","fods":"true","fodp":"true"}'
+        avuz_configure_onlyoffice
         echo "✓ OnlyOffice configured"
     fi
 
