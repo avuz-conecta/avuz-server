@@ -6,7 +6,7 @@ namespace Avuz\PreviewTools;
 const DEFAULT_PREVIEW_PREFIX = 'uri:oid:preview:';
 const CUTOFF_MARGIN = 'PT10M';
 const REQUEST_TIMEOUT_SECONDS = 10;
-const DELETE_TIMEOUT_SECONDS = 30;
+const DELETE_TIMEOUT_SECONDS = 90;
 
 /** A 5xx or connection-level S3 failure: safe to retry, since list and delete are idempotent. */
 final class TransientBucketError extends \RuntimeException {
@@ -127,7 +127,7 @@ final class Guardrails {
 			deleteBatchSize: 200,
 			pauseMicroseconds: 200_000,
 			slowRequestSeconds: 5.0,
-			slowDeleteSeconds: 20.0,
+			slowDeleteSeconds: 60.0,
 			retryBackoffMicroseconds: [2_000_000, 5_000_000, 15_000_000, 30_000_000, 60_000_000],
 			progressEveryPages: 100,
 			clock: fn (): float => hrtime(true) / 1e9,
