@@ -17,6 +17,7 @@ AVUZ_SHADOW_QUARANTINE="/var/www/html/data/.avuz_shadow_quarantine"
 source /var/www/html/docker/lib-perms.sh
 source /var/www/html/docker/lib-apps.sh
 source /var/www/html/docker/lib-health.sh
+source /var/www/html/docker/lib-assinaturas.sh
 
 # Boot marker in the health log. Whatever diagnostic block sits directly above it
 # is the reason this container went down — autoheal restarts leave no other trace.
@@ -86,6 +87,7 @@ AVUZ_OWNED_APPS=(
     "deck"
     "files_downloadlimit"
     "integration_openai"
+    "assinaturas"
 )
 
 # Vanilla apps Avuz does not patch but DOES want tracked from the App Store at
@@ -965,6 +967,13 @@ fi
 # bundle — never the core BUNDLED_APPS (disabling files_sharing/dav at boot is
 # unsafe; those track core and `occ upgrade` handles them).
 avuz_reconcile_app_versions "${ENABLE_APPS[@]}"
+
+# Assinaturas follows the stack env on every boot: token set -> enabled and
+# configured; token removed -> disabled, data kept. See docker/lib-assinaturas.sh.
+avuz_assinaturas_sync
+if [ "$AVUZ_ASSINATURAS_CHANGED" -eq 1 ]; then
+    DID_CONFIG_RUN=1   # app enable/upgrade ran occ as root: re-chown appdata_*
+fi
 
 # ──────────────────────────────────────────────
 # PHASE 4: Apps (fresh install only)
