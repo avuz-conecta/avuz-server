@@ -386,6 +386,37 @@ assert_eq "reconcile leaves the up-to-date app untouched" "no" \
 unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
 rm -rf "$recon_root"
 
+# ── reconcile keeps an admin's group restriction ──
+recon_root="$(mktemp -d)"
+mkdir -p "$recon_root/assinaturas/appinfo"
+printf '<info><version>0.5.0</version></info>' > "$recon_root/assinaturas/appinfo/info.xml"
+RECON_LOG="$(mktemp)"
+_avuz_occ() {
+    printf '%s\n' "$*" >> "$RECON_LOG"
+    case "$*" in
+        "app:getpath assinaturas") echo "$recon_root/assinaturas" ;;
+        "config:app:get assinaturas installed_version") echo "0.4.0" ;;
+        "config:app:get assinaturas enabled") printf '%s\n' "$RECON_ENABLED" ;;
+    esac
+    return 0
+}
+recon_writes() { grep -v '^config:app:get\|^app:getpath' "$RECON_LOG" || true; }
+
+: > "$RECON_LOG"; RECON_ENABLED='["financeiro", "dir financeira"]'
+avuz_reconcile_app_versions assinaturas >/dev/null
+assert_eq "it restores an app's group restriction after reconciling its version" \
+'app:disable assinaturas
+app:enable --force assinaturas
+config:app:set assinaturas enabled --value=["financeiro", "dir financeira"]' "$(recon_writes)"
+
+: > "$RECON_LOG"; RECON_ENABLED="yes"
+avuz_reconcile_app_versions assinaturas >/dev/null
+assert_eq "leaves an app enabled for everyone as app:enable set it" \
+'app:disable assinaturas
+app:enable --force assinaturas' "$(recon_writes)"
+unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
+rm -rf "$recon_root" "$RECON_LOG"
+
 # ── avuz_set_sensitive_app_config ──
 SENSITIVE_LOG="$(mktemp)"
 FAKE_SENSITIVE_DETAILS='{}'

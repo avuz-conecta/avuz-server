@@ -366,8 +366,10 @@ avuz_should_reconcile() {
 # upgrade step. A no-op `app:enable --force` on an already-enabled app does NOT
 # trigger it either — only disable-then-enable does. Idempotent: fires only on a
 # real code>installed mismatch, which self-clears after one reconcile. Non-fatal.
+# `app:enable --force` opens the app to everyone, so an admin's group
+# restriction (a JSON group list in `enabled`) is written back afterwards.
 avuz_reconcile_app_versions() {
-    local app code installed base
+    local app code installed base enabled
     for app in "$@"; do
         base="$(avuz_app_path "$app")"
         [ -n "$base" ] || continue
@@ -375,8 +377,12 @@ avuz_reconcile_app_versions() {
         installed="$(_avuz_occ config:app:get "$app" installed_version 2>/dev/null | tr -d '[:space:]')"
         if [ "$(avuz_should_reconcile "$app" "$code" "$installed")" = "yes" ]; then
             echo "Reconciling $app: on-disk code $code is ahead of installed $installed — disable+enable to run app upgrade"
+            enabled="$(_avuz_occ config:app:get "$app" enabled 2>/dev/null)" || true
             _avuz_occ app:disable "$app" || true
             _avuz_occ app:enable --force "$app" || true
+            case "$enabled" in
+                "["*) _avuz_occ config:app:set "$app" enabled --value="$enabled" >/dev/null || true ;;
+            esac
         fi
     done
     return 0
