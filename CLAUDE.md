@@ -39,7 +39,7 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 
 ### Assinaturas (ZapSign e-signature)
 - Avuz's own app, shipped as the `avuz-conecta/assinaturas` submodule at `apps/assinaturas` (branch `main`, built `js/` + `dist/` committed). The Dockerfile fails the build if it is not initialized and strips `src/`, `tests/`, `design/`, `docs/`, `scripts/` from the image.
-- Optional stack env (see both `portainer-stack*.yml`): `ZAPSIGN_API_TOKEN` (tenant sub-account token), `ZAPSIGN_ENVIRONMENT` (`production`; `sandbox` on staging), `ZAPSIGN_COMPANY_NAME` (shown to signers), `ZAPSIGN_WEBHOOK_SECRET` (empty = app-generated). An empty token disables the app and keeps its data.
+- Optional stack env (see both `portainer-stack*.yml`): `ZAPSIGN_API_TOKEN` (tenant sub-account token), `ZAPSIGN_ENVIRONMENT` (`production`; `sandbox` on staging), `ZAPSIGN_COMPANY_NAME` (shown to signers), `ZAPSIGN_WEBHOOK_SECRET` (empty = app-generated). The app is enabled only when the token, a valid environment (`sandbox`/`production`) and a company name are all set; otherwise the boot disables it (data kept) and logs `– Assinaturas off: <reason>`.
 - The env syncs to the app on every boot: `docker/lib-assinaturas.sh`, sourced by `docker/entrypoint.sh`.
 - Webhook path: `/index.php/apps/assinaturas/webhook`. It needs a Cloudflare WAF skip rule, or ZapSign gets a challenge page.
 - Access is limited to the Nextcloud group `assinaturas`; admins always pass.

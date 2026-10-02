@@ -58,7 +58,11 @@ RUN test -f apps/assinaturas/js/assinaturas-main.mjs \
       || { echo "apps/assinaturas has no built js — run: git submodule update --init apps/assinaturas"; exit 1; } \
     && rm -rf apps/assinaturas/.git apps/assinaturas/src apps/assinaturas/tests \
               apps/assinaturas/design apps/assinaturas/docs apps/assinaturas/scripts \
-              apps/assinaturas/node_modules apps/assinaturas/.superpowers
+              apps/assinaturas/node_modules apps/assinaturas/.superpowers \
+              apps/assinaturas/package.json apps/assinaturas/package-lock.json \
+              apps/assinaturas/vite.config.ts apps/assinaturas/tsconfig.json \
+              apps/assinaturas/tsconfig.node.json apps/assinaturas/eslint.config.js \
+              apps/assinaturas/composer.lock apps/assinaturas/.nvmrc apps/assinaturas/.gitignore
 
 # Clean old compiled bundles and rebuild frontend
 RUN npm run build
