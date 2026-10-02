@@ -24,9 +24,9 @@ _avuz_occ() {
 # (no DB write when the value is unchanged). Readers must use IAppConfig — the
 # deprecated IConfig::getAppValue returns the ciphertext.
 avuz_set_sensitive_app_config() {
-    local app="$1" key="$2" value="$3" type="${4:-}"
+    local app="$1" key="$2" value="$3" value_type="${4:-}"
     local type_option=()
-    [ -n "$type" ] && type_option=(--type="$type")
+    [ -n "$value_type" ] && type_option=(--type="$value_type")
     if ! _avuz_occ config:app:get "$app" "$key" --details --output=json 2>/dev/null \
         | grep -q '"sensitive":true'; then
         _avuz_occ config:app:delete "$app" "$key" >/dev/null 2>&1 || true

@@ -415,6 +415,16 @@ avuz_set_sensitive_app_config assinaturas api_token tok string >/dev/null
 assert_eq "passes the value type when given" \
 "config:app:get assinaturas api_token --details --output=json
 config:app:set assinaturas api_token --type=string --sensitive --value=tok" "$(cat "$SENSITIVE_LOG")"
+
+_avuz_occ() {
+    case "$*" in
+        config:app:set*) return 1 ;;
+        *" --details --output=json") echo '{"sensitive":true}' ;;
+    esac
+    return 0
+}
+if avuz_set_sensitive_app_config conectamail sso_secret s3cret >/dev/null; then sensitive_rc=0; else sensitive_rc=$?; fi
+assert_eq "returns non-zero when the config write fails" "1" "$sensitive_rc"
 unset -f _avuz_occ; source "$HERE/../lib-apps.sh"
 rm -f "$SENSITIVE_LOG"
 
