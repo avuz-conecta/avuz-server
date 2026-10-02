@@ -116,6 +116,17 @@ sync_now
 assert_lacks "skips app:enable when already enabled" "app:enable" "$(writes)"
 assert_eq "reports no change on a steady boot" "0" "$AVUZ_ASSINATURAS_CHANGED"
 
+# ── group-restricted app (enabled holds a JSON group list) ──
+reset_fakes; configure_env; FAKE_ENABLED='["financeiro"]'; FAKE_INSTALLED="0.4.0"
+sync_now
+assert_lacks "it keeps a group-restricted app as the admin set it" "app:enable" "$(writes)"
+assert_eq "reports no change on a steady group-restricted boot" "0" "$AVUZ_ASSINATURAS_CHANGED"
+
+reset_fakes; FAKE_ENABLED='["financeiro"]'
+sync_now
+assert_eq "it disables a group-restricted app when the token is removed" "app:disable assinaturas" "$(writes)"
+assert_eq "flags the group-restricted disable as a change" "1" "$AVUZ_ASSINATURAS_CHANGED"
+
 # ── configured, new app version in the image ──
 reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.3.44"
 sync_now

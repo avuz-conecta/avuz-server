@@ -24,8 +24,12 @@ avuz_assinaturas_env_problem() {
     if [ -z "$company" ]; then echo "no ZAPSIGN_COMPANY_NAME"; return; fi
 }
 
+# `enabled` is "yes", "no", empty (never installed) or a JSON group list when
+# an admin limited the app to groups; the group list counts as enabled.
 avuz_assinaturas_is_enabled() {
-    [ "$(_avuz_occ config:app:get "$AVUZ_ASSINATURAS_APP" enabled 2>/dev/null | tr -d '[:space:]')" = "yes" ]
+    local enabled
+    enabled="$(_avuz_occ config:app:get "$AVUZ_ASSINATURAS_APP" enabled 2>/dev/null | tr -d '[:space:]')" || true
+    [ -n "$enabled" ] && [ "$enabled" != "no" ]
 }
 
 avuz_assinaturas_disable() {
