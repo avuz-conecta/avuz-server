@@ -162,6 +162,12 @@ assert_has "stores an env webhook secret as sensitive" \
 reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0"
 sync_now
 assert_lacks "keeps the generated secret when the env has none" "webhook_secret" "$(writes)"
+reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0"; export ZAPSIGN_WEBHOOK_SECRET="env-secret "
+sync_now
+assert_has "stores the webhook secret trimmed" "webhook_secret=env-secret" "$(cat "$CONFIG_VALUES_LOG")"
+reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0"; export ZAPSIGN_WEBHOOK_SECRET="  "
+sync_now
+assert_lacks "treats a whitespace-only webhook secret as none" "webhook_secret" "$(writes)"
 
 # ── secrets stay off argv (admin_audit logs every occ command line) ──
 reset_fakes; configure_env; export ZAPSIGN_WEBHOOK_SECRET="env-secret"

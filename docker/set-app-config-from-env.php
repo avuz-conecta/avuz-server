@@ -16,6 +16,7 @@ const AVUZ_USAGE = 'usage: set-app-config-from-env.php <app> <key> <ENV_VAR_NAME
 const AVUZ_SENSITIVE_FLAG = '--sensitive';
 const AVUZ_OUTCOME_UNCHANGED = 'unchanged';
 const AVUZ_OUTCOME_SET = 'set';
+const AVUZ_CONFIG_FILE = '/var/www/html/config/config.php';
 
 if (PHP_SAPI !== 'cli') {
 	exit(1);
@@ -42,6 +43,24 @@ function avuzFail(string $reason): never {
 	exit(1);
 }
 
+// The entrypoint runs as root; files Nextcloud creates (log, appdata) must
+// belong to the config.php owner, as occ arranges. Unlike occ, this fails
+// closed and sets the groups before the uid: once the uid drops, the process
+// can no longer change its groups.
+function avuzDropToConfigOwner(): void {
+	if (posix_getuid() !== 0) {
+		return;
+	}
+	$ownerUid = is_file(AVUZ_CONFIG_FILE) ? fileowner(AVUZ_CONFIG_FILE) : false;
+	$owner = $ownerUid === false ? false : posix_getpwuid($ownerUid);
+	if ($owner === false
+		|| !posix_initgroups($owner['name'], $owner['gid'])
+		|| !posix_setgid($owner['gid'])
+		|| !posix_setuid($owner['uid'])) {
+		avuzFail('cannot drop privileges');
+	}
+}
+
 $arguments = array_slice($argv, 1);
 $sensitive = in_array(AVUZ_SENSITIVE_FLAG, $arguments, true);
 $positional = array_values(array_filter($arguments, static fn (string $argument): bool => $argument !== AVUZ_SENSITIVE_FLAG));
@@ -54,6 +73,8 @@ $value = getenv($environmentVariable);
 if ($value === false) {
 	avuzFail("$environmentVariable is not set");
 }
+
+avuzDropToConfigOwner();
 
 try {
 	require '/var/www/html/lib/base.php';

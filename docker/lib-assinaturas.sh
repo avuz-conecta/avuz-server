@@ -72,17 +72,19 @@ avuz_assinaturas_write_config() {
 
 avuz_assinaturas_sync() {
     AVUZ_ASSINATURAS_CHANGED=0
-    local token environment company problem reconcile_output
+    local token environment company webhook_secret problem reconcile_output
     token="$(avuz_trim "${ZAPSIGN_API_TOKEN:-}")"
     environment="$(avuz_trim "${ZAPSIGN_ENVIRONMENT:-}")"
     company="$(avuz_trim "${ZAPSIGN_COMPANY_NAME:-}")"
+    webhook_secret="$(avuz_trim "${ZAPSIGN_WEBHOOK_SECRET:-}")"
     problem="$(avuz_assinaturas_env_problem "$token" "$environment" "$company")"
     if [ -n "$problem" ]; then
         avuz_assinaturas_disable "$problem"
         return 0
     fi
     # The config writer reads these by name, so it must see the trimmed values.
-    export ZAPSIGN_API_TOKEN="$token" ZAPSIGN_ENVIRONMENT="$environment" ZAPSIGN_COMPANY_NAME="$company"
+    export ZAPSIGN_API_TOKEN="$token" ZAPSIGN_ENVIRONMENT="$environment" ZAPSIGN_COMPANY_NAME="$company" \
+        ZAPSIGN_WEBHOOK_SECRET="$webhook_secret"
     if ! avuz_assinaturas_is_enabled; then
         if ! _avuz_occ app:enable --force "$AVUZ_ASSINATURAS_APP" >/dev/null; then
             echo "✗ Assinaturas: app:enable failed (is apps/assinaturas in the image?)"
