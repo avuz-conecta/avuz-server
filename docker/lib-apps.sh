@@ -18,6 +18,22 @@ _avuz_occ() {
     php occ "$@"
 }
 
+# Stores an app config value encrypted at rest ($AppConfigEncryption$ prefix).
+# IAppConfig refuses to flip an existing key's sensitivity through a value set,
+# so a plaintext key is deleted first. Already-sensitive keys are set in place
+# (no DB write when the value is unchanged). Readers must use IAppConfig — the
+# deprecated IConfig::getAppValue returns the ciphertext.
+avuz_set_sensitive_app_config() {
+    local app="$1" key="$2" value="$3" type="${4:-}"
+    local type_option=()
+    [ -n "$type" ] && type_option=(--type="$type")
+    if ! _avuz_occ config:app:get "$app" "$key" --details --output=json 2>/dev/null \
+        | grep -q '"sensitive":true'; then
+        _avuz_occ config:app:delete "$app" "$key" >/dev/null 2>&1 || true
+    fi
+    _avuz_occ config:app:set "$app" "$key" ${type_option[@]+"${type_option[@]}"} --sensitive --value="$value"
+}
+
 # Pure: classify an `occ upgrade` run. Failure IFF it left maintenance mode stuck
 # on (mid-migration abort) or exited non-zero. A benign no-op ("already latest")
 # exits 0 with maintenance off -> ok. Signature confirmed by the Task 1 probe.
