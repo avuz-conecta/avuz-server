@@ -11,7 +11,7 @@ Create a WAF custom rule so ZapSign webhooks reach the app.
 
 ## 2. Provision a tenant
 
-1. Create the sub-account and save its token (shown once, never printed):
+1. Create the sub-account and save its token (shown once, never printed). The script creates the token file first and refuses an existing file. If it says the token was NOT saved, check the ZapSign panel for the sub-account before retrying:
 
    ```bash
    ZAPSIGN_PARTNER_TOKEN=... scripts/zapsign-create-tenant.sh "<company name>" <token-file>
@@ -30,12 +30,12 @@ Create a WAF custom rule so ZapSign webhooks reach the app.
 
 ## 3. Verify
 
-Run in the container as `www-data`:
+Run occ through Portainer as `www-data` (`scripts/portainer-exec.sh`, or `scripts/portainer-exec-prod.sh` for prod). `occ` below means `portainer-exec.sh -u www-data <container> php occ`:
 
 ```bash
-occ app:list --enabled | grep assinaturas
-occ config:app:get assinaturas api_token --details --output=json | grep -o '"sensitive":true'
-occ assinaturas:webhook:ensure          # expect: Webhooks: unchanged
+portainer-exec.sh -u www-data <container> php occ app:list --enabled | grep assinaturas
+portainer-exec.sh -u www-data <container> php occ config:app:get assinaturas api_token --details --output=json | grep -o '"sensitive":true'
+portainer-exec.sh -u www-data <container> php occ assinaturas:webhook:ensure   # expect: Webhooks: unchanged
 ```
 
 - The boot log shows `✓ Assinaturas (<env>) configured`.
@@ -54,4 +54,4 @@ Never print the token.
 
 - **Rotate the token:** change `ZAPSIGN_API_TOKEN` in the stack, then redeploy.
 - **Turn off:** empty `ZAPSIGN_API_TOKEN`, then redeploy. The app is disabled; data is kept.
-- **Restore a DB into another host:** `occ assinaturas:webhook:ensure` refuses until you pass `--confirm-url-change`.
+- **Restore a DB into another host:** `php occ assinaturas:webhook:ensure` refuses until you pass `--confirm-url-change`.
