@@ -126,7 +126,7 @@ final class Guardrails {
 			pageSize: 1000,
 			deleteBatchSize: 200,
 			pauseMicroseconds: 200_000,
-			slowRequestSeconds: 5.0,
+			slowRequestSeconds: REQUEST_TIMEOUT_SECONDS,
 			slowDeleteSeconds: 60.0,
 			retryBackoffMicroseconds: [2_000_000, 5_000_000, 15_000_000, 30_000_000, 60_000_000],
 			progressEveryPages: 100,
