@@ -12,3 +12,7 @@
 	path = apps/deck
 	url = https://github.com/avuz-conecta/deck.git
 	branch = avuz
+[submodule "apps/assinaturas"]
+	path = apps/assinaturas
+	url = https://github.com/avuz-conecta/assinaturas.git
+	branch = main

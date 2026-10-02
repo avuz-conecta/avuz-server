@@ -37,6 +37,14 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 - Bot fork lives in the **separate repo** `github.com/avuz-conecta/talk-recording`; image `registry.avuz.app/admin/talk-recording` referenced from `portainer-recording-stack.yml`.
 - Lets recordings >100MB survive Cloudflare's 100MB body cap. See `docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md`.
 
+### Assinaturas (ZapSign e-signature)
+- Avuz's own app, shipped as the `avuz-conecta/assinaturas` submodule at `apps/assinaturas` (branch `main`, built `js/` + `dist/` committed). The Dockerfile fails the build if it is not initialized and strips `src/`, `tests/`, `design/`, `docs/`, `scripts/` from the image.
+- Optional stack env (see both `portainer-stack*.yml`): `ZAPSIGN_API_TOKEN` (tenant sub-account token), `ZAPSIGN_ENVIRONMENT` (`production`; `sandbox` on staging), `ZAPSIGN_COMPANY_NAME` (shown to signers), `ZAPSIGN_WEBHOOK_SECRET` (empty = app-generated). An empty token disables the app and keeps its data.
+- The env syncs to the app on every boot: `docker/lib-assinaturas.sh`, sourced by `docker/entrypoint.sh`.
+- Webhook path: `/index.php/apps/assinaturas/webhook`. It needs a Cloudflare WAF skip rule, or ZapSign gets a challenge page.
+- Access is limited to the Nextcloud group `assinaturas`; admins always pass.
+- Tenant provisioning: `docs/assinaturas-tenant-runbook.md`.
+
 ## Important Configs
 
 ### Nginx (`docker/nginx.conf`)
@@ -108,21 +116,23 @@ own GitHub repos and must be pulled in **before** `./scripts/build-push.sh`,
 otherwise the resulting image is missing them and `occ app:enable` fails with
 "not found on the appstore" at runtime.
 
-`integration_openai` and `deck` are the exceptions: both are **version-pinned
-forks** shipped as git submodules — NOT rsync'd and NOT App Store-installed.
+`integration_openai`, `deck` and `assinaturas` are the exceptions: all three ship as
+git submodules — NOT rsync'd and NOT App Store-installed. The first two are
+**version-pinned forks**; `assinaturas` is Avuz's own app (branch `main`, built
+`js/` + `dist/` committed).
 `avuz-conecta/integration_openai` (branch `avuz`) at `apps/integration_openai`,
 and `avuz-conecta/deck` (branch `avuz`, pinned at v1.17.0 + Avuz commits) at
 `apps/deck` — the deck fork carries the board-copy fix and the board-tags feature
 as real commits, plus its committed `vendor/` and built `js/` (the Dockerfile
-can't rebuild either). Do not add them to the rsync loop below; init them as
+can't rebuild either). Do not add any of them to the rsync loop below; init them as
 submodules instead.
 
 Two things to do on a fresh clone:
 
 ```bash
 # 1. Init submodules: 3rdparty (Composer autoloader) + the integration_openai
-#    and deck forks (or the build is missing them).
-git submodule update --init --recursive 3rdparty apps/integration_openai apps/deck
+#    and deck forks + the assinaturas app (or the build is missing them).
+git submodule update --init --recursive 3rdparty apps/integration_openai apps/deck apps/assinaturas
 
 # 2. Populate apps/ with the bundled NC apps.
 #    Simplest: clone alongside an existing working checkout and rsync them in.
