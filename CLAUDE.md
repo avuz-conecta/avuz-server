@@ -25,6 +25,7 @@ Nextcloud deployment with custom branding ("Avuz Conecta") running in Docker. Mu
 ### Icon Overrides (Lucide-style SVGs)
 Location: `themes/avuz/apps/{app}/img/*.svg`
 - activity → zap icon
+- assinaturas (signature) — after adding or changing one on a running instance, clear the `imagePath-` distributed cache (or the old path sticks)
 - calendar, contacts (users), dashboard, deck (square-kanban)
 - files (folder), forms (layout-list), mail, settings, spreed (message-circle)
 
