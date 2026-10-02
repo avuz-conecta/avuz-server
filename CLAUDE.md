@@ -176,8 +176,9 @@ legacy rows (`old_file_id` not null — truncating them orphans their
 It truncates `oc_previews` + `oc_preview_generation` (5 s lock wait, then
 `FAIL lock wait exceeded — retry later`), then deletes preview objects older
 than start − 10 min from the instance's own bucket only, in 200-key
-deletes throttled to Ceph's pace (wait ≥ previous delete's duration; abort
-on errors or a delete > 20 s). `--sweep-only`
+deletes throttled to Ceph's pace (wait ≥ previous delete's duration). S3
+5xx/connection errors are retried after 2/5/15/30/60 s; anything else, or a
+failure that outlasts the retries, aborts (resumable with `--sweep-only`). `--sweep-only`
 refuses a cutoff later than the oldest remaining `oc_previews` row: reuse the
 cutoff printed by the original run. Never roll an image with
 `AVUZ_CONFIG_VERSION` < `33.0.0-21` to a purged tenant (it resets the cap to
