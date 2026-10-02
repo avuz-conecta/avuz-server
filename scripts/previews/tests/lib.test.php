@@ -15,6 +15,7 @@ final class FakeBucketClient implements BucketClient {
 	/** @var list<list<string>> */
 	public array $deleteBatches = [];
 	public int $listCalls = 0;
+	public int $deleteCalls = 0;
 
 	/**
 	 * @param array<string, int> $objects
@@ -22,6 +23,8 @@ final class FakeBucketClient implements BucketClient {
 	 * @param list<float> $listLatencies seconds added per list call, by call index (default 0.1)
 	 * @param list<string> $deleteErrors returned by every delete call
 	 * @param bool $ignorePrefix list every key whatever the requested prefix, like a store that misbehaves
+	 * @param int $transientListFailures the first N list calls fail with a 502-like transient error
+	 * @param int $transientDeleteFailures the first N delete calls fail with a 502-like transient error
 	 */
 	public function __construct(
 		array $objects,
@@ -32,6 +35,8 @@ final class FakeBucketClient implements BucketClient {
 		private readonly float $deleteLatency = 0.1,
 		private readonly bool $throwOnDelete = false,
 		private readonly bool $ignorePrefix = false,
+		private readonly int $transientListFailures = 0,
+		private readonly int $transientDeleteFailures = 0,
 	) {
 		ksort($objects, SORT_STRING);
 		$this->objects = $objects;
@@ -42,6 +47,9 @@ final class FakeBucketClient implements BucketClient {
 		$this->time->now += $this->listLatencies[$this->listCalls - 1] ?? 0.1;
 		if ($this->listCalls === $this->failListOnCall) {
 			throw new \RuntimeException('connection reset');
+		}
+		if ($this->listCalls <= $this->transientListFailures) {
+			throw new TransientBucketError('502 Bad Gateway');
 		}
 		$matching = array_filter(
 			$this->objects,
@@ -60,6 +68,10 @@ final class FakeBucketClient implements BucketClient {
 
 	public function deleteKeys(array $keys): array {
 		$this->time->now += $this->deleteLatency;
+		$this->deleteCalls++;
+		if ($this->deleteCalls <= $this->transientDeleteFailures) {
+			throw new TransientBucketError('502 Bad Gateway');
+		}
 		$this->deleteBatches[] = $keys;
 		if ($this->throwOnDelete) {
 			throw new \RuntimeException('delete connection reset');
@@ -92,6 +104,7 @@ function testGuardrails(FakeTime $time, PauseRecorder $pauses, int $pageSize = 1
 		pauseMicroseconds: 200_000,
 		slowRequestSeconds: 5.0,
 		slowDeleteSeconds: $slowDeleteSeconds,
+		retryBackoffMicroseconds: [1, 2, 3],
 		progressEveryPages: 100,
 		clock: fn (): float => $time->now,
 		pause: function (int $microseconds) use ($pauses): void {
@@ -358,5 +371,38 @@ $time = new FakeTime();
 $client = new FakeBucketClient(previewObjects(1000, 600), $time, deleteLatency: 25.0);
 $sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, new PauseRecorder(), deleteBatchSize: 200, slowDeleteSeconds: 20.0));
 assertSameValue('sweep still stops on a delete slower than slowDeleteSeconds', 'slow delete request 25.0s', $sweep->walk->abortReason);
+
+// ── transient S3 errors ──
+$time = new FakeTime();
+$pauses = new PauseRecorder();
+$client = new FakeBucketClient(previewObjects(1, 1500), $time, transientListFailures: 2);
+$walk = walkBucket($client, DEFAULT_PREVIEW_PREFIX, testGuardrails($time, $pauses), fn (BucketPage $_page): ?string => null);
+assertSameValue('walk retries a transient list failure and completes', null, $walk->abortReason);
+assertSameValue('walk still counts every object after retries', 1500, $walk->objects);
+assertSameValue('walk backs off with the configured delays before retrying', [1, 2], array_slice($pauses->microseconds, 0, 2));
+
+$time = new FakeTime();
+$client = new FakeBucketClient(previewObjects(1, 1500), $time, transientListFailures: 10);
+$walk = walkBucket($client, DEFAULT_PREVIEW_PREFIX, testGuardrails($time, new PauseRecorder()), fn (BucketPage $_page): ?string => null);
+assertSameValue('walk stops once transient list failures outlast every retry', 'list request error after 3 retries: 502 Bad Gateway', $walk->abortReason);
+assertSameValue('walk makes one attempt plus one per backoff step', 4, $client->listCalls);
+
+$time = new FakeTime();
+$client = new FakeBucketClient(previewObjects(1, 1500), $time, failListOnCall: 1);
+$walk = walkBucket($client, DEFAULT_PREVIEW_PREFIX, testGuardrails($time, new PauseRecorder()), fn (BucketPage $_page): ?string => null);
+assertSameValue('walk does not retry non-transient list errors', 1, $client->listCalls);
+
+$time = new FakeTime();
+$client = new FakeBucketClient(previewObjects(1000, 600), $time, transientDeleteFailures: 2);
+$sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, new PauseRecorder(), deleteBatchSize: 200));
+assertSameValue('sweep retries a transient delete failure and completes', null, $sweep->walk->abortReason);
+assertSameValue('sweep deletes every object after delete retries', 600, $sweep->deleted);
+assertSameValue('sweep leaves nothing behind after delete retries', 0, count($client->keys()));
+
+$time = new FakeTime();
+$client = new FakeBucketClient(previewObjects(1000, 600), $time, transientDeleteFailures: 10);
+$sweep = sweepPreviews($client, DEFAULT_PREVIEW_PREFIX, cutoffAt(5000), createdAtFromUnixId(), false, testGuardrails($time, new PauseRecorder(), deleteBatchSize: 200));
+assertSameValue('sweep stops once transient delete failures outlast every retry', 'delete request error after 3 retries: 502 Bad Gateway', $sweep->walk->abortReason);
+assertSameValue('sweep counts nothing as deleted when every delete attempt failed', 0, $sweep->deleted);
 
 exit($failures === 0 ? 0 : 1);

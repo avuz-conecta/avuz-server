@@ -8,6 +8,10 @@ const CUTOFF_MARGIN = 'PT10M';
 const REQUEST_TIMEOUT_SECONDS = 10;
 const DELETE_TIMEOUT_SECONDS = 30;
 
+/** A 5xx or connection-level S3 failure: safe to retry, since list and delete are idempotent. */
+final class TransientBucketError extends \RuntimeException {
+}
+
 final class BucketObject {
 	public function __construct(
 		public readonly string $key,
@@ -56,7 +60,7 @@ final class S3BucketClient implements BucketClient {
 		if ($continuationToken !== null) {
 			$request['ContinuationToken'] = $continuationToken;
 		}
-		$result = $this->client->listObjectsV2($request + self::BOUNDED_REQUEST);
+		$result = $this->send(fn () => $this->client->listObjectsV2($request + self::BOUNDED_REQUEST));
 		$objects = array_map(
 			fn (array $object): BucketObject => new BucketObject($object['Key'], (int)$object['Size']),
 			$result['Contents'] ?? [],
@@ -68,17 +72,31 @@ final class S3BucketClient implements BucketClient {
 		if ($keys === []) {
 			return [];
 		}
-		$result = $this->client->deleteObjects([
+		$result = $this->send(fn () => $this->client->deleteObjects([
 			'Bucket' => $this->bucket,
 			'Delete' => [
 				'Objects' => array_map(fn (string $key): array => ['Key' => $key], $keys),
 				'Quiet' => true,
 			],
-		] + self::BOUNDED_DELETE);
+		] + self::BOUNDED_DELETE));
 		return array_map(
 			fn (array $error): string => "{$error['Key']}: {$error['Code']} {$error['Message']}",
 			$result['Errors'] ?? [],
 		);
+	}
+
+	/** @throws TransientBucketError on a 5xx response or no response at all (connection error, timeout) */
+	private function send(\Closure $request): \Aws\Result {
+		try {
+			return $request();
+		} catch (\Aws\Exception\AwsException $error) {
+			$status = $error->getResponse()?->getStatusCode();
+			if ($status !== null && $status < 500) {
+				throw $error;
+			}
+			$reason = $status === null ? $error->getMessage() : "{$status} {$error->getAwsErrorCode()}";
+			throw new TransientBucketError($reason, 0, $error);
+		}
 	}
 }
 
@@ -94,6 +112,8 @@ final class Guardrails {
 		public readonly int $pauseMicroseconds,
 		public readonly float $slowRequestSeconds,
 		public readonly float $slowDeleteSeconds,
+		/** @var list<int> */
+		public readonly array $retryBackoffMicroseconds,
 		public readonly int $progressEveryPages,
 		public readonly \Closure $clock,
 		public readonly \Closure $pause,
@@ -108,6 +128,7 @@ final class Guardrails {
 			pauseMicroseconds: 200_000,
 			slowRequestSeconds: 5.0,
 			slowDeleteSeconds: 20.0,
+			retryBackoffMicroseconds: [2_000_000, 5_000_000, 15_000_000, 30_000_000, 60_000_000],
 			progressEveryPages: 100,
 			clock: fn (): float => hrtime(true) / 1e9,
 			pause: function (int $microseconds): void {
@@ -278,20 +299,48 @@ function sweepCutoffProblem(?\DateTimeImmutable $oldestRemainingPreview, \DateTi
  *
  * @param \Closure(BucketPage): ?string $onPage
  */
+/**
+ * Runs $request, retrying TransientBucketError after each configured backoff.
+ * Any other error, or a transient one that outlasts every retry, is thrown.
+ *
+ * @template T
+ * @param \Closure(): T $request
+ * @return T
+ */
+function withTransientRetries(Guardrails $guardrails, string $operation, \Closure $request): mixed {
+	foreach ($guardrails->retryBackoffMicroseconds as $retry => $backoffMicroseconds) {
+		try {
+			return $request();
+		} catch (TransientBucketError $error) {
+			($guardrails->progress)(sprintf('%s failed (%s), retry %d in %.0fs', $operation, $error->getMessage(), $retry + 1, $backoffMicroseconds / 1_000_000));
+			($guardrails->pause)($backoffMicroseconds);
+		}
+	}
+	return $request();
+}
+
 function walkBucket(BucketClient $client, string $prefix, Guardrails $guardrails, \Closure $onPage): WalkOutcome {
 	$outcome = new WalkOutcome();
 	$startedAt = ($guardrails->clock)();
 	$continuationToken = null;
 
 	do {
-		$requestStartedAt = ($guardrails->clock)();
-		try {
+		$requestSeconds = 0.0;
+		$listPage = function () use ($client, $prefix, $continuationToken, $guardrails, &$requestSeconds): BucketPage {
+			$requestStartedAt = ($guardrails->clock)();
 			$page = $client->listPage($prefix, $continuationToken, $guardrails->pageSize);
+			$requestSeconds = ($guardrails->clock)() - $requestStartedAt;
+			return $page;
+		};
+		try {
+			$page = withTransientRetries($guardrails, 'list', $listPage);
+		} catch (TransientBucketError $error) {
+			$outcome->abortReason = sprintf('list request error after %d retries: %s', count($guardrails->retryBackoffMicroseconds), $error->getMessage());
+			break;
 		} catch (\Throwable $error) {
-			$outcome->abortReason = 'list request error: ' . $error->getMessage();
+			$outcome->abortReason = "list request error: {$error->getMessage()}";
 			break;
 		}
-		$requestSeconds = ($guardrails->clock)() - $requestStartedAt;
 		$outcome->slowestSeconds = max($outcome->slowestSeconds, $requestSeconds);
 		$outcome->pages++;
 		foreach ($page->objects as $object) {
@@ -346,13 +395,21 @@ function sweepPreviews(
 	/** @param list<BucketObject> $batch */
 	$deleteBatch = function (array $batch) use ($sweep, $client, $guardrails, &$previousDeleteMicroseconds): ?string {
 		($guardrails->pause)(max($guardrails->pauseMicroseconds, $previousDeleteMicroseconds));
-		$requestStartedAt = ($guardrails->clock)();
+		$keys = array_map(fn (BucketObject $object): string => $object->key, $batch);
+		$requestSeconds = 0.0;
+		$deleteKeys = function () use ($client, $keys, $guardrails, &$requestSeconds): array {
+			$requestStartedAt = ($guardrails->clock)();
+			$errors = $client->deleteKeys($keys);
+			$requestSeconds = ($guardrails->clock)() - $requestStartedAt;
+			return $errors;
+		};
 		try {
-			$errors = $client->deleteKeys(array_map(fn (BucketObject $object): string => $object->key, $batch));
+			$errors = withTransientRetries($guardrails, 'delete', $deleteKeys);
+		} catch (TransientBucketError $error) {
+			return sprintf('delete request error after %d retries: %s', count($guardrails->retryBackoffMicroseconds), $error->getMessage());
 		} catch (\Throwable $error) {
 			return "delete request error: {$error->getMessage()}";
 		}
-		$requestSeconds = ($guardrails->clock)() - $requestStartedAt;
 		$previousDeleteMicroseconds = (int)round($requestSeconds * 1_000_000);
 		$sweep->slowestDeleteSeconds = max($sweep->slowestDeleteSeconds, $requestSeconds);
 		if ($errors !== []) {
