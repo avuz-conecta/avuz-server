@@ -25,6 +25,7 @@ assert_lacks() {
 }
 
 OCC_LOG="$(mktemp)"
+CONFIG_VALUES_LOG="$(mktemp)"
 FAKE_APP_DIR="$(mktemp -d)"
 mkdir -p "$FAKE_APP_DIR/appinfo"
 printf '<info>\n    <version>0.4.0</version>\n</info>\n' > "$FAKE_APP_DIR/appinfo/info.xml"
@@ -36,19 +37,25 @@ _avuz_occ() {
         "config:app:get assinaturas enabled") echo "$FAKE_ENABLED" ;;
         "config:app:get assinaturas installed_version") echo "$FAKE_INSTALLED" ;;
         "app:getpath assinaturas") echo "$FAKE_APP_DIR" ;;
-        "config:app:get assinaturas "*" --details --output=json") echo "$FAKE_DETAILS" ;;
         "app:enable --force assinaturas")
             [ "$FAKE_ENABLE_FAILS" = "yes" ] && return 1
             FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0" ;;
         "assinaturas:webhook:ensure") [ "$FAKE_ENSURE_FAILS" = "yes" ] && return 1 ;;
-        "config:app:set assinaturas environment "*) [ "$FAKE_SET_FAILS" = "yes" ] && return 1 ;;
     esac
     return 0
 }
 
+# Logs the command line, and separately the value PHP would read from the env.
+_avuz_php_config() {
+    printf 'php-config %s\n' "$*" >> "$OCC_LOG"
+    printf '%s=%s\n' "$2" "${!3:-}" >> "$CONFIG_VALUES_LOG"
+    if [ "$FAKE_SET_FAILS" = "yes" ] && [ "$2" = "environment" ]; then echo "failed: RuntimeException"; return 1; fi
+    echo "set"
+}
+
 reset_fakes() {
-    : > "$OCC_LOG"
-    FAKE_ENABLED="no"; FAKE_INSTALLED=""; FAKE_DETAILS='{"sensitive":false}'
+    : > "$OCC_LOG"; : > "$CONFIG_VALUES_LOG"
+    FAKE_ENABLED="no"; FAKE_INSTALLED=""
     FAKE_ENABLE_FAILS="no"; FAKE_ENSURE_FAILS="no"; FAKE_SET_FAILS="no"
     unset ZAPSIGN_API_TOKEN ZAPSIGN_ENVIRONMENT ZAPSIGN_COMPANY_NAME ZAPSIGN_WEBHOOK_SECRET
 }
@@ -91,20 +98,22 @@ reset_fakes; configure_env
 sync_now
 assert_eq "enables, configures and registers webhooks in order" \
 "app:enable --force assinaturas
-config:app:delete assinaturas api_token
-config:app:set assinaturas api_token --type=string --sensitive --value=$TEST_TOKEN
-config:app:set assinaturas environment --type=string --value=sandbox
-config:app:set assinaturas company_name --type=string --value=Construtora Teste
+php-config assinaturas api_token ZAPSIGN_API_TOKEN --sensitive
+php-config assinaturas environment ZAPSIGN_ENVIRONMENT
+php-config assinaturas company_name ZAPSIGN_COMPANY_NAME
 assinaturas:webhook:ensure" "$(writes)"
+assert_eq "hands each value to PHP through the env" "api_token=$TEST_TOKEN
+environment=sandbox
+company_name=Construtora Teste" "$(cat "$CONFIG_VALUES_LOG")"
 assert_eq "flags the enable as a change" "1" "$AVUZ_ASSINATURAS_CHANGED"
 assert_has "confirms the configuration" "✓ Assinaturas (sandbox) configured" "$(synced)"
 assert_lacks "never prints the token" "$TEST_TOKEN" "$(synced)"
+assert_lacks "keeps per-key outcomes out of a successful boot log" "set" "$(synced)"
 
 # ── configured, steady state ──
-reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0"; FAKE_DETAILS='{"sensitive":true}'
+reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0"
 sync_now
 assert_lacks "skips app:enable when already enabled" "app:enable" "$(writes)"
-assert_lacks "keeps an already-sensitive token in place" "config:app:delete" "$(writes)"
 assert_eq "reports no change on a steady boot" "0" "$AVUZ_ASSINATURAS_CHANGED"
 
 # ── configured, new app version in the image ──
@@ -117,10 +126,16 @@ assert_eq "flags the upgrade as a change" "1" "$AVUZ_ASSINATURAS_CHANGED"
 reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0"; export ZAPSIGN_WEBHOOK_SECRET="env-secret"
 sync_now
 assert_has "stores an env webhook secret as sensitive" \
-    "config:app:set assinaturas webhook_secret --type=string --sensitive --value=env-secret" "$(writes)"
+    "php-config assinaturas webhook_secret ZAPSIGN_WEBHOOK_SECRET --sensitive" "$(writes)"
 reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0"
 sync_now
 assert_lacks "keeps the generated secret when the env has none" "webhook_secret" "$(writes)"
+
+# ── secrets stay off argv (admin_audit logs every occ command line) ──
+reset_fakes; configure_env; export ZAPSIGN_WEBHOOK_SECRET="env-secret"
+sync_now
+assert_lacks "it never passes a secret on any command line" "$TEST_TOKEN" "$(cat "$OCC_LOG")"
+assert_lacks "it never passes the webhook secret on any command line" "env-secret" "$(cat "$OCC_LOG")"
 
 # ── failures ──
 reset_fakes; configure_env; FAKE_ENABLE_FAILS="yes"
@@ -134,6 +149,7 @@ assert_eq "never fails the boot on a config write error" "0" "$rc"
 assert_lacks "skips webhooks after a config write error" "assinaturas:webhook:ensure" "$(writes)"
 assert_has "reports the config write failure" \
     "✗ Assinaturas: could not write the app config — webhooks left as they were" "$(synced)"
+assert_has "names the key that failed and why" "  environment: failed: RuntimeException" "$(synced)"
 
 reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0"; FAKE_ENSURE_FAILS="yes"
 if sync_now; then rc=0; else rc=1; fi
@@ -141,5 +157,5 @@ assert_eq "never fails the boot on a webhook error" "0" "$rc"
 assert_has "reports the webhook failure" \
     "✗ Assinaturas: webhook:ensure failed — EnsureWebhooksJob retries daily; the poller covers the gap" "$(synced)"
 
-rm -rf "$OCC_LOG" "$FAKE_APP_DIR" "$SYNC_OUT"
+rm -rf "$OCC_LOG" "$CONFIG_VALUES_LOG" "$FAKE_APP_DIR" "$SYNC_OUT"
 exit "$fail"

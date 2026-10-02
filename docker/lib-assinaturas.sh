@@ -37,13 +37,23 @@ avuz_assinaturas_disable() {
     echo "– Assinaturas off: $reason"
 }
 
+# Values travel by env var name, never on argv (admin_audit logs every occ
+# command line). Prints the failed key and its value-free outcome.
+avuz_assinaturas_write_key() {
+    local key="$1"; shift
+    local outcome
+    if outcome="$(_avuz_php_config "$AVUZ_ASSINATURAS_APP" "$key" "$@")"; then return 0; fi
+    echo "  $key: $outcome"
+    return 1
+}
+
 # Each write returns on failure: callers run it under `if !`, where set -e is off.
 avuz_assinaturas_write_config() {
-    avuz_set_sensitive_app_config "$AVUZ_ASSINATURAS_APP" api_token "$ZAPSIGN_API_TOKEN" string >/dev/null || return 1
-    _avuz_occ config:app:set "$AVUZ_ASSINATURAS_APP" environment --type=string --value="$ZAPSIGN_ENVIRONMENT" >/dev/null || return 1
-    _avuz_occ config:app:set "$AVUZ_ASSINATURAS_APP" company_name --type=string --value="$ZAPSIGN_COMPANY_NAME" >/dev/null || return 1
+    avuz_assinaturas_write_key api_token ZAPSIGN_API_TOKEN --sensitive || return 1
+    avuz_assinaturas_write_key environment ZAPSIGN_ENVIRONMENT || return 1
+    avuz_assinaturas_write_key company_name ZAPSIGN_COMPANY_NAME || return 1
     [ -z "${ZAPSIGN_WEBHOOK_SECRET:-}" ] && return 0
-    avuz_set_sensitive_app_config "$AVUZ_ASSINATURAS_APP" webhook_secret "$ZAPSIGN_WEBHOOK_SECRET" string >/dev/null
+    avuz_assinaturas_write_key webhook_secret ZAPSIGN_WEBHOOK_SECRET --sensitive
 }
 
 avuz_assinaturas_sync() {

@@ -428,4 +428,9 @@ assert_eq "returns non-zero when the config write fails" "1" "$sensitive_rc"
 unset -f _avuz_occ; source "$HERE/../lib-apps.sh"
 rm -f "$SENSITIVE_LOG"
 
+# ── env-sourced app config ──
+assert_eq "plans an env-sourced config write by variable name" \
+    "PHPCFG assinaturas api_token ZAPSIGN_API_TOKEN --sensitive" \
+    "$(AVUZ_OCC_DRYRUN=1 _avuz_php_config assinaturas api_token ZAPSIGN_API_TOKEN --sensitive)"
+
 exit $fail

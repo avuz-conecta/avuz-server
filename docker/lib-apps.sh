@@ -18,6 +18,16 @@ _avuz_occ() {
     php occ "$@"
 }
 
+# Writes one app config value read from an env var: <app> <key> <ENV_VAR> [--sensitive].
+# Keeps secrets off argv, which admin_audit logs for every occ command.
+_avuz_php_config() {
+    if [ -n "${AVUZ_OCC_DRYRUN:-}" ]; then
+        echo "PHPCFG $*"
+        return 0
+    fi
+    php /var/www/html/docker/set-app-config-from-env.php "$@"
+}
+
 # Stores an app config value encrypted at rest ($AppConfigEncryption$ prefix).
 # IAppConfig refuses to flip an existing key's sensitivity through a value set,
 # so a plaintext key is deleted first. Already-sensitive keys are set in place
