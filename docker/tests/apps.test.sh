@@ -401,4 +401,24 @@ assert_eq "reports the outcome under the variable name" \
     "config conectamail sso_secret ROUNDCUBE_SSO_SECRET --sensitive: unchanged" "$php_config_out"
 assert_eq "returns non-zero when the config write fails" "1" "$php_config_rc"
 
+# ── reconcile signal: ownership walk follows a reconcile that ran occ ──
+recon_root="$(mktemp -d)"
+mkdir -p "$recon_root/forms/appinfo"
+printf '<info><version>5.3.5</version></info>' > "$recon_root/forms/appinfo/info.xml"
+_avuz_occ() {
+    case "$1 $2" in
+        "app:getpath forms") echo "$recon_root/forms" ;;
+        "config:app:get forms") echo "$RECON_INSTALLED" ;;
+    esac
+    return 0
+}
+RECON_INSTALLED="5.2.5"
+avuz_reconcile_app_versions forms >/dev/null
+assert_eq "it signals a reconcile that disabled and re-enabled an app" "1" "$AVUZ_APPS_RECONCILED"
+RECON_INSTALLED="5.3.5"
+avuz_reconcile_app_versions forms >/dev/null
+assert_eq "it signals nothing when every app is current" "0" "$AVUZ_APPS_RECONCILED"
+unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
+rm -rf "$recon_root"
+
 exit $fail

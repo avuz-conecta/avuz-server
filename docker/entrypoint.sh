@@ -901,6 +901,9 @@ fi
 # bundle — never the core BUNDLED_APPS (disabling files_sharing/dav at boot is
 # unsafe; those track core and `occ upgrade` handles them).
 avuz_reconcile_app_versions "${ENABLE_APPS[@]}"
+if [ "$AVUZ_APPS_RECONCILED" -eq 1 ]; then
+    DID_CONFIG_RUN=1   # app:disable/enable ran occ as root: re-chown appdata_*
+fi
 
 # ──────────────────────────────────────────────
 # PHASE 4: Apps (fresh install only)
