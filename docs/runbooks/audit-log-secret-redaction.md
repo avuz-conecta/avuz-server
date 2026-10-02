@@ -70,3 +70,4 @@ Production: every run, dry or not, needs Patrick's explicit go, one tenant at a 
 |---|---|---|
 | 2026-10-02 | staging `avuz-conecta-app-1` | 5 masked (recording_servers, api_key, stt_api_key, mail_smtppassword, jwt_secret), verified |
 | 2026-10-02 | staging `avuz-conecta-2-app-1`, `avuz-conecta-s3-app-1` | empty audit.log (loglevel 2), nothing to mask |
+| 2026-10-02 | staging `avuz-conecta-app-1` on the fixed image, forced config run at loglevel 1 | 141 new occ entries, no secret key set on argv; all 7 values match the env; conectamail + integration_openai keys sensitive; jwt_secret kept mixed |
