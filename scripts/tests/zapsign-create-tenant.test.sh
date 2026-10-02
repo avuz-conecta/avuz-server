@@ -63,6 +63,13 @@ assert_eq "makes no API call for a dangling symlink" "no" "$([ -e "$CURL_ARGS_LO
 if ZAPSIGN_API_BASE="http://example.com/api" run "Http" "$WORK/http.token" >/dev/null; then rc=0; else rc=1; fi
 assert_eq "refuses a plain-http API base" "1" "$rc"
 assert_eq "makes no API call to a plain-http API base" "no" "$([ -e "$CURL_ARGS_LOG" ] && echo yes || echo no)"
+for userinfo_base in "http://localhost:80@evil.example/x" "https://user@evil.example/x" "http://localhost.evil.example/x"; do
+    rm -f "$CURL_ARGS_LOG" "$WORK/userinfo.token"
+    if ZAPSIGN_API_BASE="$userinfo_base" run "Userinfo" "$WORK/userinfo.token" >/dev/null; then rc=0; else rc=1; fi
+    assert_eq "refuses a base URL with userinfo or a lookalike host ($userinfo_base)" "1" "$rc"
+    assert_eq "makes no API call for $userinfo_base" "no" "$([ -e "$CURL_ARGS_LOG" ] && echo yes || echo no)"
+    assert_eq "leaves no token file for $userinfo_base" "no" "$([ -e "$WORK/userinfo.token" ] && echo yes || echo no)"
+done
 out="$(ZAPSIGN_API_BASE="http://localhost:8080/api" run "Mock" "$WORK/mock.token")"
 assert_eq "accepts a localhost mock API base" "1" "$(grep -c 'Sub-account 4242 created' <<< "$out")"
 

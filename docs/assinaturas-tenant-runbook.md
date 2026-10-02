@@ -30,7 +30,7 @@ Create a WAF custom rule so ZapSign webhooks reach the app.
 
 ## 3. Verify
 
-Run occ through Portainer as `www-data` (`scripts/portainer-exec.sh`, or `scripts/portainer-exec-prod.sh` for prod). `occ` below means `portainer-exec.sh -u www-data <container> php occ`:
+Run occ through Portainer as `www-data` (`scripts/portainer-exec.sh`, or `scripts/portainer-exec-prod.sh` for prod).
 
 ```bash
 portainer-exec.sh -u www-data <container> php occ app:list --enabled | grep assinaturas

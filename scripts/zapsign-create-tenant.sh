@@ -23,10 +23,10 @@ token_file="${2:-}"
 [ -n "${ZAPSIGN_PARTNER_TOKEN:-}" ] || die "ZAPSIGN_PARTNER_TOKEN is not set"
 
 api="${ZAPSIGN_API_BASE:-$ZAPSIGN_PRODUCTION_API}"
-case "$api" in
-    https://*|http://localhost|http://localhost[:/]*|http://127.0.0.1|http://127.0.0.1[:/]*) ;;
-    *) die "ZAPSIGN_API_BASE must be https:// (or http://localhost for a mock): the partner token travels in it" ;;
-esac
+LOCAL_MOCK_API='^http://(localhost|127\.0\.0\.1)(:[0-9]+)?(/|$)'
+[[ "$api" != *@* ]] || die "ZAPSIGN_API_BASE must not contain userinfo (@): it can redirect the partner token to another host"
+[[ "$api" == https://* || "$api" =~ $LOCAL_MOCK_API ]] \
+    || die "ZAPSIGN_API_BASE must be https:// (or http://localhost for a mock): the partner token travels in it"
 
 # ZapSign shows the sub-account token once, so prove we can store it BEFORE creating the sub-account.
 # noclobber refuses existing files and dangling symlinks atomically.
