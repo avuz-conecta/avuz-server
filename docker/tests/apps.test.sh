@@ -386,4 +386,36 @@ assert_eq "reconcile leaves the up-to-date app untouched" "no" \
 unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
 rm -rf "$recon_root"
 
+# ── avuz_set_sensitive_app_config ──
+SENSITIVE_LOG="$(mktemp)"
+FAKE_SENSITIVE_DETAILS='{}'
+_avuz_occ() {
+    printf '%s\n' "$*" >> "$SENSITIVE_LOG"
+    case "$*" in
+        *" --details --output=json") echo "$FAKE_SENSITIVE_DETAILS" ;;
+    esac
+    return 0
+}
+
+: > "$SENSITIVE_LOG"; FAKE_SENSITIVE_DETAILS='{"sensitive":false}'
+avuz_set_sensitive_app_config conectamail sso_secret s3cret >/dev/null
+assert_eq "deletes a plaintext key before storing it sensitive" \
+"config:app:get conectamail sso_secret --details --output=json
+config:app:delete conectamail sso_secret
+config:app:set conectamail sso_secret --sensitive --value=s3cret" "$(cat "$SENSITIVE_LOG")"
+
+: > "$SENSITIVE_LOG"; FAKE_SENSITIVE_DETAILS='{"sensitive":true}'
+avuz_set_sensitive_app_config conectamail sso_secret s3cret >/dev/null
+assert_eq "sets an already-sensitive key in place" \
+"config:app:get conectamail sso_secret --details --output=json
+config:app:set conectamail sso_secret --sensitive --value=s3cret" "$(cat "$SENSITIVE_LOG")"
+
+: > "$SENSITIVE_LOG"; FAKE_SENSITIVE_DETAILS='{"sensitive":true}'
+avuz_set_sensitive_app_config assinaturas api_token tok string >/dev/null
+assert_eq "passes the value type when given" \
+"config:app:get assinaturas api_token --details --output=json
+config:app:set assinaturas api_token --type=string --sensitive --value=tok" "$(cat "$SENSITIVE_LOG")"
+unset -f _avuz_occ; source "$HERE/../lib-apps.sh"
+rm -f "$SENSITIVE_LOG"
+
 exit $fail
