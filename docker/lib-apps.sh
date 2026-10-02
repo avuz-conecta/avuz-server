@@ -18,6 +18,21 @@ _avuz_occ() {
     php occ "$@"
 }
 
+# occ with a wall-clock bound: <seconds> <occ args>. Falls back to plain occ when
+# the image has no `timeout` binary.
+_avuz_occ_bounded() {
+    local seconds="$1"; shift
+    if [ -n "${AVUZ_OCC_DRYRUN:-}" ]; then
+        echo "OCC $*"
+        return 0
+    fi
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "$seconds" php occ "$@"
+        return
+    fi
+    php occ "$@"
+}
+
 # Writes one app config value read from an env var: <app> <key> <ENV_VAR> [--sensitive].
 # Keeps secrets off argv, which admin_audit logs for every occ command.
 _avuz_php_config() {

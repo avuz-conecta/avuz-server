@@ -45,6 +45,11 @@ _avuz_occ() {
     return 0
 }
 
+_avuz_occ_bounded() {
+    ENSURE_TIMEOUT_SECONDS="$1"; shift
+    _avuz_occ "$@"
+}
+
 # Logs the command line, and separately the value PHP would read from the env.
 _avuz_php_config() {
     printf 'php-config %s\n' "$*" >> "$OCC_LOG"
@@ -55,7 +60,7 @@ _avuz_php_config() {
 
 reset_fakes() {
     : > "$OCC_LOG"; : > "$CONFIG_VALUES_LOG"
-    FAKE_ENABLED="no"; FAKE_INSTALLED=""
+    FAKE_ENABLED="no"; FAKE_INSTALLED=""; ENSURE_TIMEOUT_SECONDS=""
     FAKE_ENABLE_FAILS="no"; FAKE_ENSURE_FAILS="no"; FAKE_SET_FAILS="no"
     unset ZAPSIGN_API_TOKEN ZAPSIGN_ENVIRONMENT ZAPSIGN_COMPANY_NAME ZAPSIGN_WEBHOOK_SECRET
 }
@@ -76,6 +81,9 @@ assert_eq "reports an empty environment" "ZAPSIGN_ENVIRONMENT must be sandbox or
     "$(avuz_assinaturas_env_problem tok "" Acme)"
 assert_eq "reports a missing company" "no ZAPSIGN_COMPANY_NAME" "$(avuz_assinaturas_env_problem tok production "")"
 assert_eq "accepts a complete env" "" "$(avuz_assinaturas_env_problem tok production Acme)"
+assert_eq "rejects two environments in one value" \
+    "ZAPSIGN_ENVIRONMENT must be sandbox or production (got 'sandbox production')" \
+    "$(avuz_assinaturas_env_problem tok "sandbox production" Acme)"
 
 # ── unconfigured ──
 reset_fakes
@@ -109,6 +117,19 @@ assert_eq "flags the enable as a change" "1" "$AVUZ_ASSINATURAS_CHANGED"
 assert_has "confirms the configuration" "✓ Assinaturas (sandbox) configured" "$(synced)"
 assert_lacks "never prints the token" "$TEST_TOKEN" "$(synced)"
 assert_lacks "keeps per-key outcomes out of a successful boot log" "set" "$(synced)"
+assert_eq "bounds webhook:ensure to 60 seconds" "60" "$ENSURE_TIMEOUT_SECONDS"
+
+# ── whitespace around env values ──
+reset_fakes; configure_env; export ZAPSIGN_ENVIRONMENT="production " ZAPSIGN_API_TOKEN=" $TEST_TOKEN" ZAPSIGN_COMPANY_NAME=" Construtora Teste "
+sync_now
+assert_has "accepts an environment with trailing whitespace" "✓ Assinaturas (production) configured" "$(synced)"
+assert_eq "stores the trimmed values" "api_token=$TEST_TOKEN
+environment=production
+company_name=Construtora Teste" "$(cat "$CONFIG_VALUES_LOG")"
+
+reset_fakes; configure_env; FAKE_ENABLED="yes"; export ZAPSIGN_ENVIRONMENT="sandbox production"
+sync_now
+assert_eq "disables the app on two environments in one value" "app:disable assinaturas" "$(writes)"
 
 # ── configured, steady state ──
 reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0"
@@ -166,7 +187,7 @@ reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0"; FAKE_ENS
 if sync_now; then rc=0; else rc=1; fi
 assert_eq "never fails the boot on a webhook error" "0" "$rc"
 assert_has "reports the webhook failure" \
-    "✗ Assinaturas: webhook:ensure failed — EnsureWebhooksJob retries daily; the poller covers the gap" "$(synced)"
+    "✗ Assinaturas: webhook:ensure failed — see the Nextcloud log; EnsureWebhooksJob retries daily while the app is enabled" "$(synced)"
 
 rm -rf "$OCC_LOG" "$CONFIG_VALUES_LOG" "$FAKE_APP_DIR" "$SYNC_OUT"
 exit "$fail"

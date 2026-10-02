@@ -11,16 +11,26 @@
 #   ZAPSIGN_WEBHOOK_SECRET  optional; empty -> the app keeps its generated secret
 
 AVUZ_ASSINATURAS_APP="assinaturas"
-AVUZ_ASSINATURAS_ENVIRONMENTS=" sandbox production "
+# ZapSign calls run before php-fpm starts; a hung API must not hold the boot.
+AVUZ_ASSINATURAS_ENSURE_TIMEOUT_SECONDS=60
 AVUZ_ASSINATURAS_CHANGED=0
+
+# Pure: strip leading and trailing whitespace.
+avuz_trim() {
+    local value="$1"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s' "$value"
+}
 
 # Pure: why the env cannot enable the app; empty when it can.
 avuz_assinaturas_env_problem() {
     local token="$1" environment="$2" company="$3"
     if [ -z "$token" ]; then echo "no ZAPSIGN_API_TOKEN"; return; fi
-    if [ -z "$environment" ] || [[ "$AVUZ_ASSINATURAS_ENVIRONMENTS" != *" $environment "* ]]; then
-        echo "ZAPSIGN_ENVIRONMENT must be sandbox or production (got '$environment')"; return
-    fi
+    case "$environment" in
+        sandbox|production) ;;
+        *) echo "ZAPSIGN_ENVIRONMENT must be sandbox or production (got '$environment')"; return ;;
+    esac
     if [ -z "$company" ]; then echo "no ZAPSIGN_COMPANY_NAME"; return; fi
 }
 
@@ -62,12 +72,17 @@ avuz_assinaturas_write_config() {
 
 avuz_assinaturas_sync() {
     AVUZ_ASSINATURAS_CHANGED=0
-    local problem reconcile_output
-    problem="$(avuz_assinaturas_env_problem "${ZAPSIGN_API_TOKEN:-}" "${ZAPSIGN_ENVIRONMENT:-}" "${ZAPSIGN_COMPANY_NAME:-}")"
+    local token environment company problem reconcile_output
+    token="$(avuz_trim "${ZAPSIGN_API_TOKEN:-}")"
+    environment="$(avuz_trim "${ZAPSIGN_ENVIRONMENT:-}")"
+    company="$(avuz_trim "${ZAPSIGN_COMPANY_NAME:-}")"
+    problem="$(avuz_assinaturas_env_problem "$token" "$environment" "$company")"
     if [ -n "$problem" ]; then
         avuz_assinaturas_disable "$problem"
         return 0
     fi
+    # The config writer reads these by name, so it must see the trimmed values.
+    export ZAPSIGN_API_TOKEN="$token" ZAPSIGN_ENVIRONMENT="$environment" ZAPSIGN_COMPANY_NAME="$company"
     if ! avuz_assinaturas_is_enabled; then
         if ! _avuz_occ app:enable --force "$AVUZ_ASSINATURAS_APP" >/dev/null; then
             echo "✗ Assinaturas: app:enable failed (is apps/assinaturas in the image?)"
@@ -84,8 +99,8 @@ avuz_assinaturas_sync() {
         echo "✗ Assinaturas: could not write the app config — webhooks left as they were"
         return 0
     fi
-    if ! _avuz_occ assinaturas:webhook:ensure >/dev/null; then
-        echo "✗ Assinaturas: webhook:ensure failed — EnsureWebhooksJob retries daily; the poller covers the gap"
+    if ! _avuz_occ_bounded "$AVUZ_ASSINATURAS_ENSURE_TIMEOUT_SECONDS" assinaturas:webhook:ensure >/dev/null; then
+        echo "✗ Assinaturas: webhook:ensure failed — see the Nextcloud log; EnsureWebhooksJob retries daily while the app is enabled"
         return 0
     fi
     echo "✓ Assinaturas ($ZAPSIGN_ENVIRONMENT) configured"

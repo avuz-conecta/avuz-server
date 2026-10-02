@@ -433,4 +433,12 @@ assert_eq "plans an env-sourced config write by variable name" \
     "PHPCFG assinaturas api_token ZAPSIGN_API_TOKEN --sensitive" \
     "$(AVUZ_OCC_DRYRUN=1 _avuz_php_config assinaturas api_token ZAPSIGN_API_TOKEN --sensitive)"
 
+# ── bounded occ ──
+assert_eq "runs a bounded occ call under timeout when the image has it" \
+    "timeout 60 php occ assinaturas:webhook:ensure" \
+    "$(timeout() { echo "timeout $*"; }; _avuz_occ_bounded 60 assinaturas:webhook:ensure)"
+assert_eq "runs a bounded occ call plainly when the image lacks timeout" \
+    "php occ assinaturas:webhook:ensure" \
+    "$(PATH=/nonexistent; php() { echo "php $*"; }; _avuz_occ_bounded 60 assinaturas:webhook:ensure)"
+
 exit $fail
