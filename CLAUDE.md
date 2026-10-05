@@ -45,6 +45,8 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 - Webhook path: `/index.php/apps/assinaturas/webhook`. It needs a Cloudflare WAF skip rule, or ZapSign gets a challenge page.
 - Access is limited to the Nextcloud group `assinaturas`; admins always pass.
 - Tenant provisioning: `docs/assinaturas-tenant-runbook.md`.
+- Job worker: supervisor program `assinaturas-worker` (`docker/assinaturas-worker.sh`) runs `occ background-job:worker` for just `SendJob` and `SyncEnvelopeJob`. Nextcloud cron ticks every 300 s, but sends and webhooks must land in seconds.
+- It idles (rechecks every 300 s) while the app is off or Nextcloud is not installed, so it runs on every tenant. After a worker failure it backs off 30 s. It logs state changes only.
 
 ## Important Configs
 
