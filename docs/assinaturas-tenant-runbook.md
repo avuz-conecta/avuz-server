@@ -41,7 +41,10 @@ portainer-exec.sh -u www-data <container> php occ assinaturas:webhook:ensure   #
 - The boot log shows `✓ Assinaturas (<env>) configured`.
   `– Assinaturas off: <reason>` means the env is incomplete; fix the env named in the reason.
 - Administração → Assinaturas shows a green token check and the webhook types.
-- Add the tenant's users to the `assinaturas` group. Admins always pass.
+- Add the tenant's users to the `assinaturas` group ("Avuz Assinaturas").
+- Add the client's company managers to `assinaturas-admins` ("Avuz Assinaturas Admins"). Managers see "Toda a empresa", act on every envelope, manage every folder, hand folders over ("Transferir pasta") and read the usage panel. They can use the app without being in `assinaturas`. Client users are never Nextcloud admins; Nextcloud admins (Avuz) always pass and also get the connection settings.
+- Only Nextcloud admins manage who is in either group.
+- Deleting either group in the Users screen does not stick: every boot runs `occ assinaturas:groups:ensure`, which recreates it **empty**. The memberships are lost; add the people again. A deleted group also loses its folder access entries.
 
 Never print the token.
 

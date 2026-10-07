@@ -43,7 +43,7 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 - Optional stack env (see both `portainer-stack*.yml`): `ZAPSIGN_API_TOKEN` (tenant sub-account token), `ZAPSIGN_ENVIRONMENT` (`production`; `sandbox` on staging), `ZAPSIGN_COMPANY_NAME` (shown to signers), `ZAPSIGN_WEBHOOK_SECRET` (empty = app-generated). The app is enabled only when the token, a valid environment (`sandbox`/`production`) and a company name are all set; otherwise the boot disables it (data kept) and logs `– Assinaturas off: <reason>`.
 - The env syncs to the app on every boot: `docker/lib-assinaturas.sh`, sourced by `docker/entrypoint.sh`.
 - Webhook path: `/index.php/apps/assinaturas/webhook`. It needs a Cloudflare WAF skip rule, or ZapSign gets a challenge page.
-- Access is limited to the Nextcloud group `assinaturas`; admins always pass.
+- Access: members of `assinaturas`, company managers in `assinaturas-admins` (see/act on every envelope and folder, no Nextcloud admin), and Nextcloud admins. Envelopes nest in shareable app folders (Ver/Editar/Compartilhar/Gerenciar, inherited). The boot runs `occ assinaturas:groups:ensure` every time, so a deleted group comes back empty.
 - Tenant provisioning: `docs/assinaturas-tenant-runbook.md`.
 - Job worker: supervisor program `assinaturas-worker` (`docker/assinaturas-worker.sh`) runs `occ background-job:worker` for just `SendJob` and `SyncEnvelopeJob`. Nextcloud cron ticks every 300 s, but sends and webhooks must land in seconds.
 - It idles (rechecks every 300 s) while the app is off or Nextcloud is not installed, so it runs on every tenant. After a worker failure it backs off 30 s. It logs state changes only.

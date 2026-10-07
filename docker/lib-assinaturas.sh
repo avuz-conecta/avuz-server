@@ -97,6 +97,11 @@ avuz_assinaturas_sync() {
         echo "$reconcile_output"
         AVUZ_ASSINATURAS_CHANGED=1
     fi
+    # Repair steps only run on install and upgrade: this brings back a deleted
+    # "Avuz Assinaturas" or "Avuz Assinaturas Admins" group (empty) on every boot.
+    if ! _avuz_occ assinaturas:groups:ensure >/dev/null; then
+        echo "✗ Assinaturas: groups:ensure failed — the app groups may be missing until the next boot"
+    fi
     if ! avuz_assinaturas_write_config; then
         echo "✗ Assinaturas: could not write the app config — webhooks left as they were"
         return 0

@@ -41,6 +41,7 @@ _avuz_occ() {
             [ "$FAKE_ENABLE_FAILS" = "yes" ] && return 1
             FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0" ;;
         "assinaturas:webhook:ensure") [ "$FAKE_ENSURE_FAILS" = "yes" ] && return 1 ;;
+        "assinaturas:groups:ensure") [ "$FAKE_GROUPS_FAILS" = "yes" ] && return 1 ;;
     esac
     return 0
 }
@@ -61,7 +62,7 @@ _avuz_php_config() {
 reset_fakes() {
     : > "$OCC_LOG"; : > "$CONFIG_VALUES_LOG"
     FAKE_ENABLED="no"; FAKE_INSTALLED=""; ENSURE_TIMEOUT_SECONDS=""
-    FAKE_ENABLE_FAILS="no"; FAKE_ENSURE_FAILS="no"; FAKE_SET_FAILS="no"
+    FAKE_ENABLE_FAILS="no"; FAKE_ENSURE_FAILS="no"; FAKE_SET_FAILS="no"; FAKE_GROUPS_FAILS="no"
     unset ZAPSIGN_API_TOKEN ZAPSIGN_ENVIRONMENT ZAPSIGN_COMPANY_NAME ZAPSIGN_WEBHOOK_SECRET
 }
 configure_env() {
@@ -106,6 +107,7 @@ reset_fakes; configure_env
 sync_now
 assert_eq "enables, configures and registers webhooks in order" \
 "app:enable --force assinaturas
+assinaturas:groups:ensure
 php-config assinaturas api_token ZAPSIGN_API_TOKEN --sensitive
 php-config assinaturas environment ZAPSIGN_ENVIRONMENT
 php-config assinaturas company_name ZAPSIGN_COMPANY_NAME
@@ -174,6 +176,23 @@ reset_fakes; configure_env; export ZAPSIGN_WEBHOOK_SECRET="env-secret"
 sync_now
 assert_lacks "it never passes a secret on any command line" "$TEST_TOKEN" "$(cat "$OCC_LOG")"
 assert_lacks "it never passes the webhook secret on any command line" "env-secret" "$(cat "$OCC_LOG")"
+
+# ── app groups (members + managers) come back on every boot ──
+reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0"
+sync_now
+assert_has "recreates the app groups on a steady boot" "assinaturas:groups:ensure" "$(writes)"
+assert_eq "keeps a steady boot unchanged after ensuring the groups" "0" "$AVUZ_ASSINATURAS_CHANGED"
+
+reset_fakes
+sync_now
+assert_lacks "leaves the groups alone while the app is off" "assinaturas:groups:ensure" "$(writes)"
+
+reset_fakes; configure_env; FAKE_ENABLED="yes"; FAKE_INSTALLED="0.4.0"; FAKE_GROUPS_FAILS="yes"
+if sync_now; then rc=0; else rc=1; fi
+assert_eq "never fails the boot when the groups cannot be ensured" "0" "$rc"
+assert_has "reports the failed group ensure" \
+    "✗ Assinaturas: groups:ensure failed — the app groups may be missing until the next boot" "$(synced)"
+assert_has "still registers the webhooks after a failed group ensure" "assinaturas:webhook:ensure" "$(writes)"
 
 # ── failures ──
 reset_fakes; configure_env; FAKE_ENABLE_FAILS="yes"
