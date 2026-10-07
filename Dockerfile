@@ -49,6 +49,21 @@ RUN cp -R /var/www/html/docker/overlays/files_downloadlimit/. /var/www/html/apps
 # board-tags feature (AVUZ-BOARD-TAGS-V1) as real commits, plus its committed
 # vendor/ and built js/ — so no overlay cp is needed here.
 
+# Assinaturas (Avuz's own ZapSign e-signature app) ships as the
+# avuz-conecta/assinaturas submodule at apps/assinaturas (branch main) with its
+# built js/ and dist/ committed — the Dockerfile cannot build it. Fail loud if
+# the submodule was not initialized, then drop what only development needs
+# (sources, tests with local preview fixtures, design mockups, docs).
+RUN test -f apps/assinaturas/js/assinaturas-main.mjs \
+      || { echo "apps/assinaturas has no built js — run: git submodule update --init apps/assinaturas"; exit 1; } \
+    && rm -rf apps/assinaturas/.git apps/assinaturas/src apps/assinaturas/tests \
+              apps/assinaturas/design apps/assinaturas/docs apps/assinaturas/scripts \
+              apps/assinaturas/node_modules apps/assinaturas/.superpowers \
+              apps/assinaturas/package.json apps/assinaturas/package-lock.json \
+              apps/assinaturas/vite.config.ts apps/assinaturas/tsconfig.json \
+              apps/assinaturas/tsconfig.node.json apps/assinaturas/eslint.config.js \
+              apps/assinaturas/composer.lock apps/assinaturas/.nvmrc apps/assinaturas/.gitignore
+
 # Clean old compiled bundles and rebuild frontend
 RUN npm run build
 
@@ -103,7 +118,7 @@ RUN chmod +x /usr/local/bin/merge-l10n.sh
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
 COPY docker/entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/entrypoint.sh /var/www/html/docker/healthcheck.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /var/www/html/docker/healthcheck.sh /var/www/html/docker/assinaturas-worker.sh
 # Placeholder so nginx.conf's include never dangles; entrypoint regenerates it at
 # boot from TRUSTED_PROXIES (real client IP behind Cloudflare -> NPM).
 RUN mkdir -p /etc/nginx/conf.d && printf 'real_ip_header CF-Connecting-IP;\nreal_ip_recursive on;\n' > /etc/nginx/conf.d/avuz-realip.conf

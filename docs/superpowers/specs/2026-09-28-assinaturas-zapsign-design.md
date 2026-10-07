@@ -165,8 +165,10 @@ Any 429 sets a short **global backoff** that honors `Retry-After` and that all j
 This block does **not** live inside the stamp-gated `run_avuz_configuration`, which only runs when the config stamp changes.
 
 1. Write the vars to app config. The token and secret are written with `--sensitive`, which encrypts them at rest. Changing a key's sensitivity requires deleting the key first.
-2. Enable the app if a token is set; otherwise disable it.
-3. Create group `assinaturas` if it is missing.
+2. Enable the app only when the token, a valid `ZAPSIGN_ENVIRONMENT` (`sandbox`/`production`) and `ZAPSIGN_COMPANY_NAME` are all set; otherwise disable it (data kept) and log `– Assinaturas off: <reason>`. A new app version in the image is reconciled (disable → enable runs its migrations), keeping an admin's group restriction.
+3. The group `assinaturas` comes from the app's own install/post-migration repair step; the entrypoint does not create it.
+
+Secrets never travel on an occ command line (admin_audit logs occ argv): `docker/set-app-config-from-env.php` reads them from the environment, compares, and writes only on change (Plan 4).
 4. Run `occ assinaturas:webhook:ensure`.
 
 The app is also added to `AVUZ_OWNED_APPS`, so shadow copies are purged and migrations reconcile when the image version bumps.
@@ -499,7 +501,7 @@ Nextcloud notifications are sent for:
 ### Signer-facing content
 
 - `brand_name = "Avuz Conecta"`.
-- `brand_logo` = one **central static URL** for the Avuz logo, not the tenant host.
+- `brand_logo` = `<overwrite.cli.url>/apps/avuz_theme/img/logo-login.png`: the Avuz theme holds only Avuz assets, so every tenant serves the same file (Patrick, 2026-10-02). An app-config `brand_logo_url` overrides it. Verified in a real ZapSign email on staging.
 - `brand_primary_color = #2bb5e3`.
 - `lang = pt-br`.
 - The message is prefixed: "Maria Souza, da {ZAPSIGN_COMPANY_NAME}, enviou documentos para sua assinatura." It goes in each signer's `custom_message`, at creation **and** in the release call. ZapSign-originated emails show it; the email triggered by a bare release didn't. Staging E2E verifies that sending it in the release call fixes that.
@@ -510,7 +512,7 @@ Nextcloud notifications are sent for:
 ## 8. Deployment
 
 - **Repo:** `avuz-conecta/assinaturas`, branch `main`.
-  - Built `js/` and `vendor/` are committed, because the Dockerfile can't build them (same as `deck`).
+  - Built `js/` and `dist/` are committed, because the Dockerfile can't build them (same as `deck`). The app has no runtime Composer dependencies, so no `vendor/` ships.
   - `info.xml`: Nextcloud min 33, max 34.
 - **avuz-server:**
   - add the submodule at `apps/assinaturas`;
@@ -521,8 +523,8 @@ Nextcloud notifications are sent for:
 - **Webhook URL:** `https://<tenant host>/index.php/apps/assinaturas/webhook`, built from `overwrite.cli.url`.
 - **Cron:** background jobs run on the existing 5-minute cron loop. Webhook-triggered syncs therefore land within about 5 minutes, and status updates are shown when the sync completes.
 - **Rollout:**
-  1. Default staging `avuz-conecta` (stack 8) with the **sandbox** token.
-  2. One pilot tenant with a **production** sub-account. Production steps are gated on explicit approval.
+  1. Staging **avuz-conecta-2** (stack 46, `:staging-2`) with the **sandbox** token (Patrick, 2026-10-02). Done in Plan 4.
+  2. Pilot tenant **app3** with a **production** sub-account (Plan 5). Production steps are gated on explicit approval.
   3. The rest of the fleet.
 
 ---

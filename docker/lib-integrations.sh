@@ -3,7 +3,7 @@
 # provider, SMTP, OnlyOffice). Sourced by docker/entrypoint.sh after
 # lib-apps.sh, and by docker/tests/integrations.test.sh. No side effects on source.
 #
-# Secrets go through _avuz_php_config by env var NAME, never as an occ
+# Secrets go through avuz_set_config_from_env by env var NAME, never as an occ
 # --value: admin_audit logs the full argv of every occ command to audit.log.
 # An unset secret is exported empty first, so the value written matches what
 # `occ ... --value="$UNSET"` wrote before.
@@ -42,7 +42,7 @@ avuz_configure_talk_recording() {
     ')"
     export AVUZ_TALK_RECORDING_SERVERS
     local rc=0
-    _avuz_php_config spreed recording_servers AVUZ_TALK_RECORDING_SERVERS || rc=$?
+    avuz_set_config_from_env spreed recording_servers AVUZ_TALK_RECORDING_SERVERS || rc=$?
     unset AVUZ_TALK_RECORDING_SERVERS
     [ "$rc" -eq 0 ] || return "$rc"
     _avuz_occ config:app:set spreed call_recording --value="yes"
@@ -93,7 +93,7 @@ avuz_configure_smtp() {
     _avuz_occ config:system:set mail_smtpauth --value=1 --type=integer
     _avuz_occ config:system:set mail_smtpauthtype --value="$SMTP_AUTHTYPE"
     _avuz_occ config:system:set mail_smtpname --value="$SMTP_NAME"
-    _avuz_php_config --system mail_smtppassword SMTP_PASSWORD
+    avuz_set_config_from_env --system mail_smtppassword SMTP_PASSWORD
     _avuz_occ config:system:set mail_from_address --value="$SMTP_FROM"
     _avuz_occ config:system:set mail_domain --value="$SMTP_DOMAIN"
 }
@@ -103,7 +103,7 @@ avuz_configure_smtp() {
 avuz_configure_onlyoffice() {
     export ONLYOFFICE_SECRET
     _avuz_occ config:app:set onlyoffice DocumentServerUrl --value="$ONLYOFFICE_URL"
-    _avuz_php_config onlyoffice jwt_secret ONLYOFFICE_SECRET
+    avuz_set_config_from_env onlyoffice jwt_secret ONLYOFFICE_SECRET
     _avuz_occ config:app:set onlyoffice jwt_header --value="Authorization"
     _avuz_occ config:app:set onlyoffice defFormats --value='{"csv":"true","doc":"true","docm":"true","docx":"true","docxf":"true","dot":"true","dotm":"true","dotx":"true","epub":"true","fb2":"true","fodp":"true","fods":"true","fodt":"true","htm":"true","html":"true","hwp":"true","hwpx":"true","key":"true","md":"true","mht":"true","mhtml":"true","numbers":"true","odg":"true","odp":"true","ods":"true","odt":"true","otp":"true","ots":"true","ott":"true","oxps":"true","pages":"true","pdf":"true","pot":"true","potm":"true","potx":"true","pps":"true","ppsm":"true","ppsx":"true","ppt":"true","pptm":"true","pptx":"true","rtf":"true","stw":"true","sxc":"true","sxi":"true","sxw":"true","txt":"true","vsdm":"true","vssm":"true","vssx":"true","vstm":"true","vstx":"true","wps":"true","xls":"true","xlsb":"true","xlsm":"true","xlsx":"true","xlt":"true","xltm":"true","xltx":"true","xml":"true","xps":"true","djvu":"true"}'
     _avuz_occ config:app:set onlyoffice editFormats --value='{"csv":"true","odp":"true","ods":"true","odt":"true","rtf":"true","txt":"true","doc":"true","docm":"true","docx":"true","docxf":"true","dotx":"true","epub":"true","fb2":"true","html":"true","otp":"true","ots":"true","ott":"true","potm":"true","potx":"true","ppsm":"true","ppsx":"true","ppt":"true","pptm":"true","pptx":"true","xls":"true","xlsm":"true","xlsx":"true","xltm":"true","xltx":"true","htm":"true","fodt":"true","fods":"true","fodp":"true"}'

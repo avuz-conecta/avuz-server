@@ -386,20 +386,61 @@ assert_eq "reconcile leaves the up-to-date app untouched" "no" \
 unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
 rm -rf "$recon_root"
 
+# ── reconcile keeps an admin's group restriction ──
+recon_root="$(mktemp -d)"
+mkdir -p "$recon_root/assinaturas/appinfo"
+printf '<info><version>0.5.0</version></info>' > "$recon_root/assinaturas/appinfo/info.xml"
+RECON_LOG="$(mktemp)"
+_avuz_occ() {
+    printf '%s\n' "$*" >> "$RECON_LOG"
+    case "$*" in
+        "app:getpath assinaturas") echo "$recon_root/assinaturas" ;;
+        "config:app:get assinaturas installed_version") echo "0.4.0" ;;
+        "config:app:get assinaturas enabled") printf '%s\n' "$RECON_ENABLED" ;;
+        "app:enable --force assinaturas") [ "$RECON_ENABLE_FAILS" = "yes" ] && return 1 ;;
+    esac
+    return 0
+}
+recon_writes() { grep -v '^config:app:get\|^app:getpath' "$RECON_LOG" || true; }
+
+RECON_ENABLE_FAILS="no"
+: > "$RECON_LOG"; RECON_ENABLED='["financeiro", "dir financeira"]'
+avuz_reconcile_app_versions assinaturas >/dev/null
+assert_eq "it restores an app's group restriction after reconciling its version" \
+'app:disable assinaturas
+app:enable --force assinaturas
+config:app:set assinaturas enabled --value=["financeiro", "dir financeira"]' "$(recon_writes)"
+
+: > "$RECON_LOG"; RECON_ENABLED="yes"
+avuz_reconcile_app_versions assinaturas >/dev/null
+assert_eq "leaves an app enabled for everyone as app:enable set it" \
+'app:disable assinaturas
+app:enable --force assinaturas' "$(recon_writes)"
+
+: > "$RECON_LOG"; RECON_ENABLED='["financeiro"]'; RECON_ENABLE_FAILS="yes"
+if avuz_reconcile_app_versions assinaturas >/dev/null; then recon_rc=0; else recon_rc=1; fi
+assert_eq "it leaves an app disabled when its re-enable fails" \
+'app:disable assinaturas
+app:enable --force assinaturas' "$(recon_writes)"
+assert_eq "returns 0 after a failed re-enable" "0" "$recon_rc"
+unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
+rm -rf "$recon_root" "$RECON_LOG"
+
 # ── avuz_set_sensitive_app_config ──
 assert_eq "writes a sensitive value by env var name" \
-    "PHPCFG conectamail sso_secret ROUNDCUBE_SSO_SECRET --sensitive" \
+    "config conectamail sso_secret ROUNDCUBE_SSO_SECRET --sensitive: PHPCFG conectamail sso_secret ROUNDCUBE_SSO_SECRET --sensitive" \
     "$(AVUZ_OCC_DRYRUN=1 avuz_set_sensitive_app_config conectamail sso_secret ROUNDCUBE_SSO_SECRET)"
 assert_eq "passes the value type when given" \
-    "PHPCFG assinaturas api_token ZAPSIGN_API_TOKEN --sensitive --type=string" \
+    "config assinaturas api_token ZAPSIGN_API_TOKEN --sensitive --type=string: PHPCFG assinaturas api_token ZAPSIGN_API_TOKEN --sensitive --type=string" \
     "$(AVUZ_OCC_DRYRUN=1 avuz_set_sensitive_app_config assinaturas api_token ZAPSIGN_API_TOKEN string)"
 
-php() { echo "unchanged"; return 1; }
-if php_config_out="$(_avuz_php_config conectamail sso_secret ROUNDCUBE_SSO_SECRET --sensitive)"; then php_config_rc=0; else php_config_rc=$?; fi
+# ── avuz_set_config_from_env ──
+php() { echo "failed: RuntimeException"; return 1; }
+if config_out="$(avuz_set_config_from_env conectamail sso_secret ROUNDCUBE_SSO_SECRET --sensitive)"; then config_rc=0; else config_rc=$?; fi
 unset -f php
-assert_eq "reports the outcome under the variable name" \
-    "config conectamail sso_secret ROUNDCUBE_SSO_SECRET --sensitive: unchanged" "$php_config_out"
-assert_eq "returns non-zero when the config write fails" "1" "$php_config_rc"
+assert_eq "logs the outcome under the variable name" \
+    "config conectamail sso_secret ROUNDCUBE_SSO_SECRET --sensitive: failed: RuntimeException" "$config_out"
+assert_eq "returns non-zero when the config write fails" "1" "$config_rc"
 
 # ── reconcile signal: ownership walk follows a reconcile that ran occ ──
 recon_root="$(mktemp -d)"
@@ -420,5 +461,18 @@ avuz_reconcile_app_versions forms >/dev/null
 assert_eq "it signals nothing when every app is current" "0" "$AVUZ_APPS_RECONCILED"
 unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
 rm -rf "$recon_root"
+
+# ── env-sourced app config ──
+assert_eq "plans an env-sourced config write by variable name" \
+    "PHPCFG assinaturas api_token ZAPSIGN_API_TOKEN --sensitive" \
+    "$(AVUZ_OCC_DRYRUN=1 _avuz_php_config assinaturas api_token ZAPSIGN_API_TOKEN --sensitive)"
+
+# ── bounded occ ──
+assert_eq "runs a bounded occ call under timeout when the image has it" \
+    "timeout 60 php occ assinaturas:webhook:ensure" \
+    "$(timeout() { echo "timeout $*"; }; _avuz_occ_bounded 60 assinaturas:webhook:ensure)"
+assert_eq "runs a bounded occ call plainly when the image lacks timeout" \
+    "php occ assinaturas:webhook:ensure" \
+    "$(PATH=/nonexistent; php() { echo "php $*"; }; _avuz_occ_bounded 60 assinaturas:webhook:ensure)"
 
 exit $fail

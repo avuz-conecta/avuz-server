@@ -161,3 +161,22 @@ Envelope `10ee29c9…`: Contrato + Anexo, 2 ordered signers, driven through the 
 | Notifications | `expired` delivered to the owner via the listener (envelope D). The driver needed `OC_App::loadApps()`; cron loads apps, so production is unaffected |
 | Admin status | Health `ok` plus plan info (`Plan Teste Sandbox Parcerias`, 50 credits); usage counts correct for the month |
 | Logs | 0 sign URLs, S3 signatures, tokens or auth headers |
+
+## Plan 4 staging E2E (avuz-conecta-2, 2026-10-02/05)
+
+The app shipped in the `:staging-2` image (app 0.4.2 → 0.4.4), configured from the stack env with the sandbox token. Webhooks reach the app through Cloudflare (zone-wide WAF skip rule for `POST /index.php/apps/assinaturas/webhook`).
+
+| Check | Result |
+|---|---|
+| Webhook delivery through Cloudflare | Every ZapSign event answered 200 (created, viewed, signed, completed). An anonymous probe gets the app's own 401 JSON, not a challenge |
+| Envelope 1: 3 documents (portrait, mixed sizes, rotated 90°), two ordered groups, initials on doc 1, one box dragged by hand | Completed. Group 1 signed → ZapSign emailed group 2 → signed. Three `… (assinado).pdf` next to the originals; signatures where placed, including the rotated page and the footer initials; each file has the evidence page appended; owner got the `completed` notification |
+| Already-signed PDF in an envelope | Send refused before ZapSign: `file_already_signed`, clear banner |
+| Source file replaced in Drive after placement | Send refused before ZapSign: `file_changed` ("Um arquivo mudou no Drive depois do posicionamento…"); "Voltar a rascunho" → re-place → send worked |
+| Email to group 1 | From "Avuz Conecta via ZapSign"; **Avuz logo shown** (theme `brand_logo`); body "Sua assinatura foi solicitada por <owner email> de Avuz Conecta"; Reply-To = account owner. **`custom_message` NOT shown** in the first released group's email (open question 6 confirmed) |
+| Envelope 2: nonexistent Gmail signer | **No `email_bounce` webhook within ~30 min** (same as the Plan 2b spike) — the sandbox does not seem to emit bounces. Verify on production (Plan 5). Correction to a valid email worked; the re-invite waits the per-signer 30-min window ("Disponível em N min") |
+| Envelope 3: cancel with reason | `Cancelado`, reason banner, timeline "Cancelamento solicitado → Envelope cancelado" |
+| Envelope 4: extend deadline | 07/10 → 22/10/2026, timeline "Prazo alterado" |
+| Sandbox plan | Admin page shows "Situação do plano: canceled", yet sends work |
+| Real phone (Patrick) | Placement editor pinch/drag/scroll/resize, dashboard, detail: all good |
+
+Bugs found and fixed during staging: white header icon (no Avuz theme override → `themes/avuz/apps/assinaturas/img/`), unstyled toasts (`@nextcloud/dialogs` 7 CSS never imported → app 0.4.3), signer-row countdown button covering the status pill at ~690px (app 0.4.4). A JPEG2000 page that once rendered blank in one Chrome session did not reproduce anywhere afterwards (stock pdf.js and the app bundle, Chrome and Chromium, local and staging).
