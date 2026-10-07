@@ -427,46 +427,40 @@ unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
 rm -rf "$recon_root" "$RECON_LOG"
 
 # ── avuz_set_sensitive_app_config ──
-SENSITIVE_LOG="$(mktemp)"
-FAKE_SENSITIVE_DETAILS='{}'
-_avuz_occ() {
-    printf '%s\n' "$*" >> "$SENSITIVE_LOG"
-    case "$*" in
-        *" --details --output=json") echo "$FAKE_SENSITIVE_DETAILS" ;;
-    esac
-    return 0
-}
-
-: > "$SENSITIVE_LOG"; FAKE_SENSITIVE_DETAILS='{"sensitive":false}'
-avuz_set_sensitive_app_config conectamail sso_secret s3cret >/dev/null
-assert_eq "deletes a plaintext key before storing it sensitive" \
-"config:app:get conectamail sso_secret --details --output=json
-config:app:delete conectamail sso_secret
-config:app:set conectamail sso_secret --sensitive --value=s3cret" "$(cat "$SENSITIVE_LOG")"
-
-: > "$SENSITIVE_LOG"; FAKE_SENSITIVE_DETAILS='{"sensitive":true}'
-avuz_set_sensitive_app_config conectamail sso_secret s3cret >/dev/null
-assert_eq "sets an already-sensitive key in place" \
-"config:app:get conectamail sso_secret --details --output=json
-config:app:set conectamail sso_secret --sensitive --value=s3cret" "$(cat "$SENSITIVE_LOG")"
-
-: > "$SENSITIVE_LOG"; FAKE_SENSITIVE_DETAILS='{"sensitive":true}'
-avuz_set_sensitive_app_config assinaturas api_token tok string >/dev/null
+assert_eq "writes a sensitive value by env var name" \
+    "config conectamail sso_secret ROUNDCUBE_SSO_SECRET --sensitive: PHPCFG conectamail sso_secret ROUNDCUBE_SSO_SECRET --sensitive" \
+    "$(AVUZ_OCC_DRYRUN=1 avuz_set_sensitive_app_config conectamail sso_secret ROUNDCUBE_SSO_SECRET)"
 assert_eq "passes the value type when given" \
-"config:app:get assinaturas api_token --details --output=json
-config:app:set assinaturas api_token --type=string --sensitive --value=tok" "$(cat "$SENSITIVE_LOG")"
+    "config assinaturas api_token ZAPSIGN_API_TOKEN --sensitive --type=string: PHPCFG assinaturas api_token ZAPSIGN_API_TOKEN --sensitive --type=string" \
+    "$(AVUZ_OCC_DRYRUN=1 avuz_set_sensitive_app_config assinaturas api_token ZAPSIGN_API_TOKEN string)"
 
+# ── avuz_set_config_from_env ──
+php() { echo "failed: RuntimeException"; return 1; }
+if config_out="$(avuz_set_config_from_env conectamail sso_secret ROUNDCUBE_SSO_SECRET --sensitive)"; then config_rc=0; else config_rc=$?; fi
+unset -f php
+assert_eq "logs the outcome under the variable name" \
+    "config conectamail sso_secret ROUNDCUBE_SSO_SECRET --sensitive: failed: RuntimeException" "$config_out"
+assert_eq "returns non-zero when the config write fails" "1" "$config_rc"
+
+# ── reconcile signal: ownership walk follows a reconcile that ran occ ──
+recon_root="$(mktemp -d)"
+mkdir -p "$recon_root/forms/appinfo"
+printf '<info><version>5.3.5</version></info>' > "$recon_root/forms/appinfo/info.xml"
 _avuz_occ() {
-    case "$*" in
-        config:app:set*) return 1 ;;
-        *" --details --output=json") echo '{"sensitive":true}' ;;
+    case "$1 $2" in
+        "app:getpath forms") echo "$recon_root/forms" ;;
+        "config:app:get forms") echo "$RECON_INSTALLED" ;;
     esac
     return 0
 }
-if avuz_set_sensitive_app_config conectamail sso_secret s3cret >/dev/null; then sensitive_rc=0; else sensitive_rc=$?; fi
-assert_eq "returns non-zero when the config write fails" "1" "$sensitive_rc"
-unset -f _avuz_occ; source "$HERE/../lib-apps.sh"
-rm -f "$SENSITIVE_LOG"
+RECON_INSTALLED="5.2.5"
+avuz_reconcile_app_versions forms >/dev/null
+assert_eq "it signals a reconcile that disabled and re-enabled an app" "1" "$AVUZ_APPS_RECONCILED"
+RECON_INSTALLED="5.3.5"
+avuz_reconcile_app_versions forms >/dev/null
+assert_eq "it signals nothing when every app is current" "0" "$AVUZ_APPS_RECONCILED"
+unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
+rm -rf "$recon_root"
 
 # ── env-sourced app config ──
 assert_eq "plans an env-sourced config write by variable name" \

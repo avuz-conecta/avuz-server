@@ -170,6 +170,16 @@ See `docs/s3-deployment.md` for end-to-end deployment. Key points:
 - Use `portainer-stack-s3.yml` as the deployment template — it has distinct
   volume names so it can coexist with the local-disk stack on the same host.
 
+## Secrets in config writes
+
+Never pass a secret as `occ ... --value=`: admin_audit logs every occ argv to
+`data/audit.log`. Write it by env var NAME through `_avuz_php_config` /
+`avuz_set_sensitive_app_config` (`docker/lib-apps.sh` →
+`docker/set-app-config-from-env.php`); integration blocks live in
+`docker/lib-integrations.sh`, and `docker/tests/integrations.test.sh` fails if any
+stubbed call's argv carries a secret. Old leaks: `scripts/audit-log/run.sh`
+(runbook `docs/runbooks/audit-log-secret-redaction.md`).
+
 ## Preview storage tools (`scripts/previews/`)
 
 NC 33 previews on S3 live under `uri:oid:preview:<snowflake id>`, tracked in

@@ -33,8 +33,11 @@ _avuz_occ_bounded() {
     php occ "$@"
 }
 
-# Writes one app config value read from an env var: <app> <key> <ENV_VAR> [--sensitive].
-# Keeps secrets off argv, which admin_audit logs for every occ command.
+# Writes one config value read from an env var, so the value never reaches
+# argv: admin_audit logs the full argv of every occ command to audit.log.
+# Args are names only (see docker/set-app-config-from-env.php):
+# <app> <key> <ENV_VAR> [--sensitive] [--type=..] | --system <key> <ENV_VAR>.
+# Prints only the outcome: unchanged | set | failed: <reason>.
 _avuz_php_config() {
     if [ -n "${AVUZ_OCC_DRYRUN:-}" ]; then
         echo "PHPCFG $*"
@@ -43,20 +46,22 @@ _avuz_php_config() {
     php /var/www/html/docker/set-app-config-from-env.php "$@"
 }
 
-# Stores an app config value encrypted at rest ($AppConfigEncryption$ prefix).
-# IAppConfig refuses to flip an existing key's sensitivity through a value set,
-# so a plaintext key is deleted first. Already-sensitive keys are set in place
-# (no DB write when the value is unchanged). Readers must use IAppConfig — the
+# _avuz_php_config with its outcome logged under the arg names (safe to echo).
+avuz_set_config_from_env() {
+    local outcome rc=0
+    outcome="$(_avuz_php_config "$@")" || rc=$?
+    echo "config $*: $outcome"
+    return "$rc"
+}
+
+# Stores an app config value, read from the env var named in $3, encrypted at
+# rest ($AppConfigEncryption$ prefix). Readers must use IAppConfig — the
 # deprecated IConfig::getAppValue returns the ciphertext.
 avuz_set_sensitive_app_config() {
-    local app="$1" key="$2" value="$3" value_type="${4:-}"
+    local app="$1" key="$2" env_var="$3" value_type="${4:-}"
     local type_option=()
     [ -n "$value_type" ] && type_option=(--type="$value_type")
-    if ! _avuz_occ config:app:get "$app" "$key" --details --output=json 2>/dev/null \
-        | grep -q '"sensitive":true'; then
-        _avuz_occ config:app:delete "$app" "$key" >/dev/null 2>&1 || true
-    fi
-    _avuz_occ config:app:set "$app" "$key" ${type_option[@]+"${type_option[@]}"} --sensitive --value="$value"
+    avuz_set_config_from_env "$app" "$key" "$env_var" --sensitive ${type_option[@]+"${type_option[@]}"}
 }
 
 # Pure: classify an `occ upgrade` run. Failure IFF it left maintenance mode stuck
@@ -368,8 +373,10 @@ avuz_should_reconcile() {
 # real code>installed mismatch, which self-clears after one reconcile. Non-fatal.
 # `app:enable --force` opens the app to everyone, so an admin's group
 # restriction (a JSON group list in `enabled`) is written back afterwards.
+# Sets AVUZ_APPS_RECONCILED=1 when it ran occ: the caller re-chowns appdata_*.
 avuz_reconcile_app_versions() {
     local app code installed base enabled
+    AVUZ_APPS_RECONCILED=0
     for app in "$@"; do
         base="$(avuz_app_path "$app")"
         [ -n "$base" ] || continue
@@ -377,6 +384,7 @@ avuz_reconcile_app_versions() {
         installed="$(_avuz_occ config:app:get "$app" installed_version 2>/dev/null | tr -d '[:space:]')"
         if [ "$(avuz_should_reconcile "$app" "$code" "$installed")" = "yes" ]; then
             echo "Reconciling $app: on-disk code $code is ahead of installed $installed — disable+enable to run app upgrade"
+            AVUZ_APPS_RECONCILED=1
             enabled="$(_avuz_occ config:app:get "$app" enabled 2>/dev/null)" || true
             _avuz_occ app:disable "$app" || true
             # Restore groups only on success: writing `enabled` reopens a failed app.
