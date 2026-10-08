@@ -1,6 +1,6 @@
 # Assinaturas — contract management
 
-Date: 2026-10-07 · Status: approved in brainstorm, awaiting spec review
+Date: 2026-10-07 · Status: approved; updated 2026-10-08 with the decisions taken while building Plan 9
 Depends on `2026-10-07-assinaturas-folders-and-managers-design.md` (access rules, managers role).
 
 ## Goal
@@ -36,11 +36,11 @@ One record per **document** that is a contract. Annexes without their own terms 
 - **"A vencer"** is a computed label (key date within 90 days), not a stored status.
 - A contract is tracked once it is signed. Until the envelope **completes**, the contract data (and a `continues_contract_id` link from "Renovar com novo documento") is held with the envelope's documents and shown as "Aguardando assinatura"; on completion it becomes an `active` record and the daily job starts following it. A cancelled, refused or expired envelope never produces a record.
 
-## Lifecycle (daily job)
+## Lifecycle (contract job)
 
-A daily background job (`TimedJob`, every 24 h) for every `active` contract:
+A background job (`TimedJob`, every 12 h — the interval is a minimum, so twice a day keeps every calendar day covered; a second run the same day changes nothing) for every `active` contract:
 
-1. **Alerts:** for each offset in `alert_days`, when today is `key date − offset`, send the alert once. Dedup by `(contract, key date, offset)` so a re-run, a missed day or a restart never sends twice; a missed day sends the overdue alert on the next run.
+1. **Alerts:** for each offset in `alert_days`, when today is `key date − offset`, send the alert once. Dedup by `(contract, key date, offset)` so a re-run, a missed day or a restart never sends twice; missed offsets catch up with one alert (the most urgent) on the next run. An alert whose key date already passed is not sent late: expiry or renewal takes over.
 2. **Automatic renewal:** when `auto_renew` and today > `ends_on`, set `starts_on = ends_on + 1 day`, `ends_on += renewal_term_months`, record "Renovado automaticamente" in the timeline; alerts restart for the new term.
 3. **Expiry:** when not `auto_renew` and today > `ends_on`, set `expired`, record it, stop alerts.
 
@@ -49,7 +49,7 @@ User actions (require `canAct` on the envelope):
 - **Renovar:** new `ends_on` (and optionally value); same record continues; timeline records old → new dates.
 - **Renovar com novo documento:** creates a new draft prefilled with the same signers, folder, type, counterparty and value, linked through `continues_contract_id`. When that envelope **completes**, the old contract becomes `renewed` (alerts stop, documents stay as history) and the new one is active. If the new envelope is cancelled, refused or expires, the old contract is unchanged.
 - **Encerrar:** optional reason; `ended`; alerts stop.
-- **Edit fields** at any time; changing dates recomputes the key date (already-sent alerts for the old key date are not resent).
+- **Edit fields** while the contract is `active` or `expired`; ended and renewed contracts are history and refuse edits (409 `contract_closed`). Changing dates recomputes the key date (already-sent alerts for the old key date are not resent). An edit saves `source` as `manual` unless the client sends it.
 
 ## Alerts
 
@@ -59,7 +59,7 @@ User actions (require `canAct` on the envelope):
 ## Screens
 
 - **Wizard step "Contrato"** (optional, after Documentos; only with the add-on): one card per document with "Este documento é um contrato" (annexes default to "segue o principal"); the fields above; AI suggestions marked "Sugerido pela IA" until edited; Continuar never waits for the AI. Skipping is allowed.
-- **Envelope page "Contrato" card:** fields, status chip, chain history ("Contrato original 2025–2026 → Aditivo 2026–2027" with links), actions Editar / Renovar / Renovar com novo documento / Encerrar. A completed envelope without contract data shows "Registrar dados do contrato".
+- **Envelope page "Contrato" card:** fields, status chip, chain history ("Contrato original 2025–2026 → Aditivo 2026–2027" with links) — links to envelopes the viewer cannot see are left out, actions Editar / Renovar / Renovar com novo documento / Encerrar. A completed envelope without contract data shows "Registrar dados do contrato".
 - **Contratos screen** (sidebar; only with the add-on):
   - Rows: name, counterparty, type, value, end date, status chip ("Vigente", "A vencer em 23 dias", "Prazo de aviso em 12 dias", "Vencido", "Encerrado").
   - Only the current link of each renewal chain is listed.
