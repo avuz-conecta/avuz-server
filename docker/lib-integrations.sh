@@ -71,6 +71,7 @@ avuz_configure_ai_provider() {
     avuz_set_sensitive_app_config integration_openai api_key AI_API_KEY
     _avuz_occ config:app:set integration_openai default_completion_model_id --value="$AI_LLM_MODEL"
     _avuz_occ config:app:set integration_openai chat_endpoint_enabled --value="1"
+    _avuz_occ config:app:set integration_openai llm_provider_enabled --value="1"
 
     # Speech-to-text (used by core:audio2text). Independent provider; its key
     # falls back to AI_API_KEY when AI_STT_API_KEY is unset.
@@ -82,6 +83,21 @@ avuz_configure_ai_provider() {
 
     # Re-enable Talk AI summary now that LLM is wired up.
     _avuz_occ config:app:set spreed call_recording_summary --value="yes"
+}
+
+# integration_openai registers its text-to-text provider while llm_provider_enabled
+# is 1 (its default), key or not. Without a key every task fails, and apps that
+# offer AI features only when a provider exists (Assinaturas: "Ler contratos com
+# IA") would show them. So the provider is on only with a key: from the env, or
+# one an admin stored by hand. The key is read through stdout, never argv.
+avuz_sync_llm_provider_switch() {
+    local stored_key
+    stored_key="$(_avuz_occ config:app:get integration_openai api_key 2>/dev/null || true)"
+    if [ -n "${AI_API_KEY:-}" ] || [ -n "$stored_key" ]; then
+        _avuz_occ config:app:set integration_openai llm_provider_enabled --value="1"
+        return 0
+    fi
+    _avuz_occ config:app:set integration_openai llm_provider_enabled --value="0"
 }
 
 avuz_configure_smtp() {

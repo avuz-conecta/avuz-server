@@ -58,3 +58,8 @@ Never print the token.
 - **Rotate the token:** change `ZAPSIGN_API_TOKEN` in the stack, then redeploy.
 - **Turn off:** empty `ZAPSIGN_API_TOKEN`, then redeploy. The app is disabled; data is kept.
 - **Restore a DB into another host:** `php occ assinaturas:webhook:ensure` refuses until you pass `--confirm-url-change`.
+
+## Gestão de contratos
+
+- "Ler contratos com IA" is the client's managers' choice, on their "Uso" page; it is off by default and appears only while "Gestão de contratos contratada" is on and the tenant has an AI provider (`AI_API_KEY` in the stack env, or a key stored in integration_openai by hand). Without a key the boot switches integration_openai's text-to-text provider off, so the option stays hidden.
+- The contract text goes to the provider through Nextcloud's task processing and is deleted with the task; Assinaturas keeps only the validated suggestion, and only while the envelope is a draft. Tell the client before a manager turns it on.

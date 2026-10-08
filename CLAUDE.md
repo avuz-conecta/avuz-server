@@ -48,6 +48,7 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 - Tenant provisioning: `docs/assinaturas-tenant-runbook.md`.
 - Job worker: supervisor program `assinaturas-worker` (`docker/assinaturas-worker.sh`) runs `occ background-job:worker` for just `SendJob` and `SyncEnvelopeJob`. Nextcloud cron ticks every 300 s, but sends and webhooks must land in seconds.
 - It idles (rechecks every 300 s) while the app is off or Nextcloud is not installed, so it runs on every tenant. After a worker failure it backs off 30 s. It logs state changes only.
+- Contracts add-on: "Ler contratos com IA" (managers, off by default) reads draft PDFs through Nextcloud task processing (`core:text2text`, the `nextcloud-taskprocessing` worker); integration_openai's text-to-text provider is on only when an AI key exists (`avuz_sync_llm_provider_switch`). The Contratos screen lives at `/apps/assinaturas/contracts`.
 
 ## Important Configs
 

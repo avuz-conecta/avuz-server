@@ -86,6 +86,8 @@ assert_contains "it stores the API key sensitive, by variable name" \
     "phpcfg integration_openai api_key AI_API_KEY --sensitive" "$calls"
 assert_contains "it stores the STT key sensitive, by variable name" \
     "phpcfg integration_openai stt_api_key AI_STT_API_KEY --sensitive" "$calls"
+assert_contains "it turns the text-to-text provider on with a key" \
+    "occ config:app:set integration_openai llm_provider_enabled --value=1" "$calls"
 
 describe "SMTP"
 assert_contains "it stores the SMTP password in system config, by variable name" \
@@ -109,6 +111,25 @@ fi
 assert_eq "drops the recording servers JSON from the env after the write" "unset" \
     "${AVUZ_TALK_RECORDING_SERVERS-unset}"
 assert_contains "it turns call recording on" "occ config:app:set spreed call_recording --value=yes" "$calls"
+
+describe "text-to-text provider switch"
+STORED_AI_KEY=""
+_avuz_occ() {
+    printf 'occ %s\n' "$*" >> "$ARGV_LOG"
+    if [ "${1:-}" = "config:app:get" ] && [ "${3:-}" = "api_key" ]; then
+        printf '%s' "$STORED_AI_KEY"
+    fi
+}
+: > "$ARGV_LOG"
+( unset AI_API_KEY; avuz_sync_llm_provider_switch >/dev/null )
+assert_contains "it turns the provider off without any key, so apps hide AI options" \
+    "occ config:app:set integration_openai llm_provider_enabled --value=0" "$(cat "$ARGV_LOG")"
+: > "$ARGV_LOG"
+STORED_AI_KEY="stored-key-1234"
+( unset AI_API_KEY; avuz_sync_llm_provider_switch >/dev/null )
+assert_contains "it keeps the provider on when a key was stored by hand" \
+    "occ config:app:set integration_openai llm_provider_enabled --value=1" "$(cat "$ARGV_LOG")"
+_avuz_occ() { printf 'occ %s\n' "$*" >> "$ARGV_LOG"; }
 
 describe "fallbacks"
 : > "$ARGV_LOG"

@@ -528,6 +528,7 @@ apply_avuz_settings() {
         echo "✓ AI provider configured (base=$AI_BASE_URL llm=$AI_LLM_MODEL stt=$AI_STT_MODEL)"
     else
         echo "→ AI_API_KEY not set, skipping AI provider config (Talk transcription disabled)"
+        avuz_sync_llm_provider_switch >/dev/null
     fi
 
     # Mail app optimizations
