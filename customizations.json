@@ -203,6 +203,16 @@
       "notes": "Settings strings change frequently between releases. Check for renamed/removed keys."
     },
     {
+      "id": "translation-calendar",
+      "type": "translation",
+      "paths": [
+        "themes/avuz/apps/calendar/l10n/pt_BR.json"
+      ],
+      "description": "Calendar: 2 keys replacing Nextcloud with Avuz Conecta (CalDAV subtitle + recurrence warning)",
+      "risk": "low",
+      "notes": "Minimal override merged at build time by merge-l10n.sh. Source strings must match calendar 6.2.1."
+    },
+    {
       "id": "translation-notifications",
       "type": "translation",
       "paths": [
