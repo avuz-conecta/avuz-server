@@ -13,6 +13,12 @@
 #   ./scripts/deploy.sh <stack> [<stack> ...]   # redeploy these stacks
 #   ./scripts/deploy.sh --list                  # list stacks Portainer knows
 #   ./scripts/deploy.sh -y <stack>              # skip the confirmation prompt
+#   ./scripts/deploy.sh --no-cachebust <stack>  # don't bump the theming cachebuster
+#
+# After each redeploy, once the container reports installed: true (startup can
+# take ~6 min), the theming cachebuster is incremented via occ so browsers +
+# Cloudflare fetch fresh l10n/JS overrides. Non-fatal; skip with --no-cachebust
+# or SKIP_CACHEBUST=1.
 #
 # Build first (this script only deploys, never builds):
 #   ./scripts/build-push.sh latest prod && ./scripts/deploy.sh grupo-vidalar
@@ -43,10 +49,24 @@ CURL_OPTS=()
 # GET helper — authenticated, fails on non-2xx.
 api_get() { curl -fsS "${CURL_OPTS[@]}" -H "X-API-Key: $PORTAINER_TOKEN" "$PORTAINER_URL$1"; }
 
+# POST to the Docker API proxy for the cachebuster exec. Bounded by --max-time so
+# a hung/booting container can never stall the deploy (it's non-fatal anyway).
+CACHEBUST_EXEC_TIMEOUT="${CACHEBUST_EXEC_TIMEOUT:-30}"
+api_post() {
+  curl -fsS "${CURL_OPTS[@]}" --max-time "$CACHEBUST_EXEC_TIMEOUT" \
+    -X POST -H "X-API-Key: $PORTAINER_TOKEN" -H 'Content-Type: application/json' "$@"
+}
+
 ASSUME_YES=0
+# Bump the theming cachebuster after each redeploy so browsers + Cloudflare
+# fetch fresh l10n/JS overrides (see below). Off via --no-cachebust or
+# SKIP_CACHEBUST=1.
+CACHEBUST=1
+[ "${SKIP_CACHEBUST:-0}" = "1" ] && CACHEBUST=0
 STACKS=()
 for arg in "$@"; do
   case "$arg" in
+    --no-cachebust) CACHEBUST=0 ;;
     -l|--list)
       # Same stack name can exist in multiple environments (endpoints); show the
       # endpoint + stack id so collisions are visible and can be targeted by id.
@@ -105,10 +125,78 @@ redeploy_one() {
     -d "$body" "$PORTAINER_URL/api/stacks/$id?endpointId=$eid" >/dev/null
 }
 
+# Find the running Nextcloud container for a stack on its endpoint. Portainer
+# labels every container with the compose project (= stack name) and service
+# (both stack templates name the NC service `app`). No all=1: we want the fresh,
+# running container the recreate just started.
+find_nc_container() {
+  local eid="$1" name="$2" filt
+  filt="$(jq -rn --arg p "$name" \
+    '{label:["com.docker.compose.project=\($p)","com.docker.compose.service=app"]} | tojson | @uri')"
+  api_get "/api/endpoints/$eid/docker/containers/json?filters=$filt" \
+    | jq -r '.[0].Id // empty'
+}
+
+# Run a command in the container via the Docker API exec proxy (TTY => raw
+# output), as $user. Mirrors scripts/portainer-exec.sh.
+nc_exec() {
+  local eid="$1" cid="$2" user="$3"; shift 3
+  local cmd_json exec_id
+  cmd_json="$(for a in "$@"; do jq -Rn --arg x "$a" '$x'; done | jq -sc .)"
+  exec_id="$(api_post "$PORTAINER_URL/api/endpoints/$eid/docker/containers/$cid/exec" \
+    -d "$(jq -n --argjson cmd "$cmd_json" --arg u "$user" \
+          '{AttachStdout:true, AttachStderr:true, Tty:true, Cmd:$cmd}
+           + (if $u == "" then {} else {User:$u} end)')" | jq -r '.Id')" || return 1
+  [ -n "$exec_id" ] && [ "$exec_id" != "null" ] || return 1
+  api_post "$PORTAINER_URL/api/endpoints/$eid/docker/exec/$exec_id/start" \
+    -d '{"Detach":false,"Tty":true}'
+}
+
+# After redeploy, wait for the fresh container to finish installing (startup can
+# take ~6 min), then increment the theming cachebuster so ?v=<hash>-<cachebuster>
+# asset URLs change and Cloudflare/browsers drop the 6-month-immutable copies.
+# Entirely non-fatal: any failure warns and leaves the deploy successful.
+CACHEBUST_WAIT="${CACHEBUST_WAIT:-420}"   # seconds to wait for installed: true
+bump_cachebuster() {
+  local stack="$1" row eid name cid out cur next waited=0
+  row="$(printf '%s' "$ALL_STACKS" | jq -c --arg t "$stack" "$SELECT")"
+  eid="$(printf '%s' "$row" | jq -r '.EndpointId')"
+  name="$(printf '%s' "$row" | jq -r '.Name')"
+
+  while :; do
+    cid="$(find_nc_container "$eid" "$name" 2>/dev/null || true)"
+    if [ -n "$cid" ]; then
+      out="$(nc_exec "$eid" "$cid" www-data php occ status 2>/dev/null || true)"
+      printf '%s' "$out" | grep -q 'installed: true' && break
+    fi
+    waited=$((waited + 10))
+    if [ "$waited" -ge "$CACHEBUST_WAIT" ]; then
+      echo "  ⚠ cachebuster skipped: $stack not healthy within ${CACHEBUST_WAIT}s"
+      return 0
+    fi
+    sleep 10
+  done
+
+  cur="$(nc_exec "$eid" "$cid" www-data php occ config:app:get theming cachebuster 2>/dev/null || true)"
+  cur="$(printf '%s' "$cur" | tr -dc '0-9')"   # strip TTY CR/whitespace; empty => unset
+  [ -n "$cur" ] || cur=0
+  next=$((cur + 1))
+  if nc_exec "$eid" "$cid" www-data php occ config:app:set theming cachebuster --value="$next" >/dev/null 2>&1; then
+    echo "  ✓ cachebuster $cur → $next ($stack)"
+  else
+    echo "  ⚠ cachebuster bump failed for $stack (deploy still OK)"
+  fi
+}
+
 FAILED=()
 for stack in "${STACKS[@]}"; do
   echo -n "→ $stack ... "
-  if redeploy_one "$stack"; then echo "redeployed"; else echo "FAILED"; FAILED+=("$stack"); fi
+  if redeploy_one "$stack"; then
+    echo "redeployed"
+    [ "$CACHEBUST" -eq 1 ] && bump_cachebuster "$stack"
+  else
+    echo "FAILED"; FAILED+=("$stack")
+  fi
 done
 
 [ "${#FAILED[@]}" -eq 0 ] || die "redeploy failed for: ${FAILED[*]}"

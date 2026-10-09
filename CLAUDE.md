@@ -87,6 +87,20 @@ find /var/www/html/themes -type f -exec chmod 644 {} \;
 ./scripts/build-push.sh latest local   s3     # → :latest-s3
 ```
 
+## Deploy (`scripts/deploy.sh`)
+
+Pulls `:latest` + recreates one or more Portainer stacks via the Portainer API
+(`deploy-prod.sh` = same script against `deploy.prod.env`). After each stack
+redeploys, it waits (up to `CACHEBUST_WAIT`=420 s — startup can take ~6 min) for
+the fresh NC container to report `installed: true`, then bumps the theming
+cachebuster: reads `occ config:app:get theming cachebuster` (default 0) and sets
+it +1 as www-data, inside the stack's container via the Portainer Docker-API exec
+proxy (same mechanism as `portainer-exec.sh`). This changes the
+`?v=<versionHash>-<cachebuster>` asset URLs so browsers + Cloudflare (6-month
+immutable cache) fetch fresh l10n/JS overrides shipped without a version bump.
+Non-fatal — a failed/timed-out bump warns and the deploy still succeeds. Skip
+with `--no-cachebust` or `SKIP_CACHEBUST=1`.
+
 On macOS the build scripts auto-launch Docker Desktop if it's down (`scripts/lib-docker.sh`)
 and, at the end, prompt `Stop it now? [y/N]` whenever Docker is running (default: keep).
 Skip the prompt with `STOP_DOCKER_AFTER_BUILD=1` (auto-stop) or `KEEP_DOCKER=1` (auto-keep);
