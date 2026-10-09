@@ -96,6 +96,22 @@ describe('files_trashbin: TrashbinAgeFilter', () => {
 		expect(kept.map((node) => node.name)).toEqual(['old'])
 	})
 
+	it('labels the active chip with the selected age', () => {
+		const filter = new TrashbinAgeFilter()
+		const updateChips = vi.spyOn(filter, 'updateChips')
+		filter.setPreset({ id: 'age-15', label: '15 dias', minAgeDays: 15 })
+		expect(updateChips).toHaveBeenLastCalledWith([
+			expect.objectContaining({ text: 'Excluído há 15 dias' }),
+		])
+	})
+
+	it('clears the chips for the "Todos" preset', () => {
+		const filter = new TrashbinAgeFilter()
+		const updateChips = vi.spyOn(filter, 'updateChips')
+		filter.setPreset({ id: 'todos', label: 'Todos', minAgeDays: null })
+		expect(updateChips).toHaveBeenLastCalledWith([])
+	})
+
 	it('no-ops outside the trashbin view', () => {
 		activeViewId.current = 'files'
 		const filter = new TrashbinAgeFilter()

@@ -40,7 +40,7 @@ export class TrashbinAgeFilter extends FileListFilter implements IFileListFilter
 	private currentInstance?: { resetFilter: () => void }
 	private currentPreset?: ITrashbinAgePreset
 
-	public readonly displayName = t('files_trashbin', 'Idade')
+	public readonly displayName = t('files_trashbin', 'Excluído há')
 	public readonly iconSvgInline = svgHistory
 	public readonly tagName = tagName
 
@@ -70,15 +70,37 @@ export class TrashbinAgeFilter extends FileListFilter implements IFileListFilter
 		return this.currentPreset
 	}
 
+	/**
+	 * Let the mounted component register itself so the filter can reset the
+	 * component state when its chip is removed (e.g. the active-filters bar).
+	 *
+	 * @param instance The component exposing a `resetFilter` callback
+	 */
+	public registerInstance(instance: { resetFilter: () => void }) {
+		this.currentInstance = instance
+	}
+
+	/**
+	 * Drop the registered component instance on unmount.
+	 *
+	 * @param instance The previously registered component
+	 */
+	public unregisterInstance(instance: { resetFilter: () => void }) {
+		if (this.currentInstance === instance) {
+			this.currentInstance = undefined
+		}
+	}
+
 	public setPreset(preset?: ITrashbinAgePreset) {
 		this.currentPreset = preset?.minAgeDays === null ? undefined : preset
 		this.filterUpdated()
 
 		const chips: IFileListFilterChip[] = []
-		if (this.currentPreset) {
+		const activePreset = this.currentPreset
+		if (activePreset) {
 			chips.push({
 				icon: svgHistory,
-				text: this.currentPreset.label,
+				text: t('files_trashbin', 'Excluído há {days} dias', { days: activePreset.minAgeDays ?? 0 }),
 				onclick: () => this.reset(),
 			})
 		} else {

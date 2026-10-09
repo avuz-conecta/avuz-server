@@ -41,12 +41,16 @@ watch(selectedOption, (preset) => {
 	props.filter.setPreset(preset ?? undefined)
 })
 
+const instance = { resetFilter: onReset }
+
 onMounted(() => {
 	selectedOption.value = props.filter.preset && agePresets.find((preset) => preset.id === props.filter.preset!.id)
 	props.filter.addEventListener('reset', onReset)
+	props.filter.registerInstance(instance)
 })
 onUnmounted(() => {
 	props.filter.removeEventListener('reset', onReset)
+	props.filter.unregisterInstance(instance)
 })
 
 /**
