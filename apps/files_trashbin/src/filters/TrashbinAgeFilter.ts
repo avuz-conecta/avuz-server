@@ -8,8 +8,7 @@ import type { IFileListFilterChip, IFileListFilterWithUi, INode } from '@nextclo
 import svgHistory from '@mdi/svg/svg/history.svg?raw'
 import { FileListFilter, getNavigation, registerFileListFilter, unregisterFileListFilter } from '@nextcloud/files'
 import { t } from '@nextcloud/l10n'
-import wrap from '@vue/web-component-wrapper'
-import Vue from 'vue'
+import { defineCustomElement } from 'vue'
 import { TRASHBIN_VIEW_ID } from '../files_views/trashbinView.ts'
 import FileListFilterTrashbinAge from '../components/FileListFilter/FileListFilterTrashbinAge.vue'
 
@@ -38,7 +37,7 @@ function deletionTimeMs(node: INode): number {
 }
 
 export class TrashbinAgeFilter extends FileListFilter implements IFileListFilterWithUi {
-	private currentInstance?: Vue
+	private currentInstance?: { resetFilter: () => void }
 	private currentPreset?: ITrashbinAgePreset
 
 	public readonly displayName = t('files_trashbin', 'Idade')
@@ -83,7 +82,7 @@ export class TrashbinAgeFilter extends FileListFilter implements IFileListFilter
 				onclick: () => this.reset(),
 			})
 		} else {
-			(this.currentInstance as { resetFilter: () => void } | undefined)?.resetFilter()
+			this.currentInstance?.resetFilter()
 		}
 		this.updateChips(chips)
 	}
@@ -103,20 +102,9 @@ export function registerTrashbinAgeFilter() {
 	}
 
 	if (!elementDefined) {
-		const WrappedComponent = wrap(Vue, FileListFilterTrashbinAge)
-		// In Vue 2, wrap doesn't support disabling shadow :(
-		// Disable with a hack
-		Object.defineProperty(WrappedComponent.prototype, 'attachShadow', {
-			value() {
-				return this
-			},
-		})
-		Object.defineProperty(WrappedComponent.prototype, 'shadowRoot', {
-			get() {
-				return this
-			},
-		})
-		customElements.define(tagName, WrappedComponent)
+		customElements.define(tagName, defineCustomElement(FileListFilterTrashbinAge, {
+			shadowRoot: false,
+		}))
 		elementDefined = true
 	}
 
