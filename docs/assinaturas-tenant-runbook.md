@@ -61,5 +61,8 @@ Never print the token.
 
 ## Gestão de contratos
 
-- "Ler contratos com IA" is the client's managers' choice, on their "Uso" page; it is off by default and appears only while "Gestão de contratos contratada" is on and the tenant has an AI provider (`AI_API_KEY` in the stack env, or a key stored in integration_openai by hand). Without a key the boot switches integration_openai's text-to-text provider off, so the option stays hidden.
-- The contract text goes to the provider through Nextcloud's task processing and is deleted with the task; Assinaturas keeps only the validated suggestion, and only while the envelope is a draft. Tell the client before a manager turns it on.
+- Both switches live on the AvuzConecta admin page (`/settings/admin/assinaturas`, "Gestão de contratos") and only AvuzConecta admins (Avuz staff) can change them; client managers have no switch, and "Uso" shows usage only.
+- "Gestão de contratos contratada" is off by default: turn it on when the client hires the add-on.
+- "Ler contratos com IA" is ON by default as soon as the add-on is on and the tenant has an AI provider (`AI_API_KEY` in the stack env, or a key stored in integration_openai by hand). Without a key the boot switches integration_openai's text-to-text provider off and the switch shows why it can't be used. Turn it off on that page if the client does not accept sending contract text to an external AI service (LGPD); turning it off cancels readings in progress.
+- The contract text goes to the provider through AvuzConecta's task processing and is deleted with the task; Assinaturas keeps only the validated suggestion, and only until the envelope is sent. Tell the client when the add-on is hired.
+- App access: the group "Avuz Assinaturas" (id `assinaturas`) uses the app; "Avuz Assinaturas Admins" (id `assinaturas-admins`) are company managers. Add users to these exact groups — a hand-made group with the same display name grants nothing.
