@@ -87,6 +87,16 @@ find /var/www/html/themes -type f -exec chmod 644 {} \;
 ./scripts/build-push.sh latest local   s3     # → :latest-s3
 ```
 
+## Staging environments
+
+Three long-lived staging branches, each mapped to a Portainer stack and image tag
+(`avuz-customization-staging-{1,2,3}` → `avuz-conecta` / `avuz-conecta-2` /
+`avuz-conecta-s3`, tags `:staging-{1,2,3}`). Engineers merge a feature branch into
+a staging branch to test, then merge the feature branch into `avuz-customization`
+(prod) when done; staging branches reset onto prod after each release. Build with
+`./scripts/build-push.sh latest staging <N>`. Run `git submodule update --init`
+before building from a worktree. Full model: `docs/staging-environments.md`.
+
 ## Deploy (`scripts/deploy.sh`)
 
 Pulls `:latest` + recreates one or more Portainer stacks via the Portainer API
