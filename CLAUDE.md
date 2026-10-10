@@ -50,6 +50,10 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 - It idles (rechecks every 300 s) while the app is off or Nextcloud is not installed, so it runs on every tenant. After a worker failure it backs off 30 s. It logs state changes only.
 - Contracts add-on: "Ler contratos com IA" (same admin section, AvuzConecta admins only; ON by default once the add-on is on and an AI provider exists; `contracts_ai_enabled=false` turns it off per client) reads draft PDFs through Nextcloud task processing (`core:text2text`, the `nextcloud-taskprocessing` worker); integration_openai's text-to-text provider is on only when an AI key exists (`avuz_sync_llm_provider_switch`). The Contratos screen lives at `/apps/assinaturas/contracts`.
 
+### Mandatory admin 2FA (TOTP)
+- Every boot enables `twofactor_totp` + `twofactor_backupcodes` and enforces 2FA for the `admin` group (`avuz_enforce_admin_2fa` in `docker/lib-apps.sh`, called from `docker/entrypoint.sh`). Idempotent; never narrows or disables an instance's existing enforcement (non-admin users unaffected). Opt out per stack with `AVUZ_ENFORCE_ADMIN_2FA=0` (default on).
+- Lost-authenticator recovery (backup code, `occ twofactorauth:disable <uid> totp` via Portainer exec, re-enroll, `occ twofactorauth:state <uid>`, automation/test-admin note): `docs/runbooks/admin-2fa-recovery.md`.
+
 ## Important Configs
 
 ### Nginx (`docker/nginx.conf`)

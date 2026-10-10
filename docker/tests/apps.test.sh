@@ -467,6 +467,38 @@ assert_eq "plans an env-sourced config write by variable name" \
     "PHPCFG assinaturas api_token ZAPSIGN_API_TOKEN --sensitive" \
     "$(AVUZ_OCC_DRYRUN=1 _avuz_php_config assinaturas api_token ZAPSIGN_API_TOKEN --sensitive)"
 
+# ── admin 2FA enforcement arg builder ──
+assert_eq "enforces admin when 2FA is off" \
+    "--on --group=admin" \
+    "$(avuz_2fa_enforce_args 'Two-factor authentication is not enforced')"
+assert_eq "leaves all-users enforcement untouched (never narrows to admin)" \
+    "skip" \
+    "$(avuz_2fa_enforce_args 'Two-factor authentication is enforced for all users')"
+assert_eq "leaves all-users-with-exclude untouched" \
+    "skip" \
+    "$(avuz_2fa_enforce_args 'Two-factor authentication is enforced for all users, except members of guests')"
+assert_eq "adds admin to an existing group set, preserving it" \
+    "--on --group=staff --group=admin" \
+    "$(avuz_2fa_enforce_args 'Two-factor authentication is enforced for members of the group(s) staff')"
+assert_eq "preserves multiple enforced groups and excludes" \
+    "--on --group=staff --group=ops --group=admin --exclude=guests" \
+    "$(avuz_2fa_enforce_args 'Two-factor authentication is enforced for members of the group(s) staff, ops, except members of guests')"
+assert_eq "skips when admin already in the group set" \
+    "skip" \
+    "$(avuz_2fa_enforce_args 'Two-factor authentication is enforced for members of the group(s) admin, staff')"
+
+# opt-out env skips the whole step (no occ calls)
+assert_eq "opt-out env skips enforcement" \
+    "→ Admin 2FA enforcement disabled (AVUZ_ENFORCE_ADMIN_2FA=0) — skipping" \
+    "$(AVUZ_ENFORCE_ADMIN_2FA=0 avuz_enforce_admin_2fa)"
+
+# default-on path enables both apps then enforces for admin (dry-run occ)
+twofa_out="$(AVUZ_OCC_DRYRUN=1 avuz_enforce_admin_2fa)"
+assert_eq "default path enables twofactor_totp" "yes" \
+    "$(printf '%s\n' "$twofa_out" | grep -qF 'OCC app:enable twofactor_totp' && echo yes || echo no)"
+assert_eq "default path enables twofactor_backupcodes" "yes" \
+    "$(printf '%s\n' "$twofa_out" | grep -qF 'OCC app:enable twofactor_backupcodes' && echo yes || echo no)"
+
 # ── bounded occ ──
 assert_eq "runs a bounded occ call under timeout when the image has it" \
     "timeout 60 php occ assinaturas:webhook:ensure" \

@@ -915,6 +915,13 @@ if [ "$AVUZ_ASSINATURAS_CHANGED" -eq 1 ]; then
     DID_CONFIG_RUN=1   # app enable/upgrade ran occ as root: re-chown appdata_*
 fi
 
+# Mandatory TOTP 2FA for the admin group — enabled and enforced on every boot so
+# every instance and every redeploy converges, idempotently. Opt out per stack
+# with AVUZ_ENFORCE_ADMIN_2FA=0. Never narrows or disables an instance's existing
+# enforcement (non-admin users unaffected). See docker/lib-apps.sh and
+# docs/runbooks/admin-2fa-recovery.md.
+avuz_enforce_admin_2fa
+
 # ──────────────────────────────────────────────
 # PHASE 4: Apps (fresh install only)
 # ──────────────────────────────────────────────
