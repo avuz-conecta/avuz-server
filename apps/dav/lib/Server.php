@@ -11,6 +11,7 @@ use OC\Files\Filesystem;
 use OCA\DAV\AppInfo\PluginManager;
 use OCA\DAV\BulkUpload\BulkUploadPlugin;
 use OCA\DAV\CalDAV\BirthdayCalendar\EnablePlugin;
+use OCA\DAV\CalDAV\CreatedBy\CreatedByPlugin;
 use OCA\DAV\CalDAV\BirthdayService;
 use OCA\DAV\CalDAV\DefaultCalendarValidator;
 use OCA\DAV\CalDAV\EventComparisonService;
@@ -221,6 +222,7 @@ class Server {
 
 			$this->server->addPlugin(\OCP\Server::get(RateLimitingPlugin::class));
 			$this->server->addPlugin(\OCP\Server::get(CalDavValidatePlugin::class));
+			$this->server->addPlugin(\OCP\Server::get(CreatedByPlugin::class));
 		}
 
 		// addressbook plugins
