@@ -40,6 +40,7 @@ base64url(payload).base64url(HMAC_SHA256(base64url(payload), WEBMAIL_AVUZ_SSO_SE
   "uid": "<Avuz Conecta user id>",
   "email": "<mailbox address>",
   "enc_pass": "<encrypted mail password, see below>",
+  "pass_src": "mailbox | login",
   "app_password": "<CardDAV app password, plaintext>",
   "iat": 1760000000,
   "exp": 1760000060,
@@ -49,6 +50,14 @@ base64url(payload).base64url(HMAC_SHA256(base64url(payload), WEBMAIL_AVUZ_SSO_SE
 
 - `exp = iat + 60` (60-second TTL).
 - `jti` is a fresh random id per token (replay tracking if the webmail wants it).
+- `pass_src` says where `enc_pass` came from. Additive field; `v` stays 1.
+  - `"mailbox"` — the mailbox password the user saved (`email_enc_password`).
+  - `"login"` — no mailbox password saved, so `enc_pass` is the Avuz Conecta
+    login password captured at login (`enc_password`). It may not match the
+    mailbox. If the IMAP login fails with a `"login"` password, stop using it
+    (do not retry on every open, or the mail provider may lock the account) and
+    show the webmail's own password prompt. Saving the password there stores
+    it as `email_enc_password`, so later tokens carry `"mailbox"`.
 
 ## Webmail-side validation (required)
 
