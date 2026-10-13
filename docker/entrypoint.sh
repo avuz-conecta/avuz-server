@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-22"
+AVUZ_CONFIG_VERSION="33.0.0-23"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 AVUZ_KNOWN_APPS="/var/www/html/data/.avuz_known_apps"
@@ -471,8 +471,8 @@ apply_avuz_settings() {
     fi
     php occ app:enable previewgenerator 2>/dev/null || true
 
-    # Conecta Mail (Roundcube integration) — app id is `conectamail` since 1.1.0
-    if [ -n "$ROUNDCUBE_URL" ]; then
+    # Conecta Mail (Roundcube + webmail-avuz integration) — app id `conectamail`
+    if [ -n "$ROUNDCUBE_URL" ] || [ -n "$WEBMAIL_AVUZ_URL" ]; then
         echo "Configuring Conecta Mail integration..."
         avuz_configure_conectamail
 

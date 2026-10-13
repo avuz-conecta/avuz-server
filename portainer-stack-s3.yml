@@ -92,6 +92,10 @@ services:
       - ROUNDCUBE_URL=
       - ROUNDCUBE_SSO_SECRET=
       - ROUNDCUBE_CREDENTIAL_KEY=
+      # ── New webmail (webmail-avuz) SSO — separate URL + secret, reuses ────
+      #    ROUNDCUBE_CREDENTIAL_KEY to encrypt enc_pass (optional) ───────────
+      - WEBMAIL_AVUZ_URL=
+      - WEBMAIL_AVUZ_SSO_SECRET=
 
       # ── Notifications app from Git ───────────────────────────────────────
       - NOTIFICATIONS_BRANCH=stable33
