@@ -50,6 +50,10 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 - It idles (rechecks every 300 s) while the app is off or Nextcloud is not installed, so it runs on every tenant. After a worker failure it backs off 30 s. It logs state changes only.
 - Contracts add-on: "Ler contratos com IA" (same admin section, AvuzConecta admins only; ON by default once the add-on is on and an AI provider exists; `contracts_ai_enabled=false` turns it off per client) reads draft PDFs through Nextcloud task processing (`core:text2text`, the `nextcloud-taskprocessing` worker); integration_openai's text-to-text provider is on only when an AI key exists (`avuz_sync_llm_provider_switch`). The Contratos screen lives at `/apps/assinaturas/contracts`.
 
+### Calendar "Criado por" (card 455)
+- `apps/dav/lib/CalDAV/CreatedBy/CreatedByPlugin.php` stamps `X-AVUZ-CREATED-BY;CN=<name>:<uid>` when someone other than the calendar owner creates an event (share/delegation) over CalDAV. Set on create, carried over on update (clients can't drop or forge it); owner-created events untouched.
+- The calendar overlay (`docker/overlays/calendar/event-created-by.patch`, sentinel `AVUZ-CREATED-BY-V1`) shows "Criado por <nome>" in the popover and full editor. Older events have no stamp.
+
 ## Important Configs
 
 ### Nginx (`docker/nginx.conf`)

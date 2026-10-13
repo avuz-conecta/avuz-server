@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-21"
+AVUZ_CONFIG_VERSION="33.0.0-22"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 AVUZ_KNOWN_APPS="/var/www/html/data/.avuz_known_apps"
@@ -139,6 +139,7 @@ verify_avuz_patches() {
         "admin-download-limit|files_downloadlimit|templates/admin.php|files_downloadlimit overlay missing — upstream 2.0.0 tarball drops this template (GH nextcloud/files_downloadlimit#421); redeploy or rerun reapply_avuz_files_downloadlimit_overlay"
         "AVUZ-AUDIO-EXTRACT-V1|integration_openai|lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
         "AVUZ-POPOVER-COLOR-V1|calendar|js/calendar-main.js|calendar overlay missing — event color picker in the new-event popover lost; redeploy or rerun reapply_avuz_calendar_overlay"
+        "AVUZ-CREATED-BY-V1|calendar|js/calendar-main.js|calendar overlay missing — \"Criado por\" in shared-calendar events lost; redeploy or rerun reapply_avuz_calendar_overlay"
         "AVUZ-DECK-CLONE-ORDER-V1|deck|lib/Service/BoardService.php|deck fork missing — board-copy column/card shift fix lost; check the apps/deck submodule shipped and no store copy in custom_apps outranks it"
         "AVUZ-BOARD-TAGS-V1|deck|lib/Controller/BoardTagController.php|deck fork missing — board tags and overview filters lost; check the apps/deck submodule shipped at 1.17.1 and no store copy in custom_apps outranks it"
     )
