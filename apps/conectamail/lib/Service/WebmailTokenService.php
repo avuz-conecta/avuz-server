@@ -12,7 +12,8 @@ use OCP\IUserManager;
  * (webmail_avuz_sso_secret), distinct token format and audience.
  *
  * Token: base64url(payload).base64url(HMAC-SHA256(payload_segment, secret))
- *   payload = {v:1, jti, uid, email, enc_pass, app_password, iat, exp, aud:"webmail-avuz"}
+ *   payload = {v:1, jti, uid, email, enc_pass, pass_src, app_password, iat, exp, aud:"webmail-avuz"}
+ * pass_src: "mailbox" = saved mailbox password, "login" = Avuz Conecta login-password fallback.
  * enc_pass reuses the shared credential_key so the webmail decrypts it with
  * ROUNDCUBE_CREDENTIAL_KEY, exactly like Roundcube does. See
  * docs/card-532-webmail-sso.md for the validation contract.
@@ -22,6 +23,8 @@ class WebmailTokenService
     private const APP_ID = 'conectamail';
     private const TOKEN_TTL = 60;
     private const AUDIENCE = 'webmail-avuz';
+    private const PASSWORD_SOURCE_MAILBOX = 'mailbox';
+    private const PASSWORD_SOURCE_LOGIN = 'login';
 
     public function __construct(
         private IConfig $config,
@@ -63,8 +66,8 @@ class WebmailTokenService
             return null;
         }
 
-        $encryptedPassword = $this->storedMailPassword($userId);
-        if ($encryptedPassword === '') {
+        $storedPassword = $this->storedMailPassword($userId);
+        if ($storedPassword === null) {
             return null;
         }
 
@@ -84,7 +87,8 @@ class WebmailTokenService
             'jti' => bin2hex(random_bytes(16)),
             'uid' => $userId,
             'email' => $email,
-            'enc_pass' => $encryptedPassword,
+            'enc_pass' => $storedPassword['encrypted'],
+            'pass_src' => $storedPassword['source'],
             'app_password' => $appPassword,
             'iat' => $now,
             'exp' => $now + self::TOKEN_TTL,
@@ -116,13 +120,22 @@ class WebmailTokenService
         return $baseUrl . '/api/auth/sso?token=' . urlencode($token);
     }
 
-    private function storedMailPassword(string $userId): string
+    /**
+     * @return array{encrypted: string, source: string}|null
+     */
+    private function storedMailPassword(string $userId): ?array
     {
-        $encrypted = $this->config->getUserValue($userId, self::APP_ID, 'email_enc_password', '');
-        if ($encrypted !== '') {
-            return $encrypted;
+        $mailboxPassword = $this->config->getUserValue($userId, self::APP_ID, 'email_enc_password', '');
+        if ($mailboxPassword !== '') {
+            return ['encrypted' => $mailboxPassword, 'source' => self::PASSWORD_SOURCE_MAILBOX];
         }
-        return $this->config->getUserValue($userId, self::APP_ID, 'enc_password', '');
+
+        $loginPassword = $this->config->getUserValue($userId, self::APP_ID, 'enc_password', '');
+        if ($loginPassword !== '') {
+            return ['encrypted' => $loginPassword, 'source' => self::PASSWORD_SOURCE_LOGIN];
+        }
+
+        return null;
     }
 
     private function resolveEmail(string $userId): string
