@@ -5,7 +5,7 @@ Every boot enforces TOTP two-factor auth for the `admin` group. An admin without
 ## Sub-features
 
 - `2fa-enforced` admin login is gated by a TOTP step.
-- `2fa-enroll` an admin without a device must enroll (QR code plus backup codes) and cannot skip.
+- `2fa-enroll` an admin without a device must enroll (QR code) and cannot skip. Backup codes are not created on enrollment: the admin clicks "Gerar códigos de backup" in Personal Security (ten 16-character codes).
 - `2fa-nonadmin` a non-admin logs in without a second factor.
 - `2fa-enforcement-state` the `admin` group enforcement is active on the stack.
 
