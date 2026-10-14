@@ -414,6 +414,26 @@
       "description": "Event color picker in the calendar new-event popover (EditSimple), reusing PropertyColor from the full editor ('Mais detalhes'). Rebuilt calendar 6.2.1 bundle; only the 3 changed js files ship.",
       "risk": "medium",
       "notes": "Dockerfile fails the build unless apps/calendar is 6.2.1 (AVUZ_CALENDAR_OVERLAY_VERSION). Sentinel 'AVUZ-POPOVER-COLOR-V1' in js/calendar-main.js; calendar is in AVUZ_OWNED_APPS; reapply_avuz_calendar_overlay after core upgrades. Rebuild on every calendar upgrade: docker/overlays/calendar/README.md."
+    },
+    {
+      "id": "password-confirmation-field",
+      "type": "core",
+      "paths": [
+        "apps/settings/src/components/PasswordSection.vue",
+        "apps/settings/src/components/Users/UserRow.vue",
+        "apps/settings/src/components/Users/PasswordConfirmationDialog.vue",
+        "apps/settings/lib/Controller/ChangePasswordController.php",
+        "core/src/components/login/UpdatePassword.vue",
+        "core/Controller/LostController.php",
+        "core/l10n/pt_BR.js",
+        "core/l10n/pt_BR.json",
+        "apps/settings/l10n/pt_BR.js",
+        "apps/settings/l10n/pt_BR.json",
+        "cypress/e2e/settings/users_modify.cy.ts"
+      ],
+      "description": "Card 471: 'Confirm new password' field on personal password change, admin set-password (dialog, since user rows are a fixed-height virtual list) and lost-password/first-access reset. Submit is blocked while the values differ ('Passwords do not match.'). Server rejects a mismatch only when the optional newpasswordconfirmation (settings) / passwordConfirmation (lostpassword) param is sent; other API clients are unaffected.",
+      "risk": "medium",
+      "notes": "The 2 pt_BR strings live in the upstream l10n files, not the theme: JSResourceLocator stops at the first l10n file found, so themes/avuz JS overrides never load for bundled apps. Upgrades overwrite these l10n files; re-add 'Confirm new password' and 'Passwords do not match.' and rebuild dist (frontend-legacy) after rebase."
     }
   ]
 }

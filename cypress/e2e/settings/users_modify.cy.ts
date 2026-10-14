@@ -61,10 +61,21 @@ describe('Settings: Change user properties', function() {
 			// When I set the password for user to 123456
 			cy.get('[data-cy-user-list-input-password]').should('have.value', '123456')
 			cy.get('[data-cy-user-list-input-password] ~ button').click()
+		})
 
-			// Make sure no confirmation modal is shown
-			handlePasswordConfirmation(admin.password)
+		// the new password must be typed again before it is set
+		cy.get('[data-cy-user-list-input-password-confirmation]').type('654321')
+		cy.get('[data-cy-user-list-submit-password-confirmation]').click()
+		cy.get('[data-cy-user-list-input-password-confirmation]').should('exist')
+		cy.contains('Passwords do not match.').should('be.visible')
+		cy.get('[data-cy-user-list-input-password-confirmation]').clear()
+		cy.get('[data-cy-user-list-input-password-confirmation]').type('123456')
+		cy.get('[data-cy-user-list-submit-password-confirmation]').click()
 
+		// Make sure no confirmation modal is shown
+		handlePasswordConfirmation(admin.password)
+
+		getUserListRow(user.userId).within(() => {
 			// see that the password cell for user is done loading
 			waitLoading('[data-cy-user-list-input-password]')
 			// password input is emptied on change

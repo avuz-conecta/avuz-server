@@ -184,7 +184,11 @@ class LostController extends Controller {
 	#[BruteForceProtection(action: 'passwordResetEmail')]
 	#[AnonRateLimit(limit: 10, period: 300)]
 	#[FrontpageRoute(verb: 'POST', url: '/lostpassword/set/{token}/{userId}')]
-	public function setPassword(string $token, string $userId, string $password, bool $proceed): JSONResponse {
+	public function setPassword(string $token, string $userId, string $password, bool $proceed, ?string $passwordConfirmation = null): JSONResponse {
+		if ($passwordConfirmation !== null && $passwordConfirmation !== $password) {
+			return new JSONResponse($this->error($this->l10n->t('Passwords do not match.')));
+		}
+
 		if ($this->encryptionManager->isEnabled() && !$proceed) {
 			$encryptionModules = $this->encryptionManager->getEncryptionModules();
 			foreach ($encryptionModules as $module) {
