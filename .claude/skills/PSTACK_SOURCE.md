@@ -64,3 +64,14 @@ Upstream skills cross-reference pstack skills that were not vendored. These incl
 ### principle-fix-root-causes, principle-test-behavior-not-implementation, tdd
 
 - Unchanged. They had no Cursor mechanics and no dangling references.
+
+## Deviation from upstream: model invocation
+
+Upstream sets `disable-model-invocation: true` on every skill. We removed it from these four so Claude loads them automatically when relevant (Patrick, Oct 14, 2026):
+
+- typescript-best-practices
+- principle-prove-it-works
+- principle-test-behavior-not-implementation
+- principle-fix-root-causes
+
+We kept it on tdd, architect, blast-radius, create-verification-skill and maintain-verification-skill. Prompts invoke those explicitly when the team protocol calls for them.
