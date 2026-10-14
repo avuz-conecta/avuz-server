@@ -1,0 +1,173 @@
+/*
+ * Avuz Conecta design tokens. Contrast numbers: tokens.md.
+ * In-app screens: map these to the theming vars (tokens.md, "In-app mapping").
+ */
+
+:root,
+[data-theme="light"] {
+	color-scheme: light;
+
+	/* Brand (same in both modes) */
+	--avuz-brand: #2bb5e3;
+	--avuz-accent: #d2e314;
+	--avuz-accent-hover: #bccf00;
+	--avuz-on-accent: #1a2b3c;
+	--avuz-error-fill: #ef4444;
+	--avuz-success-fill: #22c55e;
+
+	/* Surfaces */
+	--avuz-bg: #f2f6fb;
+	--avuz-surface: #ffffff;
+	--avuz-surface-hover: #eef2f7;
+	--avuz-border: #d9d9d9;
+
+	/* Text */
+	--avuz-text: #1a2b3c;
+	--avuz-text-muted: #5a6a7a;
+	--avuz-link: #00679e;
+
+	/* Actions */
+	--avuz-action: #00679e;
+	--avuz-action-hover: #004f7a;
+	--avuz-action-active: #003d5e;
+	--avuz-on-action: #ffffff;
+	--avuz-action-tint: #e3f4fb;
+
+	/* Status */
+	--avuz-danger: #b91c1c;
+	--avuz-danger-hover: #991b1b;
+	--avuz-on-danger: #ffffff;
+	--avuz-danger-tint: #fee2e2;
+	--avuz-success: #15803d;
+	--avuz-success-tint: #dcfce7;
+
+	/* Disabled */
+	--avuz-disabled-bg: #d9d9d9;
+	--avuz-disabled-text: #5a6a7a;
+
+	/* Focus: brand ring with a dark inner edge (brand alone is 2.38:1 on white) */
+	--avuz-focus: #2bb5e3;
+	--avuz-focus-edge: #00679e;
+	--avuz-focus-ring: 0 0 0 2px var(--avuz-focus-edge), 0 0 0 4px var(--avuz-focus);
+
+	/* Shadows */
+	--avuz-shadow-sm: 0 1px 2px rgb(15 30 46 / 0.08);
+	--avuz-shadow-md: 0 4px 12px rgb(15 30 46 / 0.10);
+	--avuz-shadow-lg: 0 12px 32px rgb(15 30 46 / 0.16);
+
+	/* Type */
+	--avuz-font-heading: "Questrial", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	--avuz-font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	--avuz-text-xs: 12px;
+	--avuz-text-sm: 13px;
+	--avuz-text-base: 15px;
+	--avuz-text-lg: 18px;
+	--avuz-text-xl: 22px;
+	--avuz-text-2xl: 28px;
+	--avuz-leading-xs: 16px;
+	--avuz-leading-sm: 18px;
+	--avuz-leading-base: 22px;
+	--avuz-leading-lg: 26px;
+	--avuz-leading-xl: 30px;
+	--avuz-leading-2xl: 36px;
+	--avuz-weight-regular: 400;
+	--avuz-weight-semibold: 600;
+
+	/* Spacing (4px base) */
+	--avuz-space-1: 4px;
+	--avuz-space-2: 8px;
+	--avuz-space-3: 12px;
+	--avuz-space-4: 16px;
+	--avuz-space-6: 24px;
+	--avuz-space-8: 32px;
+	--avuz-space-12: 48px;
+	--avuz-space-16: 64px;
+
+	/* Radius */
+	--avuz-radius-sm: 4px;
+	--avuz-radius-md: 8px;
+	--avuz-radius-lg: 12px;
+	--avuz-radius-pill: 999px;
+
+	/* Sizing */
+	--avuz-control-height: 36px;
+	--avuz-tap-target: 44px;
+}
+
+[data-theme="dark"] {
+	color-scheme: dark;
+
+	--avuz-on-accent: #0f1e2e;
+
+	--avuz-bg: #0f1e2e;
+	--avuz-surface: #16283b;
+	--avuz-surface-hover: #1d3349;
+	--avuz-border: #2c4157;
+
+	--avuz-text: #e6edf5;
+	--avuz-text-muted: #9fb0c2;
+	--avuz-link: #5cc8ee;
+
+	--avuz-action: #2bb5e3;
+	--avuz-action-hover: #5cc8ee;
+	--avuz-action-active: #8fdaf4;
+	--avuz-on-action: #0f1e2e;
+	--avuz-action-tint: #143a52;
+
+	--avuz-danger: #f87171;
+	--avuz-danger-hover: #fca5a5;
+	--avuz-on-danger: #0f1e2e;
+	--avuz-danger-tint: #3a1d24;
+	--avuz-success: #4ade80;
+	--avuz-success-tint: #12352a;
+
+	--avuz-disabled-bg: #2c4157;
+	--avuz-disabled-text: #9fb0c2;
+
+	--avuz-focus-edge: #2bb5e3;
+	--avuz-focus-ring: 0 0 0 2px var(--avuz-focus-edge), 0 0 0 4px var(--avuz-focus);
+
+	--avuz-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.40);
+	--avuz-shadow-md: 0 4px 12px rgb(0 0 0 / 0.45);
+	--avuz-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.55);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		color-scheme: dark;
+
+		--avuz-on-accent: #0f1e2e;
+
+		--avuz-bg: #0f1e2e;
+		--avuz-surface: #16283b;
+		--avuz-surface-hover: #1d3349;
+		--avuz-border: #2c4157;
+
+		--avuz-text: #e6edf5;
+		--avuz-text-muted: #9fb0c2;
+		--avuz-link: #5cc8ee;
+
+		--avuz-action: #2bb5e3;
+		--avuz-action-hover: #5cc8ee;
+		--avuz-action-active: #8fdaf4;
+		--avuz-on-action: #0f1e2e;
+		--avuz-action-tint: #143a52;
+
+		--avuz-danger: #f87171;
+		--avuz-danger-hover: #fca5a5;
+		--avuz-on-danger: #0f1e2e;
+		--avuz-danger-tint: #3a1d24;
+		--avuz-success: #4ade80;
+		--avuz-success-tint: #12352a;
+
+		--avuz-disabled-bg: #2c4157;
+		--avuz-disabled-text: #9fb0c2;
+
+		--avuz-focus-edge: #2bb5e3;
+		--avuz-focus-ring: 0 0 0 2px var(--avuz-focus-edge), 0 0 0 4px var(--avuz-focus);
+
+		--avuz-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.40);
+		--avuz-shadow-md: 0 4px 12px rgb(0 0 0 / 0.45);
+		--avuz-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.55);
+	}
+}
