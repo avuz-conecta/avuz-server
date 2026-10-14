@@ -3,9 +3,9 @@
 # Usage: scripts/doctor.sh <base-url> [expected-deck-version]
 set -euo pipefail
 
-ALLOWED_URLS="https://conectahml.avuz.app https://conectahmls3.avuz.app https://conectamail.avuz.app"
+ALLOWED_URLS="https://conectahml.avuz.app https://conectahml2.avuz.app https://conectahmls3.avuz.app https://conectamail.avuz.app"
 
-base_url="${1:?usage: doctor.sh <base-url>}"
+base_url="${1:?usage: doctor.sh <base-url> [expected-deck-version]}"
 base_url="${base_url%/}"
 
 case " $ALLOWED_URLS " in

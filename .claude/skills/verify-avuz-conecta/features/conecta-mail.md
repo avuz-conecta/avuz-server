@@ -24,6 +24,7 @@ Preconditions:
 - **Menu.** Log in as a regular user. Expect `getByRole('navigation', { name: 'Menu de aplicativos' }).getByRole('link', { name: 'Mail' })`. Verified.
 - **App opens.** Click it once. The page becomes `/apps/conectamail/`, title "Mail - Avuz Conecta", and the page holds an iframe at `https://webmail-staging.avuz.app/` (not `conectamail.avuz.app`: the stack's configured URL differs from the direct URL in Targets). Verified.
 - **SSO.** On staging-1 the user `bri-cal455` has no mailbox: the iframe shows the "ConectaMail" login form (fields `Usuário`, `Senha`, button `ENTRAR`), not an inbox. Nothing typed. SSO to an inbox: UNVERIFIED (no test mailbox). Report PASSED for SSO only when the inbox rendered without a password prompt.
+- **staging-2 (admin, 2026-10-14).** Same entry: `Mail` link, `/apps/conectamail/`, title "Mail - Avuz Conecta", iframe on `https://webmail-staging.avuz.app/`. Instead of the plain login form the page shows a modal `Autenticação de email necessária`: `Sua senha do Conecta não coincide com a senha do email <mailbox>.` with field `Senha do email`, buttons `Cancelar` and `Conectar`. So automatic SSO did not sign in (the Conecta password differs from the mailbox password; the mailbox is a test address). Nothing typed, nothing clicked; one open only. Read this as: SSO handshake reached, auto-login not possible for this user. UNVERIFIED: inbox render.
 - **Proof.** Screenshot of the page (the login form is safe; with an inbox, cover the subjects). The occ output file when available.
 
 ## Gotchas

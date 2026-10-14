@@ -18,15 +18,16 @@ Every boot enforces TOTP two-factor auth for the `admin` group. An admin without
 
 Preconditions:
 
-- `scripts/doctor.sh` passes on the target. Target is not staging-2 unless the hand-off says so.
-- Credentials file holds the admin login, the non-admin login and, if enrolled, the TOTP seed. Read inside the script only.
+- `scripts/doctor.sh` passes on the target (`$AVUZ_BASE_URL`). staging-2 only when the hand-off names it.
+- Credentials file holds the admin login, the non-admin login and, if enrolled, the TOTP seed (a separate `chmod 600` file path from the hand-off). Read inside the script only.
 
-- **Status 2026-10-14 (staging-1).** Non-admin: PASSED (verified: `bri-cal455`, password only, landed on `/apps/dashboard/` with no code prompt; [login field names in ../SKILL.md]). Admin gated, enter code, enrollment path and enforcement state: UNVERIFIED (needs admin; skipped).
-- **Admin gated.** Fill the `Nome da conta ou e-mail` (the label is not "Nome de usuário") and `Senha` fields (inputs `user` and `password`), submit. Expect a second page asking for the code (TOTP) instead of the dashboard. Screenshot the page before typing any code.
-- **Enter code.** Generate the 6-digit code in-script from the seed and submit. Expect the dashboard. Do not log the code.
+- **Status 2026-10-14.** staging-1: non-admin PASSED (`bri-cal455`, password only, landed on `/apps/dashboard/`). staging-2: admin gated PASSED, enter code PASSED, enforcement state PASSED by viewing (below). Enrollment path: UNVERIFIED (the admin there already has a device; needs an un-enrolled admin).
+- **Admin gated.** Fill the `Nome da conta ou e-mail` (the label is not "Nome de usuário") and `Senha` fields (inputs `user` and `password`), submit. Expect the URL `/login/challenge/totp` instead of the dashboard (verified staging-2). Screenshot the page before typing any code. If the URL is a setup page instead, stop: the account is not enrolled.
+- **Enter code.** Generate the 6-digit code in-script from the seed (RFC 6238: base32 decode, HMAC-SHA1 with node `crypto`, 30 s step, 6 digits). If less than 4 s remain in the 30 s window, wait for the next one first. The field is `input[name="challenge"]`; fill it and click the page's submit button once. Expect `/apps/dashboard/` (verified). Do not log the code. A rejected code (still on `/login/challenge/totp`): stop, never retry.
+- **Enforcement state (view, no occ).** As admin open `/settings/admin/security`. Verified on staging-2: section `Autenticação de Dois Fatores`, switch `Forçar o uso de autenticação de dois fatores` on (input `two-factor-enforced` checked), `Limitado a grupos`, `Grupos obrigatórios` lists `admin`, `Grupos excluídos` empty. The admin's own `/settings/user/security` shows `TOTP (Authenticator app)` with `Ativar TOTP` checked and `Gerar códigos de backup`. Click nothing there: the controls change state.
 - **Enrollment path.** For an admin with no device: after the password, expect a forced setup page with a QR code. The URL must not reach `/apps/dashboard` until a device is added. Skip and report if no un-enrolled admin exists.
 - **Non-admin.** Log in as the non-admin. Expect the dashboard directly (`/apps/dashboard/`, title "Painel - Avuz Conecta"), no code prompt. Verified.
-- **Enforcement state.** Run `scripts/portainer-exec.sh -u www-data <container> php occ twofactorauth:enforce` (staging env file). Expect output saying 2FA is enforced for the group `admin`. Read-only.
+- **Enforcement state (occ alternative).** `scripts/portainer-exec.sh -u www-data <container> php occ twofactorauth:enforce` (staging env file). Expect output saying 2FA is enforced for the group `admin`. Read-only. UNVERIFIED (no container access in the 2026-10-14 runs; the admin page above is the verified path).
 - **Proof.** Screenshots of each page, the occ output saved to a log file in the report folder, report links both.
 
 ## Gotchas
