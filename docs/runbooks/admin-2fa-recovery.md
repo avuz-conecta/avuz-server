@@ -115,5 +115,3 @@ exempt.
   non-admin service user. If an automation account genuinely must be an admin and
   cannot do TOTP, set `AVUZ_ENFORCE_ADMIN_2FA=0` in that stack file only — understanding
   it drops enforcement for *every* admin there.
-</content>
-</invoke>
