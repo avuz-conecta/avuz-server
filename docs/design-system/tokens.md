@@ -37,7 +37,8 @@ Rule: blue and olive never both appear as text colors. One is the fill or accent
 | `success-tint` | `#dcfce7` | `#12352a` | Success tag |
 | `on-accent` | `#1a2b3c` | `#0f1e2e` | Text on `accent` |
 | `disabled-bg` / `disabled-text` | `#d9d9d9` / `#5a6a7a` | `#2c4157` / `#9fb0c2` | Disabled controls |
-| `focus` / `focus-edge` | `#2bb5e3` / `#00679e` | `#2bb5e3` / `#2bb5e3` | `focus-ring` = 2px `focus-edge` + 2px `focus` |
+| `focus` / `focus-edge` | `#2bb5e3` / `#00679e` | `#2bb5e3` / `#2bb5e3` | Focus ring colors |
+| `focus-ring` | 2px `focus-edge` + 2px `focus` | same | Box shadow on `:focus-visible` |
 
 In dark mode the primary button flips: brand fill `#2bb5e3` with dark label `#0f1e2e` (7.08:1).
 
@@ -120,7 +121,7 @@ def ratio(a, b):
 | `success` `#15803d` | `success-tint` `#dcfce7` | 4.57 | Pass (tight) |
 | `on-accent` `#1a2b3c` | `accent` `#d2e314` | 10.13 | Pass |
 | `on-accent` `#1a2b3c` | `accent-hover` `#bccf00` | 8.29 | Pass |
-| `text` `#1a2b3c` | `neutral` `#d9d9d9` | 10.23 | Pass |
+| `text` `#1a2b3c` | `border` `#d9d9d9` (neutral tag) | 10.23 | Pass |
 | `focus-edge` `#00679e` (non-text) | `#ffffff` | 6.12 | Pass (3:1) |
 | `disabled-text` `#5a6a7a` | `disabled-bg` `#d9d9d9` | 3.94 | Exempt (disabled) |
 
@@ -157,16 +158,19 @@ def ratio(a, b):
 
 ## Type
 
-Headings: Questrial (self-hosted, `apps/avuz_theme/fonts/`; one weight, 400). Body: Inter, falling back to `system-ui`. In-app body uses `var(--font-face)`.
+| Token | Value | Use |
+|---|---|---|
+| `font-heading` | Questrial (self-hosted, `apps/avuz_theme/fonts/`; one weight, 400), then system UI fonts | Headings |
+| `font-body` | Inter, falling back to system UI fonts | Body. In-app: `var(--font-face)` |
 
-| Token | Size / line height | Weight | Font | Use |
-|---|---|---|---|---|
-| `text-2xl` | 28 / 36 | 400 | Questrial | Page title |
-| `text-xl` | 22 / 30 | 400 | Questrial | Section title, empty-state title |
-| `text-lg` | 18 / 26 | 400 | Questrial | Card title, modal title |
-| `text-base` | 15 / 22 | 400, 600 | Inter | Body, buttons, inputs |
-| `text-sm` | 13 / 18 | 400, 600 | Inter | Labels, table headers, metadata |
-| `text-xs` | 12 / 16 | 600 | Inter | Tags, counters |
+| Size token | Line-height token | Size / line height | Weight | Font | Use |
+|---|---|---|---|---|---|
+| `text-2xl` | `leading-2xl` | 28 / 36 | 400 | `font-heading` | Page title |
+| `text-xl` | `leading-xl` | 22 / 30 | 400 | `font-heading` | Section title, empty-state title |
+| `text-lg` | `leading-lg` | 18 / 26 | 400 | `font-heading` | Card title, modal title |
+| `text-base` | `leading-base` | 15 / 22 | 400, 600 | `font-body` | Body, buttons, inputs |
+| `text-sm` | `leading-sm` | 13 / 18 | 400, 600 | `font-body` | Labels, table headers, metadata |
+| `text-xs` | `leading-xs` | 12 / 16 | 600 | `font-body` | Tags, counters |
 
 Weights: `weight-regular` 400, `weight-semibold` 600. No bold body paragraphs; emphasis = semibold.
 
