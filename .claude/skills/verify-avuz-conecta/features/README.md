@@ -11,9 +11,10 @@ Maintained source for verifying user-facing behavior of Avuz Conecta on staging.
 
 ## Driving conventions
 
-- Playwright headless Chromium for UI, curl for plain HTTP. Scripts live outside the repo.
+- Playwright with system Chrome (`channel: 'chrome'`) for UI, curl or Node `fetch` for plain HTTP. Scripts live outside the repo. One login, reused through `storageState`, logout at the end (details in `../SKILL.md`).
+- Recipes mark each step Verified or UNVERIFIED with the reason. Keep those marks current when you re-run.
 - Prefer ARIA roles and accessible names. UI text is `pt_BR`.
-- Start each recipe from a logged-out browser context unless stated.
+- Start the run from a logged-out browser context, log in once, then reuse the saved session (a login per recipe invites brute-force throttling).
 - Remove test objects the recipe created. Keep the evidence.
 
 ## Proof and skip reporting
@@ -31,7 +32,7 @@ Each file has an H1, one paragraph, then four H2s in order: `Sub-features`, `How
 
 - [Admin two-factor login](./admin-2fa.md) covers mandatory TOTP for admins and non-admin login.
 - [Branding and theme](./branding.md) covers instance name, colors, logos, renamed apps and icons.
-- [Drive and Tarefas](./drive-and-tarefas.md) covers the renamed Files and Deck apps, board and file basics.
+- [Drive and Tarefas](./drive-and-tarefas.md) covers the renamed Files and Deck apps, board, card, Tempo tab (time entries), Novidade hints and file basics, plus the Deck version check.
 - [Conecta Mail](./conecta-mail.md) covers the webmail SSO entry from the main app.
 - [Assinaturas](./assinaturas.md) covers the e-signature app gating and screens.
 - [Talk](./talk.md) covers conversations and recording availability.

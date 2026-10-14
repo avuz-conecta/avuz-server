@@ -1,6 +1,6 @@
 #!/bin/bash
 # Read-only staging health check. No login, no secrets.
-# Usage: scripts/doctor.sh <base-url>
+# Usage: scripts/doctor.sh <base-url> [expected-deck-version]
 set -euo pipefail
 
 ALLOWED_URLS="https://conectahml.avuz.app https://conectahmls3.avuz.app https://conectamail.avuz.app"
@@ -30,3 +30,13 @@ printf '%s' "$json" | grep -q '"maintenance":false' || { echo "FAIL: maintenance
 
 version="$(printf '%s' "$json" | sed -n 's/.*"versionstring":"\([^"]*\)".*/\1/p')"
 echo "OK $base_url installed, no maintenance, version ${version:-unknown}"
+
+# Deck version: info.xml is readable without login (the capabilities endpoint hides deck until login).
+deck_version="$(curl -sS --max-time 15 "$base_url/apps/deck/appinfo/info.xml" | sed -n 's/.*<version>\([^<]*\)<\/version>.*/\1/p' | head -n1)"
+echo "OK deck version ${deck_version:-unknown}"
+
+expected_deck="${2:-}"
+if [ -n "$expected_deck" ] && [ "$deck_version" != "$expected_deck" ]; then
+  echo "FAIL: deck version ${deck_version:-unknown}, expected $expected_deck (old image still running?)" >&2
+  exit 1
+fi
