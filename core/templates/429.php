@@ -7,7 +7,7 @@
 \OCP\Util::addStyle('core', 'guest-notice');
 $loginUrl = \OCP\Server::get(\OCP\IURLGenerator::class)->linkToRoute('core.login.showLoginForm');
 ?>
-<main class="guest-notice" aria-labelledby="guest-notice-title">
+<main class="guest-notice guest-notice--link-only" aria-labelledby="guest-notice-title">
 	<h2 id="guest-notice-title" class="guest-notice__title"><?php p($l->t('Too many attempts')); ?></h2>
 	<p class="guest-notice__body"><?php p($l->t('Wait a few minutes and try again.')); ?></p>
 	<div class="guest-notice__actions">

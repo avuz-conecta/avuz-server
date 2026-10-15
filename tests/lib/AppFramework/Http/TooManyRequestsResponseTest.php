@@ -33,6 +33,19 @@ class TooManyRequestsResponseTest extends TestCase {
 		$this->assertSame('<html>Muitas tentativas</html>', (new TooManyRequestsResponse())->render());
 	}
 
+	public function testTitlesTheTabTooManyAttempts(): void {
+		$page = $this->createMock(ITemplate::class);
+		$page->expects($this->once())
+			->method('fetchPage')
+			->with(['pageTitle' => 'Too many attempts'])
+			->willReturn('');
+		$templateManager = $this->createMock(ITemplateManager::class);
+		$templateManager->method('getTemplate')->willReturn($page);
+		$this->overwriteService(ITemplateManager::class, $templateManager);
+
+		(new TooManyRequestsResponse())->render();
+	}
+
 	protected function tearDown(): void {
 		$this->restoreService(ITemplateManager::class);
 		parent::tearDown();

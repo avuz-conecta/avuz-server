@@ -10,6 +10,7 @@ namespace OCP\AppFramework\Http;
 use OCP\AppFramework\Http;
 use OCP\Server;
 use OCP\Template\ITemplateManager;
+use OCP\Util;
 
 /**
  * A generic 429 response showing an 404 error page as well to the end-user
@@ -37,6 +38,6 @@ class TooManyRequestsResponse extends Response {
 	public function render() {
 		// Avuz: guest layout (logo, theme CSS) instead of a bare unstyled fragment
 		$template = Server::get(ITemplateManager::class)->getTemplate('core', '429', TemplateResponse::RENDER_AS_GUEST);
-		return $template->fetchPage();
+		return $template->fetchPage(['pageTitle' => Util::getL10N('core')->t('Too many attempts')]);
 	}
 }

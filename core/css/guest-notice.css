@@ -28,6 +28,7 @@
 	font-weight: 400;
 	line-height: 30px;
 	color: #1a2b3c;
+	text-wrap: balance;
 }
 
 .guest-notice .guest-notice__body {
@@ -35,6 +36,11 @@
 	font-size: 15px;
 	line-height: 22px;
 	color: #5a6a7a;
+}
+
+/* the 44px link box adds 10px above its text: 14 + 10 = 24px visible gap */
+.guest-notice--link-only .guest-notice__body {
+	margin-bottom: 14px;
 }
 
 .guest-notice__actions {
