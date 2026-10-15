@@ -109,6 +109,11 @@ immutable cache) fetch fresh l10n/JS overrides shipped without a version bump.
 Non-fatal — a failed/timed-out bump warns and the deploy still succeeds. Skip
 with `--no-cachebust` or `SKIP_CACHEBUST=1`.
 
+Bump the conectamail version in `apps/conectamail/appinfo/info.xml` on every
+change to conectamail so the asset `?v=` cache-busts (assets cached 6 months at
+Cloudflare/browsers). The next boot sees `needsDbUpgrade: true` and runs the
+entrypoint's `occ upgrade` branch on its own.
+
 On macOS the build scripts auto-launch Docker Desktop if it's down (`scripts/lib-docker.sh`)
 and, at the end, prompt `Stop it now? [y/N]` whenever Docker is running (default: keep).
 Skip the prompt with `STOP_DOCKER_AFTER_BUILD=1` (auto-stop) or `KEEP_DOCKER=1` (auto-keep);
