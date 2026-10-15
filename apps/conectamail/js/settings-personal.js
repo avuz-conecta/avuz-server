@@ -62,6 +62,7 @@
                 : t(APP_ID, 'No password saved');
             updatedAtText.textContent = status.saved ? formatUpdatedAt(status.updated_at) : '';
             removeButton.hidden = !status.saved;
+            removalConfirm.hidden = true;
         }
 
         function showMessage(text, isError) {
