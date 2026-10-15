@@ -2,11 +2,13 @@
 
 namespace OCA\Roundcube\Controller;
 
+use OCA\Roundcube\Service\MailboxAddress;
 use OCA\Roundcube\Service\WebmailTokenService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\NotFoundResponse;
 use OCP\AppFramework\Http\RedirectResponse;
 use OCP\AppFramework\Http\Response;
+use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IRequest;
 
 /**
@@ -20,6 +22,7 @@ class SsoController extends Controller
     public function __construct(
         IRequest $request,
         private WebmailTokenService $webmail,
+        private MailboxAddress $mailboxAddress,
         private ?string $userId,
     ) {
         parent::__construct('conectamail', $request);
@@ -34,6 +37,10 @@ class SsoController extends Controller
         $baseUrl = $this->webmail->baseUrl();
         if ($baseUrl === '' || !$this->webmail->isConfigured()) {
             return new NotFoundResponse();
+        }
+
+        if (!$this->mailboxAddress->exists((string) $this->userId)) {
+            return new TemplateResponse('conectamail', 'no-mailbox');
         }
 
         $returnQuery = $this->returnQuery($return);

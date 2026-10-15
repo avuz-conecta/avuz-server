@@ -3,6 +3,7 @@
 namespace OCA\Roundcube\Controller;
 
 use OCA\Roundcube\Service\CredentialService;
+use OCA\Roundcube\Service\MailboxAddress;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\TemplateResponse;
@@ -13,6 +14,7 @@ class PageController extends Controller
     public function __construct(
         IRequest $request,
         private CredentialService $credentialService,
+        private MailboxAddress $mailboxAddress,
         private ?string $userId,
     ) {
         parent::__construct('conectamail', $request);
@@ -24,6 +26,10 @@ class PageController extends Controller
      */
     public function index(): TemplateResponse
     {
+        if (!$this->mailboxAddress->exists((string) $this->userId)) {
+            return new TemplateResponse('conectamail', 'no-mailbox');
+        }
+
         $iframeUrl = $this->credentialService->buildIframeUrl($this->userId);
         $roundcubeOrigin = $this->credentialService->getRoundcubeOrigin();
 
