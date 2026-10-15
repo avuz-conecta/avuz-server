@@ -23,10 +23,38 @@
     margin: 0;
 }
 
-#conectamail-mailbox-password .conectamail-password-remove[hidden] {
+#conectamail-mailbox-password [hidden] {
     display: none;
+}
+
+#conectamail-mailbox-password .conectamail-password-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+#conectamail-mailbox-password .conectamail-password-danger {
+    background-color: var(--color-error);
+    border-color: var(--color-error);
+    color: var(--color-primary-element-text);
+}
+
+#conectamail-mailbox-password .conectamail-password-danger:hover:not(:disabled),
+#conectamail-mailbox-password .conectamail-password-danger:focus-visible {
+    background-color: var(--color-error-hover, var(--color-error));
+    border-color: var(--color-error-hover, var(--color-error));
 }
 
 #conectamail-mailbox-password .conectamail-password-message.error {
     color: var(--color-error-text, var(--color-error));
+}
+
+#conectamail-mailbox-password .conectamail-password-message:not(.error) {
+    color: var(--color-success-text);
+    margin-top: 8px;
+}
+
+#conectamail-password-input[aria-invalid="true"] {
+    border-color: var(--color-error);
 }

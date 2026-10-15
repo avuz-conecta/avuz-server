@@ -17,21 +17,6 @@
         });
     }
 
-    function confirmRemoval() {
-        return new Promise(function (resolve) {
-            OC.dialogs.confirmDestructive(
-                t(APP_ID, 'Remove the saved mailbox password? Avuz Conecta will try your login password to open your e-mail.'),
-                t(APP_ID, 'Remove mailbox password'),
-                {
-                    type: OC.dialogs.YES_NO_BUTTONS,
-                    confirm: t(APP_ID, 'Remove'),
-                    cancel: t(APP_ID, 'Cancel'),
-                },
-                resolve
-            );
-        });
-    }
-
     async function request(method, body) {
         var response = await fetch(OC.generateUrl(ENDPOINT), {
             method: method,
@@ -63,6 +48,9 @@
         var input = document.getElementById('conectamail-password-input');
         var saveButton = document.getElementById('conectamail-password-save');
         var removeButton = document.getElementById('conectamail-password-remove');
+        var removalConfirm = document.getElementById('conectamail-password-confirm');
+        var confirmRemoveButton = document.getElementById('conectamail-password-confirm-remove');
+        var cancelRemoveButton = document.getElementById('conectamail-password-confirm-cancel');
         var statusText = document.getElementById('conectamail-password-status-text');
         var updatedAtText = document.getElementById('conectamail-password-updated-at');
         var message = document.getElementById('conectamail-password-message');
@@ -79,12 +67,54 @@
         function showMessage(text, isError) {
             message.textContent = text;
             message.classList.toggle('error', isError);
-            input.setAttribute('aria-invalid', isError ? 'true' : 'false');
+        }
+
+        function markInvalid(isInvalid) {
+            if (isInvalid) {
+                input.setAttribute('aria-invalid', 'true');
+                return;
+            }
+            input.removeAttribute('aria-invalid');
+        }
+
+        function clearInvalidOnceFixed() {
+            if (input.getAttribute('aria-invalid') !== 'true' || validationError(input.value) !== null) {
+                return;
+            }
+            markInvalid(false);
         }
 
         function setBusy(isBusy) {
             saveButton.disabled = isBusy;
             removeButton.disabled = isBusy;
+            confirmRemoveButton.disabled = isBusy;
+            cancelRemoveButton.disabled = isBusy;
+        }
+
+        function openRemovalConfirm() {
+            saveButton.hidden = true;
+            removeButton.hidden = true;
+            removalConfirm.hidden = false;
+            cancelRemoveButton.focus();
+        }
+
+        function closeRemovalConfirm(focusTarget) {
+            removalConfirm.hidden = true;
+            saveButton.hidden = false;
+            removeButton.hidden = false;
+            focusTarget.focus();
+        }
+
+        function cancelRemoval() {
+            closeRemovalConfirm(removeButton);
+        }
+
+        function cancelRemovalOnEscape(event) {
+            if (event.key !== 'Escape' || cancelRemoveButton.disabled) {
+                return;
+            }
+            event.preventDefault();
+            cancelRemoval();
         }
 
         function validationError(password) {
@@ -103,6 +133,7 @@
             var error = validationError(password);
             if (error !== null) {
                 showMessage(error, true);
+                markInvalid(true);
                 input.focus();
                 return;
             }
@@ -114,9 +145,11 @@
                 if (!result.ok) {
                     var describeError = ERROR_MESSAGES[result.payload.error];
                     showMessage(describeError ? describeError(maxLength) : t(APP_ID, 'Could not save the password. Try again.'), true);
+                    markInvalid(Boolean(describeError));
                     return;
                 }
                 input.value = '';
+                markInvalid(false);
                 renderStatus(result.payload);
                 showMessage(t(APP_ID, 'Password saved.'), false);
             } catch (_error) {
@@ -127,26 +160,24 @@
         }
 
         async function remove() {
-            var confirmed = await confirmRemoval();
-            if (!confirmed) {
-                return;
-            }
-
             setBusy(true);
             try {
                 await confirmPassword();
                 var result = await request('DELETE');
                 if (!result.ok) {
                     showMessage(t(APP_ID, 'Could not remove the password. Try again.'), true);
+                    setBusy(false);
+                    closeRemovalConfirm(removeButton);
                     return;
                 }
+                setBusy(false);
+                closeRemovalConfirm(input);
                 renderStatus(result.payload);
                 showMessage(t(APP_ID, 'Password removed.'), false);
-                input.focus();
             } catch (_error) {
                 showMessage(t(APP_ID, 'Could not remove the password. Try again.'), true);
-            } finally {
                 setBusy(false);
+                closeRemovalConfirm(removeButton);
             }
         }
 
@@ -155,7 +186,11 @@
             updated_at: Number(section.dataset.updatedAt) || null,
         });
         form.addEventListener('submit', save);
-        removeButton.addEventListener('click', remove);
+        input.addEventListener('input', clearInvalidOnceFixed);
+        removeButton.addEventListener('click', openRemovalConfirm);
+        confirmRemoveButton.addEventListener('click', remove);
+        cancelRemoveButton.addEventListener('click', cancelRemoval);
+        removalConfirm.addEventListener('keydown', cancelRemovalOnEscape);
     }
 
     if (document.readyState === 'loading') {

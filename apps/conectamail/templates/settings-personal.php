@@ -31,6 +31,15 @@ $saved = $_['status']['saved'];
                    required>
             <button type="submit" id="conectamail-password-save" class="primary"><?php p($l->t('Save')); ?></button>
             <button type="button" id="conectamail-password-remove" class="conectamail-password-remove"<?php if (!$saved): ?> hidden<?php endif; ?>><?php p($l->t('Remove')); ?></button>
+            <div id="conectamail-password-confirm"
+                 class="conectamail-password-confirm"
+                 role="group"
+                 aria-label="<?php p($l->t('Confirm mailbox password removal')); ?>"
+                 hidden>
+                <span><?php p($l->t('Remove the saved password?')); ?></span>
+                <button type="button" id="conectamail-password-confirm-remove" class="conectamail-password-danger"><?php p($l->t('Remove')); ?></button>
+                <button type="button" id="conectamail-password-confirm-cancel"><?php p($l->t('Cancel')); ?></button>
+            </div>
         </div>
         <p id="conectamail-password-message" class="conectamail-password-message" aria-live="polite"></p>
     </form>

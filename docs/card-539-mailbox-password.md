@@ -88,6 +88,16 @@ Nothing is required for this card. Optional, to remove the stale case above:
 
 Avuz Conecta cannot clear the marker itself: it lives in the webmail's Redis.
 
+## Layout fixes (Designer review)
+
+1. Removing the saved password asks inline in the section, not in a modal:
+   **Remover a senha salva?** + red **Remover** + **Cancelar** (`role="group"`,
+   focus on **Cancelar**, Esc cancels, focus returns to **Remover** or the field).
+2. The success message (**Senha salva.**, **Senha removida.**) shows in the
+   success color with spacing above it.
+3. The field gets a red border only while it is invalid (`aria-invalid`), and
+   the border clears as soon as the value becomes valid.
+
 ## Test handoff
 
 Run on staging (e.g. `avuz-conecta`, stack 8), with a user whose ConectaMail
@@ -108,11 +118,15 @@ mailbox exists. Language pt_BR.
 5. **Salvar** with an empty field → **Digite a senha.** (no request sent).
 6. Save a different password (replace) → **Atualizada em** changes.
 7. Log out and back in → status still **Senha do e-mail salva**.
-8. **Remover** → dialog **Remover senha do e-mail** → **Remover**.
+8. **Remover** → inline **Remover a senha salva?** with a red **Remover** and
+   **Cancelar** (no modal) → red **Remover**.
    - Expect: **Senha removida.**, status **Nenhuma senha salva**, **Remover**
-     hidden. **Cancelar** in the dialog changes nothing.
+     hidden, focus in the field. **Cancelar** (or Esc) changes nothing and puts
+     focus back on **Remover**.
 9. Keyboard only: Tab reaches the field, **Salvar** and **Remover**; Enter in the
-   field saves.
+   field saves. Opening the confirmation focuses **Cancelar**.
+10. Phone width (~360 px): the confirmation text and buttons wrap, nothing
+    overflows.
 
 ### API (browser devtools console on any Avuz Conecta page)
 
