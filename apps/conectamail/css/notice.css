@@ -24,12 +24,29 @@
 
 .conectamail-notice__mark {
     display: block;
-    width: calc(var(--default-grid-baseline) * 12);
-    height: calc(var(--default-grid-baseline) * 12);
+    width: 200px;
+    max-width: 100%;
+    height: auto;
     margin: 0 auto calc(var(--default-grid-baseline) * 4);
-    background-color: var(--color-primary-element);
-    mask: url('../img/mail.svg') center / contain no-repeat;
-    -webkit-mask: url('../img/mail.svg') center / contain no-repeat;
+}
+
+.conectamail-notice__mark--dark,
+[data-themes*="dark"] .conectamail-notice__mark--light {
+    display: none;
+}
+
+[data-themes*="dark"] .conectamail-notice__mark--dark {
+    display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+    [data-theme-default] .conectamail-notice__mark--light {
+        display: none;
+    }
+
+    [data-theme-default] .conectamail-notice__mark--dark {
+        display: block;
+    }
 }
 
 .conectamail-notice__heading {
