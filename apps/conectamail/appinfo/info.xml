@@ -15,6 +15,10 @@
         <php min-version="8.0"/>
         <nextcloud min-version="28" max-version="35"/>
     </dependencies>
+    <settings>
+        <personal>OCA\Roundcube\Settings\Personal</personal>
+        <personal-section>OCA\Roundcube\Settings\PersonalSection</personal-section>
+    </settings>
     <navigations>
         <navigation>
             <name>Mail</name>

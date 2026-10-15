@@ -23,8 +23,9 @@ class CredentialApiController extends Controller
     public function store(): JSONResponse
     {
         $password = $this->request->getParam('password', '');
-        if (empty($password)) {
-            return new JSONResponse(['error' => 'password_required'], 400);
+        $error = $this->credentialService->emailPasswordError($password);
+        if ($error !== null) {
+            return new JSONResponse(['error' => $error], 400);
         }
 
         $this->credentialService->storeEmailPassword($this->userId, $password);
