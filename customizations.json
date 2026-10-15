@@ -74,9 +74,10 @@
         "apps/avuz_theme/js/lucide.js",
         "apps/avuz_theme/js/lucide-icons.js",
         "apps/avuz_theme/js/center-header.js",
-        "apps/avuz_theme/js/login-icons.js"
+        "apps/avuz_theme/js/login-icons.js",
+        "apps/avuz_theme/js/login-lost-password.js"
       ],
-      "description": "JS: Lucide icon library, dynamic favicon per-app, header centering script, login icon row injector",
+      "description": "JS: Lucide icon library, dynamic favicon per-app, header centering script, login icon row injector, login#lostpassword opener (presses #lost-password)",
       "risk": "low",
       "notes": "lucide-icons.js wraps history.pushState and references /themes/avuz/apps/*/img/ paths. center-header.js targets #header DOM structure."
     },
@@ -453,6 +454,23 @@
       "description": "Card 455: CalDAV plugin stamps X-AVUZ-CREATED-BY;CN=<display name>:<uid> on every VEVENT/VTODO/VJOURNAL when a calendar object is created by a user who is not the calendar owner (share or delegation). Set on create only; on update the stored stamp is carried over and any client-sent value is replaced, so it can't be dropped or forged. Owner-created objects are never touched (no ETag change). Shown by the calendar overlay (calendar-popover-event-color).",
       "risk": "low",
       "notes": "New class must stay in the dav authoritative classmap (autoload_classmap.php + autoload_static.php). Listens to Sabre 'calendarObjectChange' at priority 110 (after scheduling). Re-add the two addPlugin lines if Server.php / appinfo/v1/caldav.php conflict on upgrade."
+    },
+    {
+      "id": "guest-notice-pages",
+      "type": "core",
+      "paths": [
+        "core/Controller/LostController.php",
+        "core/templates/lostpassword/invalid-link.php",
+        "core/css/guest-notice.css",
+        "core/l10n/pt_BR.json",
+        "core/l10n/pt_BR.js",
+        "tests/Core/Controller/LostControllerTest.php",
+        "apps/avuz_theme/lib/Listener/BeforeTemplateRenderedListener.php",
+        "apps/avuz_theme/js/login-lost-password.js"
+      ],
+      "description": "Guest notice card (title, one sentence, next step) for the invalid/expired password-reset link: resetform() renders lostpassword/invalid-link instead of the generic error page (invalid, expired, unknown token, user without email). 'Pedir novo link' goes to login?direct=1#lostpassword (or the custom lost_password_link), which avuz_theme's login-lost-password.js turns into the 'Esqueceu a senha?' view; 'Voltar para o login' goes to the login page. lost_password_link=disabled still shows the generic error page. Status stays 200 + throttle.",
+      "risk": "low",
+      "notes": "core/css/guest-notice.css is plain CSS (no .scss), loaded by the template via Util::addStyle. pt_BR strings live in core/l10n/pt_BR.json (PHP reads core l10n from core/l10n + themes/avuz/core/l10n, not themes/avuz/apps/core); 'Back to login' is changed to 'Voltar para o login' there and in pt_BR.js. Upgrades overwrite these l10n files: re-add the strings. login-lost-password.js depends on the login Vue app's #lost-password button id."
     }
   ]
 }

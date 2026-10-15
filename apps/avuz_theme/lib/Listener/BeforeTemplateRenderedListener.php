@@ -23,5 +23,8 @@ class BeforeTemplateRenderedListener implements IEventListener {
 
 		// Add login icon row injector
 		Util::addScript('avuz_theme', 'login-icons');
+
+		// Open the "Esqueceu a senha?" view on login#lostpassword
+		Util::addScript('avuz_theme', 'login-lost-password');
 	}
 }

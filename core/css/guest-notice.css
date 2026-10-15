@@ -1,0 +1,99 @@
+/**
+ * SPDX-FileCopyrightText: 2026 Avuz Conecta
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ *
+ * Avuz guest notice card: one title, one sentence, next step(s).
+ * Used by lostpassword/invalid-link and 429. Values follow
+ * docs/design-system (tokens.md, components.md "Empty states").
+ */
+.guest-notice {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: min(400px, calc(100vw - 32px));
+	margin: 32px auto 0;
+	padding: 24px;
+	background-color: #ffffff;
+	border: 1px solid #d9d9d9;
+	border-radius: 12px;
+	box-shadow: 0 1px 2px rgb(15 30 46 / 0.08);
+	color: #1a2b3c;
+	text-align: center;
+	overflow-wrap: anywhere;
+}
+
+.guest-notice .guest-notice__title {
+	margin: 0 0 8px;
+	font-family: 'Questrial', var(--font-face, sans-serif);
+	font-size: 22px;
+	font-weight: 400;
+	line-height: 30px;
+	color: #1a2b3c;
+}
+
+.guest-notice .guest-notice__body {
+	margin: 0 0 24px;
+	font-size: 15px;
+	line-height: 22px;
+	color: #5a6a7a;
+}
+
+.guest-notice__actions {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.guest-notice .guest-notice__primary,
+.guest-notice .guest-notice__ghost {
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 44px;
+	padding: 0 16px;
+	border-radius: 8px;
+	font-size: 15px;
+	font-weight: 600;
+	text-decoration: none;
+	cursor: pointer;
+	outline: 2px solid transparent;
+	transition: background-color 120ms, color 120ms, box-shadow 120ms;
+}
+
+.guest-notice .guest-notice__primary {
+	background-color: var(--color-primary-element, #00679e);
+	color: var(--color-primary-element-text, #ffffff);
+}
+
+.guest-notice .guest-notice__ghost {
+	background-color: transparent;
+	color: #00679e;
+}
+
+/* #body-login beats core guest.css "#body-login a:not(.button):hover" underline */
+#body-login .guest-notice .guest-notice__primary:hover,
+#body-login .guest-notice .guest-notice__primary:focus,
+#body-login .guest-notice .guest-notice__ghost:hover,
+#body-login .guest-notice .guest-notice__ghost:focus {
+	text-decoration: none;
+}
+
+.guest-notice .guest-notice__primary:hover {
+	background-color: var(--color-primary-element-hover, #004f7a);
+}
+
+.guest-notice .guest-notice__ghost:hover {
+	background-color: #e3f4fb;
+}
+
+.guest-notice .guest-notice__primary:focus-visible,
+.guest-notice .guest-notice__ghost:focus-visible {
+	box-shadow: 0 0 0 2px #00679e, 0 0 0 4px #2bb5e3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.guest-notice .guest-notice__primary,
+	.guest-notice .guest-notice__ghost {
+		transition: none;
+	}
+}

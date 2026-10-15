@@ -56,6 +56,9 @@ use function reset;
  */
 #[OpenAPI(scope: OpenAPI::SCOPE_IGNORE)]
 class LostController extends Controller {
+	/** Opens the login page on its "Forgot password?" view (apps/avuz_theme/js/login-lost-password.js) */
+	public const LOST_PASSWORD_VIEW_HASH = '#lostpassword';
+
 	public function __construct(
 		string $appName,
 		IRequest $request,
@@ -88,18 +91,8 @@ class LostController extends Controller {
 	public function resetform(string $token, string $userId): TemplateResponse {
 		try {
 			$this->checkPasswordResetToken($token, $userId);
-		} catch (Exception $e) {
-			if ($this->config->getSystemValue('lost_password_link', '') === 'disabled') {
-				$message = $this->l10n->t('Password reset is disabled');
-			} else {
-				$message = $e->getMessage();
-			}
-			$response = new TemplateResponse(
-				'core', 'error', [
-					'errors' => [['error' => $message]]
-				],
-				TemplateResponse::RENDER_AS_GUEST
-			);
+		} catch (Exception) {
+			$response = $this->resetLinkFailurePage();
 			$response->throttle();
 			return $response;
 		}
@@ -113,6 +106,31 @@ class LostController extends Controller {
 			'login',
 			[],
 			'guest'
+		);
+	}
+
+	private function resetLinkFailurePage(): TemplateResponse {
+		$lostPasswordLink = $this->config->getSystemValue('lost_password_link', '');
+		if ($lostPasswordLink === 'disabled') {
+			return new TemplateResponse(
+				'core', 'error', [
+					'errors' => [['error' => $this->l10n->t('Password reset is disabled')]]
+				],
+				TemplateResponse::RENDER_AS_GUEST
+			);
+		}
+
+		$requestLinkUrl = $lostPasswordLink !== ''
+			? $lostPasswordLink
+			: $this->urlGenerator->linkToRoute('core.login.showLoginForm', ['direct' => 1]) . self::LOST_PASSWORD_VIEW_HASH;
+
+		return new TemplateResponse(
+			'core', 'lostpassword/invalid-link', [
+				'pageTitle' => $this->l10n->t('Invalid or expired reset link'),
+				'requestLinkUrl' => $requestLinkUrl,
+				'loginUrl' => $this->urlGenerator->linkToRoute('core.login.showLoginForm'),
+			],
+			TemplateResponse::RENDER_AS_GUEST
 		);
 	}
 
