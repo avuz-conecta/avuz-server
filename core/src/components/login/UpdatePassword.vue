@@ -20,6 +20,30 @@
 					:placeholder="t('core', 'New password')">
 			</p>
 
+			<p>
+				<label for="password-confirmation" class="infield">{{ t('core', 'Confirm new password') }}</label>
+				<input
+					id="password-confirmation"
+					ref="passwordConfirmation"
+					v-model="passwordConfirmation"
+					type="password"
+					name="password-confirmation"
+					autocomplete="new-password"
+					autocapitalize="none"
+					spellcheck="false"
+					required
+					:aria-invalid="passwordsMismatch ? 'true' : 'false'"
+					:aria-describedby="passwordsMismatch ? 'password-confirmation-error' : undefined"
+					:placeholder="t('core', 'Confirm new password')">
+			</p>
+			<p
+				v-if="passwordsMismatch"
+				id="password-confirmation-error"
+				class="warning"
+				role="alert">
+				{{ t('core', 'Passwords do not match.') }}
+			</p>
+
 			<div v-if="encrypted" class="update">
 				<p>
 					{{ t('core', 'Your files are encrypted. There will be no way to get your data back after your password is reset. If you are not sure what to do, please contact your administrator before you continue. Do you really want to continue?') }}
@@ -75,9 +99,16 @@ export default {
 			message: undefined,
 			user: this.username,
 			password: '',
+			passwordConfirmation: '',
 			encrypted: false,
 			proceed: false,
 		}
+	},
+
+	computed: {
+		passwordsMismatch() {
+			return this.passwordConfirmation !== '' && this.passwordConfirmation !== this.password
+		},
 	},
 
 	watch: {
@@ -88,6 +119,11 @@ export default {
 
 	methods: {
 		async submit() {
+			if (this.password !== this.passwordConfirmation) {
+				this.$refs.passwordConfirmation.focus()
+				return
+			}
+
 			this.loading = true
 			this.error = false
 			this.message = ''
@@ -95,6 +131,7 @@ export default {
 			try {
 				const { data } = await Axios.post(this.resetPasswordTarget, {
 					password: this.password,
+					passwordConfirmation: this.passwordConfirmation,
 					proceed: this.proceed,
 				})
 				if (data && data.status === 'success') {

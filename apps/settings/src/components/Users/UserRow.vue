@@ -72,7 +72,12 @@
 					required
 					spellcheck="false"
 					type="password"
-					@trailing-button-click="updatePassword" />
+					@trailing-button-click="confirmPasswordChange" />
+				<PasswordConfirmationDialog
+					v-if="confirmingPassword"
+					:open.sync="confirmingPassword"
+					:password="editedPassword"
+					@confirm="updatePassword" />
 			</template>
 			<span v-else-if="isObfuscated">
 				{{ t('settings', 'You do not have permissions to see the details of this account') }}
@@ -321,6 +326,7 @@ import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcProgressBar from '@nextcloud/vue/components/NcProgressBar'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
+import PasswordConfirmationDialog from './PasswordConfirmationDialog.vue'
 import UserRowActions from './UserRowActions.vue'
 import logger from '../../logger.ts'
 import UserRowMixin from '../../mixins/UserRowMixin.js'
@@ -338,6 +344,7 @@ export default {
 		NcProgressBar,
 		NcSelect,
 		NcTextField,
+		PasswordConfirmationDialog,
 		UserRowActions,
 	},
 
@@ -414,6 +421,7 @@ export default {
 
 			editedDisplayName: this.user.displayname,
 			editedPassword: '',
+			confirmingPassword: false,
 			editedMail: this.user.email ?? '',
 			// Cancelable promise for search groups request
 			promise: null,
@@ -769,25 +777,31 @@ export default {
 		},
 
 		/**
+		 * Ask for the new password again before setting it
+		 */
+		confirmPasswordChange() {
+			if (this.editedPassword.length === 0) {
+				showError(t('settings', "Password can't be empty"))
+				return
+			}
+			this.confirmingPassword = true
+		},
+
+		/**
 		 * Set user password
 		 */
 		async updatePassword() {
 			this.loading.password = true
-			if (this.editedPassword.length === 0) {
-				showError(t('settings', "Password can't be empty"))
+			try {
+				await this.$store.dispatch('setUserData', {
+					userid: this.user.id,
+					key: 'password',
+					value: this.editedPassword,
+				})
+				this.editedPassword = ''
+				showSuccess(t('settings', 'Password was successfully changed'))
+			} finally {
 				this.loading.password = false
-			} else {
-				try {
-					await this.$store.dispatch('setUserData', {
-						userid: this.user.id,
-						key: 'password',
-						value: this.editedPassword,
-					})
-					this.editedPassword = ''
-					showSuccess(t('settings', 'Password was successfully changed'))
-				} finally {
-					this.loading.password = false
-				}
 			}
 		},
 
