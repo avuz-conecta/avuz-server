@@ -604,6 +604,8 @@ OC.L10N.register(
     "Groups" : "Grupos",
     "Group list is empty" : "A lista de grupos está vazia",
     "Unable to retrieve the group list" : "Não é possível recuperar a lista de grupos",
-    "Search apps, files, tags, messages …" : "Pesquisar aplicativos, arquivos, etiquetas, mensagens …"
+    "Search apps, files, tags, messages …" : "Pesquisar aplicativos, arquivos, etiquetas, mensagens …",
+    "Confirm new password" : "Confirmar nova senha",
+    "Passwords do not match." : "As senhas não coincidem."
 },
 "nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;");

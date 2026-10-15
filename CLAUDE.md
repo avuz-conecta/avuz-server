@@ -54,6 +54,10 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 - Every boot enables `twofactor_totp` + `twofactor_backupcodes` and enforces 2FA for the `admin` group (`avuz_enforce_admin_2fa` in `docker/lib-apps.sh`, called from `docker/entrypoint.sh`). Idempotent; never narrows or disables an instance's existing enforcement (non-admin users unaffected). Opt out per stack with `AVUZ_ENFORCE_ADMIN_2FA=0` (default on).
 - Lost-authenticator recovery (backup code, `occ twofactorauth:disable <uid> totp` via Portainer exec, re-enroll, `occ twofactorauth:state <uid>`, automation/test-admin note): `docs/runbooks/admin-2fa-recovery.md`.
 
+### Calendar "Criado por" (card 455)
+- `apps/dav/lib/CalDAV/CreatedBy/CreatedByPlugin.php` stamps `X-AVUZ-CREATED-BY;CN=<name>:<uid>` when someone other than the calendar owner creates an event (share/delegation) over CalDAV. Set on create, carried over on update (clients can't drop or forge it); owner-created events untouched.
+- The calendar overlay (`docker/overlays/calendar/event-created-by.patch`, sentinel `AVUZ-CREATED-BY-V1`) shows "Criado por <nome>" in the popover and full editor. Older events have no stamp.
+
 ## Important Configs
 
 ### Nginx (`docker/nginx.conf`)

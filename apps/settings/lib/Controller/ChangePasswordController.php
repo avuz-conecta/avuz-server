@@ -50,7 +50,7 @@ class ChangePasswordController extends Controller {
 	 */
 	#[NoAdminRequired]
 	#[BruteForceProtection(action: 'changePersonalPassword')]
-	public function changePersonalPassword(string $oldpassword = '', ?string $newpassword = null): JSONResponse {
+	public function changePersonalPassword(string $oldpassword = '', ?string $newpassword = null, ?string $newpasswordconfirmation = null): JSONResponse {
 		$loginName = $this->userSession->getLoginName();
 		/** @var IUser $user */
 		$user = $this->userManager->checkPassword($loginName, $oldpassword);
@@ -63,6 +63,15 @@ class ChangePasswordController extends Controller {
 			]);
 			$response->throttle();
 			return $response;
+		}
+
+		if ($newpasswordconfirmation !== null && $newpasswordconfirmation !== $newpassword) {
+			return new JSONResponse([
+				'status' => 'error',
+				'data' => [
+					'message' => $this->l->t('Passwords do not match.'),
+				],
+			]);
 		}
 
 		try {
