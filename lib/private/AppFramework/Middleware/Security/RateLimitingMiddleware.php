@@ -26,6 +26,7 @@ use OCP\IConfig;
 use OCP\IRequest;
 use OCP\ISession;
 use OCP\IUserSession;
+use OCP\Util;
 use Psr\Log\LoggerInterface;
 use ReflectionMethod;
 
@@ -200,7 +201,7 @@ class RateLimitingMiddleware extends Middleware {
 				$response = new TemplateResponse(
 					'core',
 					'429',
-					[],
+					['pageTitle' => Util::getL10N('core')->t('Too many attempts')],
 					TemplateResponse::RENDER_AS_GUEST
 				);
 				$response->setStatus($exception->getCode());

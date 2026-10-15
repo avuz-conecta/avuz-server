@@ -142,26 +142,64 @@ class LostControllerTest extends TestCase {
 		);
 	}
 
-	public function testResetFormTokenError(): void {
+	private function mockLoginRoutes(): void {
+		$this->urlGenerator->method('linkToRoute')
+			->willReturnMap([
+				['core.login.showLoginForm', ['direct' => 1], '/index.php/login?direct=1'],
+				['core.login.showLoginForm', [], '/index.php/login'],
+			]);
+	}
+
+	private function assertInvalidResetLinkPage(TemplateResponse $response, string $requestLinkUrl): void {
+		$expectedResponse = new TemplateResponse('core',
+			'lostpassword/invalid-link',
+			[
+				'pageTitle' => 'Invalid or expired reset link',
+				'requestLinkUrl' => $requestLinkUrl,
+				'loginUrl' => '/index.php/login',
+			],
+			'guest');
+		$expectedResponse->throttle();
+		$this->assertEquals($expectedResponse, $response);
+		$this->assertSame(200, $response->getStatus());
+	}
+
+	public static function dataResetFormRejectedToken(): array {
+		return [
+			'invalid token' => [InvalidTokenException::TOKEN_DECRYPTION_ERROR],
+			'expired token' => [InvalidTokenException::TOKEN_EXPIRED],
+			'unknown token' => [InvalidTokenException::TOKEN_NOT_FOUND],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('dataResetFormRejectedToken')]
+	public function testResetFormShowsInvalidLinkPageWithNextSteps(int $tokenError): void {
+		$this->mockLoginRoutes();
 		$this->userManager->method('get')
 			->with('ValidTokenUser')
 			->willReturn($this->existingUser);
 		$this->verificationToken->expects($this->once())
 			->method('check')
 			->with('12345:MySecretToken', $this->existingUser, 'lostpassword', 'test@example.com')
-			->willThrowException(new InvalidTokenException(InvalidTokenException::TOKEN_DECRYPTION_ERROR));
+			->willThrowException(new InvalidTokenException($tokenError));
 
 		$response = $this->lostController->resetform('12345:MySecretToken', 'ValidTokenUser');
-		$expectedResponse = new TemplateResponse('core',
-			'error',
-			[
-				'errors' => [
-					['error' => 'Could not reset password because the token is invalid'],
-				]
-			],
-			'guest');
-		$expectedResponse->throttle();
-		$this->assertEquals($expectedResponse, $response);
+
+		$this->assertInvalidResetLinkPage($response, '/index.php/login?direct=1#lostpassword');
+	}
+
+	public function testResetFormInvalidLinkPageRequestsNewLinkFromCustomResetUrl(): void {
+		$this->lostPasswordLink = 'https://sso.example.tld/forgot';
+		$this->mockLoginRoutes();
+		$this->userManager->method('get')
+			->with('ValidTokenUser')
+			->willReturn($this->existingUser);
+		$this->verificationToken->method('check')
+			->willThrowException(new InvalidTokenException(InvalidTokenException::TOKEN_EXPIRED));
+
+		$response = $this->lostController->resetform('12345:MySecretToken', 'ValidTokenUser');
+
+		$this->assertInvalidResetLinkPage($response, 'https://sso.example.tld/forgot');
 	}
 
 	public function testResetFormTokenErrorWithDisabledLink(): void {
@@ -588,6 +626,40 @@ class LostControllerTest extends TestCase {
 			'msg' => 'Could not reset password because the token is invalid'
 		];
 		$this->assertSame($expectedResponse, $response->getData());
+	}
+
+	private function mockExistingUserWithoutEmailAndUnknownToken(): void {
+		$user = $this->createMock(IUser::class);
+		$user->method('isEnabled')->willReturn(true);
+		$user->method('getEMailAddress')->willReturn(null);
+		$user->expects($this->never())->method('setPassword');
+		$this->userManager->method('get')
+			->with('UserWithoutEmail')
+			->willReturn($user);
+		$this->verificationToken->expects($this->once())
+			->method('check')
+			->with('BogusToken', $user, 'lostpassword', '', true)
+			->willThrowException(new InvalidTokenException(InvalidTokenException::TOKEN_NOT_FOUND));
+	}
+
+	public function testResetFormShowsInvalidTokenForAnExistingUserWithoutEmail(): void {
+		$this->mockExistingUserWithoutEmailAndUnknownToken();
+		$this->mockLoginRoutes();
+
+		$response = $this->lostController->resetform('BogusToken', 'UserWithoutEmail');
+
+		$this->assertInvalidResetLinkPage($response, '/index.php/login?direct=1#lostpassword');
+	}
+
+	public function testSetPasswordRejectsBogusTokenForAnExistingUserWithoutEmail(): void {
+		$this->mockExistingUserWithoutEmailAndUnknownToken();
+
+		$response = $this->lostController->setPassword('BogusToken', 'UserWithoutEmail', 'NewPassword', true, 'NewPassword');
+
+		$this->assertSame([
+			'status' => 'error',
+			'msg' => 'Could not reset password because the token is invalid'
+		], $response->getData());
 	}
 
 	public function testSendEmailNoEmail(): void {
