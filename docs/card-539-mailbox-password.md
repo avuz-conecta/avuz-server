@@ -91,7 +91,8 @@ Avuz Conecta cannot clear the marker itself: it lives in the webmail's Redis.
 ## Layout fixes (Designer review)
 
 1. Removing the saved password asks inline in the section, not in a modal:
-   **Remover a senha salva?** + red **Remover** + **Cancelar** (`role="group"`,
+   **Remover a senha do e-mail salva? O Avuz Conecta vai tentar sua senha de
+   login para abrir seu e-mail.** + red **Remover** + **Cancelar** (`role="group"`,
    focus on **Cancelar**, Esc cancels, focus returns to **Remover** or the field).
 2. The success message (**Senha salva.**, **Senha removida.**) shows in the
    success color with spacing above it.
@@ -118,7 +119,8 @@ mailbox exists. Language pt_BR.
 5. **Salvar** with an empty field → **Digite a senha.** (no request sent).
 6. Save a different password (replace) → **Atualizada em** changes.
 7. Log out and back in → status still **Senha do e-mail salva**.
-8. **Remover** → inline **Remover a senha salva?** with a red **Remover** and
+8. **Remover** → inline **Remover a senha do e-mail salva? O Avuz Conecta vai tentar
+   sua senha de login para abrir seu e-mail.** with a red **Remover** and
    **Cancelar** (no modal) → red **Remover**.
    - Expect: **Senha removida.**, status **Nenhuma senha salva**, **Remover**
      hidden, focus in the field. **Cancelar** (or Esc) changes nothing and puts

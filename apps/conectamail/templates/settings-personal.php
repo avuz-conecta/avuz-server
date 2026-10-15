@@ -36,7 +36,7 @@ $saved = $_['status']['saved'];
                  role="group"
                  aria-label="<?php p($l->t('Confirm mailbox password removal')); ?>"
                  hidden>
-                <span><?php p($l->t('Remove the saved password?')); ?></span>
+                <span><?php p($l->t('Remove the saved mailbox password? Avuz Conecta will try your login password to open your e-mail.')); ?></span>
                 <button type="button" id="conectamail-password-confirm-remove" class="conectamail-password-danger"><?php p($l->t('Remove')); ?></button>
                 <button type="button" id="conectamail-password-confirm-cancel"><?php p($l->t('Cancel')); ?></button>
             </div>
