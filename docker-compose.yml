@@ -88,6 +88,8 @@ services:
       # 400 on HeadBucket and NC then tries CreateBucket, which often also
       # fails. Default "false" trusts that the bucket already exists.
       - OBJECTSTORE_S3_VERIFY_BUCKET_EXISTS=false
+      # Admin TOTP 2FA enforcement; 0 = skip (see docs/runbooks/admin-2fa-recovery.md)
+      - AVUZ_ENFORCE_ADMIN_2FA=1
     depends_on:
       db:
         condition: service_healthy

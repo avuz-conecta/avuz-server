@@ -117,6 +117,11 @@ services:
       - ZAPSIGN_COMPANY_NAME=              # tenant company, shown to signers
       - ZAPSIGN_WEBHOOK_SECRET=            # optional; empty = app-generated
 
+      # Admin TOTP 2FA — enforced for the admin group on every boot.
+      # 0 = skip enforcement on this stack (apps stay enabled). Runbook:
+      # docs/runbooks/admin-2fa-recovery.md
+      - AVUZ_ENFORCE_ADMIN_2FA=1
+
 volumes:
   nextcloud_data_s3:
   nextcloud_config_s3:
