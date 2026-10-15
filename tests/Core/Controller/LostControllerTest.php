@@ -590,6 +590,48 @@ class LostControllerTest extends TestCase {
 		$this->assertSame($expectedResponse, $response->getData());
 	}
 
+	private function mockExistingUserWithoutEmailAndUnknownToken(): void {
+		$user = $this->createMock(IUser::class);
+		$user->method('isEnabled')->willReturn(true);
+		$user->method('getEMailAddress')->willReturn(null);
+		$user->expects($this->never())->method('setPassword');
+		$this->userManager->method('get')
+			->with('UserWithoutEmail')
+			->willReturn($user);
+		$this->verificationToken->expects($this->once())
+			->method('check')
+			->with('BogusToken', $user, 'lostpassword', '', true)
+			->willThrowException(new InvalidTokenException(InvalidTokenException::TOKEN_NOT_FOUND));
+	}
+
+	public function testResetFormShowsInvalidTokenForAnExistingUserWithoutEmail(): void {
+		$this->mockExistingUserWithoutEmailAndUnknownToken();
+
+		$response = $this->lostController->resetform('BogusToken', 'UserWithoutEmail');
+
+		$expectedResponse = new TemplateResponse('core',
+			'error',
+			[
+				'errors' => [
+					['error' => 'Could not reset password because the token is invalid'],
+				]
+			],
+			'guest');
+		$expectedResponse->throttle();
+		$this->assertEquals($expectedResponse, $response);
+	}
+
+	public function testSetPasswordRejectsBogusTokenForAnExistingUserWithoutEmail(): void {
+		$this->mockExistingUserWithoutEmailAndUnknownToken();
+
+		$response = $this->lostController->setPassword('BogusToken', 'UserWithoutEmail', 'NewPassword', true, 'NewPassword');
+
+		$this->assertSame([
+			'status' => 'error',
+			'msg' => 'Could not reset password because the token is invalid'
+		], $response->getData());
+	}
+
 	public function testSendEmailNoEmail(): void {
 		$user = $this->createMock(IUser::class);
 		$user->expects($this->any())
