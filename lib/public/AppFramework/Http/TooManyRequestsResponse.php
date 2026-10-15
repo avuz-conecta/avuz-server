@@ -35,7 +35,8 @@ class TooManyRequestsResponse extends Response {
 	 * @since 19.0.0
 	 */
 	public function render() {
-		$template = Server::get(ITemplateManager::class)->getTemplate('core', '429', TemplateResponse::RENDER_AS_BLANK);
+		// Avuz: guest layout (logo, theme CSS) instead of a bare unstyled fragment
+		$template = Server::get(ITemplateManager::class)->getTemplate('core', '429', TemplateResponse::RENDER_AS_GUEST);
 		return $template->fetchPage();
 	}
 }

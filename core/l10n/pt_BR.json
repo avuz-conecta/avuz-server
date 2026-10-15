@@ -607,6 +607,8 @@
     "Passwords do not match." : "As senhas não coincidem.",
     "Invalid or expired reset link" : "Link de redefinição inválido ou expirado",
     "This link was already used or has expired. Request a new link to reset your password." : "Este link já foi usado ou expirou. Peça um novo link para redefinir sua senha.",
-    "Request new link" : "Pedir novo link"
+    "Request new link" : "Pedir novo link",
+    "Too many attempts" : "Muitas tentativas",
+    "Wait a few minutes and try again." : "Aguarde alguns minutos e tente de novo."
 },"pluralForm" :"nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;"
 }

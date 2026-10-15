@@ -466,9 +466,12 @@
         "core/l10n/pt_BR.js",
         "tests/Core/Controller/LostControllerTest.php",
         "apps/avuz_theme/lib/Listener/BeforeTemplateRenderedListener.php",
-        "apps/avuz_theme/js/login-lost-password.js"
+        "apps/avuz_theme/js/login-lost-password.js",
+        "core/templates/429.php",
+        "lib/public/AppFramework/Http/TooManyRequestsResponse.php",
+        "tests/lib/AppFramework/Http/TooManyRequestsResponseTest.php"
       ],
-      "description": "Guest notice card (title, one sentence, next step) for the invalid/expired password-reset link: resetform() renders lostpassword/invalid-link instead of the generic error page (invalid, expired, unknown token, user without email). 'Pedir novo link' goes to login?direct=1#lostpassword (or the custom lost_password_link), which avuz_theme's login-lost-password.js turns into the 'Esqueceu a senha?' view; 'Voltar para o login' goes to the login page. lost_password_link=disabled still shows the generic error page. Status stays 200 + throttle.",
+      "description": "429 page (core/templates/429.php): 'Muitas tentativas' / 'Aguarde alguns minutos e tente de novo.' / 'Voltar para o login', same card. Rendered by RateLimitingMiddleware (guest) and TooManyRequestsResponse (brute-force max delay: login, lost password, public share auth), which now renders as guest instead of a bare unstyled fragment; status stays 429. Guest notice card (title, one sentence, next step) for the invalid/expired password-reset link: resetform() renders lostpassword/invalid-link instead of the generic error page (invalid, expired, unknown token, user without email). 'Pedir novo link' goes to login?direct=1#lostpassword (or the custom lost_password_link), which avuz_theme's login-lost-password.js turns into the 'Esqueceu a senha?' view; 'Voltar para o login' goes to the login page. lost_password_link=disabled still shows the generic error page. Status stays 200 + throttle.",
       "risk": "low",
       "notes": "core/css/guest-notice.css is plain CSS (no .scss), loaded by the template via Util::addStyle. pt_BR strings live in core/l10n/pt_BR.json (PHP reads core l10n from core/l10n + themes/avuz/core/l10n, not themes/avuz/apps/core); 'Back to login' is changed to 'Voltar para o login' there and in pt_BR.js. Upgrades overwrite these l10n files: re-add the strings. login-lost-password.js depends on the login Vue app's #lost-password button id."
     }
