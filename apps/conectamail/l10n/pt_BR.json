@@ -17,7 +17,8 @@
         "Password saved.": "Senha salva.",
         "Password removed.": "Senha removida.",
         "Could not save the password. Try again.": "Não foi possível salvar a senha. Tente novamente.",
-        "Could not remove the password. Try again.": "Não foi possível remover a senha. Tente novamente."
+        "Could not remove the password. Try again.": "Não foi possível remover a senha. Tente novamente.",
+        "Wrong confirmation password. Try again.": "Senha de confirmação incorreta. Tente de novo."
     },
     "pluralForm": "nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;"
 }

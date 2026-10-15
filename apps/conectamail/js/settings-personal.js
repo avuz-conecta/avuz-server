@@ -8,13 +8,43 @@
         },
     };
 
-    function confirmPassword() {
+    var CONFIRMATION_MESSAGES = {
+        wrong_password: function () { return t(APP_ID, 'Wrong confirmation password. Try again.'); },
+        cancelled: function () { return ''; },
+    };
+
+    function confirmationFailure(passwordSubmitted) {
+        var error = new Error('Password confirmation failed');
+        error.confirmation = passwordSubmitted ? 'wrong_password' : 'cancelled';
+        return error;
+    }
+
+    function failureMessage(error, fallback) {
+        var describeFailure = CONFIRMATION_MESSAGES[error.confirmation];
+        return describeFailure ? describeFailure() : fallback;
+    }
+
+    // The core dialog closes the same way on a wrong password and on cancel,
+    // so a non-empty password submitted inside it tells the two apart.
+    async function confirmPassword() {
         if (!OC.PasswordConfirmation.requiresPasswordConfirmation()) {
-            return Promise.resolve();
+            return;
         }
-        return new Promise(function (resolve, reject) {
-            OC.PasswordConfirmation.requirePasswordConfirmation(resolve, {}, reject);
-        });
+        var passwordSubmitted = false;
+        function trackPasswordSubmit(event) {
+            var passwordField = event.target.querySelector('input[type="password"]');
+            passwordSubmitted = passwordSubmitted || (passwordField !== null && passwordField.value !== '');
+        }
+        document.addEventListener('submit', trackPasswordSubmit, true);
+        try {
+            await new Promise(function (resolve, reject) {
+                OC.PasswordConfirmation.requirePasswordConfirmation(resolve, {}, function () {
+                    reject(confirmationFailure(passwordSubmitted));
+                });
+            });
+        } finally {
+            document.removeEventListener('submit', trackPasswordSubmit, true);
+        }
     }
 
     async function request(method, body) {
@@ -96,6 +126,7 @@
             saveButton.hidden = true;
             removeButton.hidden = true;
             removalConfirm.hidden = false;
+            showMessage('', false);
             cancelRemoveButton.focus();
         }
 
@@ -153,8 +184,9 @@
                 markInvalid(false);
                 renderStatus(result.payload);
                 showMessage(t(APP_ID, 'Password saved.'), false);
-            } catch (_error) {
-                showMessage(t(APP_ID, 'Could not save the password. Try again.'), true);
+            } catch (error) {
+                var saveFailure = failureMessage(error, t(APP_ID, 'Could not save the password. Try again.'));
+                showMessage(saveFailure, saveFailure !== '');
             } finally {
                 setBusy(false);
             }
@@ -175,8 +207,9 @@
                 closeRemovalConfirm(input);
                 renderStatus(result.payload);
                 showMessage(t(APP_ID, 'Password removed.'), false);
-            } catch (_error) {
-                showMessage(t(APP_ID, 'Could not remove the password. Try again.'), true);
+            } catch (error) {
+                var removeFailure = failureMessage(error, t(APP_ID, 'Could not remove the password. Try again.'));
+                showMessage(removeFailure, removeFailure !== '');
                 setBusy(false);
                 closeRemovalConfirm(removeButton);
             }

@@ -98,6 +98,16 @@ Avuz Conecta cannot clear the marker itself: it lives in the webmail's Redis.
    success color with spacing above it.
 3. The field gets a red border only while it is invalid (`aria-invalid`), and
    the border clears as soon as the value becomes valid.
+4. A wrong password in the Avuz Conecta confirmation dialog (save or remove)
+   shows **Senha de confirmação incorreta. Tente de novo.** in red; the field is
+   not marked invalid. On Avuz Conecta 33 the core dialog closes the same way on
+   a wrong password and on cancel (`/login/confirm` answers 403 without the
+   `X-Nextcloud-Password-Confirmation` header the dialog needs to stay open), so
+   the page tells them apart by whether a non-empty password was submitted in
+   the dialog. Cancelling the dialog shows no message. Other failures stay
+   generic.
+5. Opening the inline remove confirmation clears any previous message
+   (e.g. **Senha salva.**).
 
 ## Test handoff
 
@@ -129,6 +139,9 @@ mailbox exists. Language pt_BR.
    field saves. Opening the confirmation focuses **Cancelar**.
 10. Phone width (~360 px): the confirmation text and buttons wrap, nothing
     overflows.
+11. Wrong password in the confirmation dialog (save, then remove) →
+    **Senha de confirmação incorreta. Tente de novo.** in red. Cancel the dialog
+    → no message. After **Senha salva.**, **Remover** → the message is gone.
 
 ### API (browser devtools console on any Avuz Conecta page)
 
