@@ -15,6 +15,7 @@ use OCA\DAV\CalDAV\Federation\FederatedCalendarMapper;
 use OCA\DAV\CalDAV\Proxy\ProxyMapper;
 use OCA\DAV\CalDAV\Schedule\IMipPlugin;
 use OCA\DAV\CalDAV\Security\RateLimitingPlugin;
+use OCA\DAV\CalDAV\CreatedBy\CreatedByPlugin;
 use OCA\DAV\CalDAV\Validation\CalDavValidatePlugin;
 use OCA\DAV\Connector\LegacyDAVACL;
 use OCA\DAV\Connector\Sabre\Auth;
@@ -126,6 +127,7 @@ if ($sendInvitations) {
 $server->addPlugin(new ExceptionLoggerPlugin('caldav', $logger));
 $server->addPlugin(Server::get(RateLimitingPlugin::class));
 $server->addPlugin(Server::get(CalDavValidatePlugin::class));
+$server->addPlugin(Server::get(CreatedByPlugin::class));
 
 // And off we go!
 $server->start();
