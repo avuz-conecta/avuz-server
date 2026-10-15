@@ -1345,11 +1345,28 @@ class UsersController extends AUserDataOCSController {
 		}
 
 		// Go ahead with the delete
-		if ($targetUser->delete()) {
+		try {
+			$deleted = $targetUser->delete();
+		} catch (\Throwable $exception) {
+			if ($this->isStillStored($targetUser)) {
+				throw $exception;
+			}
+			$this->logger->error('Account {userId} was deleted, but a cleanup step after the deletion failed', [
+				'userId' => $targetUser->getUID(),
+				'exception' => $exception,
+			]);
 			return new DataResponse();
-		} else {
-			throw new OCSException('', 101);
 		}
+
+		if ($deleted) {
+			return new DataResponse();
+		}
+		throw new OCSException('', 101);
+	}
+
+	private function isStillStored(IUser $user): bool {
+		$backend = $user->getBackend();
+		return $backend === null || $backend->userExists($user->getUID());
 	}
 
 	/**
