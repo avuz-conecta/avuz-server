@@ -58,6 +58,11 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 - `apps/dav/lib/CalDAV/CreatedBy/CreatedByPlugin.php` stamps `X-AVUZ-CREATED-BY;CN=<name>:<uid>` when someone other than the calendar owner creates an event (share/delegation) over CalDAV. Set on create, carried over on update (clients can't drop or forge it); owner-created events untouched.
 - The calendar overlay (`docker/overlays/calendar/event-created-by.patch`, sentinel `AVUZ-CREATED-BY-V1`) shows "Criado por <nome>" in the popover and full editor. Older events have no stamp.
 
+### Booking page embed (avuzconecta.com.br/agendar)
+- Stack env `AVUZ_EMBED_ALLOWED_ORIGINS` (comma-separated https origins, no path; empty = off) syncs every boot to app config `avuz_theme embed_allowed_origins` (`avuz_sync_embed_allowed_origins`, `docker/lib-apps.sh`). Invalid entries are dropped on read.
+- On route `calendar.appointment.show` only, `AppointmentEmbedCspListener` adds the origins to CSP `frame-ancestors` (default `'self'`), and `AppointmentEmbedStateListener` hands them to `js/appointment-embed.js`. nginx drops `X-Frame-Options` on that page path only (`$avuz_frame_options` map).
+- `js/appointment-embed.js` adds `OCS-APIRequest: true` to the slots/book requests (a cross-site iframe has no cookies, so the session CSRF token fails with 412). After a 200 from book, it posts `{type: 'avuz:appointment-booked', start, end, timeZone}` (no visitor data) to the parent, but only when the parent origin is allowlisted, and only to that origin. Booked = pending email confirmation. If no request is intercepted within 15 s, it logs a console warning (Calendar internals changed).
+
 ## Important Configs
 
 ### Nginx (`docker/nginx.conf`)

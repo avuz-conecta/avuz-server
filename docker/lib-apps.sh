@@ -468,6 +468,16 @@ _avuz_trim() {
     printf '%s' "$s"
 }
 
+# Origins allowed to embed the public appointment booking page in an iframe:
+# AVUZ_EMBED_ALLOWED_ORIGINS, comma-separated https origins (no path). Synced
+# every boot, so the stack env is the source of truth; empty or unset = embedding
+# off. avuz_theme drops invalid entries when it reads them. Non-fatal.
+avuz_sync_embed_allowed_origins() {
+    export AVUZ_EMBED_ALLOWED_ORIGINS="${AVUZ_EMBED_ALLOWED_ORIGINS:-}"
+    avuz_set_config_from_env avuz_theme embed_allowed_origins AVUZ_EMBED_ALLOWED_ORIGINS --type=string \
+        || echo "✗ Could not sync AVUZ_EMBED_ALLOWED_ORIGINS — booking embed keeps its previous origins"
+}
+
 # Make TOTP two-factor auth mandatory for the `admin` group, idempotently, on
 # every boot. Enables twofactor_totp (enrollment) and twofactor_backupcodes
 # (recovery codes) so a locked-out admin can get back in, then enforces 2FA for

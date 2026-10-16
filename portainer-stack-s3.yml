@@ -122,6 +122,11 @@ services:
       # docs/runbooks/admin-2fa-recovery.md
       - AVUZ_ENFORCE_ADMIN_2FA=1
 
+      # Sites allowed to embed the public appointment booking page in an iframe:
+      # comma-separated https origins, no path. Empty = embedding off.
+      # e.g. https://www.avuzconecta.com.br,https://avuzconecta.com.br (app3 only)
+      - AVUZ_EMBED_ALLOWED_ORIGINS=
+
 volumes:
   nextcloud_data_s3:
   nextcloud_config_s3:
