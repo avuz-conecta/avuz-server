@@ -112,6 +112,9 @@ services:
       # 0 = skip enforcement on this stack (apps stay enabled). Runbook:
       # docs/runbooks/admin-2fa-recovery.md
       - AVUZ_ENFORCE_ADMIN_2FA=1
+      # External sites Lucide icon library seed at boot; 0 = skip (admin
+      # icons are never overwritten either way)
+      - AVUZ_SEED_EXTERNAL_ICONS=1
 
 volumes:
   nextcloud_data:

@@ -499,6 +499,23 @@ assert_eq "default path enables twofactor_totp" "yes" \
 assert_eq "default path enables twofactor_backupcodes" "yes" \
     "$(printf '%s\n' "$twofa_out" | grep -qF 'OCC app:enable twofactor_backupcodes' && echo yes || echo no)"
 
+# ── External sites icon library ──
+assert_eq "opt-out env skips the icon library seed" \
+    "→ External sites icon library disabled (AVUZ_SEED_EXTERNAL_ICONS=0) — skipping" \
+    "$(export AVUZ_SEED_EXTERNAL_ICONS=0; php() { echo "php $*"; }; avuz_seed_external_icons)"
+assert_eq "seeds the icon library by default" \
+    "PHPSEED external-icons" \
+    "$(AVUZ_OCC_DRYRUN=1 avuz_seed_external_icons)"
+assert_eq "logs the seeder outcome" \
+    "External sites icon library: seeded 34" \
+    "$(php() { echo "seeded 34"; }; avuz_seed_external_icons)"
+assert_eq "keeps booting when the seeder fails" \
+    "External sites icon library: failed: RuntimeException" \
+    "$(php() { echo "failed: RuntimeException"; return 1; }; avuz_seed_external_icons)"
+assert_eq "returns 0 when the seeder fails" \
+    "0" \
+    "$(php() { return 1; }; avuz_seed_external_icons >/dev/null; echo "$?")"
+
 # ── bounded occ ──
 assert_eq "runs a bounded occ call under timeout when the image has it" \
     "timeout 60 php occ assinaturas:webhook:ensure" \
