@@ -2,6 +2,7 @@
 namespace OCA\Roundcube\Tests\Unit\Service;
 use OCA\Roundcube\Service\AppPasswordService;
 use OCA\Roundcube\Service\CredentialService;
+use OCA\Roundcube\Service\MailboxAddress;
 use OCA\Roundcube\Service\WebmailTokenService;
 use OCP\IAppConfig;
 use OCP\IConfig;
@@ -53,8 +54,9 @@ class MailboxPasswordTest extends TestCase {
         $appPasswords = $this->createMock(AppPasswordService::class);
         $appPasswords->method('getOrCreate')->willReturn('app-password');
 
-        $this->credentials = new CredentialService($config, $appConfig, $userManager);
-        $this->webmail = new WebmailTokenService($config, $appConfig, $userManager, $appPasswords);
+        $mailboxAddress = new MailboxAddress($config, $userManager);
+        $this->credentials = new CredentialService($config, $appConfig, $mailboxAddress);
+        $this->webmail = new WebmailTokenService($config, $appConfig, $mailboxAddress, $appPasswords);
     }
 
     private static function decrypt(string $blob): string {

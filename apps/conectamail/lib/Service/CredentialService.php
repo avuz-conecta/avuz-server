@@ -4,7 +4,6 @@ namespace OCA\Roundcube\Service;
 
 use OCP\IAppConfig;
 use OCP\IConfig;
-use OCP\IUserManager;
 
 class CredentialService
 {
@@ -18,7 +17,7 @@ class CredentialService
     public function __construct(
         private IConfig $config,
         private IAppConfig $appConfig,
-        private IUserManager $userManager,
+        private MailboxAddress $mailboxAddress,
     ) {}
 
     public function storeCredentials(string $userId, string $password): void
@@ -109,27 +108,13 @@ class CredentialService
             return $baseUrl . '/';
         }
 
-        $email = $this->resolveEmail($userId);
-        if (!str_contains($email, '@')) {
+        if (!$this->mailboxAddress->exists($userId)) {
             return $baseUrl . '/';
         }
 
-        $token = $this->buildToken($email, $encryptedPassword, $this->resolveProvider());
+        $token = $this->buildToken($this->mailboxAddress->resolve($userId), $encryptedPassword, $this->resolveProvider());
 
         return $baseUrl . '/?nc_token=' . urlencode($token);
-    }
-
-    private function resolveEmail(string $userId): string
-    {
-        $customEmail = $this->config->getUserValue($userId, self::APP_ID, 'email', '');
-        if ($customEmail) {
-            return $customEmail;
-        }
-
-        $user = $this->userManager->get($userId);
-        $email = $user?->getEMailAddress();
-
-        return $email ?: '';
     }
 
     private function resolveProvider(): string

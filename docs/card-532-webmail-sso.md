@@ -9,13 +9,15 @@ This doc is the contract the webmail side implements to validate the token.
 ## Configuration
 
 Stack env (both `portainer-stack.yml` and `portainer-stack-s3.yml`), synced to
-app config on every boot by `docker/lib-integrations.sh` → `avuz_configure_conectamail`:
+app config by `docker/lib-integrations.sh` → `avuz_configure_conectamail` on each
+configuration run only, not every boot (see [When the env is applied](#when-the-env-is-applied)):
 
 | Env | App config key | Notes |
 |-----|----------------|-------|
 | `WEBMAIL_AVUZ_URL` | `webmail_avuz_url` | Base URL of the new webmail (no trailing slash needed). Plain. |
 | `WEBMAIL_AVUZ_SSO_SECRET` | `webmail_avuz_sso_secret` | HMAC-SHA256 secret, **separate** from Roundcube's `sso_secret`. Sensitive (encrypted at rest). |
 | `ROUNDCUBE_CREDENTIAL_KEY` | `credential_key` | **Reused** — the key that encrypts `enc_pass`. Shared so the webmail decrypts the mail password the same way Roundcube does. |
+| `CONECTAMAIL_BACKEND` | `mail_backend` | What the Mail menu entry opens: `roundcube` (default) or `webmail`. Plain. Fixed literal in the stack files (no `${...}` interpolation). Applied on configuration runs only. See [Mail menu backend](#mail-menu-backend). |
 
 Feature is **inert** when URL or secret is empty: the token builder returns null,
 the embedded page falls back to the webmail root, and the standalone route 404s.
@@ -96,6 +98,71 @@ per user and reused (regenerated automatically if the user revokes it). Named
   **password = `app_password`**.
 
 It is a bearer for DAV only; never send it to the mail server.
+
+## Mail menu backend
+
+`mail_backend` picks what the Mail menu entry (`GET /apps/conectamail/`) opens:
+
+- `roundcube` (default): the Roundcube iframe, as before.
+- `webmail`: the new webmail in the same iframe, via SSO — exactly what
+  `/apps/conectamail/webmail` renders (same no-mailbox card, webmail origin in
+  the page CSP `frame-domain`).
+- `webmail` while the webmail is unconfigured (URL or secret empty) → Roundcube.
+- Empty, missing or unknown values → Roundcube (trimmed, case-insensitive).
+
+`/apps/conectamail/sso/webmail` is unchanged.
+
+### When the env is applied
+
+`avuz_configure_conectamail` writes `mail_backend` from
+`${CONECTAMAIL_BACKEND:-roundcube}` (unset or empty → `roundcube`). It runs from
+`apply_avuz_settings` (`docker/entrypoint.sh`), only when `ROUNDCUBE_URL` or
+`WEBMAIL_AVUZ_URL` is set, and `apply_avuz_settings` runs only inside
+`run_avuz_configuration`. That runs on:
+
+- a fresh install;
+- a DB upgrade (`occ status` reports `needsDbUpgrade: true`: core or an app
+  version bump);
+- a boot where `AVUZ_CONFIG_VERSION` differs from the stamp in
+  `data/.avuz_configured` (a new image that bumps it).
+
+Plain restarts skip it ("Avuz configuration up to date, skipping"). So an
+`occ` value survives restarts, but the next configuration run resets it to the
+env value. The 532 image itself bumps `AVUZ_CONFIG_VERSION` (`33.0.0-22` →
+`33.0.0-23`), so its first boot re-syncs from the env too.
+
+### Rollout / switching to the new webmail
+
+Prerequisites for `webmail` mode:
+
+- `WEBMAIL_AVUZ_URL` and `WEBMAIL_AVUZ_SSO_SECRET` set; otherwise the Mail menu
+  falls back to Roundcube.
+- The webmail's `AVUZ_CONECTA_URL` is this Avuz Conecta host. Its
+  `frame-ancestors` and `postMessage` checks accept one origin only.
+
+Two ways to switch. Use the env; add `occ` only to apply it without waiting
+for a configuration run.
+
+1. **Env (durable, recommended).** The live stack compose must carry the line
+   in the Avuz Conecta service's `environment:` list, as the repo stack files
+   do. Edit that line itself to `- CONECTAMAIL_BACKEND=webmail` and redeploy.
+   The repo line is a fixed literal, and Portainer passes only the keys the
+   compose names, so a Portainer stack variable alone never reaches the
+   container (seen on staging-3). The env lands in app config on the next
+   configuration run; on a plain restart, also run the `occ` command below once.
+2. **occ (immediate).** As www-data in the container:
+
+   ```
+   php occ config:app:set conectamail mail_backend --value=webmail
+   ```
+
+   Survives plain restarts. The next configuration run (new image with a bumped
+   `AVUZ_CONFIG_VERSION`, DB upgrade, fresh install) reverts it to the env
+   value, i.e. `roundcube` unless the compose line says `webmail`. On a 532
+   rollout, run it after the image's first boot, not before.
+
+Rollback: same paths with `roundcube` (compose line and/or
+`occ config:app:set conectamail mail_backend --value=roundcube`).
 
 ## Entry points
 

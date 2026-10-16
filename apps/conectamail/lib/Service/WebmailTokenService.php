@@ -4,7 +4,6 @@ namespace OCA\Roundcube\Service;
 
 use OCP\IAppConfig;
 use OCP\IConfig;
-use OCP\IUserManager;
 
 /**
  * SSO handover for the new webmail (webmail-avuz), kept fully separate from the
@@ -29,7 +28,7 @@ class WebmailTokenService
     public function __construct(
         private IConfig $config,
         private IAppConfig $appConfig,
-        private IUserManager $userManager,
+        private MailboxAddress $mailboxAddress,
         private AppPasswordService $appPasswords,
     ) {}
 
@@ -71,8 +70,7 @@ class WebmailTokenService
             return null;
         }
 
-        $email = $this->resolveEmail($userId);
-        if (!str_contains($email, '@')) {
+        if (!$this->mailboxAddress->exists($userId)) {
             return null;
         }
 
@@ -86,7 +84,7 @@ class WebmailTokenService
             'v' => 1,
             'jti' => bin2hex(random_bytes(16)),
             'uid' => $userId,
-            'email' => $email,
+            'email' => $this->mailboxAddress->resolve($userId),
             'enc_pass' => $storedPassword['encrypted'],
             'pass_src' => $storedPassword['source'],
             'app_password' => $appPassword,
@@ -136,16 +134,6 @@ class WebmailTokenService
         }
 
         return null;
-    }
-
-    private function resolveEmail(string $userId): string
-    {
-        $customEmail = $this->config->getUserValue($userId, self::APP_ID, 'email', '');
-        if ($customEmail !== '') {
-            return $customEmail;
-        }
-
-        return $this->userManager->get($userId)?->getEMailAddress() ?: '';
     }
 
     private function secret(): string
