@@ -132,7 +132,9 @@ In that case the webmail must show its **own** login/prompt (same as Roundcube
 today). When the user enters the mail password, the webmail can `postMessage`
 `{type:'roundcube-sso-password', password}` to the Avuz Conecta parent frame;
 `conectamail` stores it (`POST /apps/conectamail/api/credentials`) as
-`email_enc_password`, and the next handover carries `enc_pass`.
+`email_enc_password`, and the next handover carries `enc_pass`. Users can also
+save, replace or remove it in personal settings (card 539,
+`docs/card-539-mailbox-password.md`); it survives logout.
 
 ## Security notes
 
