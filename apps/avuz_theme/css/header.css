@@ -50,11 +50,12 @@ body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not(
     --background-image-invert-if-bright: no;
 }
 
-/* Avuz app icons (themes/avuz) are black strokes in an <img>, unlike core's
-   white ones, and icons.css drops core's filter. Invert them on dark, in the
-   header and in the "Mais aplicativos" popover. */
-body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .app-menu-icon__icon[src*="/themes/avuz/"],
-body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) .app-menu__overflow-entry .action-link__icon[style*="/themes/avuz/"] {
+/* App menu icons (themes/avuz and app-shipped, e.g. ConectaMail) are black
+   currentColor strokes in an <img>, unlike core's white ones, and icons.css drops
+   core's filter. Invert every one on dark, active included (core gives the active
+   entry no filter of its own), in the header and the "Mais aplicativos" popover. */
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .app-menu-icon__icon,
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) .app-menu__overflow-entry .action-link__icon {
     filter: var(--background-invert-if-dark) !important;
 }
 
