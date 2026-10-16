@@ -23,6 +23,30 @@ html {
     overflow: hidden !important;
 }
 
+/* The login is light by design, but under enforce_theme=dark the body still
+   carries the dark theme, so core's dark tokens leaked in (white password eye,
+   dark help button). Pin the core light values (DefaultTheme) for the page. */
+body#body-login:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) {
+    color-scheme: light;
+    --color-main-text: #222222;
+    --color-main-background: #ffffff;
+    --color-main-background-rgb: 255, 255, 255;
+    --color-background-hover: #f5f5f5;
+    --color-background-dark: #ededed;
+    --color-background-darker: #dbdbdb;
+    --color-placeholder-light: #e6e6e6;
+    --color-placeholder-dark: #cccccc;
+    --color-text-maxcontrast: #6b6b6b;
+    --color-text-maxcontrast-default: #6b6b6b;
+    --color-border: #ededed;
+    --color-border-dark: #dbdbdb;
+    --color-border-maxcontrast: #7d7d7d;
+    --color-box-shadow-rgb: 77, 77, 77;
+    --color-box-shadow: rgba(var(--color-box-shadow-rgb), 0.5);
+    --background-invert-if-dark: no;
+    --background-invert-if-bright: invert(100%);
+}
+
 /* Remove all default Nextcloud overlay layers */
 body#body-login::before,
 body#body-login::after {

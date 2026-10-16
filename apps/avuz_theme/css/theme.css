@@ -10,7 +10,7 @@ body:has(.app-dashboard) {
 
 /* Dashboard widget cards */
 #app-dashboard .panel {
-    background-color: #ffffff !important;
+    background-color: var(--color-main-background) !important;
     border: none !important;
     border-radius: 35px !important;
 }
@@ -19,7 +19,7 @@ body:has(.app-dashboard) {
 #app-content,
 .app-content-wrapper,
 #app-navigation {
-    background-color: #ffffff !important;
+    background-color: var(--color-main-background) !important;
     border-radius: 35px !important;
     border: none !important;
 }

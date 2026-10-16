@@ -33,6 +33,39 @@ body {
     font-family: 'Questrial', sans-serif !important;
 }
 
+/* Avuz: dark theme (enforce_theme=dark). The light shell above is hardcoded, so
+   the page around the app card and the header icons stayed light. Follow the core
+   dark variables instead. :not([data-theme-light]) keeps the light theme untouched
+   if a stale per-user theme choice adds the dark attribute under enforced light.
+   :not(#body-login) leaves guest pages (login) light, see login.css. */
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) {
+    background: var(--color-background-dark) !important;
+}
+
+/* Theming derives the "on background" vars from the admin background colour,
+   which is bright, so under dark they still say black text + invert. The header
+   ("Mais aplicativos" trigger) and the dashboard greeting sit on the dark page. */
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) :is(#header, #app-dashboard) {
+    --color-background-plain-text: var(--color-main-text);
+    --background-image-invert-if-bright: no;
+}
+
+/* App menu icons (themes/avuz and app-shipped, e.g. ConectaMail) are black
+   currentColor strokes in an <img>, unlike core's white ones, and icons.css drops
+   core's filter. Invert every one on dark, active included (core gives the active
+   entry no filter of its own), in the header and the "Mais aplicativos" popover. */
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .app-menu-icon__icon,
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) .app-menu__overflow-entry .action-link__icon {
+    filter: var(--background-invert-if-dark) !important;
+}
+
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .app-menu .app-menu-entry__link:not(.app-menu-entry__link--active),
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .header-end .actions > div > a,
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .header-end .actions > div > .menutoggle,
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .header-end .actions > div > button {
+    color: var(--color-main-text) !important;
+}
+
 /* Remove the home (house) logo icon and its home link. Keep #nextcloud as an
    invisible spacer so center-header.js still centers the app menu. */
 #header #nextcloud .logo {
