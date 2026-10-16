@@ -16,6 +16,7 @@ app config on every boot by `docker/lib-integrations.sh` → `avuz_configure_con
 | `WEBMAIL_AVUZ_URL` | `webmail_avuz_url` | Base URL of the new webmail (no trailing slash needed). Plain. |
 | `WEBMAIL_AVUZ_SSO_SECRET` | `webmail_avuz_sso_secret` | HMAC-SHA256 secret, **separate** from Roundcube's `sso_secret`. Sensitive (encrypted at rest). |
 | `ROUNDCUBE_CREDENTIAL_KEY` | `credential_key` | **Reused** — the key that encrypts `enc_pass`. Shared so the webmail decrypts the mail password the same way Roundcube does. |
+| `CONECTAMAIL_BACKEND` | `mail_backend` | What the Mail menu entry opens: `roundcube` (default) or `webmail`. Plain. See [Mail menu backend](#mail-menu-backend). |
 
 Feature is **inert** when URL or secret is empty: the token builder returns null,
 the embedded page falls back to the webmail root, and the standalone route 404s.
@@ -96,6 +97,21 @@ per user and reused (regenerated automatically if the user revokes it). Named
   **password = `app_password`**.
 
 It is a bearer for DAV only; never send it to the mail server.
+
+## Mail menu backend
+
+`mail_backend` picks what the Mail menu entry (`GET /apps/conectamail/`) opens:
+
+- `roundcube` (default): the Roundcube iframe, as before.
+- `webmail`: the new webmail in the same iframe, via SSO — exactly what
+  `/apps/conectamail/webmail` renders (same no-mailbox card, webmail origin in
+  the page CSP `frame-domain`).
+- `webmail` while the webmail is unconfigured (URL or secret empty) → Roundcube.
+- Empty, missing or unknown values → Roundcube (trimmed, case-insensitive).
+
+The env is the source of truth: the boot rewrites `mail_backend` from
+`CONECTAMAIL_BACKEND` (unset → `roundcube`), so a bare `occ config:app:set` is
+lost on restart. `/apps/conectamail/sso/webmail` is unchanged.
 
 ## Entry points
 

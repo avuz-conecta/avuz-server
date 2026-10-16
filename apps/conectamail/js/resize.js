@@ -7,10 +7,26 @@
         frame.style.height = (window.innerHeight - offset) + 'px';
     }
 
+    function frameOrigin(frame) {
+        try {
+            return new URL(frame.src).origin;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function isFromFrame(event, frame) {
+        return !!frame
+            && event.source === frame.contentWindow
+            && event.origin === frameOrigin(frame);
+    }
+
     window.addEventListener('message', function (event) {
         if (!event.data || event.data.type !== 'roundcube-sso-password') return;
 
         var frame = document.getElementById('roundcube-frame');
+        if (!isFromFrame(event, frame)) return;
+
         var password = event.data.password;
 
         var xhr = new XMLHttpRequest();

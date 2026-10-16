@@ -33,7 +33,7 @@
       ],
       "description": "Roundcube webmail integration app. Embeds avuz-conecta/roundcube-webmail via iframe. Stores encrypted credentials on NC login and generates HMAC-signed SSO tokens passed via ?nc_token=.",
       "risk": "low",
-      "notes": "Requires ROUNDCUBE_SSO_SECRET and ROUNDCUBE_CREDENTIAL_KEY env vars on both NC and Roundcube containers. roundcube_url must be set via occ config:app:set roundcube roundcube_url --value='https://...'."
+      "notes": "Requires ROUNDCUBE_SSO_SECRET and ROUNDCUBE_CREDENTIAL_KEY env vars on both NC and Roundcube containers. roundcube_url must be set via occ config:app:set roundcube roundcube_url --value='https://...'. Mail menu backend: CONECTAMAIL_BACKEND env → conectamail mail_backend (roundcube default | webmail = new webmail iframe via SSO, needs WEBMAIL_AVUZ_URL + WEBMAIL_AVUZ_SSO_SECRET; else Roundcube)."
     },
     {
       "id": "avuz-theme-app",

@@ -29,6 +29,10 @@ avuz_configure_conectamail() {
     # unset. Reuses credential_key above to encrypt enc_pass. Card 532.
     _avuz_occ config:app:set conectamail webmail_avuz_url --value="$WEBMAIL_AVUZ_URL"
     avuz_set_sensitive_app_config conectamail webmail_avuz_sso_secret WEBMAIL_AVUZ_SSO_SECRET
+
+    # What the Mail menu entry opens: roundcube (default) | webmail (iframe SSO,
+    # only when the webmail is configured). Card 532.
+    _avuz_occ config:app:set conectamail mail_backend --value="${CONECTAMAIL_BACKEND:-roundcube}"
 }
 
 # Stored as JSON in spreed:recording_servers (see Config::getRecordingServers()).
