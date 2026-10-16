@@ -63,9 +63,9 @@
         "apps/avuz_theme/css/icons.css",
         "apps/avuz_theme/css/settings.css"
       ],
-      "description": "CSS: centered card login, dashboard card styling, header gradient/logo centering, icon colors, settings text overflow fix",
+      "description": "CSS: centered card login, dashboard card styling, header gradient/logo centering, icon colors, settings text overflow fix. Light login only: the 'Senha' label and 'Lembre-se de mim' text are #6b6b6b (WCAG AA: 4.72:1 on the #f1f1f1 input, 5.33:1 on the #fff card); dark keeps #aaaaaa/#999999.",
       "risk": "low",
-      "notes": "CSS selectors target upstream DOM classes. If Nextcloud changes class names or HTML structure in v33, these may silently break without merge conflicts."
+      "notes": "CSS selectors target upstream DOM classes. If Nextcloud changes class names or HTML structure in v33, these may silently break without merge conflicts. The light-login contrast rules key on label[for=\"password\"] and #rememberme ~ .checkbox-content (the login form's NcPasswordField id and NcCheckboxRadioSwitch input id) and on body data-themes (set for guests only when enforce_theme is set; empty follows prefers-color-scheme)."
     },
     {
       "id": "avuz-theme-js",

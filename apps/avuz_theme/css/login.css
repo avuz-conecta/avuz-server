@@ -176,6 +176,22 @@ body#body-login .login-box .checkbox label:hover {
     background-color: transparent !important;
 }
 
+/* ── Light theme: "Senha" label + "Lembre-se de mim" at WCAG AA ─── */
+/* #6b6b6b: 4.72:1 on the #f1f1f1 input, 5.33:1 on the #fff card.  */
+/* Guests carry data-themes only when enforce_theme is set; empty    */
+/* follows the system. Dark (enforced or system) keeps the above.    */
+body#body-login[data-themes*="light"] .login-box label.input-field__label[for="password"],
+body#body-login[data-themes*="light"] .login-box #rememberme ~ .checkbox-content {
+    color: #6b6b6b !important;
+}
+
+@media (prefers-color-scheme: light) {
+    body#body-login:not([data-themes*="dark"]) .login-box label.input-field__label[for="password"],
+    body#body-login:not([data-themes*="dark"]) .login-box #rememberme ~ .checkbox-content {
+        color: #6b6b6b !important;
+    }
+}
+
 /* ── Submit button — black pill ─────────────────────────────────── */
 body#body-login .login-box input[type="submit"],
 body#body-login .login-box button[type="submit"],
