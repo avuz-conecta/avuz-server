@@ -128,6 +128,12 @@ services:
       # docs/runbooks/admin-2fa-recovery.md
       - AVUZ_ENFORCE_ADMIN_2FA=1
 
+      # Impersonate — admins can log in as a user to debug. Enabled once per
+      # instance; an admin-disabled app stays off. 0 = disable on this stack.
+      # GROUPS = comma-separated groups allowed to impersonate (empty = admin).
+      - AVUZ_IMPERSONATE_ENABLED=1
+      - AVUZ_IMPERSONATE_GROUPS=admin
+
 volumes:
   nextcloud_data_s3:
   nextcloud_config_s3:
