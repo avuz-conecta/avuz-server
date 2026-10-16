@@ -422,6 +422,29 @@
       "notes": "Dockerfile fails the build unless apps/calendar is 6.2.1 (AVUZ_CALENDAR_OVERLAY_VERSION). Sentinels 'AVUZ-POPOVER-COLOR-V1' and 'AVUZ-CREATED-BY-V1' in js/calendar-main.js; calendar is in AVUZ_OWNED_APPS; reapply_avuz_calendar_overlay after core upgrades. Rebuild on every calendar upgrade: docker/overlays/calendar/README.md (apply popover-event-color.patch, then event-created-by.patch, then default-calendar-no-principal.patch). The third patch also updates event.test.js for the createdBy field from the second, so npm run test:unit passes."
     },
     {
+      "id": "contacts-whatsapp-phone-button",
+      "type": "overlay",
+      "paths": [
+        "docker/overlays/contacts/js/contacts-main.mjs",
+        "docker/overlays/contacts/js/contacts-oca.mjs",
+        "docker/overlays/contacts/js/style-XRJXNnxt.chunk.mjs",
+        "docker/overlays/contacts/js/style-XRJXNnxt.chunk.mjs.license",
+        "docker/overlays/contacts/js/FilePicker-C1yRZfLt-CoPsEFld.chunk.mjs",
+        "docker/overlays/contacts/js/FilePicker-C1yRZfLt-CoPsEFld.chunk.mjs.license",
+        "docker/overlays/contacts/css/contacts-main.css",
+        "docker/overlays/contacts/css/contacts-oca.css",
+        "docker/overlays/contacts/css/style-DztFUzi0.chunk.css",
+        "docker/overlays/contacts/whatsapp-phone-button.patch",
+        "docker/overlays/contacts/shift-build-date.cjs",
+        "themes/avuz/apps/contacts/l10n/pt_BR.json",
+        "docker/entrypoint.sh",
+        "Dockerfile"
+      ],
+      "description": "Card 266: rebuilt contacts 8.4.1 bundle. In view mode, a WhatsApp icon button (first inline action, opens https://wa.me/<digits> in a new tab) next to each phone number. Number rule: drop tel:/extension; + or 00 = has country code; 10/11 digits (after trunk 0) get 55; <8 digits, Fax/Pager/Car types and edit mode = no button. Label t('Chat on WhatsApp') = pt_BR 'Conversar no WhatsApp' via theme l10n. Designer spec: reports/266-spec/SPEC.md.",
+      "risk": "medium",
+      "notes": "Dockerfile fails the build unless apps/contacts is 8.4.1 (AVUZ_CONTACTS_OVERLAY_VERSION); copies js/ AND css/ (contacts builds CSS to files). Sentinel 'AVUZ-WHATSAPP-PHONE-V1' in the content-hashed js/style-XRJXNnxt.chunk.mjs plus a wiring check in js/contacts-main.mjs; contacts is in AVUZ_OWNED_APPS; reapply_avuz_contacts_overlay after core upgrades. Rebuild needs the build clock pinned to the tag date (shift-build-date.cjs): docker/overlays/contacts/README.md."
+    },
+    {
       "id": "password-confirmation-field",
       "type": "core",
       "paths": [
