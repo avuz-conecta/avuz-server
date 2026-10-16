@@ -63,7 +63,7 @@
         "apps/avuz_theme/css/icons.css",
         "apps/avuz_theme/css/settings.css"
       ],
-      "description": "CSS: centered card login, dashboard card styling, header gradient/logo centering, icon colors, settings text overflow fix",
+      "description": "CSS: centered card login, dashboard card styling, header gradient/logo centering, icon colors, settings text overflow fix, users-page row action menu 44px entries on phones (body:has(table.user-list) .action-item__popper, Deck #504), Impersonate settings select2 border via --color-border-maxcontrast (#impersonate, Deck #504)",
       "risk": "low",
       "notes": "CSS selectors target upstream DOM classes. If Nextcloud changes class names or HTML structure in v33, these may silently break without merge conflicts."
     },
@@ -491,7 +491,7 @@
         "portainer-stack-s3.yml",
         "docker-compose.yml"
       ],
-      "description": "Deck #504: upstream impersonate app (an admin logs in as a user to debug), vendored unmodified at apps/impersonate from impersonate-v4.0.0.tar.gz (nextcloud-releases/impersonate, sha256 8008ad02e36c44fd446ed3bb55ac866cbfb6225128150b289ab3de8141036ea8; nextcloud min/max-version 33). Every boot, avuz_impersonate_sync writes app config 'authorized' from AVUZ_IMPERSONATE_GROUPS (comma-separated, default admin) and enables the app once per instance. AVUZ_IMPERSONATE_ENABLED=0 disables it per stack.",
+      "description": "Deck #504: upstream impersonate app (an admin logs in as a user to debug), vendored unmodified at apps/impersonate from impersonate-v4.0.0.tar.gz (nextcloud-releases/impersonate, sha256 8008ad02e36c44fd446ed3bb55ac866cbfb6225128150b289ab3de8141036ea8; nextcloud min/max-version 33). Every boot, avuz_impersonate_sync writes app config 'authorized' from AVUZ_IMPERSONATE_GROUPS (comma-separated, default admin) and enables the app once per instance. AVUZ_IMPERSONATE_ENABLED=0 disables it per stack. Layout fixes for its users-menu entry and settings select2 live in apps/avuz_theme/css/settings.css, so the vendored app stays unmodified.",
       "risk": "low",
       "notes": "Not in ENABLE_APPS: lib-impersonate.sh owns enable/disable so the env toggle works both ways. Admin-disabled app (installed_version set, enabled=no, no env-off marker) is never re-enabled; marker data/.avuz_impersonate_env_off records an env-driven disable. Never writes [] (the app treats an empty list as 'no group restriction'). Dockerfile ARG AVUZ_IMPERSONATE_VERSION fails the build on a missing or different version. Upgrade: server 34 needs impersonate v5.0.0 (min/max 34) — re-vendor the release tarball, verify its sha256, bump the ARG. Not stamp-gated, so no AVUZ_CONFIG_VERSION bump."
     }
