@@ -22,6 +22,15 @@ popover and under the date in the full editor. The data comes from the server:
 every update. Events without the stamp (owner-created, older events) show
 nothing. pt_BR string: `themes/avuz/apps/calendar/l10n/pt_BR.json`.
 
+## Default calendar without a principal (Deck #542)
+The settings item renders on the first Calendar render, before the
+current-user principal has loaded. Upstream `Settings.vue` `defaultCalendar()`
+then read `scheduleDefaultCalendarUrl` of `undefined` and logged
+`[Vue error]: Error in render: TypeError: Cannot read properties of undefined
+(reading 'scheduleDefaultCalendarUrl')` on every load, for every user. The
+guard falls back to the first writable calendar until the principal arrives.
+Users with a principal see the same default calendar as before.
+
 ## Files here
 - `js/*.js` — only the 6 bundles that change. The calendar build is
   byte-reproducible: an unpatched `npm run build` of v6.2.1 matches the shipped
@@ -34,6 +43,9 @@ nothing. pt_BR string: `themes/avuz/apps/calendar/l10n/pt_BR.json`.
   `vitest.config.js`).
 - `event-created-by.patch` — applies on top of the first one (`CreatedBy.vue`,
   `models/event.js`, `EditorMixin.js`, `EditSimple.vue`, `EditFull.vue`).
+- `default-calendar-no-principal.patch` — applies on top of the second one
+  (`Settings.vue` guard, `Settings.test.js`, and `event.test.js` updated for
+  the second patch's `createdBy` field).
 
 ## How it's applied
 - Dockerfile copies `js/` over `apps/calendar/js/` and **fails the build** if
@@ -52,6 +64,7 @@ git clone --depth 1 --branch v<NEW_VERSION> https://github.com/nextcloud/calenda
 cd calendar
 git apply /path/to/docker/overlays/calendar/popover-event-color.patch
 git apply /path/to/docker/overlays/calendar/event-created-by.patch
+git apply /path/to/docker/overlays/calendar/default-calendar-no-principal.patch
 npm ci && npm run test:unit && npm run build     # node ^24, npm ^11
 grep -l 'AVUZ-POPOVER-COLOR-V1\|AVUZ-CREATED-BY-V1' js/*.js   # both must be in calendar-main.js
 # copy every js/*.js that differs from the release tarball, then bump
