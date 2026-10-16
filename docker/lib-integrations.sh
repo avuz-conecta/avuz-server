@@ -16,13 +16,19 @@ _avuz_export_empty_if_unset() {
 }
 
 avuz_configure_conectamail() {
-    _avuz_export_empty_if_unset ROUNDCUBE_SSO_SECRET ROUNDCUBE_CREDENTIAL_KEY
+    _avuz_export_empty_if_unset ROUNDCUBE_SSO_SECRET ROUNDCUBE_CREDENTIAL_KEY \
+        WEBMAIL_AVUZ_URL WEBMAIL_AVUZ_SSO_SECRET
     # retire the pre-rename app entry (no-op once cleared)
     _avuz_occ app:disable roundcube 2>/dev/null || true
     _avuz_occ app:enable conectamail 2>/dev/null || true
     _avuz_occ config:app:set conectamail roundcube_url --value="$ROUNDCUBE_URL"
     avuz_set_sensitive_app_config conectamail sso_secret ROUNDCUBE_SSO_SECRET
     avuz_set_sensitive_app_config conectamail credential_key ROUNDCUBE_CREDENTIAL_KEY
+
+    # New webmail (webmail-avuz) SSO: separate URL + HMAC secret, inert when
+    # unset. Reuses credential_key above to encrypt enc_pass. Card 532.
+    _avuz_occ config:app:set conectamail webmail_avuz_url --value="$WEBMAIL_AVUZ_URL"
+    avuz_set_sensitive_app_config conectamail webmail_avuz_sso_secret WEBMAIL_AVUZ_SSO_SECRET
 }
 
 # Stored as JSON in spreed:recording_servers (see Config::getRecordingServers()).
