@@ -90,6 +90,9 @@ services:
       - OBJECTSTORE_S3_VERIFY_BUCKET_EXISTS=false
       # Admin TOTP 2FA enforcement; 0 = skip (see docs/runbooks/admin-2fa-recovery.md)
       - AVUZ_ENFORCE_ADMIN_2FA=1
+      # Impersonate; 0 = disable. GROUPS = who may impersonate (empty = admin)
+      - AVUZ_IMPERSONATE_ENABLED=1
+      - AVUZ_IMPERSONATE_GROUPS=admin
     depends_on:
       db:
         condition: service_healthy

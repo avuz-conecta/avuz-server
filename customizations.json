@@ -476,6 +476,24 @@
       "description": "429 page (core/templates/429.php): 'Muitas tentativas' / 'Aguarde alguns minutos e tente de novo.' / 'Voltar para o login', same card. Rendered by RateLimitingMiddleware (guest) and TooManyRequestsResponse (brute-force max delay: login, lost password, public share auth), which now renders as guest instead of a bare unstyled fragment; status stays 429. Both pass pageTitle 'Too many attempts' so the guest layout titles the tab 'Muitas tentativas – <theme name>'. Guest notice card (title, one sentence, next step) for the invalid/expired password-reset link: resetform() renders lostpassword/invalid-link instead of the generic error page (invalid, expired, unknown token, user without email). 'Pedir novo link' goes to login?direct=1#lostpassword (or the custom lost_password_link), which avuz_theme's login-lost-password.js turns into the 'Esqueceu a senha?' view; 'Voltar para o login' goes to the login page. lost_password_link=disabled still shows the generic error page. Status stays 200 + throttle.",
       "risk": "low",
       "notes": "core/css/guest-notice.css is plain CSS (no .scss), loaded by the template via Util::addStyle. pt_BR strings live in core/l10n/pt_BR.json (PHP reads core l10n from core/l10n + themes/avuz/core/l10n, not themes/avuz/apps/core); 'Back to login' is changed to 'Voltar para o login' there and in pt_BR.js. Upgrades overwrite these l10n files: re-add the strings. login-lost-password.js depends on the login Vue app's #lost-password button id."
+    },
+    {
+      "id": "impersonate-app",
+      "type": "docker",
+      "paths": [
+        "apps/impersonate",
+        "docker/lib-impersonate.sh",
+        "docker/tests/impersonate.test.sh",
+        "docker/entrypoint.sh",
+        "Dockerfile",
+        ".gitignore",
+        "portainer-stack.yml",
+        "portainer-stack-s3.yml",
+        "docker-compose.yml"
+      ],
+      "description": "Deck #504: upstream impersonate app (an admin logs in as a user to debug), vendored unmodified at apps/impersonate from impersonate-v4.0.0.tar.gz (nextcloud-releases/impersonate, sha256 8008ad02e36c44fd446ed3bb55ac866cbfb6225128150b289ab3de8141036ea8; nextcloud min/max-version 33). Every boot, avuz_impersonate_sync writes app config 'authorized' from AVUZ_IMPERSONATE_GROUPS (comma-separated, default admin) and enables the app once per instance. AVUZ_IMPERSONATE_ENABLED=0 disables it per stack.",
+      "risk": "low",
+      "notes": "Not in ENABLE_APPS: lib-impersonate.sh owns enable/disable so the env toggle works both ways. Admin-disabled app (installed_version set, enabled=no, no env-off marker) is never re-enabled; marker data/.avuz_impersonate_env_off records an env-driven disable. Never writes [] (the app treats an empty list as 'no group restriction'). Dockerfile ARG AVUZ_IMPERSONATE_VERSION fails the build on a missing or different version. Upgrade: server 34 needs impersonate v5.0.0 (min/max 34) — re-vendor the release tarball, verify its sha256, bump the ARG. Not stamp-gated, so no AVUZ_CONFIG_VERSION bump."
     }
   ]
 }
