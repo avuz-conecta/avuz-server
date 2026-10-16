@@ -36,15 +36,16 @@ body {
 /* Avuz: dark theme (enforce_theme=dark). The light shell above is hardcoded, so
    the page around the app card and the header icons stayed light. Follow the core
    dark variables instead. :not([data-theme-light]) keeps the light theme untouched
-   if a stale per-user theme choice adds the dark attribute under enforced light. */
-body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) {
+   if a stale per-user theme choice adds the dark attribute under enforced light.
+   :not(#body-login) leaves guest pages (login) light, see login.css. */
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) {
     background: var(--color-background-dark) !important;
 }
 
 /* Theming derives the "on background" vars from the admin background colour,
    which is bright, so under dark they still say black text + invert. The header
    ("Mais aplicativos" trigger) and the dashboard greeting sit on the dark page. */
-body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) :is(#header, #app-dashboard) {
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) :is(#header, #app-dashboard) {
     --color-background-plain-text: var(--color-main-text);
     --background-image-invert-if-bright: no;
 }
@@ -52,15 +53,15 @@ body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light
 /* Avuz app icons (themes/avuz) are black strokes in an <img>, unlike core's
    white ones, and icons.css drops core's filter. Invert them on dark, in the
    header and in the "Mais aplicativos" popover. */
-body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .app-menu-icon__icon[src*="/themes/avuz/"],
-body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) .app-menu__overflow-entry .action-link__icon[style*="/themes/avuz/"] {
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .app-menu-icon__icon[src*="/themes/avuz/"],
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) .app-menu__overflow-entry .action-link__icon[style*="/themes/avuz/"] {
     filter: var(--background-invert-if-dark) !important;
 }
 
-body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .app-menu .app-menu-entry__link:not(.app-menu-entry__link--active),
-body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .header-end .actions > div > a,
-body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .header-end .actions > div > .menutoggle,
-body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .header-end .actions > div > button {
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .app-menu .app-menu-entry__link:not(.app-menu-entry__link--active),
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .header-end .actions > div > a,
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .header-end .actions > div > .menutoggle,
+body:not(#body-login):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .header-end .actions > div > button {
     color: var(--color-main-text) !important;
 }
 
