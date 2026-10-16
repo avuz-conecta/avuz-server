@@ -431,6 +431,7 @@ class LoginController extends Controller {
 		$loginResult = $this->userManager->checkPassword($loginName, $password);
 		if ($loginResult === false) {
 			$response = new DataResponse([], Http::STATUS_FORBIDDEN);
+			$response->addHeader('X-Nextcloud-Password-Confirmation', 'true');
 			$response->throttle(['loginName' => $loginName]);
 			return $response;
 		}
