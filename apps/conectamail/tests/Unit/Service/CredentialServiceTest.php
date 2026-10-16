@@ -1,6 +1,7 @@
 <?php
 namespace OCA\Roundcube\Tests\Unit\Service;
 use OCA\Roundcube\Service\CredentialService;
+use OCA\Roundcube\Service\MailboxAddress;
 use OCP\IAppConfig;
 use OCP\IConfig;
 use OCP\IUser;
@@ -46,7 +47,7 @@ class CredentialServiceTest extends TestCase {
         $userManager = $this->createMock(IUserManager::class);
         $userManager->method('get')->willReturn($user);
 
-        return new CredentialService($config, $appConfig, $userManager);
+        return new CredentialService($config, $appConfig, new MailboxAddress($config, $userManager));
     }
 
     private static function decrypt(string $blob): string {
@@ -75,7 +76,7 @@ class CredentialServiceTest extends TestCase {
             fn (string $app, string $key, string $default = '') => $key === 'credential_key' ? self::CREDENTIAL_KEY : $default
         );
 
-        (new CredentialService($config, $appConfig, $this->createMock(IUserManager::class)))
+        (new CredentialService($config, $appConfig, new MailboxAddress($config, $this->createMock(IUserManager::class))))
             ->storeCredentials('ana', 's3cret-pass');
 
         $this->assertSame('s3cret-pass', self::decrypt((string) $stored));

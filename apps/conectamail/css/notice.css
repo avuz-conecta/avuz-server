@@ -1,0 +1,124 @@
+.conectamail-notice {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 100%;
+    padding: calc(var(--default-grid-baseline) * 4);
+    overflow-y: auto;
+    font-family: var(--font-face);
+}
+
+.conectamail-notice__card {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 400px;
+    margin-inline: auto;
+    padding: calc(var(--default-grid-baseline) * 8) calc(var(--default-grid-baseline) * 6);
+    background-color: var(--color-main-background);
+    color: var(--color-main-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-container);
+    box-shadow: 0 1px 2px var(--color-box-shadow);
+    text-align: center;
+}
+
+.conectamail-notice__mark {
+    display: block;
+    width: 200px;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto calc(var(--default-grid-baseline) * 4);
+}
+
+.conectamail-notice__mark--dark,
+[data-themes*="dark"] .conectamail-notice__mark--light {
+    display: none;
+}
+
+[data-themes*="dark"] .conectamail-notice__mark--dark {
+    display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+    [data-theme-default]:not([data-themes*="light"]) .conectamail-notice__mark--light {
+        display: none;
+    }
+
+    [data-theme-default]:not([data-themes*="light"]) .conectamail-notice__mark--dark {
+        display: block;
+    }
+}
+
+.conectamail-notice__heading {
+    margin: 0 0 calc(var(--default-grid-baseline) * 2);
+    font-family: "Questrial", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !important;
+    font-size: 22px;
+    font-weight: 400;
+    line-height: 30px;
+    color: var(--color-main-text);
+}
+
+.conectamail-notice__nowrap {
+    white-space: nowrap;
+}
+
+.conectamail-notice__text {
+    margin: 0;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    font-size: 15px;
+    line-height: 22px;
+    color: var(--color-text-maxcontrast);
+}
+
+.conectamail-notice__button {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    margin-top: calc(var(--default-grid-baseline) * 6);
+    padding: 0 calc(var(--default-grid-baseline) * 4);
+    border: 1px solid transparent;
+    border-radius: var(--border-radius-element);
+    background-color: var(--color-primary-element);
+    color: var(--color-primary-element-text);
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.conectamail-notice__button:hover {
+    background-color: var(--color-primary-element-hover);
+}
+
+.conectamail-notice__button:focus-visible {
+    outline: 2px solid var(--color-main-text);
+    outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+    .conectamail-notice__button {
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 480px) {
+    .conectamail-notice {
+        align-items: flex-start;
+        padding: calc(var(--default-grid-baseline) * 4);
+    }
+
+    .conectamail-notice__card {
+        padding: calc(var(--default-grid-baseline) * 6) calc(var(--default-grid-baseline) * 4);
+    }
+
+    .conectamail-notice__button {
+        width: 100%;
+    }
+}

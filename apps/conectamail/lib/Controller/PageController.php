@@ -2,17 +2,25 @@
 
 namespace OCA\Roundcube\Controller;
 
+use OCA\Roundcube\Http\WebmailPage;
 use OCA\Roundcube\Service\CredentialService;
+use OCA\Roundcube\Service\MailBackend;
+use OCA\Roundcube\Service\MailboxAddress;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 
 class PageController extends Controller
 {
     public function __construct(
         IRequest $request,
         private CredentialService $credentialService,
+        private MailboxAddress $mailboxAddress,
+        private IURLGenerator $urlGenerator,
+        private MailBackend $mailBackend,
+        private WebmailPage $webmailPage,
         private ?string $userId,
     ) {
         parent::__construct('conectamail', $request);
@@ -24,6 +32,16 @@ class PageController extends Controller
      */
     public function index(): TemplateResponse
     {
+        if ($this->mailBackend->effective() === MailBackend::WEBMAIL) {
+            return $this->webmailPage->render((string) $this->userId);
+        }
+
+        if (!$this->mailboxAddress->exists((string) $this->userId)) {
+            return new TemplateResponse('conectamail', 'no-mailbox', [
+                'dashboard_url' => $this->urlGenerator->linkToRoute('dashboard.dashboard.index'),
+            ]);
+        }
+
         $iframeUrl = $this->credentialService->buildIframeUrl($this->userId);
         $roundcubeOrigin = $this->credentialService->getRoundcubeOrigin();
 

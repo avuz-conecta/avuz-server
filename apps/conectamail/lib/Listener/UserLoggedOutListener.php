@@ -27,6 +27,6 @@ class UserLoggedOutListener implements IEventListener
             return;
         }
 
-        $this->credentialService->clearCredentials($user->getUID());
+        $this->credentialService->clearLoginPassword($user->getUID());
     }
 }

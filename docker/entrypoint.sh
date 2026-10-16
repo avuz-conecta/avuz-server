@@ -489,8 +489,8 @@ apply_avuz_settings() {
     fi
     php occ app:enable previewgenerator 2>/dev/null || true
 
-    # Conecta Mail (Roundcube integration) — app id is `conectamail` since 1.1.0
-    if [ -n "$ROUNDCUBE_URL" ]; then
+    # Conecta Mail (Roundcube + webmail-avuz integration) — app id `conectamail`
+    if [ -n "$ROUNDCUBE_URL" ] || [ -n "$WEBMAIL_AVUZ_URL" ]; then
         echo "Configuring Conecta Mail integration..."
         avuz_configure_conectamail
 
