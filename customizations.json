@@ -65,7 +65,7 @@
       ],
       "description": "CSS: centered card login, dashboard card styling, header gradient/logo centering, icon colors, settings text overflow fix, dark shell (body bg + header icons follow enforce_theme=dark)",
       "risk": "low",
-      "notes": "CSS selectors target upstream DOM classes. If Nextcloud changes class names or HTML structure in v33, these may silently break without merge conflicts. Dark shell in header.css keys on body[data-theme-dark] and core vars --color-background-dark, --color-main-text, --color-background-plain-text."
+      "notes": "CSS selectors target upstream DOM classes. If Nextcloud changes class names or HTML structure in v33, these may silently break without merge conflicts. Dark shell in header.css keys on body[data-theme-dark] and core vars --color-background-dark, --color-main-text, --color-background-plain-text. Dashboard panels and app containers in theme.css use --color-main-background (white in light, dark surface in dark)."
     },
     {
       "id": "avuz-theme-js",
