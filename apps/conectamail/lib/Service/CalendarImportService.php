@@ -5,6 +5,7 @@ namespace OCA\Roundcube\Service;
 use OCP\Calendar\ICalendarIsWritable;
 use OCP\Calendar\IManager;
 use OCP\IUserManager;
+use Sabre\VObject\ParseException;
 use Sabre\VObject\Reader;
 
 class ImportException extends \RuntimeException {}
@@ -90,7 +91,7 @@ class CalendarImportService {
     private function incomingSequence(string $ics): int {
         try {
             $vcal = Reader::read($ics);
-        } catch (\Throwable $e) {
+        } catch (ParseException $e) {
             return 0;
         }
         return isset($vcal->VEVENT->SEQUENCE) ? (int) (string) $vcal->VEVENT->SEQUENCE : 0;
