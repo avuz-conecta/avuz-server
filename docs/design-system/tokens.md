@@ -36,9 +36,11 @@ Rule: blue and olive never both appear as text colors. One is the fill or accent
 | `success` | `#15803d` | `#4ade80` | Success text |
 | `success-tint` | `#dcfce7` | `#12352a` | Success tag |
 | `on-accent` | `#1a2b3c` | `#0f1e2e` | Text on `accent` |
-| `disabled-bg` / `disabled-text` | `#d9d9d9` / `#5a6a7a` | `#2c4157` / `#9fb0c2` | Disabled controls |
+| `disabled-bg` / `disabled-text` | `#d9d9d9` / `#4e5d6c` | `#2c4157` / `#9fb0c2` | Disabled controls |
 | `focus` / `focus-edge` | `#2bb5e3` / `#00679e` | `#2bb5e3` / `#2bb5e3` | Focus ring colors |
 | `focus-ring` | 2px `focus-edge` + 2px `focus` | same | Box shadow on `:focus-visible` |
+
+Light `disabled-text` is `#4e5d6c` (4.79:1 on `disabled-bg`, approved Oct 15 so disabled labels stay readable). `#5a6a7a` stays as `text-muted` only.
 
 In dark mode the primary button flips: brand fill `#2bb5e3` with dark label `#0f1e2e` (7.08:1).
 
@@ -123,7 +125,7 @@ def ratio(a, b):
 | `on-accent` `#1a2b3c` | `accent-hover` `#bccf00` | 8.29 | Pass |
 | `text` `#1a2b3c` | `border` `#d9d9d9` (neutral tag) | 10.23 | Pass |
 | `focus-edge` `#00679e` (non-text) | `#ffffff` | 6.12 | Pass (3:1) |
-| `disabled-text` `#5a6a7a` | `disabled-bg` `#d9d9d9` | 3.94 | Exempt (disabled) |
+| `disabled-text` `#4e5d6c` | `disabled-bg` `#d9d9d9` | 4.79 | Pass |
 
 ### Dark
 
