@@ -133,6 +133,11 @@ services:
       # Empty = booking e-mails use the default sender and SMTP. (app3 only)
       - AVUZ_BOOKING_SMTP_USER=
       - AVUZ_BOOKING_SMTP_PASSWORD=
+      # Impersonate — admins can log in as a user to debug. Enabled once per
+      # instance; an admin-disabled app stays off. 0 = disable on this stack.
+      # GROUPS = comma-separated groups allowed to impersonate (empty = admin).
+      - AVUZ_IMPERSONATE_ENABLED=1
+      - AVUZ_IMPERSONATE_GROUPS=admin
 
 volumes:
   nextcloud_data:

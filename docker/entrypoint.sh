@@ -19,6 +19,7 @@ source /var/www/html/docker/lib-apps.sh
 source /var/www/html/docker/lib-integrations.sh
 source /var/www/html/docker/lib-health.sh
 source /var/www/html/docker/lib-assinaturas.sh
+source /var/www/html/docker/lib-impersonate.sh
 
 # Boot marker in the health log. Whatever diagnostic block sits directly above it
 # is the reason this container went down — autoheal restarts leave no other trace.
@@ -975,6 +976,14 @@ avuz_sync_booking_smtp_password
 # enforcement (non-admin users unaffected). See docker/lib-apps.sh and
 # docs/runbooks/admin-2fa-recovery.md.
 avuz_enforce_admin_2fa
+
+# Impersonate (Deck #504): enabled once per instance, limited to the groups in
+# AVUZ_IMPERSONATE_GROUPS (default admin) on every boot. AVUZ_IMPERSONATE_ENABLED=0
+# turns it off per stack; an admin-disabled app stays off. See docker/lib-impersonate.sh.
+avuz_impersonate_sync
+if [ "$AVUZ_IMPERSONATE_CHANGED" -eq 1 ]; then
+    DID_CONFIG_RUN=1   # app enable/upgrade ran occ as root: re-chown appdata_*
+fi
 
 # ──────────────────────────────────────────────
 # PHASE 4: Apps (fresh install only)
