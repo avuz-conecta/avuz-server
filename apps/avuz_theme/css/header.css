@@ -33,6 +33,25 @@ body {
     font-family: 'Questrial', sans-serif !important;
 }
 
+/* Avuz: dark theme (enforce_theme=dark). The light shell above is hardcoded, so
+   the page around the app card and the header icons stayed light. Follow the core
+   dark variables instead. :not([data-theme-light]) keeps the light theme untouched
+   if a stale per-user theme choice adds the dark attribute under enforced light. */
+body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) {
+    background: var(--color-background-dark) !important;
+}
+
+body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header {
+    --color-background-plain-text: var(--color-main-text);
+}
+
+body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .app-menu .app-menu-entry__link:not(.app-menu-entry__link--active),
+body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .header-end .actions > div > a,
+body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .header-end .actions > div > .menutoggle,
+body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .header-end .actions > div > button {
+    color: var(--color-main-text) !important;
+}
+
 /* Remove the home (house) logo icon and its home link. Keep #nextcloud as an
    invisible spacer so center-header.js still centers the app menu. */
 #header #nextcloud .logo {
