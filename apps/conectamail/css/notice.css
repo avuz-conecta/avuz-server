@@ -40,11 +40,11 @@
 }
 
 @media (prefers-color-scheme: dark) {
-    [data-theme-default] .conectamail-notice__mark--light {
+    [data-theme-default]:not([data-themes*="light"]) .conectamail-notice__mark--light {
         display: none;
     }
 
-    [data-theme-default] .conectamail-notice__mark--dark {
+    [data-theme-default]:not([data-themes*="light"]) .conectamail-notice__mark--dark {
         display: block;
     }
 }
