@@ -41,8 +41,20 @@ body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light
     background: var(--color-background-dark) !important;
 }
 
-body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header {
+/* Theming derives the "on background" vars from the admin background colour,
+   which is bright, so under dark they still say black text + invert. The header
+   ("Mais aplicativos" trigger) and the dashboard greeting sit on the dark page. */
+body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) :is(#header, #app-dashboard) {
     --color-background-plain-text: var(--color-main-text);
+    --background-image-invert-if-bright: no;
+}
+
+/* Avuz app icons (themes/avuz) are black strokes in an <img>, unlike core's
+   white ones, and icons.css drops core's filter. Invert them on dark, in the
+   header and in the "Mais aplicativos" popover. */
+body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .app-menu-icon__icon[src*="/themes/avuz/"],
+body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) .app-menu__overflow-entry .action-link__icon[style*="/themes/avuz/"] {
+    filter: var(--background-invert-if-dark) !important;
 }
 
 body:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) #header .app-menu .app-menu-entry__link:not(.app-menu-entry__link--active),
