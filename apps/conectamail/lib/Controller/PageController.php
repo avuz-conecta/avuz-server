@@ -8,6 +8,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 
 class PageController extends Controller
 {
@@ -15,6 +16,7 @@ class PageController extends Controller
         IRequest $request,
         private CredentialService $credentialService,
         private MailboxAddress $mailboxAddress,
+        private IURLGenerator $urlGenerator,
         private ?string $userId,
     ) {
         parent::__construct('conectamail', $request);
@@ -27,7 +29,9 @@ class PageController extends Controller
     public function index(): TemplateResponse
     {
         if (!$this->mailboxAddress->exists((string) $this->userId)) {
-            return new TemplateResponse('conectamail', 'no-mailbox');
+            return new TemplateResponse('conectamail', 'no-mailbox', [
+                'dashboard_url' => $this->urlGenerator->linkToRoute('dashboard.dashboard.index'),
+            ]);
         }
 
         $iframeUrl = $this->credentialService->buildIframeUrl($this->userId);

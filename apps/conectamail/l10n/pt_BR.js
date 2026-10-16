@@ -22,6 +22,7 @@ OC.L10N.register(
         "Wrong confirmation password. Try again.": "Senha de confirmação incorreta. Tente de novo.",
         "You do not have an e-mail inbox yet": "Você ainda não tem uma caixa de e-mail",
         "Ask your company administrator to create your e-mail.": "Peça ao administrador da sua empresa para criar seu e-mail.",
+        "Back to dashboard": "Voltar ao painel",
         "E-mail is not available right now.": "O e-mail não está disponível no momento."
     },
 "nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;");

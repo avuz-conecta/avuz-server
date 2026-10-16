@@ -10,6 +10,7 @@ use OCP\AppFramework\Http\RedirectResponse;
 use OCP\AppFramework\Http\Response;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 
 /**
  * Standalone (own-tab) handover to the new webmail. Logged-in only
@@ -23,6 +24,7 @@ class SsoController extends Controller
         IRequest $request,
         private WebmailTokenService $webmail,
         private MailboxAddress $mailboxAddress,
+        private IURLGenerator $urlGenerator,
         private ?string $userId,
     ) {
         parent::__construct('conectamail', $request);
@@ -40,7 +42,9 @@ class SsoController extends Controller
         }
 
         if (!$this->mailboxAddress->exists((string) $this->userId)) {
-            return new TemplateResponse('conectamail', 'no-mailbox');
+            return new TemplateResponse('conectamail', 'no-mailbox', [
+                'dashboard_url' => $this->urlGenerator->linkToRoute('dashboard.dashboard.index'),
+            ]);
         }
 
         $returnQuery = $this->returnQuery($return);
