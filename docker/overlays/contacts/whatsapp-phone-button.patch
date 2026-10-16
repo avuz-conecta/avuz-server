@@ -1,0 +1,280 @@
+diff --git a/src/components/Properties/PropertyText.vue b/src/components/Properties/PropertyText.vue
+index c3f935c..9157bfe 100644
+--- a/src/components/Properties/PropertyText.vue
++++ b/src/components/Properties/PropertyText.vue
+@@ -94,8 +94,22 @@
+ 
+ 				<NcActions
+ 					v-if="isReadOnly"
+-					:inline="2"
++					:inline="3"
+ 					variant="tertiary-no-background">
++					<!-- AVUZ-266: WhatsApp, first and always visible -->
++					<NcActionLink
++						v-if="whatsAppUrl"
++						class="property__whatsapp"
++						data-avuz-patch="AVUZ-WHATSAPP-PHONE-V1"
++						:href="whatsAppUrl"
++						target="_blank"
++						:aria-label="t('contacts', 'Chat on WhatsApp')"
++						:title="t('contacts', 'Chat on WhatsApp')">
++						<template #icon>
++							<WhatsappIcon :size="20" />
++						</template>
++					</NcActionLink>
++
+ 					<!-- copy button -->
+ 					<NcActionButton
+ 						class="property__ext"
+@@ -139,10 +153,12 @@ import debounce from 'debounce'
+ import isEmail from 'validator/lib/isEmail.js'
+ import CopyIcon from 'vue-material-design-icons/ContentCopy.vue'
+ import OpenInNewIcon from 'vue-material-design-icons/OpenInNew.vue'
++import WhatsappIcon from 'vue-material-design-icons/Whatsapp.vue'
+ import PropertyActions from './PropertyActions.vue'
+ import PropertyTitle from './PropertyTitle.vue'
+ import PropertyMixin from '../../mixins/PropertyMixin.js'
+ import { copyValueToClipboard } from '../../utils/clipboardUtils.js'
++import { isWhatsAppPhoneType, toWhatsAppUrl } from '../../utils/whatsapp.js'
+ 
+ export default {
+ 	name: 'PropertyText',
+@@ -158,6 +174,7 @@ export default {
+ 		NcActions,
+ 		NcActionButton,
+ 		NcActionLink,
++		WhatsappIcon,
+ 	},
+ 
+ 	mixins: [PropertyMixin],
+@@ -220,6 +237,13 @@ export default {
+ 			return ''
+ 		},
+ 
++		whatsAppUrl() {
++			if (this.propName !== 'tel' || !isWhatsAppPhoneType(this.localType)) {
++				return null
++			}
++			return toWhatsAppUrl(this.localValue)
++		},
++
+ 		haveExtHandler() {
+ 			return this.externalHandler.trim() !== '' && this.localValue && this.localValue.length > 0
+ 		},
+@@ -305,6 +329,39 @@ export default {
+ 	}
+ }
+ 
++/* AVUZ-266: WhatsApp button, Designer spec (reports/266-spec/SPEC.md §2-3) */
++.property__row {
++	// NcActions renders the inline link as NcButton's <a class="button-vue">;
++	// .button-vue doubles specificity over its tertiary-no-background states
++	:deep(.property__whatsapp.button-vue) {
++		flex-shrink: 0;
++		opacity: .7;
++		border-radius: var(--border-radius-element, 50%);
++		cursor: pointer;
++
++		&:hover:not(:disabled),
++		&:focus-visible,
++		&:active {
++			opacity: 1;
++		}
++
++		&:hover:not(:disabled) {
++			background-color: var(--color-background-hover);
++		}
++
++		&:active {
++			background-color: var(--color-background-dark);
++		}
++	}
++
++	@media (pointer: coarse), (max-width: 1024px) {
++		:deep(.action-item--single) {
++			min-width: 44px;
++			min-height: 44px;
++		}
++	}
++}
++
+ :deep(.textarea__main-wrapper) {
+ 	height: unset;
+ 
+diff --git a/src/utils/whatsapp.js b/src/utils/whatsapp.js
+new file mode 100644
+index 0000000..019c1e0
+--- /dev/null
++++ b/src/utils/whatsapp.js
+@@ -0,0 +1,74 @@
++/**
++ * SPDX-FileCopyrightText: 2026 Avuz Conecta
++ * SPDX-License-Identifier: AGPL-3.0-or-later
++ */
++
++// AVUZ-266: WhatsApp button next to phone numbers
++const BRAZIL_COUNTRY_CODE = '55'
++const BRAZIL_NATIONAL_LENGTHS = [10, 11]
++const INTERNATIONAL_PREFIX = '00'
++const TRUNK_PREFIX = '0'
++const MIN_DIGITS = 8
++const EXTENSION_SEPARATOR = /[;,]|\s*(?:x|ext\.?|ramal)\s*\d/i
++const WHATSAPP_PHONE_TYPES = ['CELL', 'HOME', 'WORK', 'VOICE', 'OTHER', 'TEXT']
++const CUSTOM_LABEL_SUFFIX = 'X-ABLABEL'
++
++/**
++ * Digits wa.me expects: country code + number, nothing else.
++ * "+" or "00" means the country code is already there. Otherwise a number
++ * with 10 or 11 digits (after a trunk "0") is Brazilian and gets 55.
++ *
++ * @param {string} phone the TEL value as typed
++ * @return {string|null} null when fewer than 8 digits are left
++ */
++export function normalizeWhatsAppNumber(phone) {
++	const number = String(phone ?? '').trim().replace(/^tel:/i, '').split(EXTENSION_SEPARATOR)[0].trim()
++	const digits = number.replace(/\D/g, '')
++	if (digits.length < MIN_DIGITS) {
++		return null
++	}
++	if (number.startsWith('+')) {
++		return digits
++	}
++	if (digits.startsWith(INTERNATIONAL_PREFIX)) {
++		return digits.slice(INTERNATIONAL_PREFIX.length)
++	}
++	const national = digits.startsWith(TRUNK_PREFIX) ? digits.slice(TRUNK_PREFIX.length) : digits
++	if (BRAZIL_NATIONAL_LENGTHS.includes(national.length)) {
++		return `${BRAZIL_COUNTRY_CODE}${national}`
++	}
++	return digits
++}
++
++/**
++ * @param {string} phone the TEL value as typed
++ * @return {string|null} null when the number can't be on WhatsApp
++ */
++export function toWhatsAppUrl(phone) {
++	const number = normalizeWhatsAppNumber(phone)
++	if (number === null) {
++		return null
++	}
++	return `https://wa.me/${number}`
++}
++
++/**
++ * Fax, pager, car and other non-chat lines get no button. Untyped numbers
++ * and custom labels do.
++ *
++ * @param {{id: string}|null|undefined} phoneType the TEL type option ({ id: 'WORK,VOICE', name })
++ * @return {boolean}
++ */
++export function isWhatsAppPhoneType(phoneType) {
++	if (!phoneType) {
++		return true
++	}
++	const id = String(phoneType.id ?? '').toUpperCase()
++	if (id.endsWith(CUSTOM_LABEL_SUFFIX)) {
++		return true
++	}
++	return id.split(',')
++		.map((type) => type.trim())
++		.filter((type) => type && type !== 'PREF')
++		.every((type) => WHATSAPP_PHONE_TYPES.includes(type))
++}
+diff --git a/tests/javascript/utils/whatsapp.test.js b/tests/javascript/utils/whatsapp.test.js
+new file mode 100644
+index 0000000..b118c30
+--- /dev/null
++++ b/tests/javascript/utils/whatsapp.test.js
+@@ -0,0 +1,91 @@
++/**
++ * SPDX-FileCopyrightText: 2026 Avuz Conecta
++ * SPDX-License-Identifier: AGPL-3.0-or-later
++ */
++
++import { isWhatsAppPhoneType, normalizeWhatsAppNumber, toWhatsAppUrl } from '../../../src/utils/whatsapp.js'
++
++describe('utils/whatsapp', () => {
++	describe('normalizeWhatsAppNumber', () => {
++		describe('with a country code', () => {
++			it.each([
++				['+55 (11) 98765-4321', '5511987654321'],
++				['+1 415 555 0100', '14155550100'],
++				['+351 912 345 678', '351912345678'],
++				['00351 912 345 678', '351912345678'],
++				['tel:+55-11-98765-4321', '5511987654321'],
++			])('turns %p into %p', (phone, expected) => {
++				expect(normalizeWhatsAppNumber(phone)).toBe(expected)
++			})
++		})
++
++		describe('without a country code', () => {
++			it.each([
++				['(11) 98765-4321', '5511987654321'],
++				['11 3456-7890', '551134567890'],
++				['(54) 92367-5120', '5554923675120'],
++				['054 92367-5120', '5554923675120'],
++				['011 3456-7890', '551134567890'],
++				['5511987654321', '5511987654321'],
++			])('turns %p into %p', (phone, expected) => {
++				expect(normalizeWhatsAppNumber(phone)).toBe(expected)
++			})
++		})
++
++		describe('with an extension', () => {
++			it.each([
++				['(11) 3456-7890 ramal 12', '551134567890'],
++				['(11) 3456-7890 x12', '551134567890'],
++				['(11) 3456-7890 ext. 12', '551134567890'],
++				['+55 11 3456-7890;ext=12', '551134567890'],
++			])('drops the extension of %p', (phone, expected) => {
++				expect(normalizeWhatsAppNumber(phone)).toBe(expected)
++			})
++		})
++
++		it.each(['abc', '', '190', '1234567', 'ramal 12345678', null, undefined])('returns null for %p', (phone) => {
++			expect(normalizeWhatsAppNumber(phone)).toBeNull()
++		})
++	})
++
++	describe('toWhatsAppUrl', () => {
++		it('builds a wa.me link from the normalized number', () => {
++			expect(toWhatsAppUrl('(11) 98765-4321')).toBe('https://wa.me/5511987654321')
++		})
++
++		it('returns null when the number is too short', () => {
++			expect(toWhatsAppUrl('190')).toBeNull()
++		})
++	})
++
++	describe('isWhatsAppPhoneType', () => {
++		it.each([
++			null,
++			undefined,
++			{ id: '' },
++			{ id: 'CELL' },
++			{ id: 'HOME,VOICE' },
++			{ id: 'WORK,CELL' },
++			{ id: 'VOICE' },
++			{ id: 'pref,cell' },
++			{ id: 'OTHER' },
++			{ id: 'TEXT' },
++			{ id: 'ITEM1.X-ABLABEL' },
++		])('allows %p', (phoneType) => {
++			expect(isWhatsAppPhoneType(phoneType)).toBe(true)
++		})
++
++		it.each([
++			{ id: 'FAX' },
++			{ id: 'HOME,FAX' },
++			{ id: 'WORK,FAX' },
++			{ id: 'PAGER' },
++			{ id: 'WORK,PAGER' },
++			{ id: 'CAR' },
++			{ id: 'MODEM' },
++			{ id: 'TEXTPHONE' },
++		])('rejects %p', (phoneType) => {
++			expect(isWhatsAppPhoneType(phoneType)).toBe(false)
++		})
++	})
++})

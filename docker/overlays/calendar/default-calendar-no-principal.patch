@@ -1,0 +1,238 @@
+diff --git a/src/components/AppNavigation/Settings.vue b/src/components/AppNavigation/Settings.vue
+index 14c6f8c..d0e66a3 100644
+--- a/src/components/AppNavigation/Settings.vue
++++ b/src/components/AppNavigation/Settings.vue
+@@ -336,7 +336,7 @@ export default {
+ 		 * @return {object|undefined} The default calendar or undefined if none is available
+ 		 */
+ 		defaultCalendar() {
+-			const defaultCalendarUrl = this.currentUserPrincipal.scheduleDefaultCalendarUrl
++			const defaultCalendarUrl = this.currentUserPrincipal?.scheduleDefaultCalendarUrl
+ 			const calendar = this.defaultCalendarOptions
+ 				.find((calendar) => calendar.url === defaultCalendarUrl)
+ 
+diff --git a/tests/javascript/unit/components/AppNavigation/Settings.test.js b/tests/javascript/unit/components/AppNavigation/Settings.test.js
+new file mode 100644
+index 0000000..5a8918f
+--- /dev/null
++++ b/tests/javascript/unit/components/AppNavigation/Settings.test.js
+@@ -0,0 +1,93 @@
++/**
++ * SPDX-FileCopyrightText: 2026 Avuz Conecta
++ * SPDX-License-Identifier: AGPL-3.0-or-later
++ */
++
++import { createPinia, PiniaVuePlugin, setActivePinia } from 'pinia'
++import Vue from 'vue'
++import Settings from '../../../../../src/components/AppNavigation/Settings.vue'
++import { getDefaultCalendarObject } from '../../../../../src/models/calendar.js'
++import { getDefaultPrincipalObject } from '../../../../../src/models/principal.js'
++import useCalendarsStore from '../../../../../src/store/calendars.js'
++import usePrincipalsStore from '../../../../../src/store/principals.js'
++
++const PERSONAL_CALENDAR = getDefaultCalendarObject({
++	id: 'personal',
++	displayName: 'Pessoal',
++	url: '/remote.php/dav/calendars/bri/personal/',
++})
++const WORK_CALENDAR = getDefaultCalendarObject({
++	id: 'work',
++	displayName: 'Trabalho',
++	url: '/remote.php/dav/calendars/bri/work/',
++})
++
++Vue.use(PiniaVuePlugin)
++Vue.prototype.$t = (_app, text) => text
++Vue.prototype.t = (_app, text) => text
++globalThis.t = (_app, text) => text
++
++async function mountSettings({ principal }) {
++	const pinia = createPinia()
++	setActivePinia(pinia)
++	useCalendarsStore().calendars = [PERSONAL_CALENDAR, WORK_CALENDAR]
++	if (principal) {
++		const principalsStore = usePrincipalsStore()
++		principalsStore.addPrincipalMutation({ principal })
++		principalsStore.currentUserPrincipal = principal.id
++	}
++
++	const renderErrors = []
++	Vue.config.errorHandler = (error) => renderErrors.push(error)
++	const SettingsConstructor = Vue.extend(Settings)
++	const settings = new SettingsConstructor({ pinia }).$mount()
++	await Vue.nextTick()
++	Vue.config.errorHandler = undefined
++
++	return { settings, renderErrors }
++}
++
++describe('components/AppNavigation/Settings', () => {
++	describe('default calendar for incoming invitations', () => {
++		describe('before the current-user principal is loaded', () => {
++			it('renders without errors', async () => {
++				const { renderErrors } = await mountSettings({ principal: undefined })
++
++				expect(renderErrors).toEqual([])
++			})
++
++			it('falls back to the first writable calendar', async () => {
++				const { settings } = await mountSettings({ principal: undefined })
++
++				expect(settings.defaultCalendar).toBe(PERSONAL_CALENDAR)
++			})
++		})
++
++		describe('with a current-user principal', () => {
++			it('picks the calendar set as schedule default', async () => {
++				const principal = getDefaultPrincipalObject({
++					id: 'bri',
++					url: '/remote.php/dav/principals/users/bri/',
++					scheduleDefaultCalendarUrl: WORK_CALENDAR.url,
++				})
++
++				const { settings, renderErrors } = await mountSettings({ principal })
++
++				expect(renderErrors).toEqual([])
++				expect(settings.defaultCalendar).toBe(WORK_CALENDAR)
++			})
++
++			it('falls back to the first writable calendar when the schedule default is gone', async () => {
++				const principal = getDefaultPrincipalObject({
++					id: 'bri',
++					url: '/remote.php/dav/principals/users/bri/',
++					scheduleDefaultCalendarUrl: '/remote.php/dav/calendars/bri/deleted/',
++				})
++
++				const { settings } = await mountSettings({ principal })
++
++				expect(settings.defaultCalendar).toBe(PERSONAL_CALENDAR)
++			})
++		})
++	})
++})
+diff --git a/tests/javascript/unit/models/event.test.js b/tests/javascript/unit/models/event.test.js
+index 2fe7f60..96b9d96 100644
+--- a/tests/javascript/unit/models/event.test.js
++++ b/tests/javascript/unit/models/event.test.js
+@@ -62,6 +62,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDefaultRecurrenceRuleObject).toHaveBeenCalledTimes(1)
+@@ -104,6 +105,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 			otherProp: 'foo',
+ 		})
+ 
+@@ -154,6 +156,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDateFromDateTimeValue).toHaveBeenCalledTimes(2)
+@@ -221,7 +224,8 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			alarms: [],
+ 			customColor: null,
+ 			categories: [],
+-			attachments: []
++			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDateFromDateTimeValue).toHaveBeenCalledTimes(2)
+@@ -289,6 +293,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		const alarms = eventComponent.getAlarmList()
+@@ -343,6 +348,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: ['BUSINESS', 'HUMAN RESOURCES'],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDateFromDateTimeValue).toHaveBeenCalledTimes(2)
+@@ -399,6 +405,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: '#eeffee',
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDateFromDateTimeValue).toHaveBeenCalledTimes(2)
+@@ -458,6 +465,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDateFromDateTimeValue).toHaveBeenCalledTimes(2)
+@@ -514,6 +522,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDateFromDateTimeValue).toHaveBeenCalledTimes(2)
+@@ -567,6 +576,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDateFromDateTimeValue).toHaveBeenCalledTimes(2)
+@@ -620,6 +630,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDateFromDateTimeValue).toHaveBeenCalledTimes(2)
+@@ -677,6 +688,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDateFromDateTimeValue).toHaveBeenCalledTimes(2)
+@@ -733,6 +745,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDateFromDateTimeValue).toHaveBeenCalledTimes(2)
+@@ -787,6 +800,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDateFromDateTimeValue).toHaveBeenCalledTimes(2)
+@@ -844,6 +858,7 @@ describe('Test suite: Event model (models/event.js)', () => {
+ 			customColor: null,
+ 			categories: [],
+ 			attachments: [],
++			createdBy: null,
+ 		})
+ 
+ 		expect(getDateFromDateTimeValue).toHaveBeenCalledTimes(2)

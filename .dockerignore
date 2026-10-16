@@ -52,3 +52,6 @@ Thumbs.db
 # Config (will be mounted as volume)
 config/
 data/
+
+# Local upstream-app build workspaces (docker/overlays/*/README.md)
+.avuz-build/

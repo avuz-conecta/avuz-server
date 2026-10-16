@@ -33,7 +33,7 @@
       ],
       "description": "Roundcube webmail integration app. Embeds avuz-conecta/roundcube-webmail via iframe. Stores encrypted credentials on NC login and generates HMAC-signed SSO tokens passed via ?nc_token=.",
       "risk": "low",
-      "notes": "Requires ROUNDCUBE_SSO_SECRET and ROUNDCUBE_CREDENTIAL_KEY env vars on both NC and Roundcube containers. roundcube_url must be set via occ config:app:set roundcube roundcube_url --value='https://...'."
+      "notes": "Requires ROUNDCUBE_SSO_SECRET and ROUNDCUBE_CREDENTIAL_KEY env vars on both NC and Roundcube containers. roundcube_url must be set via occ config:app:set roundcube roundcube_url --value='https://...'. Mail menu backend: CONECTAMAIL_BACKEND env → conectamail mail_backend (roundcube default | webmail = new webmail iframe via SSO, needs WEBMAIL_AVUZ_URL + WEBMAIL_AVUZ_SSO_SECRET; else Roundcube)."
     },
     {
       "id": "avuz-theme-app",
@@ -63,9 +63,9 @@
         "apps/avuz_theme/css/icons.css",
         "apps/avuz_theme/css/settings.css"
       ],
-      "description": "CSS: centered card login, dashboard card styling, header gradient/logo centering, icon colors, settings text overflow fix, users-page row action menu 44px entries on phones (body:has(table.user-list) .action-item__popper, Deck #504), Impersonate settings select2 border via --color-border-maxcontrast (#impersonate, Deck #504)",
+      "description": "CSS: centered card login, dashboard card styling, header gradient/logo centering, icon colors, settings text overflow fix, dark shell (body bg + header icons follow enforce_theme=dark), users-page row action menu 44px entries on phones (body:has(table.user-list) .action-item__popper, Deck #504), Impersonate settings select2 border via --color-border-maxcontrast (#impersonate, Deck #504)",
       "risk": "low",
-      "notes": "CSS selectors target upstream DOM classes. If Nextcloud changes class names or HTML structure in v33, these may silently break without merge conflicts."
+      "notes": "CSS selectors target upstream DOM classes. If Nextcloud changes class names or HTML structure in v33, these may silently break without merge conflicts. Dark shell in header.css keys on body[data-theme-dark] and core vars --color-background-dark, --color-main-text, --color-background-plain-text. Under dark, header.css resets --color-background-plain-text and --background-image-invert-if-bright on #header and #app-dashboard (theming derives them from the bright admin background), so the greeting and 'Mais aplicativos' trigger are light; every app menu icon (themes/avuz and app-shipped black currentColor SVGs, active entry included) gets --background-invert-if-dark in the header and its overflow popover. Dashboard panels and app containers in theme.css use --color-main-background (white in light, dark surface in dark). The header.css dark rules skip guest pages (body:not(#body-login)); login.css pins core light tokens on body#body-login under dark so the login (password eye, help button) stays light."
     },
     {
       "id": "avuz-theme-js",
@@ -414,11 +414,35 @@
         "docker/overlays/calendar/popover-event-color.patch",
         "docker/entrypoint.sh",
         "Dockerfile",
-        "docker/overlays/calendar/event-created-by.patch"
+        "docker/overlays/calendar/event-created-by.patch",
+        "docker/overlays/calendar/default-calendar-no-principal.patch"
       ],
-      "description": "Rebuilt calendar 6.2.1 bundle (6 changed js files ship). (1) Event color picker in the new-event popover (EditSimple), reusing PropertyColor from the full editor ('Mais detalhes'). (2) 'Criado por <nome>' in the popover and full editor when the event carries the server's X-AVUZ-CREATED-BY stamp (see dav-created-by-stamp).",
+      "description": "Rebuilt calendar 6.2.1 bundle (6 changed js files ship). (1) Event color picker in the new-event popover (EditSimple), reusing PropertyColor from the full editor ('Mais detalhes'). (2) 'Criado por <nome>' in the popover and full editor when the event carries the server's X-AVUZ-CREATED-BY stamp (see dav-created-by-stamp). (3) Settings no longer throws 'reading scheduleDefaultCalendarUrl' when it renders before the current-user principal has loaded.",
       "risk": "medium",
-      "notes": "Dockerfile fails the build unless apps/calendar is 6.2.1 (AVUZ_CALENDAR_OVERLAY_VERSION). Sentinels 'AVUZ-POPOVER-COLOR-V1' and 'AVUZ-CREATED-BY-V1' in js/calendar-main.js; calendar is in AVUZ_OWNED_APPS; reapply_avuz_calendar_overlay after core upgrades. Rebuild on every calendar upgrade: docker/overlays/calendar/README.md (apply popover-event-color.patch, then event-created-by.patch)."
+      "notes": "Dockerfile fails the build unless apps/calendar is 6.2.1 (AVUZ_CALENDAR_OVERLAY_VERSION). Sentinels 'AVUZ-POPOVER-COLOR-V1' and 'AVUZ-CREATED-BY-V1' in js/calendar-main.js; calendar is in AVUZ_OWNED_APPS; reapply_avuz_calendar_overlay after core upgrades. Rebuild on every calendar upgrade: docker/overlays/calendar/README.md (apply popover-event-color.patch, then event-created-by.patch, then default-calendar-no-principal.patch). The third patch also updates event.test.js for the createdBy field from the second, so npm run test:unit passes."
+    },
+    {
+      "id": "contacts-whatsapp-phone-button",
+      "type": "overlay",
+      "paths": [
+        "docker/overlays/contacts/js/contacts-main.mjs",
+        "docker/overlays/contacts/js/contacts-oca.mjs",
+        "docker/overlays/contacts/js/style-XRJXNnxt.chunk.mjs",
+        "docker/overlays/contacts/js/style-XRJXNnxt.chunk.mjs.license",
+        "docker/overlays/contacts/js/FilePicker-C1yRZfLt-CoPsEFld.chunk.mjs",
+        "docker/overlays/contacts/js/FilePicker-C1yRZfLt-CoPsEFld.chunk.mjs.license",
+        "docker/overlays/contacts/css/contacts-main.css",
+        "docker/overlays/contacts/css/contacts-oca.css",
+        "docker/overlays/contacts/css/style-DztFUzi0.chunk.css",
+        "docker/overlays/contacts/whatsapp-phone-button.patch",
+        "docker/overlays/contacts/shift-build-date.cjs",
+        "themes/avuz/apps/contacts/l10n/pt_BR.json",
+        "docker/entrypoint.sh",
+        "Dockerfile"
+      ],
+      "description": "Card 266: rebuilt contacts 8.4.1 bundle. In view mode, a WhatsApp icon button (first inline action, opens https://wa.me/<digits> in a new tab) next to each phone number. Number rule: drop tel:/extension; + or 00 = has country code; 10/11 digits (after trunk 0) get 55; <8 digits, Fax/Pager/Car types and edit mode = no button. Label t('Chat on WhatsApp') = pt_BR 'Conversar no WhatsApp' via theme l10n. Designer spec: reports/266-spec/SPEC.md.",
+      "risk": "medium",
+      "notes": "Dockerfile fails the build unless apps/contacts is 8.4.1 (AVUZ_CONTACTS_OVERLAY_VERSION); copies js/ AND css/ (contacts builds CSS to files). Sentinel 'AVUZ-WHATSAPP-PHONE-V1' in the content-hashed js/style-XRJXNnxt.chunk.mjs plus a wiring check in js/contacts-main.mjs; contacts is in AVUZ_OWNED_APPS; reapply_avuz_contacts_overlay after core upgrades. Rebuild needs the build clock pinned to the tag date (shift-build-date.cjs): docker/overlays/contacts/README.md."
     },
     {
       "id": "password-confirmation-field",

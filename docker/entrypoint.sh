@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-22"
+AVUZ_CONFIG_VERSION="33.0.0-24"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 AVUZ_KNOWN_APPS="/var/www/html/data/.avuz_known_apps"
@@ -86,6 +86,7 @@ ENABLE_APPS=(
 AVUZ_OWNED_APPS=(
     "spreed"
     "calendar"
+    "contacts"
     "deck"
     "files_downloadlimit"
     "integration_openai"
@@ -141,6 +142,8 @@ verify_avuz_patches() {
         "AVUZ-AUDIO-EXTRACT-V1|integration_openai|lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
         "AVUZ-POPOVER-COLOR-V1|calendar|js/calendar-main.js|calendar overlay missing — event color picker in the new-event popover lost; redeploy or rerun reapply_avuz_calendar_overlay"
         "AVUZ-CREATED-BY-V1|calendar|js/calendar-main.js|calendar overlay missing — \"Criado por\" in shared-calendar events lost; redeploy or rerun reapply_avuz_calendar_overlay"
+        "AVUZ-WHATSAPP-PHONE-V1|contacts|js/style-XRJXNnxt.chunk.mjs|contacts overlay missing — WhatsApp button next to phone numbers lost; redeploy or rerun reapply_avuz_contacts_overlay"
+        "style-XRJXNnxt.chunk.mjs|contacts|js/contacts-main.mjs|contacts overlay missing — contacts-main.mjs does not load the patched chunk (WhatsApp button lost); redeploy or rerun reapply_avuz_contacts_overlay"
         "AVUZ-DECK-CLONE-ORDER-V1|deck|lib/Service/BoardService.php|deck fork missing — board-copy column/card shift fix lost; check the apps/deck submodule shipped and no store copy in custom_apps outranks it"
         "AVUZ-BOARD-TAGS-V1|deck|lib/Controller/BoardTagController.php|deck fork missing — board tags and overview filters lost; check the apps/deck submodule shipped at 1.17.1 and no store copy in custom_apps outranks it"
     )
@@ -200,6 +203,21 @@ reapply_avuz_calendar_overlay() {
         cp -R "$overlay/js/." /var/www/html/apps/calendar/js/
         chown -R www-data:www-data /var/www/html/apps/calendar
         echo "✓ Avuz calendar overlay reapplied"
+    else
+        echo "✗ Avuz overlay missing at $overlay — image may be corrupted"
+    fi
+}
+
+# Reapply the contacts overlay onto /var/www/html/apps/contacts/. The overlay
+# is a rebuilt 8.4.1 bundle (WhatsApp button next to phone numbers, card 266);
+# an upgrade that re-extracts contacts wipes it.
+reapply_avuz_contacts_overlay() {
+    local overlay="/var/www/html/docker/overlays/contacts"
+    if [ -d "$overlay" ]; then
+        cp -R "$overlay/js/." /var/www/html/apps/contacts/js/
+        cp -R "$overlay/css/." /var/www/html/apps/contacts/css/
+        chown -R www-data:www-data /var/www/html/apps/contacts
+        echo "✓ Avuz contacts overlay reapplied"
     else
         echo "✗ Avuz overlay missing at $overlay — image may be corrupted"
     fi
@@ -472,8 +490,8 @@ apply_avuz_settings() {
     fi
     php occ app:enable previewgenerator 2>/dev/null || true
 
-    # Conecta Mail (Roundcube integration) — app id is `conectamail` since 1.1.0
-    if [ -n "$ROUNDCUBE_URL" ]; then
+    # Conecta Mail (Roundcube + webmail-avuz integration) — app id `conectamail`
+    if [ -n "$ROUNDCUBE_URL" ] || [ -n "$WEBMAIL_AVUZ_URL" ]; then
         echo "Configuring Conecta Mail integration..."
         avuz_configure_conectamail
 
@@ -835,6 +853,7 @@ else
         # so a store sync attempted at this point would be a guaranteed no-op.
         reapply_avuz_spreed_overlay
         reapply_avuz_calendar_overlay
+        reapply_avuz_contacts_overlay
         reapply_avuz_files_downloadlimit_overlay
         # deck is a submodule now (apps/deck, branch avuz) — its patches are real
         # commits, not an overlay, so there is nothing to reapply after an upgrade.

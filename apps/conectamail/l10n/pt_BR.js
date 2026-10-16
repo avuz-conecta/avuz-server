@@ -1,0 +1,28 @@
+OC.L10N.register(
+    "conectamail",
+    {
+        "ConectaMail": "ConectaMail",
+        "Mailbox password": "Senha do e-mail",
+        "Save your ConectaMail mailbox password so Avuz Conecta opens your e-mail without asking for it. It is stored encrypted and never shown again.": "Salve a senha da sua caixa do ConectaMail para o Avuz Conecta abrir seu e-mail sem pedir a senha. Ela fica guardada criptografada e nunca é exibida.",
+        "Mailbox password saved": "Senha do e-mail salva",
+        "No password saved": "Nenhuma senha salva",
+        "Updated on {date}": "Atualizada em {date}",
+        "New mailbox password": "Nova senha do e-mail",
+        "Save": "Salvar",
+        "Remove": "Remover",
+        "Cancel": "Cancelar",
+        "Remove the saved mailbox password? Avuz Conecta will try your login password to open your e-mail.": "Remover a senha do e-mail salva? O Avuz Conecta vai tentar sua senha de login para abrir seu e-mail.",
+        "Confirm mailbox password removal": "Confirmar remoção da senha do e-mail",
+        "Enter the password.": "Digite a senha.",
+        "The password must have at most {max} characters.": "A senha deve ter no máximo {max} caracteres.",
+        "Password saved.": "Senha salva.",
+        "Password removed.": "Senha removida.",
+        "Could not save the password. Try again.": "Não foi possível salvar a senha. Tente novamente.",
+        "Could not remove the password. Try again.": "Não foi possível remover a senha. Tente novamente.",
+        "Wrong confirmation password. Try again.": "Senha de confirmação incorreta. Tente de novo.",
+        "You do not have an e-mail inbox yet": "Você ainda não tem uma caixa de e-mail",
+        "Ask your company administrator to create your e-mail.": "Peça ao administrador da sua empresa para criar seu e-mail.",
+        "Back to dashboard": "Voltar ao painel",
+        "E-mail is not available right now.": "O e-mail não está disponível no momento."
+    },
+"nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;");

@@ -64,6 +64,10 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 - `apps/dav/lib/CalDAV/CreatedBy/CreatedByPlugin.php` stamps `X-AVUZ-CREATED-BY;CN=<name>:<uid>` when someone other than the calendar owner creates an event (share/delegation) over CalDAV. Set on create, carried over on update (clients can't drop or forge it); owner-created events untouched.
 - The calendar overlay (`docker/overlays/calendar/event-created-by.patch`, sentinel `AVUZ-CREATED-BY-V1`) shows "Criado por <nome>" in the popover and full editor. Older events have no stamp.
 
+### Contacts WhatsApp button (card 266)
+- Contacts 8.4.1 overlay (`docker/overlays/contacts/`, sentinel `AVUZ-WHATSAPP-PHONE-V1`): in view mode a WhatsApp button next to each phone number opens `wa.me/<digits>` (bare 10/11 digits get `55`; none for <8 digits, Fax/Pager/Car, or edit mode). Ships `js/` and `css/`; the Dockerfile fails on any other contacts version. pt_BR label in `themes/avuz/apps/contacts/l10n/pt_BR.json`.
+- Rebuild needs the build clock pinned to the release date (`shift-build-date.cjs`), or the bundle won't match upstream. See `docker/overlays/contacts/README.md`.
+
 ## Important Configs
 
 ### Nginx (`docker/nginx.conf`)
@@ -114,6 +118,11 @@ proxy (same mechanism as `portainer-exec.sh`). This changes the
 immutable cache) fetch fresh l10n/JS overrides shipped without a version bump.
 Non-fatal — a failed/timed-out bump warns and the deploy still succeeds. Skip
 with `--no-cachebust` or `SKIP_CACHEBUST=1`.
+
+Bump the conectamail version in `apps/conectamail/appinfo/info.xml` on every
+change to conectamail so the asset `?v=` cache-busts (assets cached 6 months at
+Cloudflare/browsers). The next boot sees `needsDbUpgrade: true` and runs the
+entrypoint's `occ upgrade` branch on its own.
 
 On macOS the build scripts auto-launch Docker Desktop if it's down (`scripts/lib-docker.sh`)
 and, at the end, prompt `Stop it now? [y/N]` whenever Docker is running (default: keep).
