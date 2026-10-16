@@ -414,11 +414,12 @@
         "docker/overlays/calendar/popover-event-color.patch",
         "docker/entrypoint.sh",
         "Dockerfile",
-        "docker/overlays/calendar/event-created-by.patch"
+        "docker/overlays/calendar/event-created-by.patch",
+        "docker/overlays/calendar/default-calendar-no-principal.patch"
       ],
-      "description": "Rebuilt calendar 6.2.1 bundle (6 changed js files ship). (1) Event color picker in the new-event popover (EditSimple), reusing PropertyColor from the full editor ('Mais detalhes'). (2) 'Criado por <nome>' in the popover and full editor when the event carries the server's X-AVUZ-CREATED-BY stamp (see dav-created-by-stamp).",
+      "description": "Rebuilt calendar 6.2.1 bundle (6 changed js files ship). (1) Event color picker in the new-event popover (EditSimple), reusing PropertyColor from the full editor ('Mais detalhes'). (2) 'Criado por <nome>' in the popover and full editor when the event carries the server's X-AVUZ-CREATED-BY stamp (see dav-created-by-stamp). (3) Settings no longer throws 'reading scheduleDefaultCalendarUrl' when it renders before the current-user principal has loaded.",
       "risk": "medium",
-      "notes": "Dockerfile fails the build unless apps/calendar is 6.2.1 (AVUZ_CALENDAR_OVERLAY_VERSION). Sentinels 'AVUZ-POPOVER-COLOR-V1' and 'AVUZ-CREATED-BY-V1' in js/calendar-main.js; calendar is in AVUZ_OWNED_APPS; reapply_avuz_calendar_overlay after core upgrades. Rebuild on every calendar upgrade: docker/overlays/calendar/README.md (apply popover-event-color.patch, then event-created-by.patch)."
+      "notes": "Dockerfile fails the build unless apps/calendar is 6.2.1 (AVUZ_CALENDAR_OVERLAY_VERSION). Sentinels 'AVUZ-POPOVER-COLOR-V1' and 'AVUZ-CREATED-BY-V1' in js/calendar-main.js; calendar is in AVUZ_OWNED_APPS; reapply_avuz_calendar_overlay after core upgrades. Rebuild on every calendar upgrade: docker/overlays/calendar/README.md (apply popover-event-color.patch, then event-created-by.patch, then default-calendar-no-principal.patch). The third patch also updates event.test.js for the createdBy field from the second, so npm run test:unit passes."
     },
     {
       "id": "password-confirmation-field",
