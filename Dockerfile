@@ -39,6 +39,16 @@ RUN grep -q "<version>${AVUZ_CALENDAR_OVERLAY_VERSION}</version>" /var/www/html/
     || { echo "calendar is not ${AVUZ_CALENDAR_OVERLAY_VERSION} — rebuild docker/overlays/calendar (see its README)"; exit 1; } \
     && cp -R /var/www/html/docker/overlays/calendar/js/. /var/www/html/apps/calendar/js/
 
+# Apply Avuz contacts overlay (WhatsApp button next to every phone number, card
+# 266). Same rule as calendar: a rebuilt bundle of one exact contacts version,
+# so the build fails on any other version. Contacts builds CSS to files, so css/
+# ships too. Rebuild recipe: docker/overlays/contacts/README.md.
+ARG AVUZ_CONTACTS_OVERLAY_VERSION=8.4.1
+RUN grep -q "<version>${AVUZ_CONTACTS_OVERLAY_VERSION}</version>" /var/www/html/apps/contacts/appinfo/info.xml \
+    || { echo "contacts is not ${AVUZ_CONTACTS_OVERLAY_VERSION} — rebuild docker/overlays/contacts (see its README)"; exit 1; } \
+    && cp -R /var/www/html/docker/overlays/contacts/js/. /var/www/html/apps/contacts/js/ \
+    && cp -R /var/www/html/docker/overlays/contacts/css/. /var/www/html/apps/contacts/css/
+
 # Apply Avuz files_downloadlimit overlay (restores templates/admin.php that
 # upstream 2.0.0 tarball drops — GH issue nextcloud/files_downloadlimit#421).
 # Without it the Sharing admin page returns 500 with TemplateNotFoundException.
