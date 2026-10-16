@@ -997,6 +997,12 @@ if [ "$NC_INSTALLED" -eq 0 ]; then
     done
 fi
 
+# Lucide icon library for External sites (Deck #417). Every boot, after Phase 4
+# so a fresh install already has the app enabled. Adds only icons the instance
+# has never had; admin uploads and deletions stick. Opt out per stack with
+# AVUZ_SEED_EXTERNAL_ICONS=0. See docker/lib-apps.sh.
+avuz_seed_external_icons
+
 # notify_push binary permissions
 chmod +x /var/www/html/apps/notify_push/bin/x86_64/notify_push 2>/dev/null || true
 chmod +x /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push 2>/dev/null || true

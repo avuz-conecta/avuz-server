@@ -404,3 +404,9 @@ path = ["openapi.json", ".envrc", "flake.nix", "flake.lock", "build/eslint-basel
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2025 Nextcloud GmbH and Nextcloud contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
+path = ["apps/avuz_theme/img/external-icons/**.svg", "apps/avuz_theme/js/lucide.js"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2022 Lucide Contributors, 2013-2022 Cole Bemis (Feather)"
+SPDX-License-Identifier = "ISC"
