@@ -17,6 +17,8 @@ use OCP\IRequest;
 class AppointmentEmbed {
 	public const ROUTE = 'calendar.appointment.show';
 	public const CONFIG_KEY = 'embed_allowed_origins';
+	public const EMBED_PARAM = 'embed';
+	public const EMBED_PARAM_VALUE = '1';
 
 	private const ORIGIN_SEPARATOR = ',';
 	private const DEFAULT_HTTPS_PORT_SUFFIX = ':443';
@@ -40,6 +42,16 @@ class AppointmentEmbed {
 			return [];
 		}
 		return self::parseOrigins($this->appConfig->getValueString(Application::APP_ID, self::CONFIG_KEY));
+	}
+
+	/**
+	 * Whether the booking page was opened as a widget (?embed=1) with embedding
+	 * configured. Only loads the embed styles: js/appointment-embed.js turns
+	 * embed mode on after checking the parent origin against the allowlist.
+	 */
+	public function isEmbedRequested(): bool {
+		return $this->request->getParam(self::EMBED_PARAM) === self::EMBED_PARAM_VALUE
+			&& $this->allowedOrigins() !== [];
 	}
 
 	/**

@@ -12,10 +12,12 @@ use PHPUnit\Framework\TestCase;
 class AppointmentEmbedTest extends TestCase {
 	private const SITE_ORIGINS = 'https://www.avuzconecta.com.br,https://avuzconecta.com.br';
 
-	private function embedOn(?string $route, string $configuredOrigins): AppointmentEmbed {
+	/** @param array<string, string> $query */
+	private function embedOn(?string $route, string $configuredOrigins, array $query = []): AppointmentEmbed {
+		$params = ['_route' => $route] + $query;
 		$request = $this->createStub(IRequest::class);
 		$request->method('getParam')->willReturnCallback(
-			static fn (string $key, mixed $default = null): mixed => $key === '_route' ? $route : $default,
+			static fn (string $key, mixed $default = null): mixed => $params[$key] ?? $default,
 		);
 		$appConfig = $this->createStub(IAppConfig::class);
 		$appConfig->method('getValueString')->willReturnCallback(
@@ -85,5 +87,25 @@ class AppointmentEmbedTest extends TestCase {
 			['https://avuzconecta.com.br'],
 			AppointmentEmbed::parseOrigins('http://www.avuzconecta.com.br,https://avuzconecta.com.br,https://evil.example/path'),
 		);
+	}
+
+	public function testIsEmbedRequestedOnTheBookingPageWithEmbed1(): void {
+		$this->assertTrue($this->embedOn('calendar.appointment.show', self::SITE_ORIGINS, ['embed' => '1'])->isEmbedRequested());
+	}
+
+	public function testIsEmbedRequestedIsFalseWithoutEmbed1(): void {
+		foreach ([[], ['embed' => '0'], ['embed' => 'true'], ['embed' => '']] as $query) {
+			$this->assertFalse($this->embedOn('calendar.appointment.show', self::SITE_ORIGINS, $query)->isEmbedRequested(), json_encode($query));
+		}
+	}
+
+	public function testIsEmbedRequestedIsFalseOnEveryOtherRoute(): void {
+		foreach (['calendar.appointment.confirm', 'files.view.index', 'core.login.showLoginForm', null] as $route) {
+			$this->assertFalse($this->embedOn($route, self::SITE_ORIGINS, ['embed' => '1'])->isEmbedRequested(), "route $route");
+		}
+	}
+
+	public function testIsEmbedRequestedIsFalseWhenNothingIsConfigured(): void {
+		$this->assertFalse($this->embedOn('calendar.appointment.show', '', ['embed' => '1'])->isEmbedRequested());
 	}
 }

@@ -6,6 +6,7 @@ namespace OCA\AvuzTheme\AppInfo;
 
 use OCA\AvuzTheme\Listener\AppointmentEmbedCspListener;
 use OCA\AvuzTheme\Listener\AppointmentEmbedStateListener;
+use OCA\AvuzTheme\Listener\AppointmentEmbedStyleListener;
 use OCA\AvuzTheme\Listener\BeforeTemplateRenderedListener;
 use OCA\AvuzTheme\Listener\LoginFlowTemplateRenderedListener;
 use OCA\AvuzTheme\Listener\UserCreatedListener;
@@ -52,6 +53,11 @@ class Application extends App implements IBootstrap {
 		$context->registerEventListener(
 			BeforeTemplateRenderedEvent::class,
 			AppointmentEmbedStateListener::class
+		);
+		// Render the booking page as a clean widget when embedded with ?embed=1
+		$context->registerEventListener(
+			BeforeTemplateRenderedEvent::class,
+			AppointmentEmbedStyleListener::class
 		);
 	}
 

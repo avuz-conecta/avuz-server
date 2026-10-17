@@ -1,0 +1,18 @@
+/**
+ * Booking page opened with ?embed=1 (loaded only then, see
+ * AppointmentEmbedStyleListener): keep the page invisible until
+ * js/appointment-embed.js has checked the embedding site, so the regular page
+ * chrome never flashes inside the frame. The script adds avuz-embed-checked to
+ * <html> whether the check passes or not; should it never run, the page shows
+ * itself after a few seconds anyway.
+ */
+html:not(.avuz-embed-checked) body {
+    visibility: hidden;
+    animation: avuz-embed-reveal 0s 3s forwards;
+}
+
+@keyframes avuz-embed-reveal {
+    to {
+        visibility: visible;
+    }
+}
