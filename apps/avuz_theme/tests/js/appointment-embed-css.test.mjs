@@ -49,6 +49,10 @@ describe('appointment-embed.css', () => {
 	it('never sizes anything from the viewport height', () => {
 		assert.doesNotMatch(declarationsOf(STYLESHEET), VIEWPORT_HEIGHT_UNIT);
 	});
+
+	it('shows the time zone picker over the mobile hide in theme.css', () => {
+		assert.match(ruleBody(STYLESHEET, `${EMBED_SCOPE} .booking__time-zone .v-select`), /display:\s*block !important;/);
+	});
 });
 
 describe('appointment-embed-prehide.css', () => {

@@ -354,6 +354,12 @@ html.avuz-embed .booking__time-zone {
     margin-top: 16px !important;
 }
 
+/* css/theme.css hides the picker below 600px on the regular page; the widget
+   shows it at every width */
+html.avuz-embed .booking__time-zone .v-select {
+    display: block !important;
+}
+
 html.avuz-embed .booking__time-zone .v-select.select {
     width: 100% !important;
     min-width: 0 !important;
