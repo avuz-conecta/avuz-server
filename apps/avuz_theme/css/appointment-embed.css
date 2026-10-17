@@ -316,8 +316,13 @@ html.avuz-embed .booking .mx-datepicker td.cell {
     transition: background-color 0.15s, box-shadow 0.15s;
 }
 
+/* Days of the previous/next month: visible so no calendar row renders blank,
+   but muted and inert, never read as bookable */
 html.avuz-embed .booking .mx-datepicker td.cell.not-current-month {
-    visibility: hidden;
+    color: var(--avuz-embed-muted) !important;
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
 }
 
 /* Bookable days: subtle cyan tint */
@@ -357,6 +362,8 @@ html.avuz-embed .booking__time-zone .v-select.select {
 }
 
 html.avuz-embed .booking__time-zone .vs__dropdown-toggle {
+    display: flex !important;
+    align-items: center !important;
     min-height: var(--avuz-embed-control-height) !important;
     padding: 0 8px !important;
     border: 1px solid var(--avuz-embed-line) !important;
@@ -376,9 +383,22 @@ html.avuz-embed .booking__time-zone .v-select:focus-within .vs__dropdown-toggle 
     box-shadow: var(--avuz-embed-focus-ring) !important;
 }
 
-html.avuz-embed .booking__time-zone .vs__selected,
-html.avuz-embed .booking__time-zone .vs__search {
+/* Selected zone and search text centered in the 48px box */
+html.avuz-embed .booking__time-zone .v-select.select .vs__selected-options {
+    align-self: stretch;
+    align-items: center !important;
+    align-content: center !important;
+    min-height: 0 !important;
+    padding: 0 6px !important;
+}
+
+html.avuz-embed .booking__time-zone .v-select.select .vs__selected,
+html.avuz-embed .booking__time-zone .v-select.select .vs__search {
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
     font-size: 16px !important;
+    line-height: 1.4 !important;
     color: var(--avuz-embed-text) !important;
 }
 
@@ -423,14 +443,16 @@ html.avuz-embed .booking__slots .empty-content {
     text-align: start;
 }
 
+/* "No slots available": the calendar passes it as the description only */
 html.avuz-embed .booking__slots .empty-content__name,
 html.avuz-embed .booking__slots .empty-content__description {
     margin: 0 !important;
     font-size: 15px !important;
+    text-align: start !important;
     color: var(--avuz-embed-muted) !important;
 }
 
-html.avuz-embed .booking__slots .empty-content__description {
+html.avuz-embed .booking__slots .empty-content__name + .empty-content__description {
     display: none;
 }
 
