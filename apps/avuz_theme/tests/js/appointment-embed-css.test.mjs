@@ -50,6 +50,24 @@ describe('appointment-embed.css', () => {
 		assert.doesNotMatch(declarationsOf(STYLESHEET), VIEWPORT_HEIGHT_UNIT);
 	});
 
+	describe('day grid', () => {
+		it('lets the month box grow with its rows instead of the picker\'s fixed 224px', () => {
+			assert.match(ruleBody(STYLESHEET, `${EMBED_SCOPE} .booking .mx-calendar-content`), /height:\s*auto !important;/);
+		});
+
+		it('separates the rows with a gap and never shrinks a row below its tiles', () => {
+			const rows = ruleBody(STYLESHEET, `${EMBED_SCOPE} .booking .mx-table.mx-table-date tr`);
+
+			assert.match(rows, /flex:\s*none !important;/);
+			assert.match(rows, /gap:\s*var\(--avuz-embed-tile-gap\);/);
+			assert.match(STYLESHEET, /--avuz-embed-tile-gap:\s*[1-9]\d*px;/);
+		});
+
+		it('gives weekday headers and days the same equal columns', () => {
+			assert.match(STYLESHEET, /html\.avuz-embed \.booking \.mx-table\.mx-table-date th,\s*html\.avuz-embed \.booking \.mx-table\.mx-table-date td\s*\{\s*flex:\s*1 1 0 !important;/);
+		});
+	});
+
 	it('shows the time zone picker over the mobile hide in theme.css', () => {
 		assert.match(ruleBody(STYLESHEET, `${EMBED_SCOPE} .booking__time-zone .v-select`), /display:\s*block !important;/);
 	});

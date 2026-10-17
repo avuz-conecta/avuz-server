@@ -35,6 +35,7 @@ html.avuz-embed {
     --avuz-embed-focus-ring: 0 0 0 3px rgba(43, 181, 227, 0.25);
     --avuz-embed-radius: 14px;
     --avuz-embed-tile-radius: 11px;
+    --avuz-embed-tile-gap: 6px;
     --avuz-embed-pill-radius: 999px;
     --avuz-embed-control-height: 48px;
     --avuz-embed-padding: 16px;
@@ -293,15 +294,42 @@ html.avuz-embed .booking .mx-calendar-header .mx-btn:hover {
     color: var(--avuz-embed-cyan-dark);
 }
 
-html.avuz-embed .booking .mx-table {
-    width: 100%;
-    border-collapse: separate !important;
-    border-spacing: 4px !important;
-    table-layout: fixed;
+/* The picker lays the month out with flexbox, not table layout: rows are
+   32px flex lines inside a fixed 224px box, so border-spacing does nothing and
+   a 40px tile overflows its row into the next one. Here the box grows with its
+   rows, every row is as tall as its tiles with a real gap between rows, and the
+   weekday header shares the day columns. */
+html.avuz-embed .booking .mx-calendar-content {
+    height: auto !important;
+}
+
+html.avuz-embed .booking .mx-table.mx-table-date,
+html.avuz-embed .booking .mx-table.mx-table-date thead,
+html.avuz-embed .booking .mx-table.mx-table-date tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: var(--avuz-embed-tile-gap);
+    width: 100% !important;
+    height: auto !important;
+}
+
+html.avuz-embed .booking .mx-table.mx-table-date tr {
+    display: flex !important;
+    flex: none !important;
+    gap: var(--avuz-embed-tile-gap);
+    min-height: 0 !important;
+}
+
+html.avuz-embed .booking .mx-table.mx-table-date th,
+html.avuz-embed .booking .mx-table.mx-table-date td {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
 }
 
 html.avuz-embed .booking .mx-table-date th {
-    height: 28px;
+    height: 28px !important;
     font-size: 13px !important;
     color: var(--avuz-embed-muted);
 }
