@@ -8,6 +8,8 @@
  * {type, start, end, timeZone} to the embedding page, only when that page's
  * origin is in the allowlist (initial state from AppointmentEmbedStateListener)
  * and only to that exact origin. Never visitor data (name, email, description).
+ * To the same origin it also posts {type: 'avuz:resize', height} on load and
+ * whenever the content height changes, so the site can size the iframe.
  *
  * A booked appointment stays pending until the visitor confirms it by email.
  */
@@ -19,6 +21,7 @@
 	var BOOK_ACTION = 'book';
 	var ORIGINS_STATE_ID = 'initial-state-avuz_theme-embedAllowedOrigins';
 	var MESSAGE_TYPE = 'avuz:appointment-booked';
+	var RESIZE_MESSAGE_TYPE = 'avuz:resize';
 	var CSRF_HEADER = 'OCS-APIRequest';
 	var CSRF_HEADER_VALUE = 'true';
 	var HTTP_OK = 200;
@@ -32,6 +35,8 @@
 	var allowedOrigins = null;
 	var matchedBookingRequest = false;
 	var xhrBookingActions = new WeakMap();
+	var lastSentHeight = null;
+	var heightFramePending = false;
 
 	function readAllowedOrigins() {
 		var stateElement = document.getElementById(ORIGINS_STATE_ID);
@@ -94,18 +99,66 @@
 		}
 	}
 
-	function notifyEmbedder(message) {
-		if (!message || window.parent === window) {
-			return;
+	function allowedEmbedderOrigin() {
+		if (window.parent === window) {
+			return null;
 		}
 		if (allowedOrigins === null) {
 			allowedOrigins = readAllowedOrigins();
 		}
 		var origin = embedderOrigin();
-		if (!origin || allowedOrigins.indexOf(origin) === -1) {
+		return origin && allowedOrigins.indexOf(origin) !== -1 ? origin : null;
+	}
+
+	function notifyEmbedder(message) {
+		if (!message) {
+			return;
+		}
+		var origin = allowedEmbedderOrigin();
+		if (!origin) {
 			return;
 		}
 		window.parent.postMessage(message, origin);
+	}
+
+	function contentHeight() {
+		var root = document.documentElement || document.body;
+		return root ? Math.ceil(root.scrollHeight) : 0;
+	}
+
+	function sendHeight() {
+		heightFramePending = false;
+		var height = contentHeight();
+		if (height <= 0 || height === lastSentHeight) {
+			return;
+		}
+		lastSentHeight = height;
+		notifyEmbedder({ type: RESIZE_MESSAGE_TYPE, height: height });
+	}
+
+	function scheduleHeight() {
+		if (heightFramePending) {
+			return;
+		}
+		heightFramePending = true;
+		window.requestAnimationFrame(sendHeight);
+	}
+
+	function watchHeight() {
+		if (!allowedEmbedderOrigin()) {
+			return;
+		}
+		scheduleHeight();
+		window.addEventListener('resize', scheduleHeight);
+		window.addEventListener('load', scheduleHeight);
+		if (typeof window.ResizeObserver !== 'function') {
+			return;
+		}
+		var observer = new window.ResizeObserver(scheduleHeight);
+		observer.observe(document.documentElement);
+		if (document.body) {
+			observer.observe(document.body);
+		}
 	}
 
 	var originalOpen = XMLHttpRequest.prototype.open;
@@ -151,6 +204,12 @@
 			}
 			return response;
 		};
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', watchHeight);
+	} else {
+		watchHeight();
 	}
 
 	window.setTimeout(function warnWhenNothingMatched() {
