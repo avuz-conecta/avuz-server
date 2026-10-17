@@ -14,10 +14,18 @@
  * a bare widget. <html> always gets `avuz-embed-checked` once the check ran,
  * which lifts the pre-hide (css/appointment-embed-prehide.css) either way.
  * In embed mode it also posts {type: 'avuz:resize', height} to the same
- * origin on load and whenever the content changes size. The height is the
- * booking UI wrapper (#content, the server-rendered element around the whole
- * calendar app; document.body as fallback), not the viewport, so the site can
- * both grow and shrink the iframe.
+ * origin on load and whenever the content changes size, once the layout has
+ * settled (RESIZE_SETTLE_MS after the last change), so transient heights
+ * between two steps never reach the site. The height is the booking UI
+ * wrapper (#content, the server-rendered element around the whole calendar
+ * app; document.body as fallback), not the viewport, so the site can both grow
+ * and shrink the iframe.
+ *
+ * The time zone picker (vue-select) appends its options list to <body> and
+ * positions it with floating-ui, which flips it upward and clips it inside a
+ * content-sized frame. In embed mode the list is moved back next to its toggle,
+ * where css/appointment-embed.css lays it out in the page flow: it opens
+ * downward, at full width, and grows #content (and so the iframe) while open.
  *
  * A booked appointment stays pending until the visitor confirms it by email.
  */
@@ -35,9 +43,14 @@
 	var EMBED_CLASS = 'avuz-embed';
 	var EMBED_CHECKED_CLASS = 'avuz-embed-checked';
 	var CONTENT_WRAPPER_ID = 'content';
+	var TIME_ZONE_PICKER_SELECTOR = '.booking__time-zone';
+	var COMBOBOX_SELECTOR = '[aria-controls]';
+	var DROPDOWN_TOGGLE_SELECTOR = '.vs__dropdown-toggle';
+	var DROPDOWN_MENU_CLASS = 'vs__dropdown-menu';
 	var CSRF_HEADER = 'OCS-APIRequest';
 	var CSRF_HEADER_VALUE = 'true';
 	var HTTP_OK = 200;
+	var RESIZE_SETTLE_MS = 100;
 	// The booking page requests today's slots as soon as it mounts.
 	var NO_MATCH_WARNING_DELAY_MS = 15000;
 
@@ -50,7 +63,7 @@
 	var xhrBookingActions = new WeakMap();
 	var contentWrapper = null;
 	var lastSentHeight = null;
-	var heightFramePending = false;
+	var heightTimer = null;
 
 	// Decide before anything else, so the pre-hide lifts even if a later step throws.
 	var embedMode = applyEmbedMode();
@@ -157,7 +170,6 @@
 	}
 
 	function sendHeight() {
-		heightFramePending = false;
 		var height = contentHeight();
 		if (height <= 0 || height === lastSentHeight) {
 			return;
@@ -166,12 +178,13 @@
 		notifyEmbedder({ type: RESIZE_MESSAGE_TYPE, height: height });
 	}
 
-	function scheduleHeight() {
-		if (heightFramePending) {
-			return;
-		}
-		heightFramePending = true;
+	function measureHeight() {
 		window.requestAnimationFrame(sendHeight);
+	}
+
+	function scheduleHeight() {
+		window.clearTimeout(heightTimer);
+		heightTimer = window.setTimeout(measureHeight, RESIZE_SETTLE_MS);
 	}
 
 	function watchHeight() {
@@ -185,6 +198,43 @@
 		if (contentWrapper) {
 			new window.ResizeObserver(scheduleHeight).observe(contentWrapper);
 		}
+	}
+
+	function timeZoneToggleOwning(menu) {
+		var picker = document.querySelector(TIME_ZONE_PICKER_SELECTOR);
+		var combobox = picker ? picker.querySelector(COMBOBOX_SELECTOR) : null;
+		if (!combobox || !menu.id || combobox.getAttribute('aria-controls') !== menu.id) {
+			return null;
+		}
+		return picker.querySelector(DROPDOWN_TOGGLE_SELECTOR);
+	}
+
+	function moveTimeZoneMenu(node) {
+		if (!node.classList || !node.classList.contains(DROPDOWN_MENU_CLASS)) {
+			return;
+		}
+		var toggle = timeZoneToggleOwning(node);
+		if (toggle) {
+			toggle.insertAdjacentElement('afterend', node);
+		}
+	}
+
+	function moveTimeZoneMenus(mutations) {
+		mutations.forEach(function moveAddedMenus(mutation) {
+			Array.prototype.forEach.call(mutation.addedNodes, moveTimeZoneMenu);
+		});
+	}
+
+	function watchTimeZoneMenu() {
+		if (typeof window.MutationObserver !== 'function' || !document.body) {
+			return;
+		}
+		new window.MutationObserver(moveTimeZoneMenus).observe(document.body, { childList: true });
+	}
+
+	function startEmbedWatchers() {
+		watchHeight();
+		watchTimeZoneMenu();
 	}
 
 	var originalOpen = XMLHttpRequest.prototype.open;
@@ -232,16 +282,16 @@
 		};
 	}
 
-	function startHeightWatch() {
+	function startEmbedMode() {
 		if (document.readyState === 'loading') {
-			document.addEventListener('DOMContentLoaded', watchHeight);
+			document.addEventListener('DOMContentLoaded', startEmbedWatchers);
 			return;
 		}
-		watchHeight();
+		startEmbedWatchers();
 	}
 
 	if (embedMode) {
-		startHeightWatch();
+		startEmbedMode();
 	}
 
 	window.setTimeout(function warnWhenNothingMatched() {

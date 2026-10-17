@@ -402,11 +402,38 @@ html.avuz-embed .booking__time-zone .v-select.select .vs__search {
     color: var(--avuz-embed-text) !important;
 }
 
-/* The options list may be appended to <body>, outside .booking */
+/* Options list: vue-select appends it to <body> (and is styled there until
+   moved); js/appointment-embed.js moves it back after the toggle */
 html.avuz-embed .vs__dropdown-menu {
     border: 1px solid var(--avuz-embed-line) !important;
     border-radius: var(--avuz-embed-radius) !important;
     font-family: var(--avuz-embed-font) !important;
+}
+
+/* Back in the page flow: always below the toggle, full width, inside #content
+   (so the frame grows to fit it). Beats the inline top/left/width and the
+   drop-up styling floating-ui sets. */
+html.avuz-embed .booking__time-zone .v-select .vs__dropdown-menu {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-height: 280px !important;
+    overflow-y: auto !important;
+    margin: 6px 0 0 !important;
+    padding: 4px !important;
+    border-style: solid !important;
+    box-shadow: none !important;
+    background: #fff !important;
+}
+
+html.avuz-embed .booking__time-zone .vs__dropdown-option {
+    padding: 10px 12px !important;
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--avuz-embed-text);
 }
 
 html.avuz-embed .vs__dropdown-option--highlight,

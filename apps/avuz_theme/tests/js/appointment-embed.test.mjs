@@ -12,6 +12,8 @@ const BOOK_URL = `${BOOKING_PATH}/book`;
 const EMBED_QUERY = '?embed=1';
 const HTTP_OK = 200;
 const PAGE_HEIGHT = 3000;
+const RESIZE_SETTLE_MS = 100;
+const TIME_ZONE_LISTBOX_ID = 'vs-7__listbox';
 
 function encodeOrigins(origins) {
 	return Buffer.from(JSON.stringify(origins)).toString('base64');
@@ -29,6 +31,55 @@ class FakeClassList {
 	contains(name) {
 		return this.names.has(name);
 	}
+}
+
+/** Timers that only fire when the test moves the clock. */
+function fakeClock() {
+	let now = 0;
+	let nextId = 1;
+	let timers = [];
+	return {
+		setTimeout(callback, delay = 0) {
+			const id = nextId++;
+			timers.push({ id, dueAt: now + delay, callback });
+			return id;
+		},
+		clearTimeout(id) {
+			timers = timers.filter((timer) => timer.id !== id);
+		},
+		advance(milliseconds) {
+			now += milliseconds;
+			const due = timers.filter((timer) => timer.dueAt <= now).sort((first, second) => first.dueAt - second.dueAt);
+			timers = timers.filter((timer) => timer.dueAt > now);
+			due.forEach((timer) => timer.callback());
+		},
+	};
+}
+
+/** Just the DOM the time zone picker exposes: combobox, toggle and whatever lands after the toggle. */
+function fakeTimeZonePicker(listboxId) {
+	const toggle = {
+		nextElement: null,
+		insertAdjacentElement(position, element) {
+			if (position === 'afterend') {
+				this.nextElement = element;
+			}
+		},
+	};
+	const combobox = {
+		getAttribute: (name) => (name === 'aria-controls' ? listboxId : null),
+	};
+	const selectors = { '[aria-controls]': combobox, '.vs__dropdown-toggle': toggle };
+	return {
+		toggle,
+		querySelector: (selector) => selectors[selector] ?? null,
+	};
+}
+
+function fakeMenu(id, className = 'vs__dropdown-menu') {
+	const classList = new FakeClassList();
+	classList.add(className);
+	return { id, classList };
 }
 
 function fakeElement(height) {
@@ -62,6 +113,9 @@ function loadBookingPage({
 	const windowListeners = {};
 	const documentListeners = {};
 	const observers = [];
+	const mutationObservers = [];
+	const clock = fakeClock();
+	const timeZonePicker = fakeTimeZonePicker(TIME_ZONE_LISTBOX_ID);
 	const documentElement = fakeElement(PAGE_HEIGHT);
 	const body = fakeElement(height);
 	const contentWrapper = hasContentWrapper ? fakeElement(height) : null;
@@ -81,6 +135,18 @@ function loadBookingPage({
 
 		observe(target) {
 			this.targets.push(target);
+		}
+	}
+
+	class FakeMutationObserver {
+		constructor(callback) {
+			this.callback = callback;
+			this.targets = [];
+			mutationObservers.push(this);
+		}
+
+		observe(target, options) {
+			this.targets.push({ target, options });
 		}
 	}
 
@@ -111,7 +177,9 @@ function loadBookingPage({
 		console,
 		XMLHttpRequest: FakeXMLHttpRequest,
 		ResizeObserver: FakeResizeObserver,
-		setTimeout: () => 0,
+		MutationObserver: FakeMutationObserver,
+		setTimeout: clock.setTimeout,
+		clearTimeout: clock.clearTimeout,
 		requestAnimationFrame: (callback) => frameCallbacks.push(callback),
 		addEventListener: (type, listener) => {
 			windowListeners[type] = listener;
@@ -129,6 +197,7 @@ function loadBookingPage({
 			documentElement,
 			body,
 			getElementById: (id) => elementsById[id] ?? null,
+			querySelector: (selector) => (selector === '.booking__time-zone' ? timeZonePicker : null),
 			addEventListener: (type, listener) => {
 				documentListeners[type] = listener;
 			},
@@ -145,6 +214,8 @@ function loadBookingPage({
 	return {
 		posted,
 		observers,
+		mutationObservers,
+		timeZoneToggle: timeZonePicker.toggle,
 		windowListeners,
 		documentListeners,
 		rootClasses: documentElement.classList,
@@ -157,6 +228,17 @@ function loadBookingPage({
 		},
 		flushFrames() {
 			frameCallbacks.splice(0).forEach((callback) => callback());
+		},
+		advance(milliseconds) {
+			clock.advance(milliseconds);
+		},
+		/** Lets the layout settle, then paints. */
+		settle() {
+			clock.advance(RESIZE_SETTLE_MS);
+			this.flushFrames();
+		},
+		appendToBody(node) {
+			mutationObservers.forEach((observer) => observer.callback([{ addedNodes: [node] }]));
 		},
 		book(body) {
 			const request = new context.XMLHttpRequest();
@@ -271,7 +353,7 @@ describe('appointment-embed', () => {
 		describe('in embed mode', () => {
 			it('posts the #content height, not the page height, to the exact allowlisted origin on load', () => {
 				const page = loadBookingPage({ height: 812.4 });
-				page.flushFrames();
+				page.settle();
 
 				assert.deepEqual(resizeMessages(page.posted), [
 					{ message: { type: 'avuz:resize', height: 813 }, targetOrigin: SITE_ORIGIN },
@@ -286,7 +368,7 @@ describe('appointment-embed', () => {
 
 			it('falls back to document.body without a #content wrapper', () => {
 				const page = loadBookingPage({ hasContentWrapper: false, height: 640 });
-				page.flushFrames();
+				page.settle();
 
 				assert.deepEqual(sentHeights(page), [640]);
 				assert.deepEqual(page.observers.map((observer) => observer.targets), [[page.measured]]);
@@ -294,73 +376,114 @@ describe('appointment-embed', () => {
 
 			it('posts again when the content grows', () => {
 				const page = loadBookingPage();
-				page.flushFrames();
+				page.settle();
 
 				page.setHeight(1400);
 				page.notifyObservers();
-				page.flushFrames();
+				page.settle();
 
 				assert.deepEqual(sentHeights(page), [900, 1400]);
 			});
 
 			it('posts again when the content shrinks', () => {
 				const page = loadBookingPage();
-				page.flushFrames();
+				page.settle();
 
 				page.setHeight(520);
 				page.notifyObservers();
-				page.flushFrames();
+				page.settle();
 
 				assert.deepEqual(sentHeights(page), [900, 520]);
 			});
 
 			it('posts again on window resize', () => {
 				const page = loadBookingPage();
-				page.flushFrames();
+				page.settle();
 
 				page.setHeight(600);
 				page.windowListeners.resize();
-				page.flushFrames();
+				page.settle();
 
 				assert.deepEqual(sentHeights(page), [900, 600]);
 			});
 
 			it('skips heights equal to the last one sent', () => {
 				const page = loadBookingPage();
-				page.flushFrames();
+				page.settle();
 
 				page.windowListeners.resize();
 				page.notifyObservers();
-				page.flushFrames();
+				page.settle();
 
 				assert.deepEqual(sentHeights(page), [900]);
 			});
 
-			it('sends one message per animation frame, with the latest height', () => {
-				const page = loadBookingPage();
-				page.setHeight(1000);
-				page.notifyObservers();
-				page.setHeight(1100);
-				page.windowListeners.resize();
-				page.flushFrames();
+			describe('while the layout is still changing', () => {
+				it('waits until the content stops changing size', () => {
+					const page = loadBookingPage();
+					page.settle();
 
-				assert.deepEqual(sentHeights(page), [1100]);
+					page.setHeight(1100);
+					page.notifyObservers();
+					page.advance(RESIZE_SETTLE_MS - 1);
+					page.flushFrames();
+					assert.deepEqual(sentHeights(page), [900]);
+
+					page.advance(1);
+					page.flushFrames();
+
+					assert.deepEqual(sentHeights(page), [900, 1100]);
+				});
+
+				it('posts a burst of changes once, with the final height', () => {
+					const page = loadBookingPage();
+					page.settle();
+
+					page.setHeight(1000);
+					page.notifyObservers();
+					page.advance(40);
+					page.flushFrames();
+					page.setHeight(1422);
+					page.notifyObservers();
+					page.advance(40);
+					page.flushFrames();
+					page.setHeight(1100);
+					page.windowListeners.resize();
+					page.settle();
+
+					assert.deepEqual(sentHeights(page), [900, 1100]);
+				});
+
+				it('posts nothing for a spike that settles back to the last height sent', () => {
+					const page = loadBookingPage();
+					page.settle();
+
+					page.setHeight(1422);
+					page.notifyObservers();
+					page.advance(40);
+					page.flushFrames();
+					page.setHeight(900);
+					page.notifyObservers();
+					page.settle();
+
+					assert.deepEqual(sentHeights(page), [900]);
+				});
 			});
 
 			it('waits for DOMContentLoaded while the document is loading', () => {
 				const page = loadBookingPage({ readyState: 'loading' });
-				page.flushFrames();
+				page.settle();
 				assert.equal(page.posted.length, 0);
 
 				page.documentListeners.DOMContentLoaded();
-				page.flushFrames();
+				page.settle();
 
 				assert.deepEqual(sentHeights(page), [900]);
 			});
 
 			it('carries only type and height', () => {
 				const page = loadBookingPage();
-				page.flushFrames();
+				page.settle();
 
 				assert.deepEqual(Object.keys(resizeMessages(page.posted)[0].message), ['type', 'height']);
 			});
@@ -376,13 +499,64 @@ describe('appointment-embed', () => {
 			for (const [name, options] of Object.entries(cases)) {
 				it(`watches and posts nothing ${name}`, () => {
 					const page = loadBookingPage(options);
-					page.flushFrames();
+					page.settle();
 
 					assert.deepEqual(resizeMessages(page.posted), []);
 					assert.equal(page.observers.length, 0);
 					assert.equal(page.windowListeners.resize, undefined);
 				});
 			}
+		});
+	});
+
+	describe('time zone options list', () => {
+		describe('in embed mode', () => {
+			it('moves the list vue-select appends to <body> back right after the time zone toggle', () => {
+				const page = loadBookingPage();
+				const menu = fakeMenu(TIME_ZONE_LISTBOX_ID);
+
+				page.appendToBody(menu);
+
+				assert.equal(page.timeZoneToggle.nextElement, menu);
+			});
+
+			it('leaves the list of another select where it is', () => {
+				const page = loadBookingPage();
+
+				page.appendToBody(fakeMenu('vs-99__listbox'));
+
+				assert.equal(page.timeZoneToggle.nextElement, null);
+			});
+
+			it('leaves other elements appended to <body> where they are', () => {
+				const page = loadBookingPage();
+
+				page.appendToBody(fakeMenu(TIME_ZONE_LISTBOX_ID, 'toast'));
+
+				assert.equal(page.timeZoneToggle.nextElement, null);
+			});
+
+			it('starts watching after DOMContentLoaded while the document is loading', () => {
+				const page = loadBookingPage({ readyState: 'loading' });
+				assert.equal(page.mutationObservers.length, 0);
+
+				page.documentListeners.DOMContentLoaded();
+				const menu = fakeMenu(TIME_ZONE_LISTBOX_ID);
+				page.appendToBody(menu);
+
+				assert.equal(page.timeZoneToggle.nextElement, menu);
+			});
+		});
+
+		describe('outside embed mode', () => {
+			it('leaves the list on <body>', () => {
+				const page = loadBookingPage({ search: '' });
+
+				page.appendToBody(fakeMenu(TIME_ZONE_LISTBOX_ID));
+
+				assert.equal(page.mutationObservers.length, 0);
+				assert.equal(page.timeZoneToggle.nextElement, null);
+			});
 		});
 	});
 
