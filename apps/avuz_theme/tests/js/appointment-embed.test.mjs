@@ -9,20 +9,68 @@ const SITE_ORIGIN = 'https://avuzconecta.com.br';
 const OTHER_ORIGIN = 'https://evil.example';
 const BOOKING_PATH = '/apps/calendar/appointment/abc123';
 const BOOK_URL = `${BOOKING_PATH}/book`;
+const EMBED_QUERY = '?embed=1';
 const HTTP_OK = 200;
+const PAGE_HEIGHT = 3000;
 
 function encodeOrigins(origins) {
 	return Buffer.from(JSON.stringify(origins)).toString('base64');
 }
 
-function loadBookingPage({ embedded = true, parentOrigin = SITE_ORIGIN, allowedOrigins = [SITE_ORIGIN], height = 900, readyState = 'complete' } = {}) {
+class FakeClassList {
+	constructor() {
+		this.names = new Set();
+	}
+
+	add(...names) {
+		names.forEach((name) => this.names.add(name));
+	}
+
+	contains(name) {
+		return this.names.has(name);
+	}
+}
+
+function fakeElement(height) {
+	return {
+		height,
+		scrollHeight: PAGE_HEIGHT,
+		classList: new FakeClassList(),
+		getBoundingClientRect() {
+			return { height: this.height };
+		},
+	};
+}
+
+/**
+ * Runs js/appointment-embed.js on a fake booking page.
+ * `ancestorOrigins: null` models browsers without location.ancestorOrigins (Firefox),
+ * which fall back to document.referrer.
+ */
+function loadBookingPage({
+	embedded = true,
+	search = EMBED_QUERY,
+	ancestorOrigins = [SITE_ORIGIN],
+	referrer = '',
+	allowedOrigins = [SITE_ORIGIN],
+	height = 900,
+	hasContentWrapper = true,
+	readyState = 'complete',
+} = {}) {
 	const posted = [];
 	const frameCallbacks = [];
 	const windowListeners = {};
 	const documentListeners = {};
 	const observers = [];
-	const documentElement = { scrollHeight: height };
+	const documentElement = fakeElement(PAGE_HEIGHT);
+	const body = fakeElement(height);
+	const contentWrapper = hasContentWrapper ? fakeElement(height) : null;
+	const measured = contentWrapper ?? body;
 	const stateElement = allowedOrigins.length > 0 ? { value: encodeOrigins(allowedOrigins) } : null;
+	const elementsById = {
+		'initial-state-avuz_theme-embedAllowedOrigins': stateElement,
+		content: contentWrapper,
+	};
 
 	class FakeResizeObserver {
 		constructor(callback) {
@@ -55,6 +103,7 @@ function loadBookingPage({ embedded = true, parentOrigin = SITE_ORIGIN, allowedO
 
 	const context = {
 		URL,
+		URLSearchParams,
 		WeakMap,
 		JSON,
 		Math,
@@ -69,16 +118,17 @@ function loadBookingPage({ embedded = true, parentOrigin = SITE_ORIGIN, allowedO
 		},
 		location: {
 			pathname: BOOKING_PATH,
-			href: `https://cloud.example${BOOKING_PATH}`,
+			search,
+			href: `https://cloud.example${BOOKING_PATH}${search}`,
 			origin: 'https://cloud.example',
-			ancestorOrigins: embedded ? [parentOrigin] : [],
+			...(ancestorOrigins === null ? {} : { ancestorOrigins: embedded ? ancestorOrigins : [] }),
 		},
 		document: {
 			readyState,
-			referrer: '',
+			referrer,
 			documentElement,
-			body: { scrollHeight: height },
-			getElementById: (id) => (id === 'initial-state-avuz_theme-embedAllowedOrigins' ? stateElement : null),
+			body,
+			getElementById: (id) => elementsById[id] ?? null,
 			addEventListener: (type, listener) => {
 				documentListeners[type] = listener;
 			},
@@ -97,8 +147,13 @@ function loadBookingPage({ embedded = true, parentOrigin = SITE_ORIGIN, allowedO
 		observers,
 		windowListeners,
 		documentListeners,
+		rootClasses: documentElement.classList,
+		measured,
 		setHeight(newHeight) {
-			documentElement.scrollHeight = newHeight;
+			measured.height = newHeight;
+		},
+		notifyObservers() {
+			observers.forEach((observer) => observer.callback());
 		},
 		flushFrames() {
 			frameCallbacks.splice(0).forEach((callback) => callback());
@@ -117,10 +172,104 @@ function resizeMessages(posted) {
 	return posted.filter(({ message }) => message.type === 'avuz:resize');
 }
 
+function sentHeights(page) {
+	return resizeMessages(page.posted).map(({ message }) => message.height);
+}
+
+function bookedMessages(posted) {
+	return posted.filter(({ message }) => message.type === 'avuz:appointment-booked');
+}
+
 describe('appointment-embed', () => {
+	describe('embed mode gate', () => {
+		describe('when embed=1, framed and the parent origin is allowlisted', () => {
+			it('turns embed mode on', () => {
+				const page = loadBookingPage();
+
+				assert.equal(page.rootClasses.contains('avuz-embed'), true);
+			});
+
+			it('lifts the pre-hide', () => {
+				const page = loadBookingPage();
+
+				assert.equal(page.rootClasses.contains('avuz-embed-checked'), true);
+			});
+
+			it('accepts embed=1 among other query parameters', () => {
+				const page = loadBookingPage({ search: '?utm_source=site&embed=1' });
+
+				assert.equal(page.rootClasses.contains('avuz-embed'), true);
+			});
+		});
+
+		describe('without embed=1', () => {
+			for (const search of ['', '?embed=0', '?embed=true', '?embed']) {
+				it(`stays off for "${search}" and still lifts the pre-hide`, () => {
+					const page = loadBookingPage({ search });
+
+					assert.equal(page.rootClasses.contains('avuz-embed'), false);
+					assert.equal(page.rootClasses.contains('avuz-embed-checked'), true);
+				});
+			}
+		});
+
+		describe('when not framed', () => {
+			it('stays off and still lifts the pre-hide', () => {
+				const page = loadBookingPage({ embedded: false });
+
+				assert.equal(page.rootClasses.contains('avuz-embed'), false);
+				assert.equal(page.rootClasses.contains('avuz-embed-checked'), true);
+			});
+		});
+
+		describe('when the allowlist is empty', () => {
+			it('stays off', () => {
+				const page = loadBookingPage({ allowedOrigins: [] });
+
+				assert.equal(page.rootClasses.contains('avuz-embed'), false);
+			});
+		});
+
+		describe('with location.ancestorOrigins', () => {
+			it('stays off when the parent origin is not allowlisted', () => {
+				const page = loadBookingPage({ ancestorOrigins: [OTHER_ORIGIN], referrer: `${SITE_ORIGIN}/agendar` });
+
+				assert.equal(page.rootClasses.contains('avuz-embed'), false);
+				assert.equal(page.rootClasses.contains('avuz-embed-checked'), true);
+			});
+
+			it('stays off for an allowlisted origin with a different port', () => {
+				const page = loadBookingPage({ ancestorOrigins: [`${SITE_ORIGIN}:8443`] });
+
+				assert.equal(page.rootClasses.contains('avuz-embed'), false);
+			});
+		});
+
+		describe('without location.ancestorOrigins (referrer fallback)', () => {
+			it('turns on when the referrer origin is allowlisted', () => {
+				const page = loadBookingPage({ ancestorOrigins: null, referrer: `${SITE_ORIGIN}/agendar` });
+
+				assert.equal(page.rootClasses.contains('avuz-embed'), true);
+			});
+
+			it('stays off when the referrer origin is not allowlisted', () => {
+				const page = loadBookingPage({ ancestorOrigins: null, referrer: `${OTHER_ORIGIN}/agendar` });
+
+				assert.equal(page.rootClasses.contains('avuz-embed'), false);
+				assert.equal(page.rootClasses.contains('avuz-embed-checked'), true);
+			});
+
+			it('stays off without a referrer', () => {
+				const page = loadBookingPage({ ancestorOrigins: null, referrer: '' });
+
+				assert.equal(page.rootClasses.contains('avuz-embed'), false);
+			});
+		});
+	});
+
 	describe('avuz:resize', () => {
-		describe('when embedded by an allowlisted origin', () => {
-			it('posts the content height to that exact origin on load', () => {
+		describe('in embed mode', () => {
+			it('posts the #content height, not the page height, to the exact allowlisted origin on load', () => {
 				const page = loadBookingPage({ height: 812.4 });
 				page.flushFrames();
 
@@ -129,15 +278,40 @@ describe('appointment-embed', () => {
 				]);
 			});
 
-			it('posts again when an observed element changes height', () => {
+			it('observes only the #content wrapper', () => {
+				const page = loadBookingPage();
+
+				assert.deepEqual(page.observers.map((observer) => observer.targets), [[page.measured]]);
+			});
+
+			it('falls back to document.body without a #content wrapper', () => {
+				const page = loadBookingPage({ hasContentWrapper: false, height: 640 });
+				page.flushFrames();
+
+				assert.deepEqual(sentHeights(page), [640]);
+				assert.deepEqual(page.observers.map((observer) => observer.targets), [[page.measured]]);
+			});
+
+			it('posts again when the content grows', () => {
 				const page = loadBookingPage();
 				page.flushFrames();
 
 				page.setHeight(1400);
-				page.observers.forEach((observer) => observer.callback());
+				page.notifyObservers();
 				page.flushFrames();
 
-				assert.deepEqual(resizeMessages(page.posted).map(({ message }) => message.height), [900, 1400]);
+				assert.deepEqual(sentHeights(page), [900, 1400]);
+			});
+
+			it('posts again when the content shrinks', () => {
+				const page = loadBookingPage();
+				page.flushFrames();
+
+				page.setHeight(520);
+				page.notifyObservers();
+				page.flushFrames();
+
+				assert.deepEqual(sentHeights(page), [900, 520]);
 			});
 
 			it('posts again on window resize', () => {
@@ -148,7 +322,7 @@ describe('appointment-embed', () => {
 				page.windowListeners.resize();
 				page.flushFrames();
 
-				assert.deepEqual(resizeMessages(page.posted).map(({ message }) => message.height), [900, 600]);
+				assert.deepEqual(sentHeights(page), [900, 600]);
 			});
 
 			it('skips heights equal to the last one sent', () => {
@@ -156,19 +330,21 @@ describe('appointment-embed', () => {
 				page.flushFrames();
 
 				page.windowListeners.resize();
-				page.observers.forEach((observer) => observer.callback());
+				page.notifyObservers();
 				page.flushFrames();
 
-				assert.equal(resizeMessages(page.posted).length, 1);
+				assert.deepEqual(sentHeights(page), [900]);
 			});
 
-			it('sends one message per animation frame', () => {
+			it('sends one message per animation frame, with the latest height', () => {
 				const page = loadBookingPage();
-				page.windowListeners.resize();
+				page.setHeight(1000);
+				page.notifyObservers();
+				page.setHeight(1100);
 				page.windowListeners.resize();
 				page.flushFrames();
 
-				assert.equal(resizeMessages(page.posted).length, 1);
+				assert.deepEqual(sentHeights(page), [1100]);
 			});
 
 			it('waits for DOMContentLoaded while the document is loading', () => {
@@ -179,7 +355,7 @@ describe('appointment-embed', () => {
 				page.documentListeners.DOMContentLoaded();
 				page.flushFrames();
 
-				assert.equal(resizeMessages(page.posted).length, 1);
+				assert.deepEqual(sentHeights(page), [900]);
 			});
 
 			it('carries only type and height', () => {
@@ -190,34 +366,23 @@ describe('appointment-embed', () => {
 			});
 		});
 
-		describe('when the parent origin is not allowlisted', () => {
-			it('posts nothing', () => {
-				const page = loadBookingPage({ parentOrigin: OTHER_ORIGIN });
-				page.flushFrames();
+		describe('outside embed mode', () => {
+			const cases = {
+				'without embed=1': { search: '' },
+				'when the parent origin is not allowlisted': { ancestorOrigins: [OTHER_ORIGIN] },
+				'when the allowlist is empty': { allowedOrigins: [] },
+				'when not framed': { embedded: false },
+			};
+			for (const [name, options] of Object.entries(cases)) {
+				it(`watches and posts nothing ${name}`, () => {
+					const page = loadBookingPage(options);
+					page.flushFrames();
 
-				assert.deepEqual(page.posted, []);
-				assert.equal(page.observers.length, 0);
-			});
-		});
-
-		describe('when the allowlist is empty', () => {
-			it('posts nothing', () => {
-				const page = loadBookingPage({ allowedOrigins: [] });
-				page.flushFrames();
-
-				assert.deepEqual(page.posted, []);
-				assert.equal(page.observers.length, 0);
-			});
-		});
-
-		describe('when not embedded', () => {
-			it('watches nothing', () => {
-				const page = loadBookingPage({ embedded: false });
-				page.flushFrames();
-
-				assert.equal(page.observers.length, 0);
-				assert.equal(page.windowListeners.resize, undefined);
-			});
+					assert.deepEqual(resizeMessages(page.posted), []);
+					assert.equal(page.observers.length, 0);
+					assert.equal(page.windowListeners.resize, undefined);
+				});
+			}
 		});
 	});
 
@@ -226,9 +391,23 @@ describe('appointment-embed', () => {
 			const page = loadBookingPage();
 			page.book({ start: 1, end: 2, timeZone: 'America/Sao_Paulo', displayName: 'Ana', email: 'ana@example.com' });
 
-			assert.deepEqual(page.posted.filter(({ message }) => message.type === 'avuz:appointment-booked'), [
+			assert.deepEqual(bookedMessages(page.posted), [
 				{ message: { type: 'avuz:appointment-booked', start: 1, end: 2, timeZone: 'America/Sao_Paulo' }, targetOrigin: SITE_ORIGIN },
 			]);
+		});
+
+		it('still posts when framed by an allowlisted origin without embed=1', () => {
+			const page = loadBookingPage({ search: '' });
+			page.book({ start: 1, end: 2, timeZone: 'UTC' });
+
+			assert.equal(bookedMessages(page.posted).length, 1);
+		});
+
+		it('posts nothing to a non-allowlisted parent', () => {
+			const page = loadBookingPage({ ancestorOrigins: [OTHER_ORIGIN] });
+			page.book({ start: 1, end: 2, timeZone: 'UTC' });
+
+			assert.deepEqual(bookedMessages(page.posted), []);
 		});
 	});
 });

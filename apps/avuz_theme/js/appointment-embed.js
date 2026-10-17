@@ -8,8 +8,16 @@
  * {type, start, end, timeZone} to the embedding page, only when that page's
  * origin is in the allowlist (initial state from AppointmentEmbedStateListener)
  * and only to that exact origin. Never visitor data (name, email, description).
- * To the same origin it also posts {type: 'avuz:resize', height} on load and
- * whenever the content height changes, so the site can size the iframe.
+ *
+ * Embed mode (?embed=1, framed by an allowlisted origin) marks <html> with
+ * `avuz-embed`, which turns on css/appointment-embed.css: the page renders as
+ * a bare widget. <html> always gets `avuz-embed-checked` once the check ran,
+ * which lifts the pre-hide (css/appointment-embed-prehide.css) either way.
+ * In embed mode it also posts {type: 'avuz:resize', height} to the same
+ * origin on load and whenever the content changes size. The height is the
+ * booking UI wrapper (#content, the server-rendered element around the whole
+ * calendar app; document.body as fallback), not the viewport, so the site can
+ * both grow and shrink the iframe.
  *
  * A booked appointment stays pending until the visitor confirms it by email.
  */
@@ -22,6 +30,11 @@
 	var ORIGINS_STATE_ID = 'initial-state-avuz_theme-embedAllowedOrigins';
 	var MESSAGE_TYPE = 'avuz:appointment-booked';
 	var RESIZE_MESSAGE_TYPE = 'avuz:resize';
+	var EMBED_PARAM = 'embed';
+	var EMBED_PARAM_VALUE = '1';
+	var EMBED_CLASS = 'avuz-embed';
+	var EMBED_CHECKED_CLASS = 'avuz-embed-checked';
+	var CONTENT_WRAPPER_ID = 'content';
 	var CSRF_HEADER = 'OCS-APIRequest';
 	var CSRF_HEADER_VALUE = 'true';
 	var HTTP_OK = 200;
@@ -35,8 +48,12 @@
 	var allowedOrigins = null;
 	var matchedBookingRequest = false;
 	var xhrBookingActions = new WeakMap();
+	var contentWrapper = null;
 	var lastSentHeight = null;
 	var heightFramePending = false;
+
+	// Decide before anything else, so the pre-hide lifts even if a later step throws.
+	var embedMode = applyEmbedMode();
 
 	function readAllowedOrigins() {
 		var stateElement = document.getElementById(ORIGINS_STATE_ID);
@@ -121,9 +138,22 @@
 		window.parent.postMessage(message, origin);
 	}
 
+	function isEmbedRequested() {
+		return new URLSearchParams(window.location.search).get(EMBED_PARAM) === EMBED_PARAM_VALUE;
+	}
+
+	function applyEmbedMode() {
+		var root = document.documentElement;
+		var active = isEmbedRequested() && allowedEmbedderOrigin() !== null;
+		if (active) {
+			root.classList.add(EMBED_CLASS);
+		}
+		root.classList.add(EMBED_CHECKED_CLASS);
+		return active;
+	}
+
 	function contentHeight() {
-		var root = document.documentElement || document.body;
-		return root ? Math.ceil(root.scrollHeight) : 0;
+		return contentWrapper ? Math.ceil(contentWrapper.getBoundingClientRect().height) : 0;
 	}
 
 	function sendHeight() {
@@ -145,19 +175,15 @@
 	}
 
 	function watchHeight() {
-		if (!allowedEmbedderOrigin()) {
-			return;
-		}
+		contentWrapper = document.getElementById(CONTENT_WRAPPER_ID) || document.body;
 		scheduleHeight();
 		window.addEventListener('resize', scheduleHeight);
 		window.addEventListener('load', scheduleHeight);
 		if (typeof window.ResizeObserver !== 'function') {
 			return;
 		}
-		var observer = new window.ResizeObserver(scheduleHeight);
-		observer.observe(document.documentElement);
-		if (document.body) {
-			observer.observe(document.body);
+		if (contentWrapper) {
+			new window.ResizeObserver(scheduleHeight).observe(contentWrapper);
 		}
 	}
 
@@ -206,10 +232,16 @@
 		};
 	}
 
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', watchHeight);
-	} else {
+	function startHeightWatch() {
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', watchHeight);
+			return;
+		}
 		watchHeight();
+	}
+
+	if (embedMode) {
+		startHeightWatch();
 	}
 
 	window.setTimeout(function warnWhenNothingMatched() {
