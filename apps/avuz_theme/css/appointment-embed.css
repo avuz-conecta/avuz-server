@@ -198,10 +198,20 @@ html.avuz-embed .booking-appointment-details .booking-details {
     text-align: start !important;
 }
 
+/* The site widget names the product, not the calendar owner. font-size 0
+   collapses the owner name; visibility keeps it out of the accessibility tree
+   while the label stays readable. */
 html.avuz-embed .booking__display-name {
     margin-top: 6px;
-    font-size: 15px;
+    font-size: 0;
+    visibility: hidden;
     color: var(--avuz-embed-muted);
+}
+
+html.avuz-embed .booking__display-name::after {
+    content: "Conheça o AvuzConecta";
+    font-size: 15px;
+    visibility: visible;
 }
 
 html.avuz-embed #content .booking__name {

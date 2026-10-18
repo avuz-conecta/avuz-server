@@ -68,6 +68,19 @@ describe('appointment-embed.css', () => {
 		});
 	});
 
+	describe('organizer', () => {
+		it('hides the calendar owner name from sight and screen readers', () => {
+			assert.match(ruleBody(STYLESHEET, `${EMBED_SCOPE} .booking__display-name`), /visibility:\s*hidden;/);
+		});
+
+		it('shows "Conheça o AvuzConecta" in its place', () => {
+			const label = ruleBody(STYLESHEET, `${EMBED_SCOPE} .booking__display-name::after`);
+
+			assert.match(label, /content:\s*"Conheça o AvuzConecta";/);
+			assert.match(label, /visibility:\s*visible;/);
+		});
+	});
+
 	it('shows the time zone picker over the mobile hide in theme.css', () => {
 		assert.match(ruleBody(STYLESHEET, `${EMBED_SCOPE} .booking__time-zone .v-select`), /display:\s*block !important;/);
 	});
