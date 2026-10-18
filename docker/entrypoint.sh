@@ -117,6 +117,14 @@ if [ -n "$_avuz_overlap" ]; then
     exit 1
 fi
 
+# App Store installs whose code lives in the image's apps/ dir (not a volume):
+# a plain image redeploy drops them while the DB still has them enabled.
+# Restored on every boot by avuz_restore_missing_store_installs.
+AVUZ_EPHEMERAL_STORE_APPS=(
+    "oidc"
+    "previewgenerator"
+)
+
 # Apps to retire on deploy. Disable only (data kept); never app:remove. Add an
 # app here to turn it off across all stacks; leave empty when nothing is retiring.
 REMOVE_APPS=(
@@ -913,6 +921,15 @@ if [ "$NEEDS_CONFIGURATION" -eq 1 ] || [ "$CURRENT_STAMP" != "$AVUZ_CONFIG_VERSI
     DID_CONFIG_RUN=1   # occ-as-root wrote appdata_* + nextcloud.log this boot
 else
     echo "✓ Avuz configuration up to date ($AVUZ_CONFIG_VERSION), skipping"
+fi
+
+# Plain restarts skip run_avuz_configuration, which is the only other place
+# that installs oidc/previewgenerator — without this, SSO 404s after a redeploy.
+if [ "$NC_INSTALLED" -eq 1 ]; then
+    avuz_restore_missing_store_installs "${AVUZ_EPHEMERAL_STORE_APPS[@]}"
+    if [ "$AVUZ_STORE_APPS_RESTORED" -eq 1 ]; then
+        DID_CONFIG_RUN=1   # app:install ran occ as root: re-chown appdata_*
+    fi
 fi
 
 # Reconcile bundled apps whose image code version jumped ahead of their DB
