@@ -81,8 +81,8 @@ describe('appointment-embed.css', () => {
 		});
 	});
 
-	it('shows the time zone picker over the mobile hide in theme.css', () => {
-		assert.match(ruleBody(STYLESHEET, `${EMBED_SCOPE} .booking__time-zone .v-select`), /display:\s*block !important;/);
+	it('hides the time zone picker (slots show in the visitor\'s browser zone)', () => {
+		assert.match(ruleBody(STYLESHEET, `${EMBED_SCOPE} .booking__time-zone`), /display:\s*none !important;/);
 	});
 });
 
