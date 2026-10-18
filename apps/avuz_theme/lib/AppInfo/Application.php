@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace OCA\AvuzTheme\AppInfo;
 
+use OCA\AvuzTheme\Listener\AppointmentEmbedCspListener;
+use OCA\AvuzTheme\Listener\AppointmentEmbedStateListener;
+use OCA\AvuzTheme\Listener\AppointmentEmbedStyleListener;
 use OCA\AvuzTheme\Listener\BeforeTemplateRenderedListener;
 use OCA\AvuzTheme\Listener\LoginFlowTemplateRenderedListener;
 use OCA\AvuzTheme\Listener\UserCreatedListener;
@@ -13,6 +16,7 @@ use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\AppFramework\Http\Events\BeforeLoginTemplateRenderedEvent;
 use OCP\AppFramework\Http\Events\BeforeTemplateRenderedEvent;
+use OCP\Security\CSP\AddContentSecurityPolicyEvent;
 use OCP\User\Events\UserCreatedEvent;
 use OCP\Util;
 
@@ -39,6 +43,21 @@ class Application extends App implements IBootstrap {
 		$context->registerEventListener(
 			UserCreatedEvent::class,
 			UserCreatedListener::class
+		);
+
+		// Let allowlisted sites frame the public appointment booking page
+		$context->registerEventListener(
+			AddContentSecurityPolicyEvent::class,
+			AppointmentEmbedCspListener::class
+		);
+		$context->registerEventListener(
+			BeforeTemplateRenderedEvent::class,
+			AppointmentEmbedStateListener::class
+		);
+		// Render the booking page as a clean widget when embedded with ?embed=1
+		$context->registerEventListener(
+			BeforeTemplateRenderedEvent::class,
+			AppointmentEmbedStyleListener::class
 		);
 	}
 
@@ -72,6 +91,11 @@ class Application extends App implements IBootstrap {
 
 		// Gray out unbookable days on the appointment booking page
 		Util::addScript(self::APP_ID, 'booking-availability');
+
+		// Make appointment booking work inside an iframe and tell the embedding
+		// site when a booking is requested. Added at boot so it loads before the
+		// calendar booking bundle sends its first request.
+		Util::addScript(self::APP_ID, 'appointment-embed');
 
 		// Inject floating help + support widget
 		Util::addScript(self::APP_ID, 'help-widget');

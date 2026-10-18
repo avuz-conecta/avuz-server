@@ -935,6 +935,10 @@ if [ "$AVUZ_ASSINATURAS_CHANGED" -eq 1 ]; then
     DID_CONFIG_RUN=1   # app enable/upgrade ran occ as root: re-chown appdata_*
 fi
 
+# Booking-page embedding allowlist follows the stack env on every boot.
+# See docker/lib-apps.sh and apps/avuz_theme/lib/Service/AppointmentEmbed.php.
+avuz_sync_embed_allowed_origins
+
 # Mandatory TOTP 2FA for the admin group — enabled and enforced on every boot so
 # every instance and every redeploy converges, idempotently. Opt out per stack
 # with AVUZ_ENFORCE_ADMIN_2FA=0. Never narrows or disables an instance's existing

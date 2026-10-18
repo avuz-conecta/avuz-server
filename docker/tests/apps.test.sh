@@ -499,6 +499,17 @@ assert_eq "default path enables twofactor_totp" "yes" \
 assert_eq "default path enables twofactor_backupcodes" "yes" \
     "$(printf '%s\n' "$twofa_out" | grep -qF 'OCC app:enable twofactor_backupcodes' && echo yes || echo no)"
 
+# ── booking embed allowlist sync ──
+assert_eq "syncs the embed allowlist from its env var by name, as a string" \
+    "config avuz_theme embed_allowed_origins AVUZ_EMBED_ALLOWED_ORIGINS --type=string: PHPCFG avuz_theme embed_allowed_origins AVUZ_EMBED_ALLOWED_ORIGINS --type=string" \
+    "$(AVUZ_EMBED_ALLOWED_ORIGINS='https://www.avuzconecta.com.br,https://avuzconecta.com.br' AVUZ_OCC_DRYRUN=1 avuz_sync_embed_allowed_origins)"
+assert_eq "writes an empty allowlist when the env var is unset (embedding off)" \
+    "set:" \
+    "$(unset AVUZ_EMBED_ALLOWED_ORIGINS; _avuz_php_config() { echo "set:${AVUZ_EMBED_ALLOWED_ORIGINS-unset}"; }; avuz_sync_embed_allowed_origins | sed 's/^config .*: //')"
+assert_eq "keeps booting when the allowlist sync fails" \
+    "✗ Could not sync AVUZ_EMBED_ALLOWED_ORIGINS — booking embed keeps its previous origins" \
+    "$(_avuz_php_config() { echo "failed: boom"; return 1; }; avuz_sync_embed_allowed_origins | tail -n 1)"
+
 # ── bounded occ ──
 assert_eq "runs a bounded occ call under timeout when the image has it" \
     "timeout 60 php occ assinaturas:webhook:ensure" \
