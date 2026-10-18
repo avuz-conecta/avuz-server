@@ -13,6 +13,8 @@ fi
 REGISTRY="registry.avuz.app"
 ORG="admin"
 BASE_IMAGE_NAME="avuzconecta-base"
+parse_no_latest "$@"
+set -- ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"}
 VERSION=${1:-latest}
 
 # Environment: local (macOS/arm64) or staging (linux/amd64)
@@ -38,13 +40,26 @@ case $ENV in
     IMAGE_TAG_LATEST="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:latest"
     ;;
   *)
-    echo "Usage: $0 [version] [local|staging|prod]"
+    echo "Usage: $0 [version] [local|staging|prod] [--no-latest]"
     echo "  local   - Build for macOS (arm64), no push"
     echo "  staging - Build for Linux (amd64), push as :staging"
     echo "  prod    - Build for Linux (amd64), push as :latest"
+    echo "  --no-latest - Push only :<version>, leave :latest untouched"
     exit 1
     ;;
 esac
+
+# Image names to tag. --no-latest leaves the moving tag alone, e.g. a pinned
+# release for app3 that must not roll every tenant on :latest.
+TAGS=("$IMAGE_TAG")
+if [ "$SKIP_LATEST" = true ]; then
+  if [ "$IMAGE_TAG" = "$IMAGE_TAG_LATEST" ]; then
+    echo "✗ --no-latest needs a version other than latest (this env tags only ${IMAGE_TAG})"
+    exit 1
+  fi
+else
+  TAGS+=("$IMAGE_TAG_LATEST")
+fi
 
 echo "==========================================="
 echo "Building BASE image"
@@ -53,22 +68,18 @@ echo "  Platform: ${PLATFORM}"
 echo "  Push:     ${PUSH}"
 echo "==========================================="
 
-# Build base image
+# Build base image (pushes straight to the registry for staging/prod)
+read -ra BUILD_FLAGS <<< "$(docker_build_flags "$PUSH" "${TAGS[@]}")"
 docker buildx build \
   --platform ${PLATFORM} \
   -f Dockerfile.base \
-  -t ${IMAGE_TAG} \
-  -t ${IMAGE_TAG_LATEST} \
-  --load \
+  "${BUILD_FLAGS[@]}" \
   .
 
-echo "✓ Build completed: ${IMAGE_TAG_LATEST}"
-
 if [ "$PUSH" = true ]; then
-  echo "Pushing to registry..."
-  docker push ${IMAGE_TAG}
-  docker push ${IMAGE_TAG_LATEST}
-  echo "✓ Successfully pushed ${IMAGE_TAG_LATEST}"
+  echo "✓ Built and pushed: ${TAGS[*]}"
+else
+  echo "✓ Built: ${TAGS[*]}"
 fi
 
 echo ""

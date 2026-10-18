@@ -97,7 +97,18 @@ find /var/www/html/themes -type f -exec chmod 644 {} \;
 # Optional 3rd arg = tag suffix (e.g. experimental S3 variant):
 ./scripts/build-push.sh latest staging s3     # → :staging-s3
 ./scripts/build-push.sh latest local   s3     # → :latest-s3
+
+# Pinned prod release (app3 runs :<date>-<sha>; ~12 tenant stacks run :latest).
+# --no-latest pushes only the version tag, so tenants don't roll on next restart:
+./scripts/build-push.sh 2026.10.18-ccb7b8d prod --no-latest
 ```
+
+staging/prod push straight from buildx (`--output type=registry,oci-mediatypes=false
+--provenance=false --sbom=false`), not `--load` + `docker push`: with a containerd
+image store (OrbStack, recent Docker Desktop) `docker push` uploads an OCI index with
+attestation manifests and registry.avuz.app rejects it as `manifest invalid`. The
+image is therefore not in the local store after a staging/prod build; `docker pull`
+it to inspect. Helpers and tests: `scripts/lib-docker.sh`, `scripts/tests/lib-docker.test.sh`.
 
 ## Deploy (`scripts/deploy.sh`)
 
@@ -118,7 +129,7 @@ change to conectamail so the asset `?v=` cache-busts (assets cached 6 months at
 Cloudflare/browsers). The next boot sees `needsDbUpgrade: true` and runs the
 entrypoint's `occ upgrade` branch on its own.
 
-On macOS the build scripts auto-launch Docker Desktop if it's down (`scripts/lib-docker.sh`)
+On macOS the build scripts auto-launch the Docker runtime if it's down (OrbStack when installed, else Docker Desktop; override with `DOCKER_RUNTIME=orbstack|desktop`) (`scripts/lib-docker.sh`)
 and, at the end, prompt `Stop it now? [y/N]` whenever Docker is running (default: keep).
 Skip the prompt with `STOP_DOCKER_AFTER_BUILD=1` (auto-stop) or `KEEP_DOCKER=1` (auto-keep);
 non-interactive shells never prompt. Linux just requires the daemon to be up.

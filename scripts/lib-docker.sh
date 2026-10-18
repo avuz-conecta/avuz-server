@@ -104,3 +104,39 @@ cleanup_docker() {
     *) echo "Leaving $(_runtime_name) running." ;;
   esac
 }
+
+# `docker buildx build` tag + output flags, space-separated, for: <push> <tag>...
+# push=true sends the image straight to the registry as a Docker v2 manifest
+# with no attestations. registry.avuz.app answers "manifest invalid" to the OCI
+# index + attestation manifests that `--load` then `docker push` uploads when the
+# runtime uses the containerd image store (OrbStack, recent Docker Desktop).
+# push=false loads the image into the local store. Repeated tags appear once.
+docker_build_flags() {
+  local push="$1" tag flags=""
+  shift
+  for tag in "$@"; do
+    case " $flags " in *" -t $tag "*) continue ;; esac
+    flags="$flags -t $tag"
+  done
+  if [ "$push" = true ]; then
+    flags="$flags --provenance=false --sbom=false --output type=registry,oci-mediatypes=false"
+  else
+    flags="$flags --load"
+  fi
+  printf '%s' "${flags# }"
+}
+
+# Strips --no-latest from the script arguments. Sets SKIP_LATEST (true|false)
+# and BUILD_ARGS (the remaining arguments, in order).
+parse_no_latest() {
+  local arg
+  SKIP_LATEST=false
+  BUILD_ARGS=()
+  for arg in "$@"; do
+    if [ "$arg" = "--no-latest" ]; then
+      SKIP_LATEST=true
+    else
+      BUILD_ARGS+=("$arg")
+    fi
+  done
+}

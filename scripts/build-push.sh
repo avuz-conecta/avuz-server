@@ -14,6 +14,8 @@ REGISTRY="registry.avuz.app"
 ORG="admin"
 IMAGE_NAME="avuzconecta"
 BASE_IMAGE_NAME="avuzconecta-base"
+parse_no_latest "$@"
+set -- ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"}
 VERSION=${1:-latest}
 
 # Environment: local (macOS/arm64) or staging (linux/amd64)
@@ -51,12 +53,14 @@ case $ENV in
     BASE_IMAGE="${REGISTRY}/${ORG}/${BASE_IMAGE_NAME}:latest"
     ;;
   *)
-    echo "Usage: $0 [version] [local|staging|prod] [tag-suffix]"
+    echo "Usage: $0 [version] [local|staging|prod] [tag-suffix] [--no-latest]"
     echo "  local         - Build for macOS (arm64), no push"
     echo "  staging       - Build for Linux (amd64), push as :staging"
     echo "  prod          - Build for Linux (amd64), push as :latest"
     echo "  tag-suffix    - Optional. Appends '-<suffix>' to image tags."
     echo "                  Example: '$0 latest staging s3' → :staging-s3"
+    echo "  --no-latest   - Push only :<version>, leave :latest (tenants) untouched."
+    echo "                  Example: '$0 2026.10.18-ccb7b8d prod --no-latest'"
     exit 1
     ;;
 esac
@@ -101,6 +105,18 @@ if [ -n "$GIT_COMMON_REL" ] && [ "$GIT_DIR_REL" != "$GIT_COMMON_REL" ]; then
 fi
 # ---------------------------------------------------------------------------
 
+# Image names to tag. --no-latest leaves the moving tag alone, e.g. a pinned
+# release for app3 that must not roll every tenant on :latest.
+TAGS=("$IMAGE_TAG")
+if [ "$SKIP_LATEST" = true ]; then
+  if [ "$IMAGE_TAG" = "$IMAGE_TAG_LATEST" ]; then
+    echo "✗ --no-latest needs a version other than latest (this env tags only ${IMAGE_TAG})"
+    exit 1
+  fi
+else
+  TAGS+=("$IMAGE_TAG_LATEST")
+fi
+
 echo "==========================================="
 echo "Building APP image"
 echo "  Image:    ${IMAGE_TAG}"
@@ -109,20 +125,16 @@ echo "  Platform: ${PLATFORM}"
 echo "  Push:     ${PUSH}"
 echo "==========================================="
 
-# Build app image
+# Build app image (pushes straight to the registry for staging/prod)
+read -ra BUILD_FLAGS <<< "$(docker_build_flags "$PUSH" "${TAGS[@]}")"
 docker buildx build \
   --platform ${PLATFORM} \
   --build-arg BASE_IMAGE=${BASE_IMAGE} \
-  -t ${IMAGE_TAG} \
-  -t ${IMAGE_TAG_LATEST} \
-  --load \
+  "${BUILD_FLAGS[@]}" \
   .
 
-echo "✓ Build completed: ${IMAGE_TAG_LATEST}"
-
 if [ "$PUSH" = true ]; then
-  echo "Pushing to registry..."
-  docker push ${IMAGE_TAG}
-  docker push ${IMAGE_TAG_LATEST}
-  echo "✓ Successfully pushed ${IMAGE_TAG_LATEST}"
+  echo "✓ Built and pushed: ${TAGS[*]}"
+else
+  echo "✓ Built: ${TAGS[*]}"
 fi
