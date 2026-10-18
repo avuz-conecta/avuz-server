@@ -289,7 +289,7 @@ class RateLimitingMiddlewareTest extends TestCase {
 		$expected = new TemplateResponse(
 			'core',
 			'429',
-			[],
+			['pageTitle' => 'Too many attempts'],
 			TemplateResponse::RENDER_AS_GUEST
 		);
 		$expected->setStatus(429);

@@ -1,0 +1,806 @@
+/**
+ * Public appointment booking page as a widget inside the Avuz Conecta site
+ * (/agendar). Loaded only for ?embed=1 (AppointmentEmbedStyleListener); every
+ * rule is scoped to html.avuz-embed, which js/appointment-embed.js sets only
+ * when the page is framed by an allowlisted origin. Without it the page is the
+ * regular booking page.
+ *
+ * Selectors follow the calendar v6.2.1 booking DOM (Booking.vue,
+ * AppointmentDetails.vue, AppointmentSlot.vue, AppointmentBookingConfirmation.vue)
+ * and the @nextcloud/vue 8 components it renders (NcGuestContent,
+ * NcDateTimePicker = vue2-datepicker .mx-*, NcTimezonePicker = vue-select .vs__*,
+ * NcButton .button-vue*, NcEmptyContent). !important is needed to beat the
+ * public page layout, the components' own rules and css/theme.css.
+ *
+ * Tokens mirror the site (avuz-conecta-web, /agendar). The site card that hosts
+ * the iframe already draws the white box, radius and shadow, so this draws none.
+ *
+ * Height: the site sizes the iframe from the content height (avuz:resize), so
+ * nothing in here may size itself from the frame: no 100vh/100dvh, no
+ * height/min-height: 100% on html, body or #content.
+ */
+
+html.avuz-embed {
+    --avuz-embed-font: 'Questrial', system-ui, sans-serif;
+    --avuz-embed-ink: #0d0f12;
+    --avuz-embed-text: #2a2f36;
+    --avuz-embed-muted: #646d77;
+    --avuz-embed-faint: #b9bfc6;
+    --avuz-embed-line: #e7e8ea;
+    --avuz-embed-soft: #f6f7f7;
+    --avuz-embed-cyan: #2bb5e3;
+    --avuz-embed-cyan-dark: #0b7aa3;
+    --avuz-embed-cyan-tint: #eef9fd;
+    --avuz-embed-lime: #d2e314;
+    --avuz-embed-focus-ring: 0 0 0 3px rgba(43, 181, 227, 0.25);
+    --avuz-embed-radius: 14px;
+    --avuz-embed-tile-radius: 11px;
+    --avuz-embed-tile-gap: 6px;
+    --avuz-embed-pill-radius: 999px;
+    --avuz-embed-control-height: 48px;
+    --avuz-embed-padding: 16px;
+    --avuz-embed-gap: 24px;
+}
+
+@media (min-width: 640px) {
+    html.avuz-embed {
+        --avuz-embed-padding: 24px;
+        --avuz-embed-gap: 32px;
+    }
+}
+
+/* ── Page frame: content-sized, white, no chrome ─────────────────────────── */
+
+html.avuz-embed,
+html.avuz-embed body {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    background-image: none !important;
+}
+
+/* Last resort against a stray wide element: never scroll sideways in the frame */
+html.avuz-embed {
+    overflow-x: hidden !important;
+}
+
+html.avuz-embed body {
+    --font-face: var(--avuz-embed-font);
+    --color-main-text: var(--avuz-embed-text);
+    --color-text-maxcontrast: var(--avuz-embed-muted);
+    --color-main-background: #fff;
+    font-family: var(--avuz-embed-font) !important;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--avuz-embed-text) !important;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Questrial ships one weight (400): never bold, never a faux bold */
+html.avuz-embed body,
+html.avuz-embed body * {
+    font-weight: 400 !important;
+    font-synthesis: none;
+}
+
+html.avuz-embed body input,
+html.avuz-embed body textarea,
+html.avuz-embed body button,
+html.avuz-embed body select {
+    font-family: inherit !important;
+}
+
+html.avuz-embed #header,
+html.avuz-embed body > footer,
+html.avuz-embed #avuz-help-widget {
+    display: none !important;
+}
+
+html.avuz-embed #content,
+html.avuz-embed #content.nc-guest-content {
+    display: block !important;
+    position: static !important;
+    box-sizing: border-box !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: var(--avuz-embed-padding) !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+}
+
+html.avuz-embed #content *,
+html.avuz-embed #content *::before,
+html.avuz-embed #content *::after {
+    box-sizing: border-box;
+}
+
+html.avuz-embed #guest-content-vue {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    color: var(--avuz-embed-text) !important;
+}
+
+html.avuz-embed .booking-wrapper {
+    display: block !important;
+}
+
+html.avuz-embed #content h2,
+html.avuz-embed #content h3,
+html.avuz-embed #content h4,
+html.avuz-embed #content h5 {
+    margin: 0;
+    color: var(--avuz-embed-ink);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
+/* ── Step 1 layout: details, date, slots ─────────────────────────────────── */
+/* Mobile first: one column in DOM order (details, date, slots). From 640px:
+   details | date picker, slots full width below. */
+
+html.avuz-embed .booking {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: var(--avuz-embed-gap);
+    width: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+}
+
+html.avuz-embed .booking > div {
+    flex: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    text-align: start !important;
+}
+
+@media (min-width: 640px) {
+    html.avuz-embed .booking {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: start !important;
+    }
+
+    html.avuz-embed .booking > .booking__slot-selection {
+        grid-column: 1 / -1;
+    }
+}
+
+/* Organizer and appointment info */
+html.avuz-embed .booking__config-user-info,
+html.avuz-embed .booking-appointment-details .booking-details {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px;
+    text-align: start !important;
+}
+
+/* The site widget names the product, not the calendar owner. font-size 0
+   collapses the owner name; visibility keeps it out of the accessibility tree
+   while the label stays readable. */
+html.avuz-embed .booking__display-name {
+    margin-top: 6px;
+    font-size: 0;
+    visibility: hidden;
+    color: var(--avuz-embed-muted);
+}
+
+html.avuz-embed .booking__display-name::after {
+    content: "Conheça o AvuzConecta";
+    font-size: 15px;
+    visibility: visible;
+}
+
+html.avuz-embed #content .booking__name {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.2;
+    color: var(--avuz-embed-ink);
+}
+
+html.avuz-embed .booking__description {
+    padding: 0 !important;
+    font-size: 15px;
+    color: var(--avuz-embed-muted);
+}
+
+/* Section headings ("Select a date", "Select slot") */
+html.avuz-embed #content .booking__date-selection > h5,
+html.avuz-embed #content .booking__slot-selection > h5 {
+    position: static;
+    margin: 0 0 12px !important;
+    font-size: 17px;
+    text-align: start !important;
+    color: var(--avuz-embed-ink);
+}
+
+/* ── Date picker ─────────────────────────────────────────────────────────── */
+
+html.avuz-embed .booking__date-selection {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    text-align: start !important;
+}
+
+html.avuz-embed .booking__date-selection .booking__date {
+    margin: 0 !important;
+}
+
+html.avuz-embed .booking .mx-datepicker {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+/* Always-open picker: flow in place instead of the absolute popup */
+html.avuz-embed .booking .mx-datepicker-main {
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    color: var(--avuz-embed-text) !important;
+    font-family: var(--avuz-embed-font) !important;
+}
+
+html.avuz-embed .booking .mx-datepicker-content,
+html.avuz-embed .booking .mx-datepicker-body,
+html.avuz-embed .booking .mx-calendar {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+}
+
+html.avuz-embed .booking .mx-calendar-header {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    margin-bottom: 4px;
+    line-height: 40px;
+}
+
+html.avuz-embed .booking .mx-calendar-header-label {
+    flex: 1;
+    order: 2;
+    font-size: 16px;
+}
+
+html.avuz-embed .booking .mx-calendar-header .mx-btn-icon-double-left { order: 0; }
+html.avuz-embed .booking .mx-calendar-header .mx-btn-icon-left { order: 1; }
+html.avuz-embed .booking .mx-calendar-header .mx-btn-icon-right { order: 3; }
+html.avuz-embed .booking .mx-calendar-header .mx-btn-icon-double-right { order: 4; }
+
+html.avuz-embed .booking .mx-calendar-header .mx-btn {
+    float: none;
+    color: var(--avuz-embed-ink);
+}
+
+html.avuz-embed .booking .mx-calendar-header .mx-btn:hover {
+    color: var(--avuz-embed-cyan-dark);
+}
+
+/* The picker lays the month out with flexbox, not table layout: rows are
+   32px flex lines inside a fixed 224px box, so border-spacing does nothing and
+   a 40px tile overflows its row into the next one. Here the box grows with its
+   rows, every row is as tall as its tiles with a real gap between rows, and the
+   weekday header shares the day columns. */
+html.avuz-embed .booking .mx-calendar-content {
+    height: auto !important;
+}
+
+html.avuz-embed .booking .mx-table.mx-table-date,
+html.avuz-embed .booking .mx-table.mx-table-date thead,
+html.avuz-embed .booking .mx-table.mx-table-date tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: var(--avuz-embed-tile-gap);
+    width: 100% !important;
+    height: auto !important;
+}
+
+html.avuz-embed .booking .mx-table.mx-table-date tr {
+    display: flex !important;
+    flex: none !important;
+    gap: var(--avuz-embed-tile-gap);
+    min-height: 0 !important;
+}
+
+html.avuz-embed .booking .mx-table.mx-table-date th,
+html.avuz-embed .booking .mx-table.mx-table-date td {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+}
+
+html.avuz-embed .booking .mx-table-date th {
+    height: 28px !important;
+    font-size: 13px !important;
+    color: var(--avuz-embed-muted);
+}
+
+/* Every day tile: not bookable unless the next rules say otherwise */
+html.avuz-embed .booking .mx-datepicker td.cell {
+    height: 40px !important;
+    border-radius: var(--avuz-embed-tile-radius) !important;
+    background-color: transparent !important;
+    color: var(--avuz-embed-faint) !important;
+    font-size: 15px !important;
+    transition: background-color 0.15s, box-shadow 0.15s;
+}
+
+/* Days of the previous/next month: visible so no calendar row renders blank,
+   but muted and inert, never read as bookable */
+html.avuz-embed .booking .mx-datepicker td.cell.not-current-month {
+    color: var(--avuz-embed-muted) !important;
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
+}
+
+/* Bookable days: subtle cyan tint */
+html.avuz-embed .booking .mx-datepicker td.cell:not(.disabled):not(.not-current-month):not(.active) {
+    background-color: var(--avuz-embed-cyan-tint) !important;
+    color: var(--avuz-embed-ink) !important;
+}
+
+html.avuz-embed .booking .mx-datepicker td.cell:not(.disabled):not(.not-current-month):not(.active):hover {
+    background-color: var(--avuz-embed-cyan-tint) !important;
+    box-shadow: inset 0 0 0 1px var(--avuz-embed-cyan);
+}
+
+html.avuz-embed .booking .mx-datepicker td.cell.today:not(.active) {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* Selected day: site lime with black text */
+html.avuz-embed .booking .mx-datepicker td.cell.active,
+html.avuz-embed .booking .mx-datepicker td.cell.active:hover {
+    background-color: var(--avuz-embed-lime) !important;
+    color: #000 !important;
+}
+
+/* Time zone */
+html.avuz-embed .booking__time-zone {
+    position: static !important;
+    margin-top: 16px !important;
+}
+
+/* css/theme.css hides the picker below 600px on the regular page; the widget
+   shows it at every width */
+html.avuz-embed .booking__time-zone .v-select {
+    display: block !important;
+}
+
+html.avuz-embed .booking__time-zone .v-select.select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+}
+
+html.avuz-embed .booking__time-zone .vs__dropdown-toggle {
+    display: flex !important;
+    align-items: center !important;
+    min-height: var(--avuz-embed-control-height) !important;
+    padding: 0 8px !important;
+    border: 1px solid var(--avuz-embed-line) !important;
+    border-radius: var(--avuz-embed-radius) !important;
+    background: #fff !important;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+html.avuz-embed .booking__time-zone .vs__dropdown-toggle:hover,
+html.avuz-embed .booking__time-zone .vs--open .vs__dropdown-toggle,
+html.avuz-embed .booking__time-zone .v-select:focus-within .vs__dropdown-toggle {
+    border-color: var(--avuz-embed-cyan) !important;
+}
+
+html.avuz-embed .booking__time-zone .vs--open .vs__dropdown-toggle,
+html.avuz-embed .booking__time-zone .v-select:focus-within .vs__dropdown-toggle {
+    box-shadow: var(--avuz-embed-focus-ring) !important;
+}
+
+/* Selected zone and search text centered in the 48px box */
+html.avuz-embed .booking__time-zone .v-select.select .vs__selected-options {
+    align-self: stretch;
+    align-items: center !important;
+    align-content: center !important;
+    min-height: 0 !important;
+    padding: 0 6px !important;
+}
+
+html.avuz-embed .booking__time-zone .v-select.select .vs__selected,
+html.avuz-embed .booking__time-zone .v-select.select .vs__search {
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+    color: var(--avuz-embed-text) !important;
+}
+
+/* Options list: vue-select appends it to <body> (and is styled there until
+   moved); js/appointment-embed.js moves it back after the toggle */
+html.avuz-embed .vs__dropdown-menu {
+    border: 1px solid var(--avuz-embed-line) !important;
+    border-radius: var(--avuz-embed-radius) !important;
+    font-family: var(--avuz-embed-font) !important;
+}
+
+/* Back in the page flow: always below the toggle, full width, inside #content
+   (so the frame grows to fit it). Beats the inline top/left/width and the
+   drop-up styling floating-ui sets. */
+html.avuz-embed .booking__time-zone .v-select .vs__dropdown-menu {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-height: 280px !important;
+    overflow-y: auto !important;
+    margin: 6px 0 0 !important;
+    padding: 4px !important;
+    border-style: solid !important;
+    box-shadow: none !important;
+    background: #fff !important;
+}
+
+html.avuz-embed .booking__time-zone .vs__dropdown-option {
+    padding: 10px 12px !important;
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--avuz-embed-text);
+}
+
+html.avuz-embed .vs__dropdown-option--highlight,
+html.avuz-embed .vs__dropdown-option--selected {
+    background: var(--avuz-embed-cyan-tint) !important;
+    color: var(--avuz-embed-ink) !important;
+}
+
+/* ── Slots ───────────────────────────────────────────────────────────────── */
+/* One page scroll only: the list grows instead of scrolling inside itself */
+
+html.avuz-embed .booking__slot-selection {
+    text-align: start !important;
+}
+
+html.avuz-embed .booking__slots {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: 8px;
+    align-items: stretch !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+html.avuz-embed .booking__slots > .loading,
+html.avuz-embed .booking__slots > .empty-content {
+    grid-column: 1 / -1;
+}
+
+html.avuz-embed .booking__slots .empty-content {
+    margin: 0 !important;
+    padding: 16px 0;
+    align-items: flex-start;
+    text-align: start;
+}
+
+/* "No slots available": the calendar passes it as the description only */
+html.avuz-embed .booking__slots .empty-content__name,
+html.avuz-embed .booking__slots .empty-content__description {
+    margin: 0 !important;
+    font-size: 15px !important;
+    text-align: start !important;
+    color: var(--avuz-embed-muted) !important;
+}
+
+html.avuz-embed .booking__slots .empty-content__name + .empty-content__description {
+    display: none;
+}
+
+html.avuz-embed .booking__slots .appointment-slot.button-vue {
+    width: 100% !important;
+    height: auto !important;
+    min-height: var(--avuz-embed-control-height) !important;
+    margin: 0 !important;
+    padding: 0 12px !important;
+    border: 1px solid var(--avuz-embed-line) !important;
+    border-radius: var(--avuz-embed-radius) !important;
+    background-color: #fff !important;
+    color: var(--avuz-embed-ink) !important;
+    font-size: 15px !important;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+
+html.avuz-embed .booking__slots .appointment-slot.button-vue:hover:not(:disabled) {
+    border-color: var(--avuz-embed-cyan) !important;
+    background-color: var(--avuz-embed-cyan-tint) !important;
+}
+
+html.avuz-embed .booking__slots .appointment-slot.button-vue:focus-visible {
+    border-color: var(--avuz-embed-cyan) !important;
+    outline: none !important;
+    box-shadow: var(--avuz-embed-focus-ring) !important;
+}
+
+/* ── Step 2: appointment summary + form ──────────────────────────────────── */
+/* One column at every width: summary rows, then each field, all on the same
+   left edge and the same width. */
+
+html.avuz-embed .booking-appointment-details {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start !important;
+    gap: var(--avuz-embed-gap);
+    width: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    text-align: start !important;
+}
+
+html.avuz-embed .booking-appointment-details .booking-details {
+    flex: none !important;
+    width: 100% !important;
+}
+
+html.avuz-embed .booking-appointment-details .booking__date,
+html.avuz-embed .booking-appointment-details .booking__time {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-start !important;
+    gap: 10px;
+    padding: 0 !important;
+    font-size: 15px;
+    color: var(--avuz-embed-text);
+}
+
+html.avuz-embed .booking-appointment-details .booking__description + .booking__date {
+    margin-top: 6px;
+}
+
+html.avuz-embed .booking-appointment-details .booking-details .material-design-icon {
+    flex: none;
+    color: var(--avuz-embed-cyan-dark);
+}
+
+html.avuz-embed .booking-appointment-details .appointment-details {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    flex: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    text-align: start !important;
+}
+
+html.avuz-embed .appointment-details .name-details,
+html.avuz-embed .appointment-details .email-details,
+html.avuz-embed .appointment-details .meeting-info {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--avuz-embed-ink);
+}
+
+html.avuz-embed .appointment-details .meeting-text {
+    display: block !important;
+}
+
+html.avuz-embed .booking-appointment-details .appointment-details input,
+html.avuz-embed .booking-appointment-details .appointment-details textarea {
+    display: block;
+    width: 100% !important;
+    max-width: none !important;
+    height: var(--avuz-embed-control-height) !important;
+    min-height: var(--avuz-embed-control-height) !important;
+    margin: 0 !important;
+    padding: 0 14px !important;
+    border: 1px solid var(--avuz-embed-line) !important;
+    border-radius: var(--avuz-embed-radius) !important;
+    background-color: #fff !important;
+    color: var(--avuz-embed-text) !important;
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    cursor: text;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+html.avuz-embed .booking-appointment-details .appointment-details textarea {
+    height: auto !important;
+    min-height: 120px !important;
+    padding: 12px 14px !important;
+    resize: vertical;
+}
+
+html.avuz-embed .booking-appointment-details .appointment-details input:hover:not(:disabled),
+html.avuz-embed .booking-appointment-details .appointment-details textarea:hover:not(:disabled) {
+    border-color: var(--avuz-embed-cyan) !important;
+}
+
+html.avuz-embed .booking-appointment-details .appointment-details input:focus,
+html.avuz-embed .booking-appointment-details .appointment-details textarea:focus {
+    border-color: var(--avuz-embed-cyan) !important;
+    box-shadow: var(--avuz-embed-focus-ring) !important;
+}
+
+html.avuz-embed .booking-appointment-details .appointment-details input:disabled,
+html.avuz-embed .booking-appointment-details .appointment-details textarea:disabled {
+    background-color: var(--avuz-embed-soft) !important;
+    color: var(--avuz-embed-muted) !important;
+    cursor: not-allowed;
+}
+
+html.avuz-embed .booking-appointment-details .notecard {
+    margin: 0 !important;
+}
+
+/* Back (ghost) and Book (site primary button) */
+html.avuz-embed .booking-appointment-details .buttons {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+html.avuz-embed .booking-appointment-details .buttons .loading-icon {
+    margin: 0 0 0 auto !important;
+}
+
+html.avuz-embed .booking-appointment-details .buttons .button-vue {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: var(--avuz-embed-pill-radius) !important;
+    font-size: 16px !important;
+    line-height: 1.2 !important;
+    box-shadow: none !important;
+}
+
+html.avuz-embed .booking-appointment-details .buttons .button-vue__wrapper {
+    gap: 10px;
+    padding: 0 !important;
+}
+
+html.avuz-embed .booking-appointment-details .buttons .button-vue__text {
+    margin: 0 !important;
+    padding: 0 !important;
+    color: inherit !important;
+}
+
+html.avuz-embed .booking-appointment-details .buttons .button-vue__icon {
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    color: inherit !important;
+}
+
+html.avuz-embed .booking-appointment-details .buttons .button-vue--vue-primary {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 28px !important;
+    background-color: var(--avuz-embed-lime) !important;
+    color: #000 !important;
+    transition: transform 0.15s;
+}
+
+html.avuz-embed .booking-appointment-details .buttons .button-vue--vue-primary:hover:not(:disabled) {
+    background-color: var(--avuz-embed-lime) !important;
+    transform: translateY(-2px);
+}
+
+html.avuz-embed .booking-appointment-details .buttons .button-vue--vue-primary:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed;
+}
+
+html.avuz-embed .booking-appointment-details .buttons .button-vue:not(.button-vue--vue-primary) {
+    padding: 16px 18px !important;
+    background-color: transparent !important;
+    color: var(--avuz-embed-cyan-dark) !important;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+html.avuz-embed .booking-appointment-details .buttons .button-vue:not(.button-vue--vue-primary):hover:not(:disabled) {
+    background-color: var(--avuz-embed-soft) !important;
+    color: var(--avuz-embed-ink) !important;
+}
+
+html.avuz-embed .booking-appointment-details .buttons .button-vue:focus-visible {
+    outline: 2px solid var(--avuz-embed-cyan-dark) !important;
+    outline-offset: 2px;
+    box-shadow: none !important;
+}
+
+/* Below 640px: full-width primary on top, Back underneath */
+@media (max-width: 639.98px) {
+    html.avuz-embed .booking-appointment-details .buttons {
+        flex-direction: column-reverse !important;
+        align-items: stretch !important;
+    }
+
+    html.avuz-embed .booking-appointment-details .buttons .button-vue {
+        width: 100% !important;
+    }
+
+    html.avuz-embed .booking-appointment-details .buttons .loading-icon {
+        margin: 0 auto !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.avuz-embed .booking-appointment-details .buttons .button-vue--vue-primary:hover:not(:disabled) {
+        transform: none;
+    }
+}
+
+/* ── Step 3: "confirm by email" ──────────────────────────────────────────── */
+
+html.avuz-embed .appointment-booking-confirmation {
+    max-width: none !important;
+    margin: 0 !important;
+}
+
+html.avuz-embed .appointment-booking-confirmation .empty-content {
+    margin: 0 !important;
+    padding: 16px 0;
+}
+
+html.avuz-embed .appointment-booking-confirmation .empty-content__icon {
+    color: var(--avuz-embed-cyan-dark);
+}
+
+html.avuz-embed .appointment-booking-confirmation .empty-content__name {
+    font-size: 22px !important;
+    color: var(--avuz-embed-ink) !important;
+}
+
+html.avuz-embed .appointment-booking-confirmation .empty-content__description {
+    color: var(--avuz-embed-muted) !important;
+}

@@ -50,6 +50,18 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 - It idles (rechecks every 300 s) while the app is off or Nextcloud is not installed, so it runs on every tenant. After a worker failure it backs off 30 s. It logs state changes only.
 - Contracts add-on: "Ler contratos com IA" (same admin section, AvuzConecta admins only; ON by default once the add-on is on and an AI provider exists; `contracts_ai_enabled=false` turns it off per client) reads draft PDFs through Nextcloud task processing (`core:text2text`, the `nextcloud-taskprocessing` worker); integration_openai's text-to-text provider is on only when an AI key exists (`avuz_sync_llm_provider_switch`). The Contratos screen lives at `/apps/assinaturas/contracts`.
 
+### Mandatory admin 2FA (TOTP)
+- Every boot enables `twofactor_totp` + `twofactor_backupcodes` and enforces 2FA for the `admin` group (`avuz_enforce_admin_2fa` in `docker/lib-apps.sh`, called from `docker/entrypoint.sh`). Idempotent; never narrows or disables an instance's existing enforcement (non-admin users unaffected). Opt out per stack with `AVUZ_ENFORCE_ADMIN_2FA=0` (default on).
+- Lost-authenticator recovery (backup code, `occ twofactorauth:disable <uid> totp` via Portainer exec, re-enroll, `occ twofactorauth:state <uid>`, automation/test-admin note): `docs/runbooks/admin-2fa-recovery.md`.
+
+### Calendar "Criado por" (card 455)
+- `apps/dav/lib/CalDAV/CreatedBy/CreatedByPlugin.php` stamps `X-AVUZ-CREATED-BY;CN=<name>:<uid>` when someone other than the calendar owner creates an event (share/delegation) over CalDAV. Set on create, carried over on update (clients can't drop or forge it); owner-created events untouched.
+- The calendar overlay (`docker/overlays/calendar/event-created-by.patch`, sentinel `AVUZ-CREATED-BY-V1`) shows "Criado por <nome>" in the popover and full editor. Older events have no stamp.
+
+### Contacts WhatsApp button (card 266)
+- Contacts 8.4.1 overlay (`docker/overlays/contacts/`, sentinel `AVUZ-WHATSAPP-PHONE-V1`): in view mode a WhatsApp button next to each phone number opens `wa.me/<digits>` (bare 10/11 digits get `55`; none for <8 digits, Fax/Pager/Car, or edit mode). Ships `js/` and `css/`; the Dockerfile fails on any other contacts version. pt_BR label in `themes/avuz/apps/contacts/l10n/pt_BR.json`.
+- Rebuild needs the build clock pinned to the release date (`shift-build-date.cjs`), or the bundle won't match upstream. See `docker/overlays/contacts/README.md`.
+
 ## Important Configs
 
 ### Nginx (`docker/nginx.conf`)
@@ -86,6 +98,25 @@ find /var/www/html/themes -type f -exec chmod 644 {} \;
 ./scripts/build-push.sh latest staging s3     # → :staging-s3
 ./scripts/build-push.sh latest local   s3     # → :latest-s3
 ```
+
+## Deploy (`scripts/deploy.sh`)
+
+Pulls `:latest` + recreates one or more Portainer stacks via the Portainer API
+(`deploy-prod.sh` = same script against `deploy.prod.env`). After each stack
+redeploys, it waits (up to `CACHEBUST_WAIT`=420 s — startup can take ~6 min) for
+the fresh NC container to report `installed: true`, then bumps the theming
+cachebuster: reads `occ config:app:get theming cachebuster` (default 0) and sets
+it +1 as www-data, inside the stack's container via the Portainer Docker-API exec
+proxy (same mechanism as `portainer-exec.sh`). This changes the
+`?v=<versionHash>-<cachebuster>` asset URLs so browsers + Cloudflare (6-month
+immutable cache) fetch fresh l10n/JS overrides shipped without a version bump.
+Non-fatal — a failed/timed-out bump warns and the deploy still succeeds. Skip
+with `--no-cachebust` or `SKIP_CACHEBUST=1`.
+
+Bump the conectamail version in `apps/conectamail/appinfo/info.xml` on every
+change to conectamail so the asset `?v=` cache-busts (assets cached 6 months at
+Cloudflare/browsers). The next boot sees `needsDbUpgrade: true` and runs the
+entrypoint's `occ upgrade` branch on its own.
 
 On macOS the build scripts auto-launch Docker Desktop if it's down (`scripts/lib-docker.sh`)
 and, at the end, prompt `Stop it now? [y/N]` whenever Docker is running (default: keep).

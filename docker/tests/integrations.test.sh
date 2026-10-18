@@ -80,6 +80,8 @@ assert_contains "it stores the SSO secret sensitive, by variable name" \
 assert_contains "it stores the credential key sensitive, by variable name" \
     "phpcfg conectamail credential_key ROUNDCUBE_CREDENTIAL_KEY --sensitive" "$calls"
 assert_eq "hands the SSO secret to the writer through the env" "$ROUNDCUBE_SSO_SECRET" "$(stored sso_secret)"
+assert_contains "it opens Roundcube from the Mail menu when no backend is set" \
+    "occ config:app:set conectamail mail_backend --value=roundcube" "$calls"
 
 describe "AI provider"
 assert_contains "it stores the API key sensitive, by variable name" \
@@ -139,8 +141,11 @@ assert_contains "it falls back to the AI key for STT when no STT key is set" \
     "phpcfg integration_openai stt_api_key AI_API_KEY --sensitive" "$(cat "$ARGV_LOG")"
 
 unset SMTP_PASSWORD ROUNDCUBE_CREDENTIAL_KEY
+export CONECTAMAIL_BACKEND=webmail
 avuz_configure_smtp >/dev/null
 avuz_configure_conectamail >/dev/null
+assert_contains "it stores the Mail menu backend from the env" \
+    "occ config:app:set conectamail mail_backend --value=webmail" "$(cat "$ARGV_LOG")"
 assert_eq "writes an empty SMTP password when none is set, as occ did" "" "$(stored mail_smtppassword)"
 assert_eq "writes an empty credential key when none is set, as occ did" "" "$(stored credential_key)"
 

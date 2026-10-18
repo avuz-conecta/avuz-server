@@ -1045,6 +1045,8 @@ OC.L10N.register(
     "Limited ODF compatibility" : "Compatibilidade limitada com ODF",
     "Best Microsoft compatibility" : "Melhor compatibilidade com a Microsoft",
     "{progress}% Deploying …" : "{progress}% Implantando …",
-    "{progress}% Initializing …" : "{progress}% Inicializando …"
+    "{progress}% Initializing …" : "{progress}% Inicializando …",
+    "Confirm new password" : "Confirmar nova senha",
+    "Passwords do not match." : "As senhas não coincidem."
 },
 "nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;");

@@ -397,3 +397,125 @@ avuz_reconcile_app_versions() {
     done
     return 0
 }
+
+# Pure: given the current `occ twofactorauth:enforce` output on $1, build the
+# argument tail that ensures the `admin` group is enforced WITHOUT narrowing an
+# instance's existing scope. Prints either `skip` (admin already covered — leave
+# the state untouched) or the args to pass to `occ twofactorauth:enforce`.
+#
+# Decisions (output strings from core/Command/TwoFactorAuth/Enforce.php):
+#   "… is not enforced"                 -> --on --group=admin
+#   "… enforced for all users[, …]"     -> skip   (everyone already covers admin;
+#                                                   narrowing to admin would DROP
+#                                                   enforcement for non-admins)
+#   "… enforced for members of the
+#        group(s) X, Y[, except members of Z]"
+#        with admin already in X, Y     -> skip
+#        otherwise                      -> --on --group=X --group=Y --group=admin
+#                                          [--exclude=Z …]   (existing enforced
+#                                          and excluded groups preserved verbatim)
+#
+# setState replaces the whole state, so excluded groups must be re-passed or they
+# are lost. Group names containing a comma or space are not round-tripped (an
+# upstream CLI limitation shared by the comma-joined output); the admin default
+# and ordinary group ids are unaffected.
+avuz_2fa_enforce_args() {
+    local state
+    state="$(printf '%s' "$1" | tr '\r\n' '  ')"
+    case "$state" in
+        *"is not enforced"*) echo "--on --group=admin"; return 0 ;;
+        *"enforced for all users"*) echo "skip"; return 0 ;;
+    esac
+
+    local rest="${state#*group(s) }"
+    local enforced excluded=""
+    case "$rest" in
+        *", except members of "*)
+            enforced="${rest%%, except members of *}"
+            excluded="${rest#*, except members of }"
+            ;;
+        *) enforced="$rest" ;;
+    esac
+
+    local args="--on" group trimmed has_admin=0
+    IFS=',' read -ra _avuz_enforced_groups <<< "$enforced"
+    for group in "${_avuz_enforced_groups[@]}"; do
+        trimmed="$(_avuz_trim "$group")"
+        [ -z "$trimmed" ] && continue
+        [ "$trimmed" = "admin" ] && has_admin=1
+        args="$args --group=$trimmed"
+    done
+    if [ "$has_admin" -eq 1 ]; then
+        echo "skip"
+        return 0
+    fi
+    args="$args --group=admin"
+    IFS=',' read -ra _avuz_excluded_groups <<< "$excluded"
+    for group in "${_avuz_excluded_groups[@]}"; do
+        trimmed="$(_avuz_trim "$group")"
+        [ -z "$trimmed" ] && continue
+        args="$args --exclude=$trimmed"
+    done
+    echo "$args"
+    return 0
+}
+
+# Pure: strip leading/trailing whitespace.
+_avuz_trim() {
+    local s="$1"
+    s="${s#"${s%%[![:space:]]*}"}"
+    s="${s%"${s##*[![:space:]]}"}"
+    printf '%s' "$s"
+}
+
+# Origins allowed to embed the public appointment booking page in an iframe:
+# AVUZ_EMBED_ALLOWED_ORIGINS, comma-separated https origins (no path). Synced
+# every boot, so the stack env is the source of truth; empty or unset = embedding
+# off. avuz_theme drops invalid entries when it reads them. Non-fatal.
+avuz_sync_embed_allowed_origins() {
+    export AVUZ_EMBED_ALLOWED_ORIGINS="${AVUZ_EMBED_ALLOWED_ORIGINS:-}"
+    avuz_set_config_from_env avuz_theme embed_allowed_origins AVUZ_EMBED_ALLOWED_ORIGINS --type=string \
+        || echo "✗ Could not sync AVUZ_EMBED_ALLOWED_ORIGINS — booking embed keeps its previous origins"
+}
+
+# Make TOTP two-factor auth mandatory for the `admin` group, idempotently, on
+# every boot. Enables twofactor_totp (enrollment) and twofactor_backupcodes
+# (recovery codes) so a locked-out admin can get back in, then enforces 2FA for
+# the admin group without touching enforcement for anyone else. Opt out per stack
+# with AVUZ_ENFORCE_ADMIN_2FA=0 (default on). Non-fatal: a failure logs and lets
+# the boot continue. Recovery: docs/runbooks/admin-2fa-recovery.md.
+avuz_enforce_admin_2fa() {
+    if [ "${AVUZ_ENFORCE_ADMIN_2FA:-1}" = "0" ]; then
+        echo "→ Admin 2FA enforcement disabled (AVUZ_ENFORCE_ADMIN_2FA=0) — skipping"
+        return 0
+    fi
+
+    if _avuz_occ app:enable twofactor_totp; then
+        echo "✓ twofactor_totp enabled"
+    else
+        echo "✗ Could not enable twofactor_totp — admins cannot enroll; skipping enforce this boot"
+        return 0
+    fi
+    if _avuz_occ app:enable twofactor_backupcodes; then
+        echo "✓ twofactor_backupcodes enabled"
+    else
+        echo "✗ Could not enable twofactor_backupcodes (admins lose recovery codes) — continuing"
+    fi
+
+    local current args
+    current="$(_avuz_occ twofactorauth:enforce 2>/dev/null)" || true
+    args="$(avuz_2fa_enforce_args "$current")"
+    if [ "$args" = "skip" ]; then
+        echo "✓ Admin 2FA enforcement already covers the admin group — no change"
+        return 0
+    fi
+    echo "Enforcing admin 2FA: twofactorauth:enforce $args"
+    # Intentional word-split of the arg tail built by avuz_2fa_enforce_args.
+    # shellcheck disable=SC2086
+    if _avuz_occ twofactorauth:enforce $args; then
+        echo "✓ Admin 2FA enforcement applied"
+    else
+        echo "✗ Admin 2FA enforcement failed — will retry next boot"
+    fi
+    return 0
+}

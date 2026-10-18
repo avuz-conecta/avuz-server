@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avuz Conecta · Componentes</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+@font-face {
+	font-family: "Questrial";
+	src: url("../../apps/avuz_theme/fonts/questrial-latin.woff2") format("woff2");
+	font-display: swap;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--avuz-bg); color: var(--avuz-text); font-family: var(--avuz-font-body); }
+
+.page-header { padding: var(--avuz-space-6) var(--avuz-space-4); max-width: 1440px; margin: 0 auto; }
+.page-header h1 { font: var(--avuz-text-2xl)/var(--avuz-leading-2xl) var(--avuz-font-heading); margin: 0 0 var(--avuz-space-1); }
+.page-header p { margin: 0; color: var(--avuz-text-muted); font-size: var(--avuz-text-base); }
+.brand-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--avuz-brand); margin-right: var(--avuz-space-2); }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: var(--avuz-space-4); padding: 0 var(--avuz-space-4) var(--avuz-space-8); max-width: 1440px; margin: 0 auto; }
+@media (max-width: 960px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+	container-type: inline-size;
+	background: var(--avuz-bg);
+	color: var(--avuz-text);
+	border-radius: var(--avuz-radius-lg);
+	border: 1px solid var(--avuz-border);
+	padding: var(--avuz-space-6) var(--avuz-space-4);
+	font-size: var(--avuz-text-base);
+	line-height: var(--avuz-leading-base);
+	min-width: 0;
+}
+.panel-label { font: 600 var(--avuz-text-xs)/var(--avuz-leading-xs) var(--avuz-font-body); color: var(--avuz-text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 var(--avuz-space-6); }
+
+section + section { margin-top: var(--avuz-space-12); }
+h2 { font: var(--avuz-text-xl)/var(--avuz-leading-xl) var(--avuz-font-heading); margin: 0 0 var(--avuz-space-4); }
+h3 { font: var(--avuz-text-lg)/var(--avuz-leading-lg) var(--avuz-font-heading); margin: 0; }
+.caption { font-size: var(--avuz-text-sm); line-height: var(--avuz-leading-sm); color: var(--avuz-text-muted); margin: 0 0 var(--avuz-space-3); }
+.row { display: flex; flex-wrap: wrap; gap: var(--avuz-space-2); align-items: center; }
+.row + .caption { margin-top: var(--avuz-space-4); }
+a { color: var(--avuz-link); }
+
+:where(.button, .card, .input, a, .tag-remove):focus-visible { outline: 2px solid transparent; box-shadow: var(--avuz-focus-ring); }
+
+/* Buttons */
+.button {
+	display: inline-flex; align-items: center; gap: var(--avuz-space-2);
+	min-height: var(--avuz-control-height); padding: 0 var(--avuz-space-4);
+	border: 1px solid transparent; border-radius: var(--avuz-radius-md);
+	font: 600 var(--avuz-text-base)/1 var(--avuz-font-body);
+	cursor: pointer; transition: background-color 120ms, color 120ms, border-color 120ms;
+}
+@media (pointer: coarse) { .button { min-height: var(--avuz-tap-target); } }
+.button svg { width: 16px; height: 16px; flex: none; }
+.button-primary { background: var(--avuz-action); color: var(--avuz-on-action); }
+.button-primary:hover, .button-primary.is-hover { background: var(--avuz-action-hover); }
+.button-primary:active { background: var(--avuz-action-active); }
+.button-secondary { background: var(--avuz-surface); color: var(--avuz-text); border-color: var(--avuz-border); }
+.button-secondary:hover, .button-secondary.is-hover { background: var(--avuz-surface-hover); }
+.button-secondary:active { border-color: var(--avuz-text-muted); }
+.button-ghost { background: transparent; color: var(--avuz-link); }
+.button-ghost:hover, .button-ghost.is-hover { background: var(--avuz-action-tint); }
+.button-ghost:active { background: var(--avuz-action-tint); color: var(--avuz-action-hover); }
+.button-danger { background: var(--avuz-danger); color: var(--avuz-on-danger); }
+.button-danger:hover, .button-danger.is-hover, .button-danger:active { background: var(--avuz-danger-hover); }
+.button.is-focus { box-shadow: var(--avuz-focus-ring); }
+.button:disabled { background: var(--avuz-disabled-bg); color: var(--avuz-disabled-text); border-color: transparent; cursor: not-allowed; }
+.button-ghost:disabled { background: transparent; }
+.spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 700ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--avuz-space-4); }
+.card {
+	display: block; text-align: left; width: 100%; font: inherit; color: inherit; text-decoration: none;
+	background: var(--avuz-surface); border: 1px solid var(--avuz-border); border-radius: var(--avuz-radius-lg);
+	box-shadow: var(--avuz-shadow-sm); padding: var(--avuz-space-4); transition: box-shadow 120ms, border-color 120ms;
+}
+.card:hover { box-shadow: var(--avuz-shadow-md); border-color: var(--avuz-text-muted); }
+.card.is-selected { background: var(--avuz-action-tint); border-color: var(--avuz-action); }
+.card-meta { display: flex; flex-wrap: wrap; gap: var(--avuz-space-3); font-size: var(--avuz-text-sm); line-height: var(--avuz-leading-sm); color: var(--avuz-text-muted); margin: var(--avuz-space-2) 0 var(--avuz-space-3); }
+.card-meta .is-late { color: var(--avuz-danger); font-weight: 600; }
+.skeleton { background: var(--avuz-surface-hover); border-radius: var(--avuz-radius-sm); height: 14px; margin-top: var(--avuz-space-2); }
+
+/* Tags */
+.tag { display: inline-flex; align-items: center; gap: 6px; padding: 2px var(--avuz-space-2); border-radius: var(--avuz-radius-pill); font: 600 var(--avuz-text-xs)/var(--avuz-leading-xs) var(--avuz-font-body); white-space: nowrap; }
+.tag-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.tag-neutral { background: var(--avuz-surface-hover); color: var(--avuz-text); box-shadow: inset 0 0 0 1px var(--avuz-border); }
+.tag-info { background: var(--avuz-action-tint); color: var(--avuz-link); }
+.tag-success { background: var(--avuz-success-tint); color: var(--avuz-success); }
+.tag-danger { background: var(--avuz-danger-tint); color: var(--avuz-danger); }
+.tag-new { background: var(--avuz-accent); color: var(--avuz-on-accent); }
+.tag-remove { display: inline-grid; place-items: center; width: 24px; height: 24px; margin: -4px -6px -4px 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; font-size: 14px; }
+.tag-remove:hover { background: var(--avuz-border); }
+
+/* Table */
+.table-frame { background: var(--avuz-surface); border: 1px solid var(--avuz-border); border-radius: var(--avuz-radius-lg); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: var(--avuz-text-sm); line-height: var(--avuz-leading-sm); font-weight: 600; color: var(--avuz-text-muted); }
+th, td { padding: var(--avuz-space-3) var(--avuz-space-4); border-bottom: 1px solid var(--avuz-border); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--avuz-surface-hover); }
+tbody tr.is-selected { background: var(--avuz-action-tint); }
+.numeric { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@container (max-width: 560px) {
+	thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+	table, tbody, tr, td { display: block; }
+	tbody tr { padding: var(--avuz-space-3) var(--avuz-space-4); border-bottom: 1px solid var(--avuz-border); }
+	tbody tr:last-child { border-bottom: 0; }
+	td { border: 0; padding: var(--avuz-space-1) 0; display: flex; justify-content: space-between; gap: var(--avuz-space-4); text-align: right; }
+	td::before { content: attr(data-label); color: var(--avuz-text-muted); font-size: var(--avuz-text-sm); font-weight: 600; text-align: left; }
+}
+
+/* Forms */
+.form { display: grid; gap: var(--avuz-space-4); max-width: 480px; }
+.field { display: grid; gap: var(--avuz-space-2); }
+.field label { font-size: var(--avuz-text-sm); line-height: var(--avuz-leading-sm); font-weight: 600; }
+.field label small { font-weight: 400; color: var(--avuz-text-muted); font-size: inherit; }
+.input {
+	min-height: var(--avuz-control-height); padding: 0 var(--avuz-space-3); width: 100%;
+	background: var(--avuz-surface); color: var(--avuz-text); border: 1px solid var(--avuz-border); border-radius: var(--avuz-radius-md);
+	font: var(--avuz-text-base)/var(--avuz-leading-base) var(--avuz-font-body);
+}
+@media (pointer: coarse) { .input { min-height: var(--avuz-tap-target); } }
+.input::placeholder { color: var(--avuz-text-muted); }
+.input:hover { border-color: var(--avuz-text-muted); }
+.input:focus-visible { border-color: var(--avuz-action); }
+.input[aria-invalid="true"] { border-color: var(--avuz-danger); }
+.input:disabled { background: var(--avuz-disabled-bg); color: var(--avuz-disabled-text); border-color: transparent; cursor: not-allowed; }
+.input[readonly] { background: var(--avuz-bg); }
+.hint { font-size: var(--avuz-text-sm); line-height: var(--avuz-leading-sm); color: var(--avuz-text-muted); margin: 0; }
+.hint.is-error { color: var(--avuz-danger); display: flex; gap: var(--avuz-space-1); align-items: flex-start; }
+.hint.is-error svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
+
+/* Empty state */
+.empty { text-align: center; padding: var(--avuz-space-12) var(--avuz-space-4); background: var(--avuz-surface); border: 1px dashed var(--avuz-border); border-radius: var(--avuz-radius-lg); }
+.empty-body { max-width: 400px; margin: 0 auto; display: grid; justify-items: center; gap: var(--avuz-space-3); }
+.empty svg { width: 48px; height: 48px; color: var(--avuz-text-muted); }
+.empty h3 { font-size: var(--avuz-text-xl); line-height: var(--avuz-leading-xl); }
+.empty p { margin: 0; color: var(--avuz-text-muted); }
+.empty + .empty { margin-top: var(--avuz-space-4); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+	<h1><span class="brand-dot" aria-hidden="true"></span>Avuz Conecta · Componentes</h1>
+	<p>Mesmos componentes, tema claro e escuro lado a lado. Tokens em <a href="tokens.md">tokens.md</a>, regras em <a href="components.md">components.md</a>.</p>
+</header>
+
+<main class="panels">
+	<div class="panel" data-theme="light" data-suffix="claro"><p class="panel-label">Tema claro</p></div>
+	<div class="panel" data-theme="dark" data-suffix="escuro"><p class="panel-label">Tema escuro</p></div>
+</main>
+
+<template id="components">
+	<section aria-labelledby="buttons-title">
+		<h2 id="buttons-title">Botões</h2>
+		<p class="caption">Padrão</p>
+		<div class="row">
+			<button class="button button-primary" type="button">Enviar para assinatura</button>
+			<button class="button button-secondary" type="button">Salvar rascunho</button>
+			<button class="button button-ghost" type="button">Cancelar</button>
+			<button class="button button-danger" type="button">Excluir quadro</button>
+		</div>
+		<p class="caption">Hover</p>
+		<div class="row">
+			<button class="button button-primary is-hover" type="button">Enviar para assinatura</button>
+			<button class="button button-secondary is-hover" type="button">Salvar rascunho</button>
+			<button class="button button-ghost is-hover" type="button">Cancelar</button>
+			<button class="button button-danger is-hover" type="button">Excluir quadro</button>
+		</div>
+		<p class="caption">Foco, desabilitado, carregando</p>
+		<div class="row">
+			<button class="button button-primary is-focus" type="button">Novo cartão</button>
+			<button class="button button-primary" type="button" disabled>Enviar para assinatura</button>
+			<button class="button button-secondary" type="button" disabled>Salvar rascunho</button>
+			<button class="button button-primary" type="button" disabled aria-busy="true"><span class="spinner" aria-hidden="true"></span>Enviando…</button>
+		</div>
+	</section>
+
+	<section aria-labelledby="cards-title">
+		<h2 id="cards-title">Cartões</h2>
+		<div class="cards">
+			<a class="card" href="#">
+				<h3>Revisar minuta do contrato de locação</h3>
+				<div class="card-meta"><span class="is-late">Vence ontem</span><span>Ana Ribeiro</span><span>3 comentários</span></div>
+				<div class="row"><span class="tag tag-neutral">Jurídico</span><span class="tag tag-danger"><span class="tag-dot" aria-hidden="true"></span>Atrasado</span></div>
+			</a>
+			<a class="card is-selected" href="#" aria-current="true">
+				<h3>Fechar escala de plantão de novembro</h3>
+				<div class="card-meta"><span>Vence 28/10</span><span>Carlos Menezes</span></div>
+				<div class="row"><span class="tag tag-neutral">RH</span><span class="tag tag-new">Novo</span></div>
+			</a>
+			<div class="card" aria-busy="true" aria-label="Carregando cartão">
+				<div class="skeleton" style="width: 80%; height: 20px; margin: 0;"></div>
+				<div class="skeleton" style="width: 50%;"></div>
+				<div class="skeleton" style="width: 30%;"></div>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="tags-title">
+		<h2 id="tags-title">Etiquetas</h2>
+		<div class="row">
+			<span class="tag tag-neutral">Financeiro <button class="tag-remove" type="button" aria-label="Remover etiqueta Financeiro">×</button></span>
+			<span class="tag tag-info"><span class="tag-dot" aria-hidden="true"></span>Aguardando assinatura</span>
+			<span class="tag tag-success"><span class="tag-dot" aria-hidden="true"></span>Assinado</span>
+			<span class="tag tag-danger"><span class="tag-dot" aria-hidden="true"></span>Recusado</span>
+			<span class="tag tag-new">Novo</span>
+		</div>
+	</section>
+
+	<section aria-labelledby="table-title">
+		<h2 id="table-title">Tabela</h2>
+		<div class="table-frame">
+			<table>
+				<thead>
+					<tr><th scope="col">Contrato</th><th scope="col">Status</th><th scope="col" class="numeric">Enviado em</th><th scope="col" class="numeric">Valor</th></tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td data-label="Contrato"><a href="#">Prestação de serviços · Construtora Horizonte</a></td>
+						<td data-label="Status"><span class="tag tag-info">Aguardando 2 de 3</span></td>
+						<td data-label="Enviado em" class="numeric">09/10/2026</td>
+						<td data-label="Valor" class="numeric">R$ 48.500,00</td>
+					</tr>
+					<tr class="is-selected">
+						<td data-label="Contrato"><a href="#">Aditivo de prazo · Clínica Santa Luzia</a></td>
+						<td data-label="Status"><span class="tag tag-success">Assinado</span></td>
+						<td data-label="Enviado em" class="numeric">02/10/2026</td>
+						<td data-label="Valor" class="numeric">R$ 12.000,00</td>
+					</tr>
+					<tr>
+						<td data-label="Contrato"><a href="#">Confidencialidade (NDA) · Mercado Bom Preço</a></td>
+						<td data-label="Status"><span class="tag tag-danger">Recusado</span></td>
+						<td data-label="Enviado em" class="numeric">28/09/2026</td>
+						<td data-label="Valor" class="numeric">—</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section aria-labelledby="form-title">
+		<h2 id="form-title">Formulário</h2>
+		<form class="form" onsubmit="return false">
+			<div class="field">
+				<label for="envelope-name">Nome do envelope <small>(obrigatório)</small></label>
+				<input class="input" id="envelope-name" value="Contrato de prestação de serviços 2027" required>
+			</div>
+			<div class="field">
+				<label for="signer-email">E-mail do signatário <small>(obrigatório)</small></label>
+				<input class="input" id="signer-email" type="email" value="ana@construtora" aria-invalid="true" aria-describedby="signer-email-error" required>
+				<p class="hint is-error" id="signer-email-error">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+					Informe um e-mail válido, ex.: ana@empresa.com.br
+				</p>
+			</div>
+			<div class="field">
+				<label for="signer-cpf">CPF</label>
+				<input class="input" id="signer-cpf" inputmode="numeric" placeholder="000.000.000-00" aria-describedby="signer-cpf-hint">
+				<p class="hint" id="signer-cpf-hint">Opcional. Aparece no certificado de assinatura.</p>
+			</div>
+			<div class="field">
+				<label for="sender-company">Empresa remetente</label>
+				<input class="input" id="sender-company" value="Construtora Horizonte Ltda." readonly>
+			</div>
+			<div class="field">
+				<label for="expiry-date">Prazo para assinar</label>
+				<input class="input" id="expiry-date" value="Definido pelo administrador" disabled>
+			</div>
+			<div class="row">
+				<button class="button button-primary" type="submit">Enviar para assinatura</button>
+				<button class="button button-ghost" type="button">Cancelar</button>
+			</div>
+		</form>
+	</section>
+
+	<section aria-labelledby="empty-title">
+		<h2 id="empty-title">Estados vazios</h2>
+		<div class="empty">
+			<div class="empty-body">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15l2 2 4-4"/></svg>
+				<h3>Nenhum contrato ainda</h3>
+				<p>Envie o primeiro documento para assinatura.</p>
+				<button class="button button-primary" type="button">Novo envelope</button>
+			</div>
+		</div>
+		<div class="empty">
+			<div class="empty-body">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M7 12h10M10 18h4"/></svg>
+				<h3>Nenhum cartão com a etiqueta Financeiro</h3>
+				<p>Remova o filtro para ver todos os cartões do quadro.</p>
+				<button class="button button-ghost" type="button">Limpar filtros</button>
+			</div>
+		</div>
+	</section>
+</template>
+
+<script>
+const componentsTemplate = document.getElementById("components");
+const ID_REFERENCE_ATTRIBUTES = ["for", "aria-describedby", "aria-labelledby"];
+
+for (const panel of document.querySelectorAll(".panel")) {
+	const components = componentsTemplate.content.cloneNode(true);
+	const suffix = panel.dataset.suffix;
+	for (const element of components.querySelectorAll("[id]")) {
+		element.id = `${element.id}-${suffix}`;
+	}
+	for (const attribute of ID_REFERENCE_ATTRIBUTES) {
+		for (const element of components.querySelectorAll(`[${attribute}]`)) {
+			const ids = element.getAttribute(attribute).split(" ");
+			element.setAttribute(attribute, ids.map((id) => `${id}-${suffix}`).join(" "));
+		}
+	}
+	panel.append(components);
+}
+</script>
+</body>
+</html>

@@ -2833,6 +2833,43 @@ class UsersControllerTest extends TestCase {
 		$this->api->deleteUser('UserToDelete');
 	}
 
+	private function mockAdminDeletingUserWhoseCleanupFails(bool $userStillInBackend): void {
+		$loggedInUser = $this->createMock(IUser::class);
+		$loggedInUser->method('getUID')->willReturn('admin');
+		$backend = $this->createMock(UserInterface::class);
+		$backend->method('userExists')->with('UID')->willReturn($userStillInBackend);
+		$targetUser = $this->createMock(IUser::class);
+		$targetUser->method('getUID')->willReturn('UID');
+		$targetUser->method('getBackend')->willReturn($backend);
+		$targetUser->method('delete')->willThrowException(new RuntimeException('listener failed'));
+		$this->userSession->method('getUser')->willReturn($loggedInUser);
+		$this->userManager->method('get')->with('UserToDelete')->willReturn($targetUser);
+		$this->groupManager->method('isAdmin')->with('admin')->willReturn(true);
+	}
+
+	public function testDeleteReturnsSuccessAndLogsWhenCleanupFailsAfterTheBackendDeletedTheUser(): void {
+		$this->mockAdminDeletingUserWhoseCleanupFails(false);
+		$this->logger
+			->expects($this->once())
+			->method('error')
+			->with(
+				'Account {userId} was deleted, but a cleanup step after the deletion failed',
+				$this->callback(fn (array $context): bool => $context['userId'] === 'UID' && $context['exception'] instanceof RuntimeException),
+			);
+
+		$this->assertEquals([], $this->api->deleteUser('UserToDelete')->getData());
+	}
+
+	public function testDeleteRethrowsWhenTheUserStillExistsInTheBackend(): void {
+		$this->mockAdminDeletingUserWhoseCleanupFails(true);
+		$this->logger->expects($this->never())->method('error');
+
+		$this->expectException(RuntimeException::class);
+		$this->expectExceptionMessage('listener failed');
+
+		$this->api->deleteUser('UserToDelete');
+	}
+
 	public function testDeleteSuccessfulUserAsSubadmin(): void {
 		$loggedInUser = $this->getMockBuilder(IUser::class)->disableOriginalConstructor()->getMock();
 		$loggedInUser

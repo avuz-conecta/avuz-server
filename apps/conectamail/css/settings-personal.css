@@ -1,0 +1,64 @@
+#conectamail-mailbox-password .conectamail-password-status {
+    font-weight: bold;
+    margin-bottom: 12px;
+}
+
+#conectamail-mailbox-password .conectamail-password-updated-at {
+    font-weight: normal;
+    color: var(--color-text-maxcontrast);
+    margin-inline-start: 8px;
+}
+
+#conectamail-mailbox-password .conectamail-password-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+#conectamail-mailbox-password .conectamail-password-row input {
+    width: 300px;
+    max-width: 100%;
+    margin: 0;
+}
+
+#conectamail-mailbox-password [hidden] {
+    display: none;
+}
+
+#conectamail-mailbox-password .conectamail-password-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+#conectamail-mailbox-password .conectamail-password-confirm[hidden] {
+    display: none;
+}
+
+#conectamail-mailbox-password .conectamail-password-danger {
+    background-color: var(--color-element-error);
+    border-color: var(--color-element-error);
+    color: var(--color-main-background);
+}
+
+#conectamail-mailbox-password .conectamail-password-danger:hover:not(:disabled),
+#conectamail-mailbox-password .conectamail-password-danger:focus-visible {
+    background-color: var(--color-text-error);
+    border-color: var(--color-text-error);
+}
+
+#conectamail-mailbox-password .conectamail-password-message.error {
+    color: var(--color-error-text, var(--color-error));
+}
+
+#conectamail-mailbox-password .conectamail-password-message:not(.error) {
+    color: var(--color-success-text);
+    margin-top: 8px;
+}
+
+#conectamail-password-input[aria-invalid="true"] {
+    border-color: var(--color-border-error);
+}

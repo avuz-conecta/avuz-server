@@ -1,0 +1,204 @@
+diff --git a/src/components/Editor/CreatedBy.vue b/src/components/Editor/CreatedBy.vue
+new file mode 100644
+index 0000000..d195920
+--- /dev/null
++++ b/src/components/Editor/CreatedBy.vue
+@@ -0,0 +1,52 @@
++<!--
++  - SPDX-FileCopyrightText: 2026 Avuz Conecta
++  - SPDX-License-Identifier: AGPL-3.0-or-later
++-->
++
++<template>
++	<div class="created-by" data-avuz-patch="AVUZ-CREATED-BY-V1">
++		<NcAvatar
++			:user="createdBy.uid"
++			:display-name="createdBy.displayName"
++			:size="20"
++			:hide-status="true"
++			:disable-menu="true" />
++		<span class="created-by__label">
++			{{ $t('calendar', 'Created by {name}', { name: createdBy.displayName }) }}
++		</span>
++	</div>
++</template>
++
++<script>
++import { NcAvatar } from '@nextcloud/vue'
++
++export default {
++	name: 'CreatedBy',
++	components: {
++		NcAvatar,
++	},
++
++	props: {
++		createdBy: {
++			type: Object,
++			required: true,
++		},
++	},
++}
++</script>
++
++<style lang="scss" scoped>
++.created-by {
++	display: flex;
++	align-items: center;
++	gap: calc(var(--default-grid-baseline) * 2);
++	min-width: 0;
++	color: var(--color-text-maxcontrast);
++
++	&__label {
++		overflow: hidden;
++		text-overflow: ellipsis;
++		white-space: nowrap;
++	}
++}
++</style>
+diff --git a/src/mixins/EditorMixin.js b/src/mixins/EditorMixin.js
+index 273aa80..703ef6e 100644
+--- a/src/mixins/EditorMixin.js
++++ b/src/mixins/EditorMixin.js
+@@ -217,6 +217,14 @@ export default {
+ 		isViewedByAttendee() {
+ 			return this.userAsAttendee !== null
+ 		},
++		/**
++		 * Returns who created the event in a calendar they don't own, or null
++		 *
++		 * @return {{uid: string, displayName: string}|null}
++		 */
++		createdBy() {
++			return this.calendarObjectInstance?.createdBy ?? null
++		},
+ 		/**
+ 		 * Returns whether the user is the organizer of the event or null if the user can't be an organizer
+ 		 *
+diff --git a/src/models/event.js b/src/models/event.js
+index c460b0b..05de162 100644
+--- a/src/models/event.js
++++ b/src/models/event.js
+@@ -71,6 +71,8 @@ function getDefaultEventObject(props = {}) {
+ 		categories: [],
+ 		// Attachments of this event
+ 		attachments: [],
++		// Who created the event in a calendar they don't own (server stamp, AVUZ-CREATED-BY-V1)
++		createdBy: null,
+ 		...props,
+ 	}
+ }
+@@ -162,6 +164,17 @@ function mapEventComponentToEventObject(eventComponent) {
+ 		eventObject.hasMultipleRRules = !recurrenceRuleIterator.next().done
+ 	}
+ 
++	/**
++	 * Extract the creator stamped by the server
++	 */
++	const createdByProperty = eventComponent.getFirstProperty('X-AVUZ-CREATED-BY')
++	if (createdByProperty && createdByProperty.value) {
++		eventObject.createdBy = {
++			uid: String(createdByProperty.value),
++			displayName: createdByProperty.getParameterFirstValue('CN') || String(createdByProperty.value),
++		}
++	}
++
+ 	/**
+ 	 * Convert the CSS 3 color name to a hex color
+ 	 */
+diff --git a/src/views/EditFull.vue b/src/views/EditFull.vue
+index a408288..dbbf1e4 100644
+--- a/src/views/EditFull.vue
++++ b/src/views/EditFull.vue
+@@ -111,6 +111,11 @@
+ 						@update-end-time="updateEndTime"
+ 						@update-end-timezone="updateEndTimezone" />
+ 
++					<CreatedBy
++						v-if="createdBy"
++						class="app-full__header__created-by"
++						:created-by="createdBy" />
++
+ 					<div class="app-full__header__details">
+ 						<div class="app-full__header__details-time">
+ 							<NcCheckboxRadioSwitch
+@@ -359,6 +364,7 @@ import AddTalkModal from '../components/Editor/AddTalkModal.vue'
+ import AlarmList from '../components/Editor/Alarm/AlarmList.vue'
+ import AttachmentsList from '../components/Editor/Attachments/AttachmentsList.vue'
+ import CalendarPickerHeader from '../components/Editor/CalendarPickerHeader.vue'
++import CreatedBy from '../components/Editor/CreatedBy.vue'
+ import InvitationResponseButtons from '../components/Editor/InvitationResponseButtons.vue'
+ import InviteesList from '../components/Editor/Invitees/InviteesList.vue'
+ import PropertyColor from '../components/Editor/Properties/PropertyColor.vue'
+@@ -409,6 +415,7 @@ export default {
+ 		InvitationResponseButtons,
+ 		AttachmentsList,
+ 		CalendarPickerHeader,
++		CreatedBy,
+ 		PropertyTitle,
+ 		IconVideo,
+ 		HelpCircleIcon,
+@@ -869,6 +876,10 @@ export default {
+ 			}
+ 		}
+ 
++		&__created-by {
++			padding-inline-start: calc(var(--default-grid-baseline) * 8);
++		}
++
+ 		&__details {
+ 			display: flex;
+ 			flex-wrap: wrap;
+@@ -902,7 +913,8 @@ export default {
+ }
+ 
+ .app-full-readonly {
+-	.app-full__header__details {
++	.app-full__header__details,
++	.app-full__header__created-by {
+ 		padding-inline-start: 0;
+ 	}
+ 
+diff --git a/src/views/EditSimple.vue b/src/views/EditSimple.vue
+index 9d853e4..1f33a05 100644
+--- a/src/views/EditSimple.vue
++++ b/src/views/EditSimple.vue
+@@ -139,6 +139,11 @@
+ 							:is-cancelled="isCancelled"
+ 							@update:value="updateTitle" />
+ 
++						<CreatedBy
++							v-if="createdBy"
++							class="event-popover__created-by"
++							:created-by="createdBy" />
++
+ 						<div v-if="isCancelled" class="event-popover__cancelled">
+ 							{{ $t('calendar', 'This event was cancelled') }}
+ 						</div>
+@@ -275,6 +280,7 @@ import Delete from 'vue-material-design-icons/TrashCanOutline.vue'
+ import Download from 'vue-material-design-icons/TrayArrowDown.vue'
+ import AlarmList from '../components/Editor/Alarm/AlarmList.vue'
+ import CalendarPickerHeader from '../components/Editor/CalendarPickerHeader.vue'
++import CreatedBy from '../components/Editor/CreatedBy.vue'
+ import InvitationResponseButtons
+ 	from '../components/Editor/InvitationResponseButtons.vue'
+ import InviteesList from '../components/Editor/Invitees/InviteesList.vue'
+@@ -295,6 +301,7 @@ export default {
+ 	components: {
+ 		NcCheckboxRadioSwitch,
+ 		SaveButtons,
++		CreatedBy,
+ 		PropertyColor,
+ 		PropertyText,
+ 		PropertyTitleTimePicker,
+@@ -892,6 +899,10 @@ export default {
+ 			}
+ 		}
+ 
++		.event-popover__created-by {
++			margin-top: var(--default-grid-baseline);
++		}
++
+ 		.event-popover__cancelled {
+ 			opacity: .7;
+ 		}

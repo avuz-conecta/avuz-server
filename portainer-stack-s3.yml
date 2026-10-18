@@ -92,6 +92,12 @@ services:
       - ROUNDCUBE_URL=
       - ROUNDCUBE_SSO_SECRET=
       - ROUNDCUBE_CREDENTIAL_KEY=
+      # ── New webmail (webmail-avuz) SSO — separate URL + secret, reuses ────
+      #    ROUNDCUBE_CREDENTIAL_KEY to encrypt enc_pass (optional) ───────────
+      - WEBMAIL_AVUZ_URL=
+      - WEBMAIL_AVUZ_SSO_SECRET=
+      # ── Mail menu entry: roundcube (default) | webmail (new webmail, SSO) ─
+      - CONECTAMAIL_BACKEND=roundcube
 
       # ── Notifications app from Git ───────────────────────────────────────
       - NOTIFICATIONS_BRANCH=stable33
@@ -116,6 +122,16 @@ services:
       - ZAPSIGN_ENVIRONMENT=production     # sandbox on staging
       - ZAPSIGN_COMPANY_NAME=              # tenant company, shown to signers
       - ZAPSIGN_WEBHOOK_SECRET=            # optional; empty = app-generated
+
+      # Admin TOTP 2FA — enforced for the admin group on every boot.
+      # 0 = skip enforcement on this stack (apps stay enabled). Runbook:
+      # docs/runbooks/admin-2fa-recovery.md
+      - AVUZ_ENFORCE_ADMIN_2FA=1
+
+      # Sites allowed to embed the public appointment booking page in an iframe:
+      # comma-separated https origins, no path. Empty = embedding off.
+      # e.g. https://www.avuzconecta.com.br,https://avuzconecta.com.br (app3 only)
+      - AVUZ_EMBED_ALLOWED_ORIGINS=
 
 volumes:
   nextcloud_data_s3:

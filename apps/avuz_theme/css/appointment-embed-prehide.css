@@ -1,0 +1,35 @@
+/**
+ * Booking page opened with ?embed=1 (loaded only then, see
+ * AppointmentEmbedStyleListener): keep the page invisible until
+ * js/appointment-embed.js has checked the embedding site, so the regular page
+ * chrome never flashes inside the frame. The script adds avuz-embed-checked to
+ * <html> whether the check passes or not; should it never run, the page shows
+ * itself after a few seconds anyway.
+ *
+ * Hiding <body> is not enough: <html> paints the canvas with the theming
+ * background colour (lime) and stays visible, so the frame showed a solid
+ * colour block until the deferred script ran. <html> is painted white until
+ * the check instead. Not !important, so the fallback animation can hand the
+ * canvas back to the page.
+ */
+html:not(.avuz-embed-checked) {
+    background-color: #fff;
+    animation: avuz-embed-reveal-canvas 0s 3s forwards;
+}
+
+html:not(.avuz-embed-checked) body {
+    visibility: hidden;
+    animation: avuz-embed-reveal 0s 3s forwards;
+}
+
+@keyframes avuz-embed-reveal-canvas {
+    to {
+        background-color: transparent;
+    }
+}
+
+@keyframes avuz-embed-reveal {
+    to {
+        visibility: visible;
+    }
+}
