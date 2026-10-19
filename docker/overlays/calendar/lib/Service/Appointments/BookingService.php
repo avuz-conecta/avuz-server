@@ -109,7 +109,18 @@ class BookingService {
 
 		$calendar = $this->calendarWriter->write($config, $booking);
 		$booking->setConfirmed(true);
-		$this->bookingMapper->update($booking);
+		// Avuz (see the sentinel in bookInstantly): the event is written, so a failed
+		// save must not cost the visitor and the organizer their booking e-mails.
+		try {
+			$this->bookingMapper->update($booking);
+		} catch (DbException $e) {
+			$this->logger->error('Could not save the confirmed booking, sending the booking e-mails anyway', [
+				'appointmentConfigId' => $config->getId(),
+				'bookingId' => $booking->getId(),
+				'exception' => $e,
+				'app' => 'calendar-appointments',
+			]);
+		}
 
 		try {
 			$this->mailService->sendBookingInformationEmail($booking, $config, $calendar);

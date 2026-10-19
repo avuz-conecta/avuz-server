@@ -139,15 +139,19 @@ class BookingServiceInstantTest extends TestCase {
 		$this->assertSame(self::BOOKING_ID, $booking->getId());
 	}
 
-	public function testBookInstantlyDoesNotAskForConfirmationWhenOnlyTheDatabaseUpdateFails(): void {
+	public function testBookInstantlySendsTheBookingEmailsWhenOnlyTheDatabaseUpdateFails(): void {
 		$this->slotStaysFree();
 		$this->calendarWriter->expects($this->once())->method('write')->willReturn(self::CALENDAR_URI);
 		$this->bookingMapper->method('update')->willThrowException(new DbException('connection lost'));
 		$this->bookingMapper->expects($this->never())->method('delete');
 		$this->mailService->expects($this->never())->method('sendConfirmationEmail');
+		$this->mailService->expects($this->once())->method('sendBookingInformationEmail');
+		$this->mailService->expects($this->once())->method('sendOrganizerBookingInformationEmail');
 		$this->logger->expects($this->once())->method('error');
 
-		$this->bookInstantly();
+		$booking = $this->bookInstantly();
+
+		$this->assertTrue($booking->isConfirmed());
 	}
 
 	public function testBookStillSendsTheConfirmationEmail(): void {
