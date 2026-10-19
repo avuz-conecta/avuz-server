@@ -35,9 +35,12 @@ class EMailTemplateTest extends TestCase {
 	}
 
 	private function headerPart(string $html): string {
-		$marker = (int)strpos($html, 'class="wrapper header');
-		$start = (int)strrpos(substr($html, 0, $marker), '<table');
-		$end = (int)strpos($html, 'class="spacer', $start);
+		$marker = strpos($html, 'class="wrapper header');
+		$this->assertNotFalse($marker, 'header marker missing');
+		$start = strrpos(substr($html, 0, $marker), '<table');
+		$this->assertNotFalse($start, 'header table start missing');
+		$end = strpos($html, 'class="spacer', $start);
+		$this->assertNotFalse($end, 'header spacer missing');
 		return substr($html, $start, $end - $start);
 	}
 
@@ -116,7 +119,7 @@ class EMailTemplateTest extends TestCase {
 	}
 
 	public function testRenderHtmlCapsTheFixedWidthsInsteadOfForcingThem(): void {
-		$html = $this->fullSampleHtml();
+		$html = preg_replace('/<!--\[if mso\]>.*?<!\[endif\]-->/s', '', $this->fullSampleHtml());
 
 		$this->assertSame(0, preg_match('/(?<!max-)(?<!min-)width:(580|550)px/', $html));
 		$this->assertStringContainsString('width:100%;max-width:580px', $html);
@@ -137,6 +140,27 @@ class EMailTemplateTest extends TestCase {
 		$template->addFooter('Avuz Conecta');
 
 		$this->assertSame($template->renderHtml(), $template->renderHtml());
+	}
+
+	public function testRenderHtmlRestoresTheFixedColumnWidthsForOutlookDesktopOnce(): void {
+		$template = $this->templateNamed('Avuz Conecta');
+		$template->addHeader();
+		$template->addFooter('Avuz Conecta');
+		$template->renderHtml();
+		$html = $template->renderHtml();
+
+		$this->assertSame(1, substr_count($html, '<!--[if mso]>'));
+		$mso = substr($html, (int)strpos($html, '<!--[if mso]>'));
+		$mso = substr($mso, 0, (int)strpos($mso, '<![endif]-->'));
+		$this->assertStringContainsString('width:580px!important', $mso);
+		$this->assertStringContainsString('width:550px!important', $mso);
+		$this->assertLessThan(strpos($html, '</head>'), strpos($html, '<!--[if mso]>'));
+	}
+
+	public function testHeaderHeightIsHalfTheLogoPixelHeight(): void {
+		$expectedHeight = (int)round(getimagesize(self::LOGO_PATH)[1] / 2);
+
+		$this->assertStringContainsString('height="' . $expectedHeight . '"', $this->headerHtml());
 	}
 
 	public function testLightLogoAssetStaysSmallAndTwiceTheDisplayWidth(): void {

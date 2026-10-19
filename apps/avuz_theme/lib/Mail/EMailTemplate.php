@@ -45,12 +45,21 @@ EOF;
 		'width:550px' => 'width:100%;max-width:550px',
 	];
 
+	/**
+	 * Outlook for Windows (Word engine) ignores max-width, so it gets the
+	 * original fixed widths back. Selectors hit exactly the elements whose
+	 * inline width FLUID_WIDTHS changed: table.container (heading and body
+	 * column, 580px; the header no longer uses a container) and th.columns
+	 * (the four 550px cells).
+	 */
+	private const OUTLOOK_FIXED_WIDTHS = '<!--[if mso]><style type="text/css">table.container{width:580px!important}th.columns{width:550px!important}</style><![endif]-->';
+
 	public function renderHtml(): string {
 		$html = parent::renderHtml();
 		foreach (self::FLUID_WIDTHS as $fixed => $fluid) {
 			$html = preg_replace('/(?<=["\';])' . preg_quote($fixed, '/') . '(?=["\';])/', $fluid, $html);
 		}
-		return $html;
+		return str_replace('</head>', self::OUTLOOK_FIXED_WIDTHS . '</head>', $html);
 	}
 
 	public function addHeader(): void {
