@@ -172,8 +172,13 @@ class BookingController extends Controller {
 			return JsonResponse::fail(null, Http::STATUS_NOT_FOUND);
 		}
 		// AVUZ-INSTANT-BOOKING-V1: embed booking on a listed page skips the e-mail confirmation.
-		$isInstant = class_exists(InstantBooking::class)
-			&& \OCP\Server::get(InstantBooking::class)->isAllowed($this->request, $appointmentConfigToken);
+		$isInstant = false;
+		try {
+			$isInstant = class_exists(InstantBooking::class)
+				&& \OCP\Server::get(InstantBooking::class)->isAllowed($this->request, $appointmentConfigToken);
+		} catch (\Throwable $e) {
+			$this->logger->warning('Instant-booking gate failed, using the normal booking flow', ['exception' => $e, 'token' => $appointmentConfigToken]);
+		}
 		try {
 			$booking = $isInstant
 				? $this->bookingService->bookInstantly($config, $start, $end, $timeZone, $displayName, $email, $description)

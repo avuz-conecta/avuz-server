@@ -31,12 +31,14 @@ class BookingControllerInstantTest extends TestCase {
 	private IRequest $request;
 	private BookingService&MockObject $bookingService;
 	private InstantBooking&MockObject $instantBooking;
+	private LoggerInterface&MockObject $logger;
 	private BookingController $controller;
 
 	protected function setUp(): void {
 		$this->request = $this->createStub(IRequest::class);
 		$this->bookingService = $this->createMock(BookingService::class);
 		$this->instantBooking = $this->createMock(InstantBooking::class);
+		$this->logger = $this->createMock(LoggerInterface::class);
 
 		$container = $this->createStub(ContainerInterface::class);
 		$container->method('get')->willReturnMap([[InstantBooking::class, $this->instantBooking]]);
@@ -55,7 +57,7 @@ class BookingControllerInstantTest extends TestCase {
 			$this->bookingService,
 			$appointmentConfigService,
 			$this->createStub(IURLGenerator::class),
-			$this->createStub(LoggerInterface::class),
+			$this->logger,
 			$mailer,
 			$this->createStub(IConfig::class),
 		);
@@ -106,5 +108,19 @@ class BookingControllerInstantTest extends TestCase {
 			->willThrowException(new NoSlotFoundException('Slot for booking is not available any more'));
 
 		$this->assertSame(Http::STATUS_NOT_FOUND, $this->bookSlot());
+	}
+
+	public function testBooksTheClassicWayWhenTheGateThrows(): void {
+		$this->instantBooking->expects($this->once())->method('isAllowed')
+			->willThrowException(new \RuntimeException('app config unavailable'));
+		$this->logger->expects($this->once())->method('warning')
+			->with($this->stringContains('instant-booking gate'), $this->callback(
+				static fn (array $context): bool => $context['exception'] instanceof \RuntimeException
+					&& $context['token'] === self::CONFIG_TOKEN,
+			));
+		$this->bookingService->expects($this->once())->method('book')->willReturn(new Booking());
+		$this->bookingService->expects($this->never())->method('bookInstantly');
+
+		$this->assertSame(Http::STATUS_OK, $this->bookSlot());
 	}
 }

@@ -48,12 +48,12 @@ Users with a principal see the same default calendar as before.
   the second patch's `createdBy` field).
 
 ## How it's applied
-- Dockerfile copies `js/` over `apps/calendar/js/` and **fails the build** if
+- Dockerfile copies `js/` and `lib/` over `apps/calendar/` and **fails the build** if
   `apps/calendar` is not 6.2.1 — overlaying a 6.2.1 bundle on another version
   breaks the app.
-- Entrypoint: sentinels `AVUZ-POPOVER-COLOR-V1` and `AVUZ-CREATED-BY-V1` in `js/calendar-main.js`
-  (`verify_avuz_patches`), `calendar` in `AVUZ_OWNED_APPS` (custom_apps shadow
-  purge), `reapply_avuz_calendar_overlay` after core upgrades.
+- Entrypoint: sentinels `AVUZ-POPOVER-COLOR-V1` and `AVUZ-CREATED-BY-V1` in `js/calendar-main.js`,
+  `AVUZ-TALK-ROOM-SAFE-V1` and `AVUZ-INSTANT-BOOKING-V1` in `lib/` (`verify_avuz_patches`), `calendar` in `AVUZ_OWNED_APPS` (custom_apps shadow
+  purge), `reapply_avuz_calendar_overlay` after core upgrades (it copies `js/` and `lib/`).
 - Browsers: bump `AVUZ_CONFIG_VERSION` with every overlay change. The config
   run calls `occ theming:config`, which bumps the theming cachebuster, which
   changes the `?v=` suffix on the calendar scripts.
