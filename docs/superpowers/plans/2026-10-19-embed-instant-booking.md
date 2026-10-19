@@ -73,10 +73,12 @@ public function testParsesTokensTrimmedUniqueAndAlphanumericOnly(): void {
 - [ ] **Step 6: Run, expect FAIL** (command not found), **implement `avuz_sync_instant_booking_tokens`** (same shape as `avuz_sync_embed_allowed_origins`), wire it in `entrypoint.sh`, add the compose/stack env lines, **run, expect PASS**; `bash -n docker/entrypoint.sh` clean.
 - [ ] **Step 7: Commit** — `feat(avuz_theme): instant-booking gate (embed header + allowlist + listed page token), AVUZ_INSTANT_BOOKING_TOKENS sync`
 
-### Task 2: Embed script sends the header on `book`
+### Task 2: Embed script sends the header on `book`; hide the page title in the widget
 
 **Files:**
 - Modify: `apps/avuz_theme/js/appointment-embed.js` (XHR `send` hook ~line 248, `fetch` hook ~line 266; constants near line 50; header comment last paragraph)
+- Modify: `apps/avuz_theme/css/appointment-embed.css` (`html.avuz-embed #content .booking__name` rule)
+- Test: `apps/avuz_theme/tests/js/appointment-embed-css.test.mjs`
 - Test: `apps/avuz_theme/tests/js/appointment-embed.test.mjs` (make the fake XHR `setRequestHeader` (line 163) and the fetch fake record headers)
 
 **Interfaces:**
@@ -89,7 +91,8 @@ public function testParsesTokensTrimmedUniqueAndAlphanumericOnly(): void {
 - [ ] **Step 2: Run, expect FAIL** — `node --test apps/avuz_theme/tests/js/appointment-embed.test.mjs`.
 - [ ] **Step 3: Implement**: constants `INSTANT_BOOKING_HEADER = 'X-Avuz-Embed-Booking'`, `INSTANT_BOOKING_HEADER_VALUE = '1'`; set it next to the CSRF header only when `action === BOOK_ACTION && embedMode`. Replace the comment line "A booked appointment stays pending until the visitor confirms it by email." with: in embed mode the `book` request carries `X-Avuz-Embed-Booking: 1`; the server books instantly only for pages listed in `AVUZ_INSTANT_BOOKING_TOKENS` (otherwise it stays pending until the e-mail confirmation).
 - [ ] **Step 4: Run, expect PASS** (both `appointment-embed*.test.mjs` files, all green).
-- [ ] **Step 5: Commit** — `feat(avuz_theme): embed marks the book request for instant booking`
+- [ ] **Step 5: Hide the booking page title in embed mode (Patrick, Oct 19).** The widget no longer shows the appointment name ("Agende sua demonstração", `.booking__name`); the site card already titles it. Failing test first in `apps/avuz_theme/tests/js/appointment-embed-css.test.mjs`, `describe('organizer')`: `it('hides the booking page title')` → `ruleBody(STYLESHEET, \`${EMBED_SCOPE} #content .booking__name\`)` matches `/display:\s*none !important;/`. Replace the existing `html.avuz-embed #content .booking__name` rule (font sizes) with `display: none !important;`. Keep `.booking__display-name` ("Conheça o AvuzConecta") and `.booking__description`. Run `node --test apps/avuz_theme/tests/js/appointment-embed-css.test.mjs` → PASS.
+- [ ] **Step 6: Commit** — `feat(avuz_theme): embed marks the book request for instant booking; hide the page title`
 
 ### Task 3: Calendar PHP overlay plumbing (build, boot, test harness)
 
