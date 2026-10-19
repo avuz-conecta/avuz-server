@@ -13,7 +13,8 @@ use OCP\IRequest;
  * e-mail confirmation. Needs the embed header, an instance with embedding on and
  * a booking page listed in AVUZ_INSTANT_BOOKING_TOKENS (synced to app config at
  * boot, docker/lib-apps.sh). Empty = off. Those pages also send their appointment
- * e-mails from AVUZ_BOOKING_MAIL_FROM when it is set (bookingMailFrom()).
+ * e-mails from AVUZ_BOOKING_MAIL_FROM through their own SMTP login (BookingMailer)
+ * when both are set (bookingMailFrom()).
  */
 class InstantBooking {
 	public const HEADER = 'X-Avuz-Embed-Booking';
@@ -50,6 +51,7 @@ class InstantBooking {
 	/**
 	 * Sender of the appointment e-mails for a listed booking page, null = keep
 	 * Calendar's default sender. Server-side e-mails, so no embed header check.
+	 * Needs the booking SMTP login: the main SMTP rejects this sender's domain.
 	 */
 	public function bookingMailFrom(string $configToken): ?string {
 		$listed = in_array(
@@ -57,11 +59,16 @@ class InstantBooking {
 			self::parseTokens($this->appConfig->getValueString(Application::APP_ID, self::CONFIG_KEY)),
 			true,
 		);
-		if (!$listed) {
+		if (!$listed || !$this->hasBookingSmtpLogin()) {
 			return null;
 		}
 		$address = trim($this->appConfig->getValueString(Application::APP_ID, self::MAIL_FROM_CONFIG_KEY));
 		return filter_var($address, FILTER_VALIDATE_EMAIL) === false ? null : $address;
+	}
+
+	private function hasBookingSmtpLogin(): bool {
+		return $this->appConfig->getValueString(Application::APP_ID, BookingMailer::USER_CONFIG_KEY) !== ''
+			&& $this->appConfig->getValueString(Application::APP_ID, BookingMailer::PASSWORD_CONFIG_KEY) !== '';
 	}
 
 	/**

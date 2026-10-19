@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace OCA\Calendar\Tests\Unit;
 
 use Closure;
+use OC\Mail\Message;
+use OCA\AvuzTheme\Service\BookingMailer;
 use OCA\AvuzTheme\Service\InstantBooking;
 use OCA\Calendar\Db\AppointmentConfig;
 use OCA\Calendar\Db\Booking;
@@ -39,9 +41,15 @@ class MailServiceSenderTest extends TestCase {
 
 	/** @var array<string, string>|null */
 	private ?array $sentFrom = null;
+	/** @var array<string, string>|null From at the moment core's mailer sent, null = not called */
+	private ?array $coreMailerSentFrom = null;
+	/** @var list<IMessage> */
+	private array $bookingMailerMessages = [];
 
 	protected function setUp(): void {
 		$this->sentFrom = null;
+		$this->coreMailerSentFrom = null;
+		$this->bookingMailerMessages = [];
 	}
 
 	protected function tearDown(): void {
@@ -69,12 +77,53 @@ class MailServiceSenderTest extends TestCase {
 	}
 
 	#[DataProvider('emailsFromTheSystemSender')]
-	public function testSendsFromTheBookingSenderForAListedPage(Closure $sendEmail, string $displayName): void {
-		$this->serverResolves($this->gateAnswering(self::BOOKING_SENDER));
+	public function testSendsFromTheBookingSenderThroughTheBookingSmtpForAListedPage(Closure $sendEmail, string $displayName): void {
+		$this->serverResolves($this->gateAnswering(self::BOOKING_SENDER), $this->bookingMailerSending(true));
 
 		$sendEmail($this->mailService($this->createStub(LoggerInterface::class)), $this->booking(), $this->config());
 
 		$this->assertSame([self::BOOKING_SENDER => $displayName], $this->sentFrom);
+		$this->assertCount(1, $this->bookingMailerMessages);
+		$this->assertNull($this->coreMailerSentFrom, 'core mailer is not called');
+	}
+
+	#[DataProvider('emailsFromTheSystemSender')]
+	public function testFallsBackToTheDefaultSenderAndSmtpWhenTheBookingSmtpFails(Closure $sendEmail, string $displayName): void {
+		$this->serverResolves($this->gateAnswering(self::BOOKING_SENDER), $this->bookingMailerSending(false));
+		$logger = $this->createMock(LoggerInterface::class);
+		$logger->expects($this->once())
+			->method('warning')
+			->with($this->stringContains('booking SMTP failed, sending with the default sender'));
+
+		$sendEmail($this->mailService($logger), $this->booking(), $this->config());
+
+		$this->assertCount(1, $this->bookingMailerMessages);
+		$this->assertSame([self::DEFAULT_SENDER => $displayName], $this->coreMailerSentFrom);
+	}
+
+	#[DataProvider('emailsFromTheSystemSender')]
+	public function testFallsBackToTheDefaultSenderAndSmtpWhenTheBookingMailerCannotBeResolved(Closure $sendEmail, string $displayName): void {
+		$this->serverResolves($this->gateAnswering(self::BOOKING_SENDER), new \RuntimeException('container unavailable'));
+		$logger = $this->createMock(LoggerInterface::class);
+		$logger->expects($this->once())
+			->method('warning')
+			->with($this->stringContains('booking SMTP failed, sending with the default sender'), $this->callback(
+				static fn (array $context): bool => $context['exception'] instanceof \RuntimeException,
+			));
+
+		$sendEmail($this->mailService($logger), $this->booking(), $this->config());
+
+		$this->assertSame([self::DEFAULT_SENDER => $displayName], $this->coreMailerSentFrom);
+	}
+
+	#[DataProvider('emailsFromTheSystemSender')]
+	public function testNeverConsultsTheBookingSmtpForThePagesOnTheDefaultSender(Closure $sendEmail, string $displayName): void {
+		$this->serverResolves($this->gateAnswering(null), $this->bookingMailerSending(true));
+
+		$sendEmail($this->mailService($this->createStub(LoggerInterface::class)), $this->booking(), $this->config());
+
+		$this->assertSame([], $this->bookingMailerMessages);
+		$this->assertSame([self::DEFAULT_SENDER => $displayName], $this->coreMailerSentFrom);
 	}
 
 	#[DataProvider('emailsFromTheSystemSender')]
@@ -110,7 +159,16 @@ class MailServiceSenderTest extends TestCase {
 		return $gate;
 	}
 
-	private function serverResolves(InstantBooking $gate): void {
+	private function bookingMailerSending(bool $sent): BookingMailer {
+		$bookingMailer = $this->createStub(BookingMailer::class);
+		$bookingMailer->method('send')->willReturnCallback(function (IMessage $message) use ($sent): bool {
+			$this->bookingMailerMessages[] = $message;
+			return $sent;
+		});
+		return $bookingMailer;
+	}
+
+	private function serverResolves(InstantBooking $gate, BookingMailer|\Throwable|null $bookingMailer = null): void {
 		$systemConfig = $this->createStub(IConfig::class);
 		$systemConfig->method('getSystemValueString')->willReturnMap([
 			['mail_from_address', 'appointments-noreply', 'naoresponder'],
@@ -123,12 +181,18 @@ class MailServiceSenderTest extends TestCase {
 
 		$services = [
 			InstantBooking::class => $gate,
+			BookingMailer::class => $bookingMailer ?? $this->bookingMailerSending(true),
 			IConfig::class => $systemConfig,
 			IRequest::class => $request,
 			IEmailValidator::class => $emailValidator,
 		];
 		$container = $this->createStub(ContainerInterface::class);
-		$container->method('get')->willReturnCallback(static fn (string $id) => $services[$id]);
+		$container->method('get')->willReturnCallback(static function (string $id) use ($services): object {
+			if ($services[$id] instanceof \Throwable) {
+				throw $services[$id];
+			}
+			return $services[$id];
+		});
 		\OC::$server = $container;
 	}
 
@@ -159,11 +223,12 @@ class MailServiceSenderTest extends TestCase {
 		$userManager = $this->createStub(IUserManager::class);
 		$userManager->method('get')->willReturn($organizer);
 
-		$message = $this->createStub(IMessage::class);
+		$message = $this->createStub(Message::class);
 		$message->method('setFrom')->willReturnCallback(function (array $addresses) use ($message): IMessage {
 			$this->sentFrom = $addresses;
 			return $message;
 		});
+		$message->method('getFrom')->willReturnCallback(fn (): array => $this->sentFrom ?? []);
 		foreach (['setTo', 'setReplyTo', 'attach', 'useTemplate'] as $chainedMethod) {
 			$message->method($chainedMethod)->willReturnSelf();
 		}
@@ -171,7 +236,10 @@ class MailServiceSenderTest extends TestCase {
 		$mailer->method('createMessage')->willReturn($message);
 		$mailer->method('createEMailTemplate')->willReturn($this->createStub(IEMailTemplate::class));
 		$mailer->method('createAttachment')->willReturn($this->createStub(IAttachment::class));
-		$mailer->method('send')->willReturn([]);
+		$mailer->method('send')->willReturnCallback(function (): array {
+			$this->coreMailerSentFrom = $this->sentFrom;
+			return [];
+		});
 
 		$languageFactory = $this->createStub(IFactory::class);
 		$languageFactory->method('findGenericLanguage')->willReturn('en');

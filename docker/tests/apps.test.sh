@@ -532,6 +532,29 @@ assert_eq "keeps booting when the booking e-mail sender sync fails" \
     "✗ Could not sync AVUZ_BOOKING_MAIL_FROM — booking e-mails keep their previous sender" \
     "$(_avuz_php_config() { echo "failed: boom"; return 1; }; avuz_sync_booking_mail_from | tail -n 1)"
 
+# ── booking SMTP login sync ──
+assert_eq "syncs the booking SMTP user from its env var by name, as a string" \
+    "config avuz_theme booking_smtp_user AVUZ_BOOKING_SMTP_USER --type=string: PHPCFG avuz_theme booking_smtp_user AVUZ_BOOKING_SMTP_USER --type=string" \
+    "$(AVUZ_BOOKING_SMTP_USER='booking-user' AVUZ_OCC_DRYRUN=1 avuz_sync_booking_smtp_user)"
+assert_eq "writes an empty booking SMTP user when the env var is unset (booking SMTP off)" \
+    "set:" \
+    "$(unset AVUZ_BOOKING_SMTP_USER; _avuz_php_config() { echo "set:${AVUZ_BOOKING_SMTP_USER-unset}"; }; avuz_sync_booking_smtp_user | sed 's/^config .*: //')"
+assert_eq "keeps booting when the booking SMTP user sync fails" \
+    "✗ Could not sync AVUZ_BOOKING_SMTP_USER — booking e-mails keep their previous SMTP login" \
+    "$(_avuz_php_config() { echo "failed: boom"; return 1; }; avuz_sync_booking_smtp_user | tail -n 1)"
+assert_eq "syncs the booking SMTP password by env var name, sensitive, as a string" \
+    "config avuz_theme booking_smtp_password AVUZ_BOOKING_SMTP_PASSWORD --sensitive --type=string: PHPCFG avuz_theme booking_smtp_password AVUZ_BOOKING_SMTP_PASSWORD --sensitive --type=string" \
+    "$(AVUZ_BOOKING_SMTP_PASSWORD='never-in-the-output' AVUZ_OCC_DRYRUN=1 avuz_sync_booking_smtp_password)"
+assert_eq "never prints the booking SMTP password" \
+    "0" \
+    "$(AVUZ_BOOKING_SMTP_PASSWORD='never-in-the-output' AVUZ_OCC_DRYRUN=1 avuz_sync_booking_smtp_password | grep -c 'never-in-the-output')"
+assert_eq "writes an empty booking SMTP password when the env var is unset (booking SMTP off)" \
+    "set:" \
+    "$(unset AVUZ_BOOKING_SMTP_PASSWORD; _avuz_php_config() { echo "set:${AVUZ_BOOKING_SMTP_PASSWORD-unset}"; }; avuz_sync_booking_smtp_password | sed 's/^config .*: //')"
+assert_eq "keeps booting when the booking SMTP password sync fails" \
+    "✗ Could not sync AVUZ_BOOKING_SMTP_PASSWORD — booking e-mails keep their previous SMTP login" \
+    "$(_avuz_php_config() { echo "failed: boom"; return 1; }; avuz_sync_booking_smtp_password | tail -n 1)"
+
 # ── store installs lost with the container (oidc, previewgenerator) ──
 RESTORE_LOG="$(mktemp)"
 # Fake occ: getpath succeeds only for apps listed in $PRESENT; enabled values come

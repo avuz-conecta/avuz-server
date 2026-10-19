@@ -138,6 +138,10 @@ services:
       # Sender of the appointment e-mails for those pages; must be verified in the SMTP
       # provider. Empty = default sender. (app3 only)
       - AVUZ_BOOKING_MAIL_FROM=
+      # SMTP login of the ZeptoMail agent that owns the AVUZ_BOOKING_MAIL_FROM domain.
+      # Empty = booking e-mails use the default sender and SMTP. (app3 only)
+      - AVUZ_BOOKING_SMTP_USER=
+      - AVUZ_BOOKING_SMTP_PASSWORD=
 
 volumes:
   nextcloud_data_s3:

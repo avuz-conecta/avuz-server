@@ -531,6 +531,24 @@ avuz_sync_booking_mail_from() {
         || echo "✗ Could not sync AVUZ_BOOKING_MAIL_FROM — booking e-mails keep their previous sender"
 }
 
+# SMTP login of the ZeptoMail agent that owns the AVUZ_BOOKING_MAIL_FROM domain:
+# AVUZ_BOOKING_SMTP_USER and AVUZ_BOOKING_SMTP_PASSWORD (stored sensitive, never
+# in argv or logs). The booking e-mails of the instant-booking pages go out through
+# smtp.zeptomail.com:587 with it (avuz_theme BookingMailer); everything else keeps
+# the main SMTP. Synced every boot; either one empty or unset = booking e-mails use
+# the default sender and SMTP. Non-fatal.
+avuz_sync_booking_smtp_user() {
+    export AVUZ_BOOKING_SMTP_USER="${AVUZ_BOOKING_SMTP_USER:-}"
+    avuz_set_config_from_env avuz_theme booking_smtp_user AVUZ_BOOKING_SMTP_USER --type=string \
+        || echo "✗ Could not sync AVUZ_BOOKING_SMTP_USER — booking e-mails keep their previous SMTP login"
+}
+
+avuz_sync_booking_smtp_password() {
+    export AVUZ_BOOKING_SMTP_PASSWORD="${AVUZ_BOOKING_SMTP_PASSWORD:-}"
+    avuz_set_sensitive_app_config avuz_theme booking_smtp_password AVUZ_BOOKING_SMTP_PASSWORD string \
+        || echo "✗ Could not sync AVUZ_BOOKING_SMTP_PASSWORD — booking e-mails keep their previous SMTP login"
+}
+
 # Make TOTP two-factor auth mandatory for the `admin` group, idempotently, on
 # every boot. Enables twofactor_totp (enrollment) and twofactor_backupcodes
 # (recovery codes) so a locked-out admin can get back in, then enforces 2FA for

@@ -8,6 +8,8 @@ declare(strict_types=1);
 namespace OCA\Calendar\Service\Appointments;
 
 use Exception;
+use OC\Mail\Message;
+use OCA\AvuzTheme\Service\BookingMailer;
 use OCA\AvuzTheme\Service\InstantBooking;
 use OCA\Calendar\Db\AppointmentConfig;
 use OCA\Calendar\Db\Booking;
@@ -22,6 +24,7 @@ use OCP\IUserManager;
 use OCP\L10N\IFactory;
 use OCP\Mail\IEMailTemplate;
 use OCP\Mail\IMailer;
+use OCP\Mail\IMessage;
 use OCP\Notification\IManager;
 use Psr\Log\LoggerInterface;
 use function htmlspecialchars;
@@ -130,7 +133,7 @@ class MailService {
 
 
 		try {
-			$failed = $this->mailer->send($message);
+			$failed = $this->deliver($message);
 			if (count($failed) > 0) {
 				$this->logger->warning('Mail delivery failed for some recipients.', ['app' => 'calendar-appointments']);
 				foreach ($failed as $fail) {
@@ -199,7 +202,7 @@ class MailService {
 
 
 		try {
-			$failed = $this->mailer->send($message);
+			$failed = $this->deliver($message);
 			if (count($failed) > 0) {
 				$this->logger->warning('Mail delivery failed for some recipients.', ['app' => 'calendar-appointments']);
 				foreach ($failed as $fail) {
@@ -281,6 +284,33 @@ class MailService {
 		return $bookingSender ?? $this->getSysEmail();
 	}
 
+	// Same change as senderFor(): a switched sender goes out through its own SMTP
+	// login (BookingMailer). If that fails, the e-mail goes out the upstream way,
+	// from the default sender with the same display name.
+	private function deliver(IMessage $message): array {
+		$from = $message instanceof Message ? $message->getFrom() : [];
+		$sender = array_key_first($from);
+		$defaultSender = $this->getSysEmail();
+		if (!is_string($sender) || $sender === $defaultSender) {
+			return $this->mailer->send($message);
+		}
+		$failure = null;
+		try {
+			if (class_exists(BookingMailer::class) && \OCP\Server::get(BookingMailer::class)->send($message)) {
+				return [];
+			}
+		} catch (\Throwable $e) {
+			$failure = $e;
+		}
+		$message->setFrom([$defaultSender => $from[$sender]]);
+		$context = ['app' => 'calendar-appointments'];
+		if ($failure !== null) {
+			$context['exception'] = $failure;
+		}
+		$this->logger->warning('booking SMTP failed, sending with the default sender', $context);
+		return $this->mailer->send($message);
+	}
+
 	public function sendOrganizerBookingInformationEmail(Booking $booking, AppointmentConfig $config, string $calendar): void {
 		/** @var IUser $user */
 		$user = $this->userManager->get($config->getUserId());
@@ -328,7 +358,7 @@ class MailService {
 
 
 		try {
-			$failed = $this->mailer->send($message);
+			$failed = $this->deliver($message);
 			if (count($failed) > 0) {
 				$this->logger->warning('Mail delivery failed for some recipients.', ['app' => 'calendar-appointments']);
 				foreach ($failed as $fail) {

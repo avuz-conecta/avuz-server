@@ -966,6 +966,8 @@ avuz_sync_embed_allowed_origins
 # See docker/lib-apps.sh and apps/avuz_theme/lib/Service/InstantBooking.php.
 avuz_sync_instant_booking_tokens
 avuz_sync_booking_mail_from
+avuz_sync_booking_smtp_user
+avuz_sync_booking_smtp_password
 
 # Mandatory TOTP 2FA for the admin group — enabled and enforced on every boot so
 # every instance and every redeploy converges, idempotently. Opt out per stack
