@@ -13,7 +13,7 @@ Many contracts state a duration ("vigência de 12 meses a contar da assinatura")
   - **Datas fixas.** Today's behaviour: `startsOn` optional, `endsOn` required.
   - **A partir da assinatura.** `termMonths` is required (1..`ContractLimits` max renewal term, 120). No dates are entered.
 - **When the envelope completes,** a from-signing contract gets its dates at activation:
-  - `startsOn` = the calendar date (instance timezone) of the **last signature**, i.e. the completion moment the activation already uses.
+  - `startsOn` = the calendar date (instance timezone) of the **completion time of the envelope** (`completedAt`), not of the last signer's `signedAt`. Without a completion time it falls back to the last signature's date, then to today.
   - `endsOn` = `startsOn` + `termMonths` − 1 day. Example: 12 months from 10/10/2026 ends 09/10/2027. Month-end clamping uses the same rule as auto-renewal (`ContractCalendar`).
 - **After activation** the contract is an ordinary contract with fixed dates. Alerts, renewals, edits and the Contratos screen don't change.
   - `termMonths` is kept as the default length for the next term only if auto-renew has no term of its own. Auto-renew keeps its own `renewalTermMonths`, which defaults to `termMonths` when the user leaves it empty.
@@ -46,7 +46,7 @@ Many contracts state a duration ("vigência de 12 meses a contar da assinatura")
 
 - **PHP:**
   - validation of both modes;
-  - activation computes `startsOn`/`endsOn` from the last signature date, including month-end and leap-year cases;
+  - activation computes `startsOn`/`endsOn` from the envelope's completion date, including month-end and leap-year cases;
   - "Registrar dados" on a completed envelope;
   - an AI suggestion in each mode;
   - old held terms with no mode.
