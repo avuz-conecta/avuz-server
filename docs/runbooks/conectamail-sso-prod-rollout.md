@@ -96,6 +96,10 @@ Prod:
 - app3 stack 14 redeployed 10:51 BRT (same image), healthy after ~90 s. App config written; env = app config = local secret (hash `3e9492cb…`); `credential_key` unchanged (`45391f60…`); `mail_backend=roundcube`.
 - webmail stack 98 redeployed 10:54 BRT (same `TAG=7398e69`), healthy in 10 s. Env hashes equal app3's. `/api/auth/sso-config` → `https://app3.avuz.app/apps/conectamail/sso/webmail`. `frame-ancestors 'self' https://app3.avuz.app`.
 - End to end with Patrick's app3 account (`pass_src=login`): 302 → `/`, `/api/auth/me` 200 `patrick@avuz.cloud`; replay rejected.
-- Not yet clicked through in a real browser (iframe render inside app3, "Entrar com Avuz Conecta" button).
+- Patrick clicked through both in a browser: the iframe inside app3 and the "Entrar com Avuz Conecta" button. Both worked.
+
+### Later the same day: webmail image
+
+Slow first inbox loads (10–11.5 s) were not caused by SSO. They came from webmail PR #27 (date sort reads every inbox Date header, because Zoho has no IMAP SORT). Fixed in webmail-avuz PR #34 (`5cbed75`). Stack 98 now runs `TAG=f0c4a5e` (same code as that `main`); inbox list 2.3 s after a fresh login. Webmail rollback: `TAG=7398e69` (no migration). The SSO variables are unchanged.
 
 Backups of both stacks (with secrets) and the new secret stay in the session scratchpad only.
