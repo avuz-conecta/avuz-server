@@ -97,6 +97,48 @@ class EMailTemplateTest extends TestCase {
 		$this->assertStringContainsString('Ver agenda', $html);
 	}
 
+	private function fullSampleHtml(): string {
+		$template = $this->templateNamed('Avuz Conecta');
+		$template->addHeader();
+		$template->addHeading('Agendamento confirmado');
+		$template->addBodyText('Até lá.');
+		$template->addBodyButton('Ver agenda', 'https://app3.example/agenda');
+		$template->addFooter('Avuz Conecta');
+		return $template->renderHtml();
+	}
+
+	public function testRenderHtmlDropsTheFixedMinimumWidths(): void {
+		$html = $this->fullSampleHtml();
+
+		$this->assertStringNotContainsString('min-width:580px', $html);
+		$this->assertStringNotContainsString('min-width:490px', $html);
+		$this->assertStringContainsString('min-width:0', $html);
+	}
+
+	public function testRenderHtmlCapsTheFixedWidthsInsteadOfForcingThem(): void {
+		$html = $this->fullSampleHtml();
+
+		$this->assertSame(0, preg_match('/(?<!max-)(?<!min-)width:(580|550)px/', $html));
+		$this->assertStringContainsString('width:100%;max-width:580px', $html);
+		$this->assertStringContainsString('width:100%;max-width:550px', $html);
+	}
+
+	public function testRenderHtmlLeavesOtherWidthsUntouched(): void {
+		$html = $this->fullSampleHtml();
+
+		$this->assertStringContainsString('max-width:610px', $html);
+		$this->assertStringContainsString('width:140px', $html);
+		$this->assertStringNotContainsString('max-width:610px;max-width', $html);
+	}
+
+	public function testRenderHtmlStaysIdenticalWhenCalledTwice(): void {
+		$template = $this->templateNamed('Avuz Conecta');
+		$template->addHeader();
+		$template->addFooter('Avuz Conecta');
+
+		$this->assertSame($template->renderHtml(), $template->renderHtml());
+	}
+
 	public function testLightLogoAssetStaysSmallAndTwiceTheDisplayWidth(): void {
 		$this->assertFileExists(self::LOGO_PATH);
 		$this->assertLessThan(self::LOGO_MAXIMUM_BYTES, filesize(self::LOGO_PATH));

@@ -34,6 +34,25 @@ class EMailTemplate extends BaseEMailTemplate {
 </table>
 EOF;
 
+	/**
+	 * Core hard-codes pixel widths in inline styles and only relaxes them in a
+	 * media query that Outlook mobile and non-Google Gmail apps ignore.
+	 */
+	private const FLUID_WIDTHS = [
+		'min-width:580px' => 'min-width:0',
+		'min-width:490px' => 'min-width:0',
+		'width:580px' => 'width:100%;max-width:580px',
+		'width:550px' => 'width:100%;max-width:550px',
+	];
+
+	public function renderHtml(): string {
+		$html = parent::renderHtml();
+		foreach (self::FLUID_WIDTHS as $fixed => $fluid) {
+			$html = preg_replace('/(?<=["\';])' . preg_quote($fixed, '/') . '(?=["\';])/', $fluid, $html);
+		}
+		return $html;
+	}
+
 	public function addHeader(): void {
 		if ($this->headerAdded) {
 			return;
