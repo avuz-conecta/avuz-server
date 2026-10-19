@@ -68,6 +68,8 @@ image). Same 6.2.1 build guard as the JS.
 | File | Sentinel | Why |
 | --- | --- | --- |
 | `lib/Listener/AppointmentBookedListener.php` | `AVUZ-TALK-ROOM-SAFE-V1` | A Talk error (backend down, no permission) no longer aborts the booking. The room creation is wrapped in `try/catch (\Throwable)`; a warning is logged with the config id and the booking goes ahead without a Talk link. |
+| `lib/Service/Appointments/BookingService.php` | `AVUZ-INSTANT-BOOKING-V1` | New `bookInstantly()`: upstream `book()` minus the confirmation e-mail, then upstream `confirmBooking()` on the same booking (calendar event, Talk room, both info e-mails, notification). `book()` is split into `createBooking()` + the confirmation e-mail, behavior unchanged. Slot gone before confirm → row deleted, `NoSlotFoundException` (404). Calendar write or DB update fails → error log (config id, booking id), the booking stays pending and gets the normal confirmation e-mail, unless the event was already written (then no e-mail, never a second event). |
+| `lib/Controller/BookingController.php` | `AVUZ-INSTANT-BOOKING-V1` | `bookSlot` calls `bookInstantly()` when `OCA\AvuzTheme\Service\InstantBooking::isAllowed()` says so (embed header `X-Avuz-Embed-Booking: 1`, embed allowlist on, page token in `AVUZ_INSTANT_BOOKING_TOKENS`), else upstream `book()`. Same responses either way. No `avuz_theme` → upstream flow. |
 
 Sentinels are checked at boot by `verify_avuz_patches` (`calendar` app, path
 under `lib/`). On every calendar upgrade, diff each overlay file against the new
@@ -77,7 +79,9 @@ upstream file and re-apply the change by hand before bumping the version guard.
 `tests/` holds PHPUnit tests for the overlay classes. They run without a server:
 `tests/bootstrap.php` autoloads `OCA\Calendar\` from `lib/` here first, then from
 the pristine upstream `apps/calendar/lib/` (must be 6.2.1, else the bootstrap
-aborts), plus core `OCP\`/`OC\` and `3rdparty`.
+aborts), plus core `OCP\`/`OC\`, `OCA\AvuzTheme\` and `3rdparty`.
+`tests/stubs/OC.php` replaces core's `\OC` so a test can hand `\OCP\Server::get()`
+its own container (the controller test stubs the instant-booking gate that way).
 ```bash
 phpunit -c docker/overlays/calendar/tests/phpunit.xml
 ```

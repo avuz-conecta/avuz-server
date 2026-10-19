@@ -150,6 +150,8 @@ verify_avuz_patches() {
         "AVUZ-POPOVER-COLOR-V1|calendar|js/calendar-main.js|calendar overlay missing — event color picker in the new-event popover lost; redeploy or rerun reapply_avuz_calendar_overlay"
         "AVUZ-CREATED-BY-V1|calendar|js/calendar-main.js|calendar overlay missing — \"Criado por\" in shared-calendar events lost; redeploy or rerun reapply_avuz_calendar_overlay"
         "AVUZ-TALK-ROOM-SAFE-V1|calendar|lib/Listener/AppointmentBookedListener.php|calendar overlay missing — a Talk error would abort appointment bookings; redeploy or rerun reapply_avuz_calendar_overlay"
+        "AVUZ-INSTANT-BOOKING-V1|calendar|lib/Service/Appointments/BookingService.php|calendar overlay missing — embedded demo bookings would wait for e-mail confirmation again; redeploy or rerun reapply_avuz_calendar_overlay"
+        "AVUZ-INSTANT-BOOKING-V1|calendar|lib/Controller/BookingController.php|calendar overlay missing — embedded demo bookings would wait for e-mail confirmation again; redeploy or rerun reapply_avuz_calendar_overlay"
         "AVUZ-WHATSAPP-PHONE-V1|contacts|js/style-XRJXNnxt.chunk.mjs|contacts overlay missing — WhatsApp button next to phone numbers lost; redeploy or rerun reapply_avuz_contacts_overlay"
         "style-XRJXNnxt.chunk.mjs|contacts|js/contacts-main.mjs|contacts overlay missing — contacts-main.mjs does not load the patched chunk (WhatsApp button lost); redeploy or rerun reapply_avuz_contacts_overlay"
         "AVUZ-DECK-CLONE-ORDER-V1|deck|lib/Service/BoardService.php|deck fork missing — board-copy column/card shift fix lost; check the apps/deck submodule shipped and no store copy in custom_apps outranks it"
