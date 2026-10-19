@@ -510,6 +510,17 @@ assert_eq "keeps booting when the allowlist sync fails" \
     "✗ Could not sync AVUZ_EMBED_ALLOWED_ORIGINS — booking embed keeps its previous origins" \
     "$(_avuz_php_config() { echo "failed: boom"; return 1; }; avuz_sync_embed_allowed_origins | tail -n 1)"
 
+# ── instant booking tokens sync ──
+assert_eq "syncs the instant booking tokens from their env var by name, as a string" \
+    "config avuz_theme instant_booking_tokens AVUZ_INSTANT_BOOKING_TOKENS --type=string: PHPCFG avuz_theme instant_booking_tokens AVUZ_INSTANT_BOOKING_TOKENS --type=string" \
+    "$(AVUZ_INSTANT_BOOKING_TOKENS='MxXcZpTEzNcH' AVUZ_OCC_DRYRUN=1 avuz_sync_instant_booking_tokens)"
+assert_eq "writes an empty token list when the env var is unset (instant booking off)" \
+    "set:" \
+    "$(unset AVUZ_INSTANT_BOOKING_TOKENS; _avuz_php_config() { echo "set:${AVUZ_INSTANT_BOOKING_TOKENS-unset}"; }; avuz_sync_instant_booking_tokens | sed 's/^config .*: //')"
+assert_eq "keeps booting when the instant booking tokens sync fails" \
+    "✗ Could not sync AVUZ_INSTANT_BOOKING_TOKENS — instant booking keeps its previous pages" \
+    "$(_avuz_php_config() { echo "failed: boom"; return 1; }; avuz_sync_instant_booking_tokens | tail -n 1)"
+
 # ── store installs lost with the container (oidc, previewgenerator) ──
 RESTORE_LOG="$(mktemp)"
 # Fake occ: getpath succeeds only for apps listed in $PRESENT; enabled values come

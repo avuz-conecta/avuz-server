@@ -511,6 +511,16 @@ avuz_sync_embed_allowed_origins() {
         || echo "✗ Could not sync AVUZ_EMBED_ALLOWED_ORIGINS — booking embed keeps its previous origins"
 }
 
+# Booking pages that book instantly from the embedded demo page (no e-mail
+# confirmation): AVUZ_INSTANT_BOOKING_TOKENS, comma-separated booking page
+# tokens. Synced every boot, so the stack env is the source of truth; empty or
+# unset = off. Only takes effect with the embed allowlist set. Non-fatal.
+avuz_sync_instant_booking_tokens() {
+    export AVUZ_INSTANT_BOOKING_TOKENS="${AVUZ_INSTANT_BOOKING_TOKENS:-}"
+    avuz_set_config_from_env avuz_theme instant_booking_tokens AVUZ_INSTANT_BOOKING_TOKENS --type=string \
+        || echo "✗ Could not sync AVUZ_INSTANT_BOOKING_TOKENS — instant booking keeps its previous pages"
+}
+
 # Make TOTP two-factor auth mandatory for the `admin` group, idempotently, on
 # every boot. Enables twofactor_totp (enrollment) and twofactor_backupcodes
 # (recovery codes) so a locked-out admin can get back in, then enforces 2FA for

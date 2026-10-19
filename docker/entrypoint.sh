@@ -956,6 +956,10 @@ fi
 # See docker/lib-apps.sh and apps/avuz_theme/lib/Service/AppointmentEmbed.php.
 avuz_sync_embed_allowed_origins
 
+# Instant-booking page tokens follow the stack env on every boot.
+# See docker/lib-apps.sh and apps/avuz_theme/lib/Service/InstantBooking.php.
+avuz_sync_instant_booking_tokens
+
 # Mandatory TOTP 2FA for the admin group — enabled and enforced on every boot so
 # every instance and every redeploy converges, idempotently. Opt out per stack
 # with AVUZ_ENFORCE_ADMIN_2FA=0. Never narrows or disables an instance's existing

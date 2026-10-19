@@ -94,6 +94,9 @@ services:
       # comma-separated https origins, no path. Empty = embedding off.
       # e.g. https://www.avuzconecta.com.br,https://avuzconecta.com.br (app3 only)
       - AVUZ_EMBED_ALLOWED_ORIGINS=
+      # Booking page tokens that book instantly from the embed (no e-mail confirmation):
+      # comma-separated tokens. Empty = off. (app3 only)
+      - AVUZ_INSTANT_BOOKING_TOKENS=
     depends_on:
       db:
         condition: service_healthy
