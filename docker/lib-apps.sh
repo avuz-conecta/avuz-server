@@ -355,6 +355,39 @@ avuz_sync_store_apps() {
     return 0
 }
 
+# App Store installs land in the image's apps/ dir, not a volume, so a container
+# recreate drops their code while the DB keeps them enabled (oidc down = SSO
+# down). Runs every boot: reinstall only what is missing, inside a short store
+# window, then put back the enabled value the DB had (yes / group list / no).
+# Sets AVUZ_STORE_APPS_RESTORED=1 when it ran occ: the caller re-chowns appdata_*.
+avuz_restore_missing_store_installs() {
+    local app enabled
+    local missing=()
+    AVUZ_STORE_APPS_RESTORED=0
+    for app in "$@"; do
+        _avuz_occ app:getpath "$app" >/dev/null 2>&1 || missing+=("$app")
+    done
+    [ "${#missing[@]}" -gt 0 ] || return 0
+
+    AVUZ_STORE_APPS_RESTORED=1
+    _avuz_occ config:system:set appstoreenabled --value=true --type=boolean >/dev/null || true
+    for app in "${missing[@]}"; do
+        enabled="$(_avuz_occ config:app:get "$app" enabled 2>/dev/null || true)"
+        if ! _avuz_occ app:install --keep-disabled "$app" >/dev/null 2>&1; then
+            echo "✗ $app reinstall failed (offline? store outage?)"
+            continue
+        fi
+        if [ "$enabled" = "yes" ]; then
+            _avuz_occ app:enable "$app" >/dev/null || true
+        elif [ -n "$enabled" ] && [ "$enabled" != "no" ]; then
+            _avuz_occ config:app:set "$app" enabled --value="$enabled" >/dev/null || true
+        fi
+        echo "✓ $app reinstalled from store (code was missing)"
+    done
+    _avuz_occ config:system:set appstoreenabled --value=false --type=boolean >/dev/null || true
+    return 0
+}
+
 # Pure decision helper: should an app be reconciled? Yes IFF its DB
 # installed_version is strictly behind its on-disk code version. Empty code or
 # empty installed (app absent / not enabled) -> no.

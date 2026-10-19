@@ -510,6 +510,52 @@ assert_eq "keeps booting when the allowlist sync fails" \
     "✗ Could not sync AVUZ_EMBED_ALLOWED_ORIGINS — booking embed keeps its previous origins" \
     "$(_avuz_php_config() { echo "failed: boom"; return 1; }; avuz_sync_embed_allowed_origins | tail -n 1)"
 
+# ── store installs lost with the container (oidc, previewgenerator) ──
+RESTORE_LOG="$(mktemp)"
+# Fake occ: getpath succeeds only for apps listed in $PRESENT; enabled values come
+# from $ENABLED_<app>; every other call is logged.
+_avuz_occ() {
+    case "$1" in
+        app:getpath) case " $PRESENT " in *" $2 "*) echo "/var/www/html/apps/$2"; return 0 ;; esac; return 1 ;;
+        config:app:get) local var="ENABLED_$2"; printf '%s' "${!var:-}"; return 0 ;;
+        app:install) [ "${INSTALL_FAILS:-}" = "$3" ] && return 1; echo "$*" >> "$RESTORE_LOG"; return 0 ;;
+        *) echo "$*" >> "$RESTORE_LOG"; return 0 ;;
+    esac
+}
+
+: > "$RESTORE_LOG"
+PRESENT="oidc previewgenerator" avuz_restore_missing_store_installs oidc previewgenerator >/dev/null
+assert_eq "touches nothing when every app has code on disk" "" "$(cat "$RESTORE_LOG")"
+assert_eq "signals no re-chown when nothing was reinstalled" "0" "$AVUZ_STORE_APPS_RESTORED"
+PRESENT="" avuz_restore_missing_store_installs oidc >/dev/null
+assert_eq "signals a re-chown after a reinstall ran occ" "1" "$AVUZ_STORE_APPS_RESTORED"
+
+: > "$RESTORE_LOG"
+PRESENT="previewgenerator" ENABLED_oidc="yes" avuz_restore_missing_store_installs oidc previewgenerator >/dev/null
+assert_eq "reinstalls only the missing app inside a store window and re-enables it" \
+"config:system:set appstoreenabled --value=true --type=boolean
+app:install --keep-disabled oidc
+app:enable oidc
+config:system:set appstoreenabled --value=false --type=boolean" "$(cat "$RESTORE_LOG")"
+
+: > "$RESTORE_LOG"
+PRESENT="" ENABLED_oidc='["admin"]' avuz_restore_missing_store_installs oidc >/dev/null
+assert_eq "puts back a group-limited enable as it was" \
+'["admin"]' "$(grep '^config:app:set oidc enabled' "$RESTORE_LOG" | sed 's/.*--value=//')"
+
+: > "$RESTORE_LOG"
+PRESENT="" ENABLED_previewgenerator="no" avuz_restore_missing_store_installs previewgenerator >/dev/null
+assert_eq "leaves an admin-disabled app disabled" "" "$(grep -E 'app:enable|config:app:set' "$RESTORE_LOG" || true)"
+
+: > "$RESTORE_LOG"
+restore_out="$(PRESENT="" INSTALL_FAILS="oidc" avuz_restore_missing_store_installs oidc)"
+assert_eq "reports a failed reinstall and still closes the store" \
+"✗ oidc reinstall failed (offline? store outage?)|config:system:set appstoreenabled --value=false --type=boolean" \
+"$restore_out|$(tail -n 1 "$RESTORE_LOG")"
+
+unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
+rm -f "$RESTORE_LOG"
+
 # ── bounded occ ──
 assert_eq "runs a bounded occ call under timeout when the image has it" \
     "timeout 60 php occ assinaturas:webhook:ensure" \

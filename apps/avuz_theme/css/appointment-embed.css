@@ -386,104 +386,10 @@ html.avuz-embed .booking .mx-datepicker td.cell.active:hover {
     color: #000 !important;
 }
 
-/* Time zone */
+/* Time zone: hidden. The picker defaults to the visitor's browser zone, so
+   slots already show in their local time. */
 html.avuz-embed .booking__time-zone {
-    position: static !important;
-    margin-top: 16px !important;
-}
-
-/* css/theme.css hides the picker below 600px on the regular page; the widget
-   shows it at every width */
-html.avuz-embed .booking__time-zone .v-select {
-    display: block !important;
-}
-
-html.avuz-embed .booking__time-zone .v-select.select {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    margin: 0 !important;
-}
-
-html.avuz-embed .booking__time-zone .vs__dropdown-toggle {
-    display: flex !important;
-    align-items: center !important;
-    min-height: var(--avuz-embed-control-height) !important;
-    padding: 0 8px !important;
-    border: 1px solid var(--avuz-embed-line) !important;
-    border-radius: var(--avuz-embed-radius) !important;
-    background: #fff !important;
-    transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-html.avuz-embed .booking__time-zone .vs__dropdown-toggle:hover,
-html.avuz-embed .booking__time-zone .vs--open .vs__dropdown-toggle,
-html.avuz-embed .booking__time-zone .v-select:focus-within .vs__dropdown-toggle {
-    border-color: var(--avuz-embed-cyan) !important;
-}
-
-html.avuz-embed .booking__time-zone .vs--open .vs__dropdown-toggle,
-html.avuz-embed .booking__time-zone .v-select:focus-within .vs__dropdown-toggle {
-    box-shadow: var(--avuz-embed-focus-ring) !important;
-}
-
-/* Selected zone and search text centered in the 48px box */
-html.avuz-embed .booking__time-zone .v-select.select .vs__selected-options {
-    align-self: stretch;
-    align-items: center !important;
-    align-content: center !important;
-    min-height: 0 !important;
-    padding: 0 6px !important;
-}
-
-html.avuz-embed .booking__time-zone .v-select.select .vs__selected,
-html.avuz-embed .booking__time-zone .v-select.select .vs__search {
-    height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    font-size: 16px !important;
-    line-height: 1.4 !important;
-    color: var(--avuz-embed-text) !important;
-}
-
-/* Options list: vue-select appends it to <body> (and is styled there until
-   moved); js/appointment-embed.js moves it back after the toggle */
-html.avuz-embed .vs__dropdown-menu {
-    border: 1px solid var(--avuz-embed-line) !important;
-    border-radius: var(--avuz-embed-radius) !important;
-    font-family: var(--avuz-embed-font) !important;
-}
-
-/* Back in the page flow: always below the toggle, full width, inside #content
-   (so the frame grows to fit it). Beats the inline top/left/width and the
-   drop-up styling floating-ui sets. */
-html.avuz-embed .booking__time-zone .v-select .vs__dropdown-menu {
-    position: static !important;
-    top: auto !important;
-    left: auto !important;
-    transform: none !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    max-height: 280px !important;
-    overflow-y: auto !important;
-    margin: 6px 0 0 !important;
-    padding: 4px !important;
-    border-style: solid !important;
-    box-shadow: none !important;
-    background: #fff !important;
-}
-
-html.avuz-embed .booking__time-zone .vs__dropdown-option {
-    padding: 10px 12px !important;
-    font-size: 15px;
-    line-height: 1.4;
-    color: var(--avuz-embed-text);
-}
-
-html.avuz-embed .vs__dropdown-option--highlight,
-html.avuz-embed .vs__dropdown-option--selected {
-    background: var(--avuz-embed-cyan-tint) !important;
-    color: var(--avuz-embed-ink) !important;
+    display: none !important;
 }
 
 /* ── Slots ───────────────────────────────────────────────────────────────── */
