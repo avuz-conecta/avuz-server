@@ -27,7 +27,9 @@
  * where css/appointment-embed.css lays it out in the page flow: it opens
  * downward, at full width, and grows #content (and so the iframe) while open.
  *
- * A booked appointment stays pending until the visitor confirms it by email.
+ * In embed mode the `book` request also carries `X-Avuz-Embed-Booking: 1`; the
+ * server books instantly only for pages listed in `AVUZ_INSTANT_BOOKING_TOKENS`
+ * (otherwise it stays pending until the e-mail confirmation).
  */
 (function appointmentEmbed() {
 	'use strict';
@@ -49,6 +51,8 @@
 	var DROPDOWN_MENU_CLASS = 'vs__dropdown-menu';
 	var CSRF_HEADER = 'OCS-APIRequest';
 	var CSRF_HEADER_VALUE = 'true';
+	var INSTANT_BOOKING_HEADER = 'X-Avuz-Embed-Booking';
+	var INSTANT_BOOKING_HEADER_VALUE = '1';
 	var HTTP_OK = 200;
 	var RESIZE_SETTLE_MS = 100;
 	// The booking page requests today's slots as soon as it mounts.
@@ -252,6 +256,9 @@
 		}
 		matchedBookingRequest = true;
 		this.setRequestHeader(CSRF_HEADER, CSRF_HEADER_VALUE);
+		if (action === BOOK_ACTION && embedMode) {
+			this.setRequestHeader(INSTANT_BOOKING_HEADER, INSTANT_BOOKING_HEADER_VALUE);
+		}
 		if (action === BOOK_ACTION) {
 			var message = bookedMessage(body);
 			this.addEventListener('load', function onBookLoad() {
@@ -273,6 +280,9 @@
 			matchedBookingRequest = true;
 			var request = new Request(input, init);
 			request.headers.set(CSRF_HEADER, CSRF_HEADER_VALUE);
+			if (action === BOOK_ACTION && embedMode) {
+				request.headers.set(INSTANT_BOOKING_HEADER, INSTANT_BOOKING_HEADER_VALUE);
+			}
 			var body = action === BOOK_ACTION ? await request.clone().text() : null;
 			var response = await originalFetch.call(this, request);
 			if (action === BOOK_ACTION && response.status === HTTP_OK) {

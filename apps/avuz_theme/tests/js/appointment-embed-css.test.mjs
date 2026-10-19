@@ -79,6 +79,10 @@ describe('appointment-embed.css', () => {
 			assert.match(label, /content:\s*"Conheça o AvuzConecta";/);
 			assert.match(label, /visibility:\s*visible;/);
 		});
+
+		it('hides the booking page title', () => {
+			assert.match(ruleBody(STYLESHEET, `${EMBED_SCOPE} #content .booking__name`), /display:\s*none !important;/);
+		});
 	});
 
 	it('hides the time zone picker (slots show in the visitor\'s browser zone)', () => {

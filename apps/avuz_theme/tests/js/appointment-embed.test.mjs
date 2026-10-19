@@ -9,6 +9,10 @@ const SITE_ORIGIN = 'https://avuzconecta.com.br';
 const OTHER_ORIGIN = 'https://evil.example';
 const BOOKING_PATH = '/apps/calendar/appointment/abc123';
 const BOOK_URL = `${BOOKING_PATH}/book`;
+const SLOTS_URL = `${BOOKING_PATH}/slots`;
+const CLOUD_ORIGIN = 'https://cloud.example';
+const INSTANT_BOOKING_HEADER = 'X-Avuz-Embed-Booking';
+const CSRF_HEADER = 'OCS-APIRequest';
 const EMBED_QUERY = '?embed=1';
 const HTTP_OK = 200;
 const PAGE_HEIGHT = 3000;
@@ -154,21 +158,32 @@ function loadBookingPage({
 		constructor() {
 			this.listeners = {};
 			this.status = 0;
+			this.headers = {};
 		}
 
 		open() {}
 
 		send() {}
 
-		setRequestHeader() {}
+		setRequestHeader(name, value) {
+			this.headers[name] = value;
+		}
 
 		addEventListener(type, listener) {
 			this.listeners[type] = listener;
 		}
 	}
 
+	const fetchedRequests = [];
+	const fakeFetch = async (request) => {
+		fetchedRequests.push(request);
+		return { status: HTTP_OK };
+	};
+
 	const context = {
 		URL,
+		Request,
+		fetch: fakeFetch,
 		URLSearchParams,
 		WeakMap,
 		JSON,
@@ -246,6 +261,21 @@ function loadBookingPage({
 			request.send(JSON.stringify(body));
 			request.status = HTTP_OK;
 			request.listeners.load.call(request);
+			return request;
+		},
+		requestSlots() {
+			const request = new context.XMLHttpRequest();
+			request.open('GET', SLOTS_URL);
+			request.send();
+			return request;
+		},
+		async fetchBook(body) {
+			await context.window.fetch(`${CLOUD_ORIGIN}${BOOK_URL}`, { method: 'POST', body: JSON.stringify(body) });
+			return fetchedRequests.at(-1);
+		},
+		async fetchSlots() {
+			await context.window.fetch(`${CLOUD_ORIGIN}${SLOTS_URL}`);
+			return fetchedRequests.at(-1);
 		},
 	};
 }
@@ -582,6 +612,72 @@ describe('appointment-embed', () => {
 			page.book({ start: 1, end: 2, timeZone: 'UTC' });
 
 			assert.deepEqual(bookedMessages(page.posted), []);
+		});
+	});
+
+	describe('instant booking header', () => {
+		const BOOKED = { start: 1, end: 2, timeZone: 'UTC' };
+
+		describe('in embed mode', () => {
+			it('marks the XHR book request as coming from the embed', () => {
+				const request = loadBookingPage().book(BOOKED);
+
+				assert.equal(request.headers[INSTANT_BOOKING_HEADER], '1');
+				assert.equal(request.headers[CSRF_HEADER], 'true');
+			});
+
+			it('marks the fetch book request as coming from the embed', async () => {
+				const request = await loadBookingPage().fetchBook(BOOKED);
+
+				assert.equal(request.headers.get(INSTANT_BOOKING_HEADER), '1');
+				assert.equal(request.headers.get(CSRF_HEADER), 'true');
+			});
+
+			it('does not mark the XHR slots request', () => {
+				const request = loadBookingPage().requestSlots();
+
+				assert.equal(INSTANT_BOOKING_HEADER in request.headers, false);
+				assert.equal(request.headers[CSRF_HEADER], 'true');
+			});
+
+			it('does not mark the fetch slots request', async () => {
+				const request = await loadBookingPage().fetchSlots();
+
+				assert.equal(request.headers.has(INSTANT_BOOKING_HEADER), false);
+				assert.equal(request.headers.get(CSRF_HEADER), 'true');
+			});
+		});
+
+		describe('when the page is not framed', () => {
+			it('does not mark the XHR book request', () => {
+				const request = loadBookingPage({ embedded: false }).book(BOOKED);
+
+				assert.equal(INSTANT_BOOKING_HEADER in request.headers, false);
+				assert.equal(request.headers[CSRF_HEADER], 'true');
+			});
+
+			it('does not mark the fetch book request', async () => {
+				const request = await loadBookingPage({ embedded: false }).fetchBook(BOOKED);
+
+				assert.equal(request.headers.has(INSTANT_BOOKING_HEADER), false);
+				assert.equal(request.headers.get(CSRF_HEADER), 'true');
+			});
+		});
+
+		describe('when the parent origin is not allowlisted', () => {
+			it('does not mark the XHR book request', () => {
+				const request = loadBookingPage({ ancestorOrigins: [OTHER_ORIGIN] }).book(BOOKED);
+
+				assert.equal(INSTANT_BOOKING_HEADER in request.headers, false);
+				assert.equal(request.headers[CSRF_HEADER], 'true');
+			});
+
+			it('does not mark the fetch book request', async () => {
+				const request = await loadBookingPage({ ancestorOrigins: [OTHER_ORIGIN] }).fetchBook(BOOKED);
+
+				assert.equal(request.headers.has(INSTANT_BOOKING_HEADER), false);
+				assert.equal(request.headers.get(CSRF_HEADER), 'true');
+			});
 		});
 	});
 });

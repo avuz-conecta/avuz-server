@@ -215,10 +215,7 @@ html.avuz-embed .booking__display-name::after {
 }
 
 html.avuz-embed #content .booking__name {
-    margin: 0;
-    font-size: 22px;
-    line-height: 1.2;
-    color: var(--avuz-embed-ink);
+    display: none !important;
 }
 
 html.avuz-embed .booking__description {
