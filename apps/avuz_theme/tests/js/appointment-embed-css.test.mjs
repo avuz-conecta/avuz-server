@@ -80,8 +80,12 @@ describe('appointment-embed.css', () => {
 			assert.match(label, /visibility:\s*visible;/);
 		});
 
-		it('shows the label in bold', () => {
-			assert.match(ruleBody(STYLESHEET, `${EMBED_SCOPE} .booking__display-name::after`), /font-weight:\s*700;/);
+		it('shows the label in bold, synthesized from the single Questrial weight', () => {
+			const label = ruleBody(STYLESHEET, `${EMBED_SCOPE} .booking__display-name::after`);
+
+			assert.match(label, /font-weight:\s*700;/);
+			assert.match(label, /font-synthesis:\s*weight;/);
+			assert.match(label, /color:\s*var\(--avuz-embed-ink\);/);
 		});
 
 		it('hides the booking page title', () => {

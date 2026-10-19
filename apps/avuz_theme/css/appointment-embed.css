@@ -208,10 +208,14 @@ html.avuz-embed .booking__display-name {
     color: var(--avuz-embed-muted);
 }
 
+/* The one exception to "never a faux bold" (Patrick, Oct 19): the label is
+   bold, synthesized from Questrial's single weight. */
 html.avuz-embed .booking__display-name::after {
     content: "Conheça o AvuzConecta";
     font-size: 15px;
     font-weight: 700;
+    font-synthesis: weight;
+    color: var(--avuz-embed-ink);
     visibility: visible;
 }
 
