@@ -103,3 +103,13 @@ Prod:
 Slow first inbox loads (10–11.5 s) were not caused by SSO. They came from webmail PR #27 (date sort reads every inbox Date header, because Zoho has no IMAP SORT). Fixed in webmail-avuz PR #34 (`5cbed75`). Stack 98 now runs `TAG=f0c4a5e` (same code as that `main`); inbox list 2.3 s after a fresh login. Webmail rollback: `TAG=7398e69` (no migration). The SSO variables are unchanged.
 
 Backups of both stacks (with secrets) and the new secret stay in the session scratchpad only.
+
+## Mail menu switched to ConectaMail on app3 (2026-10-19, 14:43 BRT)
+
+Approved by Patrick. app3's Mail menu entry now opens ConectaMail in the iframe (SSO) for every app3 user, instead of Roundcube.
+
+- Stack 14 compose: `- CONECTAMAIL_BACKEND=webmail` added after `WEBMAIL_AVUZ_SSO_SECRET` (durable across configuration runs). Same image; container recreated, healthy after ~80 s.
+- `occ config:app:set conectamail mail_backend --value=webmail` (no configuration run on the same image).
+- Check: `MailBackend::effective()` = `webmail`; `PageController::index()` for `patrick@avuz.cloud` renders the iframe to `https://conectamail.avuz.app/api/auth/sso` with a token; page `frame-src` = `https://conectamail.avuz.app`.
+- Users at switch time: 6 active, all `@avuz.cloud` (matches webmail `ALLOWED_DOMAINS`); 4 with a saved mailbox password, 2 with only the captured login password (may see the webmail password prompt once).
+- Rollback: `occ config:app:set conectamail mail_backend --value=roundcube` (instant), then set the compose line to `roundcube` at the next app3 redeploy. Roundcube stays up at `webmail-01.avuz.app`.
