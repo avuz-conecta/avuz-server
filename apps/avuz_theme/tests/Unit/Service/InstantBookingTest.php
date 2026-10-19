@@ -13,12 +13,15 @@ class InstantBookingTest extends TestCase {
 	private const SITE_ORIGINS = 'https://www.avuzconecta.com.br';
 	private const LISTED_TOKEN = 'MxXcZpTEzNcH';
 
-	private function gate(string $allowedOrigins, string $listedTokens): InstantBooking {
+	private const MAIL_FROM = 'contato@avuzconecta.com.br';
+
+	private function gate(string $allowedOrigins, string $listedTokens, string $mailFrom = ''): InstantBooking {
 		$appConfig = $this->createStub(IAppConfig::class);
 		$appConfig->method('getValueString')->willReturnCallback(
 			static fn (string $app, string $key, string $default = ''): string => match (true) {
 				$app === 'avuz_theme' && $key === 'embed_allowed_origins' => $allowedOrigins,
 				$app === 'avuz_theme' && $key === 'instant_booking_tokens' => $listedTokens,
+				$app === 'avuz_theme' && $key === 'booking_mail_from' => $mailFrom,
 				default => $default,
 			},
 		);
@@ -70,5 +73,30 @@ class InstantBookingTest extends TestCase {
 
 	public function testParsesTokensTrimmedUniqueAndAlphanumericOnly(): void {
 		$this->assertSame(['abc', 'Def9'], InstantBooking::parseTokens(' abc, Def9 ,abc,bad-token,, '));
+	}
+
+	public function testSendsBookingMailFromTheConfiguredAddressForAListedPage(): void {
+		$gate = $this->gate(self::SITE_ORIGINS, self::LISTED_TOKEN, self::MAIL_FROM);
+		$this->assertSame(self::MAIL_FROM, $gate->bookingMailFrom(self::LISTED_TOKEN));
+	}
+
+	public function testKeepsTheDefaultMailSenderForAPageThatIsNotListed(): void {
+		$gate = $this->gate(self::SITE_ORIGINS, self::LISTED_TOKEN, self::MAIL_FROM);
+		$this->assertNull($gate->bookingMailFrom('OtherToken1'));
+	}
+
+	public function testKeepsTheDefaultMailSenderWhenNoAddressIsConfigured(): void {
+		$gate = $this->gate(self::SITE_ORIGINS, self::LISTED_TOKEN, '');
+		$this->assertNull($gate->bookingMailFrom(self::LISTED_TOKEN));
+	}
+
+	public function testKeepsTheDefaultMailSenderWhenTheAddressIsNotAnEmail(): void {
+		$gate = $this->gate(self::SITE_ORIGINS, self::LISTED_TOKEN, 'not-an-email');
+		$this->assertNull($gate->bookingMailFrom(self::LISTED_TOKEN));
+	}
+
+	public function testTrimsSpacesAroundTheConfiguredMailAddress(): void {
+		$gate = $this->gate(self::SITE_ORIGINS, self::LISTED_TOKEN, '  ' . self::MAIL_FROM . ' ');
+		$this->assertSame(self::MAIL_FROM, $gate->bookingMailFrom(self::LISTED_TOKEN));
 	}
 }

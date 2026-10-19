@@ -521,6 +521,16 @@ avuz_sync_instant_booking_tokens() {
         || echo "✗ Could not sync AVUZ_INSTANT_BOOKING_TOKENS — instant booking keeps its previous pages"
 }
 
+# Sender of the appointment e-mails for the instant-booking pages:
+# AVUZ_BOOKING_MAIL_FROM, one address verified in the SMTP provider. Synced
+# every boot, so the stack env is the source of truth; empty or unset = those
+# pages use Calendar's default sender. Non-fatal.
+avuz_sync_booking_mail_from() {
+    export AVUZ_BOOKING_MAIL_FROM="${AVUZ_BOOKING_MAIL_FROM:-}"
+    avuz_set_config_from_env avuz_theme booking_mail_from AVUZ_BOOKING_MAIL_FROM --type=string \
+        || echo "✗ Could not sync AVUZ_BOOKING_MAIL_FROM — booking e-mails keep their previous sender"
+}
+
 # Make TOTP two-factor auth mandatory for the `admin` group, idempotently, on
 # every boot. Enables twofactor_totp (enrollment) and twofactor_backupcodes
 # (recovery codes) so a locked-out admin can get back in, then enforces 2FA for

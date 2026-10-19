@@ -52,7 +52,7 @@ Users with a principal see the same default calendar as before.
   `apps/calendar` is not 6.2.1 — overlaying a 6.2.1 bundle on another version
   breaks the app.
 - Entrypoint: sentinels `AVUZ-POPOVER-COLOR-V1` and `AVUZ-CREATED-BY-V1` in `js/calendar-main.js`,
-  `AVUZ-TALK-ROOM-SAFE-V1` and `AVUZ-INSTANT-BOOKING-V1` in `lib/` (`verify_avuz_patches`), `calendar` in `AVUZ_OWNED_APPS` (custom_apps shadow
+  `AVUZ-TALK-ROOM-SAFE-V1`, `AVUZ-INSTANT-BOOKING-V1` and `AVUZ-BOOKING-MAIL-FROM-V1` in `lib/` (`verify_avuz_patches`), `calendar` in `AVUZ_OWNED_APPS` (custom_apps shadow
   purge), `reapply_avuz_calendar_overlay` after core upgrades (it copies `js/` and `lib/`).
 - Browsers: bump `AVUZ_CONFIG_VERSION` with every overlay change. The config
   run calls `occ theming:config`, which bumps the theming cachebuster, which
@@ -70,6 +70,7 @@ image). Same 6.2.1 build guard as the JS.
 | `lib/Listener/AppointmentBookedListener.php` | `AVUZ-TALK-ROOM-SAFE-V1` | A Talk error (backend down, no permission) no longer aborts the booking. The room creation is wrapped in `try/catch (\Throwable)`; a warning is logged with the config id and the booking goes ahead without a Talk link. |
 | `lib/Service/Appointments/BookingService.php` | `AVUZ-INSTANT-BOOKING-V1` | New `bookInstantly()`: upstream `book()` minus the confirmation e-mail, then upstream `confirmBooking()` on the same booking (calendar event, Talk room, both info e-mails, notification). `book()` is split into `createBooking()` + the confirmation e-mail, behavior unchanged. Slot gone before confirm → row deleted, `NoSlotFoundException` (404). Calendar write fails → error log (config id, booking id), the booking stays pending and gets the normal confirmation e-mail. `confirmBooking()` (instant and e-mail-confirmed flows alike) catches a DB error from saving the confirmed booking, logs an error and still sends both booking e-mails and the organizer notification: the event is already written, so no confirmation e-mail and never a second event. One sentinel per file; the `confirmBooking()` comment points to it. |
 | `lib/Controller/BookingController.php` | `AVUZ-INSTANT-BOOKING-V1` | `bookSlot` calls `bookInstantly()` when `OCA\AvuzTheme\Service\InstantBooking::isAllowed()` says so (embed header `X-Avuz-Embed-Booking: 1`, embed allowlist on, page token in `AVUZ_INSTANT_BOOKING_TOKENS`), else upstream `book()`. Same responses either way. No `avuz_theme` → upstream flow. |
+| `lib/Service/Appointments/MailService.php` | `AVUZ-BOOKING-MAIL-FROM-V1` | New `senderFor()`: the three e-mails that use the system sender (`sendConfirmationEmail`, `sendBookingInformationEmail`, `sendOrganizerBookingInformationEmail`) go out From `OCA\AvuzTheme\Service\InstantBooking::bookingMailFrom()` (`AVUZ_BOOKING_MAIL_FROM`, only for pages in `AVUZ_INSTANT_BOOKING_TOKENS`, valid address). Display names and Reply-To stay upstream. Empty/invalid address, unlisted page, no `avuz_theme` or an exception → upstream sender (`appointments-noreply`); an exception also logs a warning with the config id. |
 
 Sentinels are checked at boot by `verify_avuz_patches` (`calendar` app, path
 under `lib/`). On every calendar upgrade, diff each overlay file against the new

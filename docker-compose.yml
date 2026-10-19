@@ -97,6 +97,9 @@ services:
       # Booking page tokens that book instantly from the embed (no e-mail confirmation):
       # comma-separated tokens. Empty = off. (app3 only)
       - AVUZ_INSTANT_BOOKING_TOKENS=
+      # Sender of the appointment e-mails for those pages; must be verified in the SMTP
+      # provider. Empty = default sender. (app3 only)
+      - AVUZ_BOOKING_MAIL_FROM=
     depends_on:
       db:
         condition: service_healthy

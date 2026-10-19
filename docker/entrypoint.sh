@@ -152,6 +152,7 @@ verify_avuz_patches() {
         "AVUZ-TALK-ROOM-SAFE-V1|calendar|lib/Listener/AppointmentBookedListener.php|calendar overlay missing — a Talk error would abort appointment bookings; redeploy or rerun reapply_avuz_calendar_overlay"
         "AVUZ-INSTANT-BOOKING-V1|calendar|lib/Service/Appointments/BookingService.php|calendar overlay missing — embedded demo bookings would wait for e-mail confirmation again; redeploy or rerun reapply_avuz_calendar_overlay"
         "AVUZ-INSTANT-BOOKING-V1|calendar|lib/Controller/BookingController.php|calendar overlay missing — embedded demo bookings would wait for e-mail confirmation again; redeploy or rerun reapply_avuz_calendar_overlay"
+        "AVUZ-BOOKING-MAIL-FROM-V1|calendar|lib/Service/Appointments/MailService.php|calendar overlay missing — demo-page booking e-mails go out from the default sender; redeploy or rerun reapply_avuz_calendar_overlay"
         "AVUZ-WHATSAPP-PHONE-V1|contacts|js/style-XRJXNnxt.chunk.mjs|contacts overlay missing — WhatsApp button next to phone numbers lost; redeploy or rerun reapply_avuz_contacts_overlay"
         "style-XRJXNnxt.chunk.mjs|contacts|js/contacts-main.mjs|contacts overlay missing — contacts-main.mjs does not load the patched chunk (WhatsApp button lost); redeploy or rerun reapply_avuz_contacts_overlay"
         "AVUZ-DECK-CLONE-ORDER-V1|deck|lib/Service/BoardService.php|deck fork missing — board-copy column/card shift fix lost; check the apps/deck submodule shipped and no store copy in custom_apps outranks it"
@@ -964,6 +965,7 @@ avuz_sync_embed_allowed_origins
 # Instant-booking page tokens follow the stack env on every boot.
 # See docker/lib-apps.sh and apps/avuz_theme/lib/Service/InstantBooking.php.
 avuz_sync_instant_booking_tokens
+avuz_sync_booking_mail_from
 
 # Mandatory TOTP 2FA for the admin group — enabled and enforced on every boot so
 # every instance and every redeploy converges, idempotently. Opt out per stack

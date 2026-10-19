@@ -521,6 +521,17 @@ assert_eq "keeps booting when the instant booking tokens sync fails" \
     "✗ Could not sync AVUZ_INSTANT_BOOKING_TOKENS — instant booking keeps its previous pages" \
     "$(_avuz_php_config() { echo "failed: boom"; return 1; }; avuz_sync_instant_booking_tokens | tail -n 1)"
 
+# ── booking e-mail sender sync ──
+assert_eq "syncs the booking e-mail sender from its env var by name, as a string" \
+    "config avuz_theme booking_mail_from AVUZ_BOOKING_MAIL_FROM --type=string: PHPCFG avuz_theme booking_mail_from AVUZ_BOOKING_MAIL_FROM --type=string" \
+    "$(AVUZ_BOOKING_MAIL_FROM='contato@avuzconecta.com.br' AVUZ_OCC_DRYRUN=1 avuz_sync_booking_mail_from)"
+assert_eq "writes an empty sender when the env var is unset (default sender)" \
+    "set:" \
+    "$(unset AVUZ_BOOKING_MAIL_FROM; _avuz_php_config() { echo "set:${AVUZ_BOOKING_MAIL_FROM-unset}"; }; avuz_sync_booking_mail_from | sed 's/^config .*: //')"
+assert_eq "keeps booting when the booking e-mail sender sync fails" \
+    "✗ Could not sync AVUZ_BOOKING_MAIL_FROM — booking e-mails keep their previous sender" \
+    "$(_avuz_php_config() { echo "failed: boom"; return 1; }; avuz_sync_booking_mail_from | tail -n 1)"
+
 # ── store installs lost with the container (oidc, previewgenerator) ──
 RESTORE_LOG="$(mktemp)"
 # Fake occ: getpath succeeds only for apps listed in $PRESENT; enabled values come

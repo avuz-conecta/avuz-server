@@ -12,12 +12,14 @@ use OCP\IRequest;
  * Decides whether a booking made from the embedded demo page skips Calendar's
  * e-mail confirmation. Needs the embed header, an instance with embedding on and
  * a booking page listed in AVUZ_INSTANT_BOOKING_TOKENS (synced to app config at
- * boot, docker/lib-apps.sh). Empty = off.
+ * boot, docker/lib-apps.sh). Empty = off. Those pages also send their appointment
+ * e-mails from AVUZ_BOOKING_MAIL_FROM when it is set (bookingMailFrom()).
  */
 class InstantBooking {
 	public const HEADER = 'X-Avuz-Embed-Booking';
 	public const HEADER_VALUE = '1';
 	public const CONFIG_KEY = 'instant_booking_tokens';
+	public const MAIL_FROM_CONFIG_KEY = 'booking_mail_from';
 
 	private const TOKEN_SEPARATOR = ',';
 	private const TOKEN_PATTERN = '/^[A-Za-z0-9]+$/';
@@ -43,6 +45,23 @@ class InstantBooking {
 			self::parseTokens($this->appConfig->getValueString(Application::APP_ID, self::CONFIG_KEY)),
 			true,
 		);
+	}
+
+	/**
+	 * Sender of the appointment e-mails for a listed booking page, null = keep
+	 * Calendar's default sender. Server-side e-mails, so no embed header check.
+	 */
+	public function bookingMailFrom(string $configToken): ?string {
+		$listed = in_array(
+			$configToken,
+			self::parseTokens($this->appConfig->getValueString(Application::APP_ID, self::CONFIG_KEY)),
+			true,
+		);
+		if (!$listed) {
+			return null;
+		}
+		$address = trim($this->appConfig->getValueString(Application::APP_ID, self::MAIL_FROM_CONFIG_KEY));
+		return filter_var($address, FILTER_VALIDATE_EMAIL) === false ? null : $address;
 	}
 
 	/**
