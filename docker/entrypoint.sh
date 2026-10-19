@@ -149,6 +149,7 @@ verify_avuz_patches() {
         "AVUZ-AUDIO-EXTRACT-V1|integration_openai|lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
         "AVUZ-POPOVER-COLOR-V1|calendar|js/calendar-main.js|calendar overlay missing — event color picker in the new-event popover lost; redeploy or rerun reapply_avuz_calendar_overlay"
         "AVUZ-CREATED-BY-V1|calendar|js/calendar-main.js|calendar overlay missing — \"Criado por\" in shared-calendar events lost; redeploy or rerun reapply_avuz_calendar_overlay"
+        "AVUZ-TALK-ROOM-SAFE-V1|calendar|lib/Listener/AppointmentBookedListener.php|calendar overlay missing — a Talk error would abort appointment bookings; redeploy or rerun reapply_avuz_calendar_overlay"
         "AVUZ-WHATSAPP-PHONE-V1|contacts|js/style-XRJXNnxt.chunk.mjs|contacts overlay missing — WhatsApp button next to phone numbers lost; redeploy or rerun reapply_avuz_contacts_overlay"
         "style-XRJXNnxt.chunk.mjs|contacts|js/contacts-main.mjs|contacts overlay missing — contacts-main.mjs does not load the patched chunk (WhatsApp button lost); redeploy or rerun reapply_avuz_contacts_overlay"
         "AVUZ-DECK-CLONE-ORDER-V1|deck|lib/Service/BoardService.php|deck fork missing — board-copy column/card shift fix lost; check the apps/deck submodule shipped and no store copy in custom_apps outranks it"
@@ -202,12 +203,14 @@ reapply_avuz_spreed_overlay() {
 }
 
 # Reapply the calendar overlay onto /var/www/html/apps/calendar/. The overlay
-# is a rebuilt 6.2.1 bundle (event color picker in the new-event popover); an
-# upgrade that re-extracts calendar wipes it.
+# is a rebuilt 6.2.1 bundle (event color picker in the new-event popover) plus
+# full-file PHP replacements under lib/; an upgrade that re-extracts calendar
+# wipes it.
 reapply_avuz_calendar_overlay() {
     local overlay="/var/www/html/docker/overlays/calendar"
     if [ -d "$overlay" ]; then
         cp -R "$overlay/js/." /var/www/html/apps/calendar/js/
+        cp -R "$overlay/lib/." /var/www/html/apps/calendar/lib/
         chown -R www-data:www-data /var/www/html/apps/calendar
         echo "✓ Avuz calendar overlay reapplied"
     else

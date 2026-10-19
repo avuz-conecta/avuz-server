@@ -30,14 +30,16 @@ COPY . /var/www/html/
 # relative path under apps/spreed/. Net-new files are added by the same cp -R.
 RUN cp -R /var/www/html/docker/overlays/spreed/. /var/www/html/apps/spreed/
 
-# Apply Avuz calendar overlay (event color picker in the new-event popover).
-# The js/ files are a rebuilt bundle of one exact calendar version; overlaying
-# them onto any other version breaks the app, so the build fails instead.
+# Apply Avuz calendar overlay (event color picker in the new-event popover, PHP
+# fixes under lib/). The js/ files are a rebuilt bundle and the lib/ files are
+# full-file replacements of one exact calendar version; overlaying them onto any
+# other version breaks the app, so the build fails instead.
 # Rebuild recipe: docker/overlays/calendar/README.md.
 ARG AVUZ_CALENDAR_OVERLAY_VERSION=6.2.1
 RUN grep -q "<version>${AVUZ_CALENDAR_OVERLAY_VERSION}</version>" /var/www/html/apps/calendar/appinfo/info.xml \
     || { echo "calendar is not ${AVUZ_CALENDAR_OVERLAY_VERSION} — rebuild docker/overlays/calendar (see its README)"; exit 1; } \
-    && cp -R /var/www/html/docker/overlays/calendar/js/. /var/www/html/apps/calendar/js/
+    && cp -R /var/www/html/docker/overlays/calendar/js/. /var/www/html/apps/calendar/js/ \
+    && cp -R /var/www/html/docker/overlays/calendar/lib/. /var/www/html/apps/calendar/lib/
 
 # Apply Avuz contacts overlay (WhatsApp button next to every phone number, card
 # 266). Same rule as calendar: a rebuilt bundle of one exact contacts version,

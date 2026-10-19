@@ -1,4 +1,4 @@
-# calendar JS overlay — event color in the new-event popover + "Criado por"
+# calendar overlay (JS bundle + PHP files) — event color in the new-event popover + "Criado por"
 
 ## What
 Patched build of Nextcloud Calendar **v6.2.1**. The quick popover (click an
@@ -57,6 +57,30 @@ Users with a principal see the same default calendar as before.
 - Browsers: bump `AVUZ_CONFIG_VERSION` with every overlay change. The config
   run calls `occ theming:config`, which bumps the theming cachebuster, which
   changes the `?v=` suffix on the calendar scripts.
+
+## PHP files (`lib/`)
+Full-file replacements of upstream 6.2.1 PHP, same idea as
+`docker/overlays/spreed/`. The path under `lib/` mirrors `apps/calendar/lib/`.
+The Dockerfile and `reapply_avuz_calendar_overlay` copy `lib/` over
+`apps/calendar/lib/` (only `lib/` and `js/` ship; `tests/` stays out of the
+image). Same 6.2.1 build guard as the JS.
+
+| File | Sentinel | Why |
+| --- | --- | --- |
+| `lib/Listener/AppointmentBookedListener.php` | `AVUZ-TALK-ROOM-SAFE-V1` | A Talk error (backend down, no permission) no longer aborts the booking. The room creation is wrapped in `try/catch (\Throwable)`; a warning is logged with the config id and the booking goes ahead without a Talk link. |
+
+Sentinels are checked at boot by `verify_avuz_patches` (`calendar` app, path
+under `lib/`). On every calendar upgrade, diff each overlay file against the new
+upstream file and re-apply the change by hand before bumping the version guard.
+
+### Tests
+`tests/` holds PHPUnit tests for the overlay classes. They run without a server:
+`tests/bootstrap.php` autoloads `OCA\Calendar\` from `lib/` here first, then from
+the pristine upstream `apps/calendar/lib/` (must be 6.2.1, else the bootstrap
+aborts), plus core `OCP\`/`OC\` and `3rdparty`.
+```bash
+phpunit -c docker/overlays/calendar/tests/phpunit.xml
+```
 
 ## Rebuild (required on every calendar upgrade)
 ```bash
