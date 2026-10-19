@@ -80,6 +80,10 @@ describe('appointment-embed.css', () => {
 			assert.match(label, /visibility:\s*visible;/);
 		});
 
+		it('shows the label in bold', () => {
+			assert.match(ruleBody(STYLESHEET, `${EMBED_SCOPE} .booking__display-name::after`), /font-weight:\s*700;/);
+		});
+
 		it('hides the booking page title', () => {
 			assert.match(ruleBody(STYLESHEET, `${EMBED_SCOPE} #content .booking__name`), /display:\s*none !important;/);
 		});

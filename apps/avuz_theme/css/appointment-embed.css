@@ -211,6 +211,7 @@ html.avuz-embed .booking__display-name {
 html.avuz-embed .booking__display-name::after {
     content: "Conheça o AvuzConecta";
     font-size: 15px;
+    font-weight: 700;
     visibility: visible;
 }
 
