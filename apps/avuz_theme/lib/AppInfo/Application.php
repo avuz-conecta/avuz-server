@@ -9,6 +9,8 @@ use OCA\AvuzTheme\Listener\AppointmentEmbedStateListener;
 use OCA\AvuzTheme\Listener\AppointmentEmbedStyleListener;
 use OCA\AvuzTheme\Listener\BeforeTemplateRenderedListener;
 use OCA\AvuzTheme\Listener\LoginFlowTemplateRenderedListener;
+use OCA\AvuzTheme\Listener\RailPreferenceValidator;
+use OCA\AvuzTheme\Listener\RailStateListener;
 use OCA\AvuzTheme\Listener\UserCreatedListener;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
@@ -16,6 +18,7 @@ use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\AppFramework\Http\Events\BeforeLoginTemplateRenderedEvent;
 use OCP\AppFramework\Http\Events\BeforeTemplateRenderedEvent;
+use OCP\Config\BeforePreferenceSetEvent;
 use OCP\Security\CSP\AddContentSecurityPolicyEvent;
 use OCP\User\Events\UserCreatedEvent;
 use OCP\Util;
@@ -59,11 +62,24 @@ class Application extends App implements IBootstrap {
 			BeforeTemplateRenderedEvent::class,
 			AppointmentEmbedStyleListener::class
 		);
+
+		// Left rail: hand the saved collapsed state to the page, and let users save it
+		$context->registerEventListener(
+			BeforeTemplateRenderedEvent::class,
+			RailStateListener::class
+		);
+		$context->registerEventListener(
+			BeforePreferenceSetEvent::class,
+			RailPreferenceValidator::class
+		);
 	}
 
 	public function boot(IBootContext $context): void {
 		// Inject header CSS on all pages
 		Util::addStyle(self::APP_ID, 'header');
+
+		// Left rail layout from 1024px up (js/left-rail.js renders it)
+		Util::addStyle(self::APP_ID, 'left-rail');
 
 		// Inject theme CSS for cards and backgrounds
 		Util::addStyle(self::APP_ID, 'theme');
@@ -85,6 +101,10 @@ class Application extends App implements IBootstrap {
 
 		// Inject header centering JS
 		Util::addScript(self::APP_ID, 'center-header');
+
+		// Left rail app menu (from 1024px up, see css/left-rail.css); the model first
+		Util::addScript(self::APP_ID, 'left-rail-model');
+		Util::addScript(self::APP_ID, 'left-rail');
 
 		// Add hover tooltip to read-only Deck stack titles
 		Util::addScript(self::APP_ID, 'deck-stack-title');
