@@ -1,0 +1,243 @@
+/**
+ * Left rail (js/left-rail.js renders #avuz-rail inside #header).
+ *
+ * From 1024px up (core's own mobile breakpoint) on logged-in pages, #header
+ * becomes a fixed column: the rail on top, core's header-end widgets (search,
+ * notifications, contacts, user menu) stacked at its foot, their menus opening
+ * beside it. Expanded 220px, collapsed 72px (html.avuz-rail--collapsed).
+ * Below 1024px only #avuz-rail is hidden: core's top header stays as it is.
+ *
+ * Theming declares its variables on :root and again on body[data-theme-*],
+ * so the overrides sit on body#body-user to win. With --header-height 0 every
+ * app's calc(100vh - var(--header-height)) and top: var(--header-height)
+ * fills the page without per-app fixes; #header gets 50px back for its own
+ * widgets. Vue apps render #content-vue instead of #content, and Talk nests
+ * one inside the other.
+ */
+
+#avuz-rail {
+	display: none;
+}
+
+@media (min-width: 1024px) {
+	body#body-user {
+		--avuz-rail-width: 220px;
+		--avuz-rail-gap: 4px;
+		--avuz-rail-item-height: 44px;
+		--avuz-rail-transition: 200ms ease;
+		--header-height: 0px;
+		--body-height: calc(100% - env(safe-area-inset-bottom) - 2 * var(--body-container-margin));
+	}
+
+	html.avuz-rail--collapsed body#body-user {
+		--avuz-rail-width: 72px;
+	}
+
+	body#body-user #header {
+		--header-height: 50px;
+		position: fixed !important;
+		inset: 0 auto 0 0 !important;
+		width: var(--avuz-rail-width) !important;
+		height: 100% !important;
+		box-sizing: border-box;
+		flex-direction: column !important;
+		align-items: stretch !important;
+		justify-content: flex-start !important;
+		gap: 8px;
+		padding: 12px 0 !important;
+		background: transparent !important;
+	}
+
+	body#body-user #header .header-start {
+		flex: 1 1 auto !important;
+		flex-direction: column !important;
+		align-items: stretch !important;
+		justify-content: flex-start !important;
+		min-height: 0;
+	}
+
+	/* Core's app menu mounts over #header-start__appmenu as nav.app-menu (no id) */
+	body#body-user #header #nextcloud,
+	body#body-user #header #header-start__appmenu,
+	body#body-user #header .header-start > .app-menu {
+		display: none !important;
+	}
+
+	body#body-user #header .header-end {
+		flex-direction: column !important;
+		align-items: center !important;
+		flex-shrink: 0;
+		gap: var(--avuz-rail-gap);
+	}
+
+	/* Core positions header menus fixed under a top bar (top: header-height; right) */
+	body#body-user #header .header-menu__wrapper {
+		top: auto !important;
+		right: auto !important;
+		left: calc(var(--avuz-rail-width) + var(--avuz-rail-gap)) !important;
+		bottom: var(--body-container-margin) !important;
+	}
+
+	body#body-user #header .header-menu__wrapper .header-menu__content {
+		max-height: calc(100vh - 2 * var(--body-container-margin)) !important;
+	}
+
+	body#body-user > :is(#content, #content-vue) {
+		margin: var(--body-container-margin) var(--body-container-margin) var(--body-container-margin) var(--avuz-rail-width) !important;
+		width: calc(100% - var(--avuz-rail-width) - var(--body-container-margin)) !important;
+	}
+
+	/* Animate only toggles the user makes, never the saved state applied on load */
+	html.avuz-rail--animated body#body-user #header {
+		transition: width var(--avuz-rail-transition);
+	}
+
+	html.avuz-rail--animated body#body-user > :is(#content, #content-vue) {
+		transition: margin-left var(--avuz-rail-transition), width var(--avuz-rail-transition);
+	}
+
+	body#body-user :is(#content, #content-vue) :is(#content, #content-vue) {
+		position: relative !important;
+		inset: auto !important;
+		margin: 0 !important;
+		width: 100% !important;
+		height: 100% !important;
+	}
+
+	#avuz-rail {
+		position: relative;
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		gap: var(--avuz-rail-gap);
+		min-height: 0;
+		padding: 0 12px;
+	}
+
+	.avuz-rail__apps,
+	.avuz-rail__overflow {
+		display: flex;
+		flex-direction: column;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.avuz-rail__apps {
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.avuz-rail__overflow[hidden] {
+		display: none;
+	}
+
+	.avuz-rail__toggle,
+	.avuz-rail__app {
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		width: 100%;
+		height: var(--avuz-rail-item-height);
+		min-height: var(--avuz-rail-item-height);
+		box-sizing: border-box;
+		margin: 0;
+		padding: 0 12px;
+		border: 0;
+		border-radius: var(--border-radius-element, 10px);
+		background: transparent;
+		color: var(--color-main-text);
+		font: inherit;
+		font-size: 15px;
+		text-align: start;
+		text-decoration: none;
+		white-space: nowrap;
+		cursor: pointer;
+	}
+
+	.avuz-rail__toggle {
+		color: var(--color-text-maxcontrast);
+	}
+
+	.avuz-rail__toggle:hover,
+	.avuz-rail__app:hover {
+		background: var(--color-background-hover);
+	}
+
+	.avuz-rail__toggle:focus-visible,
+	.avuz-rail__app:focus-visible {
+		outline: 2px solid var(--color-main-text);
+		outline-offset: -2px;
+	}
+
+	.avuz-rail__app[aria-current='page'] {
+		background: var(--color-main-background);
+	}
+
+	.avuz-rail__app[aria-current='page']::before {
+		content: '';
+		position: absolute;
+		left: -12px;
+		top: 11px;
+		width: 4px;
+		height: 22px;
+		border-radius: 0 3px 3px 0;
+		background: var(--color-primary-element);
+	}
+
+	.avuz-rail__icon {
+		flex-shrink: 0;
+		width: 20px;
+		height: 20px;
+	}
+
+	.avuz-rail__label {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* Collapsed: icons only, the name stays readable to screen readers */
+	html.avuz-rail--collapsed :is(.avuz-rail__toggle, .avuz-rail__apps .avuz-rail__app) {
+		justify-content: center;
+		padding: 0;
+	}
+
+	html.avuz-rail--collapsed :is(.avuz-rail__toggle, .avuz-rail__apps) .avuz-rail__label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	/* "Mais aplicativos" list: beside the rail, aligned to its bottom, always labelled */
+	.avuz-rail__overflow {
+		position: absolute;
+		left: calc(100% + var(--avuz-rail-gap));
+		bottom: 0;
+		min-width: 220px;
+		max-height: calc(100vh - 2 * var(--body-container-margin));
+		overflow-y: auto;
+		padding: 6px;
+		box-sizing: border-box;
+		border-radius: var(--border-radius-large, 12px);
+		background: var(--color-main-background);
+		box-shadow: 0 0 10px var(--color-box-shadow);
+	}
+
+	/* App icons are black strokes (themes/avuz), like the header's: invert on dark */
+	body#body-user:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) img.avuz-rail__icon {
+		filter: var(--background-invert-if-dark);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		html.avuz-rail--animated body#body-user #header,
+		html.avuz-rail--animated body#body-user > :is(#content, #content-vue) {
+			transition: none;
+		}
+	}
+}

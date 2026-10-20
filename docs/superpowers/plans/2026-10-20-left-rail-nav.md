@@ -67,13 +67,20 @@ Local run, since there's no phpunit in the repo: `composer install` `vendor-bin/
 - [x] Tests: `tests/js/left-rail.test.mjs` (jsdom from the root `node_modules`), 17 behaviors.
 
 ### Task 4 — Rail CSS (`css/left-rail.css`)
-- [ ] All rules sit inside `@media (min-width: 1024px)` and scope under `body.avuz-rail` (set by left-rail.js). Below 1024px, nothing changes.
-- [ ] Layout:
-  - `#header` becomes a fixed full-height column, 220px wide, or 72px when collapsed. `#content` gets margins `8px 8px 8px <rail>`.
-  - The header-end widgets stack at the bottom, per Task 0's outcome.
-  - The width transition is 200ms, and `prefers-reduced-motion` disables it.
-- [ ] Use theming vars only (`--color-main-background`, `--color-primary-element`, …). Dark theme follows the existing `header.css` selectors.
-- [ ] Apply the `--header-height` overrides from Task 0's list.
+- [x] Everything sits inside `@media (min-width: 1024px)`, scoped to `body#body-user`. No JS class gates the layout, so it never waits on a script. Outside the media query there's only `#avuz-rail { display: none }`, guarded by `tests/js/left-rail-css.test.mjs`.
+- [x] Layout:
+  - `#header` is a fixed column, 220px wide, or 72px when collapsed. `.header-start` stretches. `#nextcloud`, `#header-start__appmenu` and core's `nav.app-menu` (Vue replaces the placeholder and drops its id) are hidden.
+  - `.header-end` stacks at the foot, and `.header-menu__wrapper` is re-anchored beside the rail.
+  - `body > :is(#content, #content-vue)` is offset by the rail; the nested Talk container is reset.
+- [x] Width transitions only run under `html.avuz-rail--animated`, which the toggle adds, so a saved collapsed state never animates on load. `prefers-reduced-motion` disables them.
+- [x] Theming vars only. Dark: app icon `<img>`s get `filter: var(--background-invert-if-dark)`, like header.css does.
+- [x] Staging hot-patch check (conectahml, 1440×900 and 1440×560, 900×700):
+  - all apps fit at 900px tall; at 560 there are 4 + "Mais aplicativos", with the popover beside the rail, on top, focus on its first app;
+  - collapse/expand works, the save returns 200 (junk value 400), and the state persists across reloads;
+  - <1024 shows the stock top header.
+- [ ] Dark theme not checked: staging forces light. Do it in Task 6.
+
+Hot-patch state on staging stack 8, live until the container is recreated. The 5 new avuz_theme files plus a patched `lib/AppInfo/Application.php` were added (the original is kept as `Application.php.pre-rail`; staging runs an older avuz_theme, so the branch's Application.php can't be copied over). To revert: `cp Application.php.pre-rail Application.php`, php-fpm USR2, `occ theming:config name "Avuz Conecta"`.
 
 ### Task 5 — ConectaMail frame fit
 - [ ] Check that `apps/conectamail/js/resize.js` still fills the card with top offset 0 and the shifted left edge. Fix only if needed.

@@ -7,7 +7,8 @@
  * - a toggle that collapses the rail to icons (html.avuz-rail--collapsed) and
  *   saves the choice through the provisioning_api preferences endpoint
  *   (RailPreferenceValidator vouches for it). A failed save keeps the new
- *   state for this page and warns in the console.
+ *   state for this page and warns in the console. Only these toggles animate
+ *   (html.avuz-rail--animated); the saved state applies on load without one.
  * - one link per app (core/apps initial state, already in the user's order),
  *   the current one with aria-current="page". Collapsed, each gets its name as
  *   a tooltip; the name stays in the link for screen readers.
@@ -25,6 +26,7 @@
 	var APPS_STATE_ID = 'initial-state-core-apps';
 	var COLLAPSED_STATE_ID = 'initial-state-avuz_theme-rail_collapsed';
 	var COLLAPSED_CLASS = 'avuz-rail--collapsed';
+	var ANIMATED_CLASS = 'avuz-rail--animated';
 	var RAIL_ID = 'avuz-rail';
 	var OVERFLOW_ID = 'avuz-rail-overflow';
 	var ITEM_HEIGHT = 44;
@@ -212,6 +214,7 @@
 
 		toggle.addEventListener('click', function toggleRail() {
 			var collapsed = !isCollapsed();
+			document.documentElement.classList.add(ANIMATED_CLASS);
 			document.documentElement.classList.toggle(COLLAPSED_CLASS, collapsed);
 			renderToggle();
 			saveCollapsed(collapsed);
@@ -240,16 +243,26 @@
 		});
 
 		var framePending = false;
-		window.addEventListener('resize', function scheduleRender() {
+		var renderedHeight = -1;
+		function scheduleRender() {
 			if (framePending) {
 				return;
 			}
 			framePending = true;
 			window.requestAnimationFrame(function renderOnFrame() {
 				framePending = false;
+				if (appList.clientHeight === renderedHeight) {
+					return;
+				}
+				renderedHeight = appList.clientHeight;
 				renderApps();
 			});
-		});
+		}
+		// The list's height settles after styles and fonts load, and changes with the window
+		if (typeof ResizeObserver === 'function') {
+			new ResizeObserver(scheduleRender).observe(appList);
+		}
+		window.addEventListener('resize', scheduleRender);
 
 		return { nav: nav, renderToggle: renderToggle, renderApps: renderApps };
 	}

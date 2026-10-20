@@ -78,6 +78,9 @@ class Application extends App implements IBootstrap {
 		// Inject header CSS on all pages
 		Util::addStyle(self::APP_ID, 'header');
 
+		// Left rail layout from 1024px up (js/left-rail.js renders it)
+		Util::addStyle(self::APP_ID, 'left-rail');
+
 		// Inject theme CSS for cards and backgrounds
 		Util::addStyle(self::APP_ID, 'theme');
 

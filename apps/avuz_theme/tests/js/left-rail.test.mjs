@@ -125,6 +125,20 @@ describe('left rail', () => {
 			assert.equal(page.toggle().getAttribute('aria-expanded'), 'false');
 		});
 
+		it('applies the saved state on load without animating it', () => {
+			const page = openPage({ collapsed: true });
+
+			assert.equal(page.document.documentElement.classList.contains('avuz-rail--animated'), false);
+		});
+
+		it('animates a toggle the user makes', () => {
+			const page = openPage();
+
+			page.toggle().click();
+
+			assert.equal(page.document.documentElement.classList.contains('avuz-rail--animated'), true);
+		});
+
 		it('collapses the rail and saves the choice', async () => {
 			const page = openPage();
 
