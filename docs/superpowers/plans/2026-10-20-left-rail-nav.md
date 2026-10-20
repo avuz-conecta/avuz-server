@@ -87,9 +87,29 @@ Hot-patch state on staging stack 8, live until the container is recreated. The 5
 - [x] `apps/conectamail/tests/js/resize.test.mjs` (jsdom) covers: rail layout, top-header layout, the `#content-vue` container, and resize.
 - [x] Staging hot-patch (`resize.js`, original kept as `resize.js.pre-rail`): frame 8→892 = card 8→892 at 1440×900.
 
-### Task 6 — Local state matrix
-- [ ] Check the full matrix: expanded/collapsed × light/dark × few/many apps (overflow) × 1024/1440/1920 × <1024. Also keyboard-only, 200% zoom, and a reload that keeps the state.
-- [ ] **Checkpoint:** screenshots to Patrick.
+### Task 6 — State matrix (run on staging hot-patch, 2026-10-20)
+Instead of a local NC, this ran on staging conectahml with the Task 4/5 hot-patch.
+
+| Check | Result |
+|---|---|
+| Expanded / collapsed, reload keeps state | ✅ |
+| Few apps (900px tall) / overflow (560px): 4 + "Mais aplicativos", active app kept | ✅ |
+| Overflow popover: beside rail, on top, focus to first app, Escape/outside click close | ✅ (Escape/outside in jsdom tests) |
+| 1440×900: Painel, Drive, Talk, Calendário, Tarefas, Mail, Contatos, Formulários, Configurações | ✅ nothing under the rail |
+| Drive details sidebar | ✅ inside the card, full height |
+| Dialog (Drive settings) | ✅ mask covers the rail (z 9998 > 2000) |
+| Header-end menus (search modal, notifications, contacts, user menu) | ✅ beside the rail foot |
+| Mail iframe fits the card | ✅ 8→892 = card |
+| <1024px (900×700) | ✅ stock top header, rail hidden |
+| 1024×768 | ⚠️ works, no horizontal scroll, but cramped: 796px of content, Talk main 496px |
+| Dark (emulated in-page: staging has `enforce_theme=light` system-wide, so no setting was changed) | ✅ rail text 12.2:1, toggle 8.4:1, app icons inverted, dark pill |
+| Keyboard | ✅ skip links → toggle → apps; 2px focus ring |
+| 200% zoom | ℹ️ 1440 at 200% = 720 CSS px, below 1024, so it gets the stock top header (core's mobile layout); expected |
+
+Open points:
+- [ ] **1024–1279px:** the expanded rail takes 220px of a small screen. Proposal: below 1280px, show the rail collapsed without saving it, unless the user expands it in that session. Patrick decides.
+- [ ] The dark-theme bell and contacts glyphs are dim images. Today's top bar has the same widgets and CSS, so this isn't from the rail; it's a possible follow-up.
+- [ ] 1920 wide not checked; low risk (more room).
 
 ### Task 7 — Staging preview
 - [ ] Hot-patch avuz_theme files on staging stack 8. Bust the cache by bumping the `avuz_theme` version in `info.xml`. Run php-fpm USR2 if PHP changed. Run the state matrix there.
