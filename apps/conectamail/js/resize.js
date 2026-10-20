@@ -1,10 +1,13 @@
 (function () {
 
+    // Fill the page card (#content, #content-vue on Vue pages) down to its own
+    // bottom edge: the window bottom sits a card margin lower and gets clipped.
     function resizeFrame() {
         var frame = document.getElementById('roundcube-frame');
         if (!frame) return;
-        var offset = frame.getBoundingClientRect().top;
-        frame.style.height = (window.innerHeight - offset) + 'px';
+        var card = frame.closest('#content, #content-vue');
+        var bottom = card ? card.getBoundingClientRect().bottom : window.innerHeight;
+        frame.style.height = (bottom - frame.getBoundingClientRect().top) + 'px';
     }
 
     function frameOrigin(frame) {

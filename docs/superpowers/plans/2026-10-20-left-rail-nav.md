@@ -83,7 +83,9 @@ Local run, since there's no phpunit in the repo: `composer install` `vendor-bin/
 Hot-patch state on staging stack 8, live until the container is recreated. The 5 new avuz_theme files plus a patched `lib/AppInfo/Application.php` were added (the original is kept as `Application.php.pre-rail`; staging runs an older avuz_theme, so the branch's Application.php can't be copied over). To revert: `cp Application.php.pre-rail Application.php`, php-fpm USR2, `occ theming:config name "Avuz Conecta"`.
 
 ### Task 5 — ConectaMail frame fit
-- [ ] Check that `apps/conectamail/js/resize.js` still fills the card with top offset 0 and the shifted left edge. Fix only if needed.
+- [x] Root cause: `apps/conectamail/js/resize.js` sized the iframe to `innerHeight − frame top`. That ignores the card's bottom margin, so the iframe ran 8px past the card and got clipped, under the old top header as well. It now fills down to the bottom of the closest `#content`/`#content-vue`, falling back to the window when neither is found.
+- [x] `apps/conectamail/tests/js/resize.test.mjs` (jsdom) covers: rail layout, top-header layout, the `#content-vue` container, and resize.
+- [x] Staging hot-patch (`resize.js`, original kept as `resize.js.pre-rail`): frame 8→892 = card 8→892 at 1440×900.
 
 ### Task 6 — Local state matrix
 - [ ] Check the full matrix: expanded/collapsed × light/dark × few/many apps (overflow) × 1024/1440/1920 × <1024. Also keyboard-only, 200% zoom, and a reload that keeps the state.
