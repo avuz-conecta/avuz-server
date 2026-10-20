@@ -139,7 +139,9 @@ Open points:
 - [ ] Run `npm run dev`. Check standalone, and embedded through a local HTML page that iframes `localhost:5173`. Check light/dark, ≤800px and >800px.
 
 ### Task 12 — Staging
-- [ ] Build `registry.avuz.app/admin/webmail-avuz:<sha>` and deploy it to staging stack 64 with `TAG=<sha>`. Open it inside the Avuz Conecta staging that frames ConectaMail staging. Confirm which stack that is first.
+- [x] Built `registry.avuz.app/admin/webmail-avuz:9c091df` (`sha256:0900787b…`) from `feat/embedded-mode`. Stack 64 `TAG` went f0c4a5e → 9c091df (only that env changed; **rollback = TAG f0c4a5e**). The container was recreated. `/api/health` returns 200, and the live bundle contains the account footer and the `mailbox-account` styles.
+- [x] Opened directly (conectamailhml), it shows the standalone login, not embedded.
+- [ ] Embedded check through staging-3 (conectahmls3, stack 63 → `WEBMAIL_AVUZ_URL` = stack 64) needs a signed-in user with a mailbox. Stack 63 runs `:staging-3`, without the rail, so this checks the webmail's embedded mode under the old top bar.
 - [ ] Confirm that the Avuz Conecta logout ends the webmail session.
 - [ ] **Checkpoint:** Patrick approves. Prod rollout is a separate, gated step.
 
