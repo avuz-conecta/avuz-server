@@ -111,9 +111,11 @@ Open points:
 - [ ] The dark-theme bell and contacts glyphs are dim images. Today's top bar has the same widgets and CSS, so this isn't from the rail; it's a possible follow-up.
 - [ ] 1920 wide not checked; low risk (more room).
 
-### Task 7 — Staging preview
-- [ ] Hot-patch avuz_theme files on staging stack 8. Bust the cache by bumping the `avuz_theme` version in `info.xml`. Run php-fpm USR2 if PHP changed. Run the state matrix there.
-- [ ] **Checkpoint:** Patrick approves, then merge into `avuz-customization` and build `:staging`. Prod rollout is a separate, gated step.
+### Task 7 — Staging build (2026-10-20, approved by Patrick)
+- [x] Local `avuz-customization` was 23 behind origin. Fast-forwarded it, then `merge --no-ff feat/left-rail-nav` → `f7390d7dd6e` (not pushed). Merged tree: 67 PHP + 109 JS tests pass.
+- [x] Stack 8 pulls **`avuzconecta:staging-1`**; plain `:staging` has no consumer (46 = `-2`, 63 = `-3`). Built with `build-push.sh latest staging 1` → `sha256:db25317f…`. Portainer's pull no-op'd, so I auth-pulled on endpoint 3 and then recreated.
+- [x] Container `avuz-conecta-app-1` image is `db25317f1345`, healthy. Files match the merged tree, and the pulled commits are present. Browser at 1440×900: rail with 9 apps, server state `rail_collapsed=false`, Mail frame 8→892 = card.
+- [ ] Not done: push `avuz-customization`; prod rollout (gated).
 
 ## Part 2 — ConectaMail embedded mode (webmail-avuz)
 
@@ -137,7 +139,13 @@ Open points:
 - [ ] Run `npm run dev`. Check standalone, and embedded through a local HTML page that iframes `localhost:5173`. Check light/dark, ≤800px and >800px.
 
 ### Task 12 — Staging
-- [ ] Build `registry.avuz.app/admin/webmail-avuz:<sha>` and deploy it to staging stack 64 with `TAG=<sha>`. Open it inside the Avuz Conecta staging that frames ConectaMail staging. Confirm which stack that is first.
+- [x] Built `registry.avuz.app/admin/webmail-avuz:9c091df` (`sha256:0900787b…`) from `feat/embedded-mode`. Stack 64 `TAG` went f0c4a5e → 9c091df (only that env changed; **rollback = TAG f0c4a5e**). The container was recreated. `/api/health` returns 200, and the live bundle contains the account footer and the `mailbox-account` styles.
+- [x] Opened directly (conectamailhml), it shows the standalone login, not embedded.
+- [x] Embedded check through staging-3 (conectahmls3, under the old top bar; stack 63 has no rail):
+  - 1440×900: a single header (Avuz Conecta's). No ConectaMail brand or bar, no "Sair". "Novo e-mail" sits at the top of the folder column, the search ("Caixa de entrada ▾ | Pesquisar e-mails") in the list header, and the "Caixa de e-mail" footer shows the address + Contatos + Configurações.
+  - 780×800 (iframe ≤800): the top bar keeps only ☰ + search; the address, icons and "Sair" are gone; the list-header search is hidden (no duplicate).
+  - SSO for this user failed server-side: Zoho IMAP `mail_login_failed` with the stored credentials. This is unrelated to the layout; Patrick logged in with the mailbox password.
+- [ ] Interactive checks inside the frame need a person. The built-in browser's synthetic clicks don't reach the cross-origin iframe (even opening a message did nothing), while resize and screenshots do. Still to do: the footer Contatos/Configurações buttons open their dialogs; a search submitted from the list header (folder and "Todas as pastas"); the all-folder results keep the field.
 - [ ] Confirm that the Avuz Conecta logout ends the webmail session.
 - [ ] **Checkpoint:** Patrick approves. Prod rollout is a separate, gated step.
 
