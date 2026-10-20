@@ -111,9 +111,11 @@ Open points:
 - [ ] The dark-theme bell and contacts glyphs are dim images. Today's top bar has the same widgets and CSS, so this isn't from the rail; it's a possible follow-up.
 - [ ] 1920 wide not checked; low risk (more room).
 
-### Task 7 — Staging preview
-- [ ] Hot-patch avuz_theme files on staging stack 8. Bust the cache by bumping the `avuz_theme` version in `info.xml`. Run php-fpm USR2 if PHP changed. Run the state matrix there.
-- [ ] **Checkpoint:** Patrick approves, then merge into `avuz-customization` and build `:staging`. Prod rollout is a separate, gated step.
+### Task 7 — Staging build (2026-10-20, approved by Patrick)
+- [x] Local `avuz-customization` was 23 behind origin. Fast-forwarded it, then `merge --no-ff feat/left-rail-nav` → `f7390d7dd6e` (not pushed). Merged tree: 67 PHP + 109 JS tests pass.
+- [x] Stack 8 pulls **`avuzconecta:staging-1`**; plain `:staging` has no consumer (46 = `-2`, 63 = `-3`). Built with `build-push.sh latest staging 1` → `sha256:db25317f…`. Portainer's pull no-op'd, so I auth-pulled on endpoint 3 and then recreated.
+- [x] Container `avuz-conecta-app-1` image is `db25317f1345`, healthy. Files match the merged tree, and the pulled commits are present. Browser at 1440×900: rail with 9 apps, server state `rail_collapsed=false`, Mail frame 8→892 = card.
+- [ ] Not done: push `avuz-customization`; prod rollout (gated).
 
 ## Part 2 — ConectaMail embedded mode (webmail-avuz)
 
