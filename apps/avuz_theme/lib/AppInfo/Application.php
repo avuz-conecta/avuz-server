@@ -9,6 +9,8 @@ use OCA\AvuzTheme\Listener\AppointmentEmbedStateListener;
 use OCA\AvuzTheme\Listener\AppointmentEmbedStyleListener;
 use OCA\AvuzTheme\Listener\BeforeTemplateRenderedListener;
 use OCA\AvuzTheme\Listener\LoginFlowTemplateRenderedListener;
+use OCA\AvuzTheme\Listener\RailPreferenceValidator;
+use OCA\AvuzTheme\Listener\RailStateListener;
 use OCA\AvuzTheme\Listener\UserCreatedListener;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
@@ -16,6 +18,7 @@ use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\AppFramework\Http\Events\BeforeLoginTemplateRenderedEvent;
 use OCP\AppFramework\Http\Events\BeforeTemplateRenderedEvent;
+use OCP\Config\BeforePreferenceSetEvent;
 use OCP\Security\CSP\AddContentSecurityPolicyEvent;
 use OCP\User\Events\UserCreatedEvent;
 use OCP\Util;
@@ -58,6 +61,16 @@ class Application extends App implements IBootstrap {
 		$context->registerEventListener(
 			BeforeTemplateRenderedEvent::class,
 			AppointmentEmbedStyleListener::class
+		);
+
+		// Left rail: hand the saved collapsed state to the page, and let users save it
+		$context->registerEventListener(
+			BeforeTemplateRenderedEvent::class,
+			RailStateListener::class
+		);
+		$context->registerEventListener(
+			BeforePreferenceSetEvent::class,
+			RailPreferenceValidator::class
 		);
 	}
 

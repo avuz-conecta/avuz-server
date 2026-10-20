@@ -40,9 +40,12 @@ CSS facts the real implementation needs:
 Checked OK: Painel, Drive, Talk, Calendário, Tarefas (board scrolls horizontally inside, as today), Mail, Configurações pessoais, expanded and collapsed. Not checked: Contatos, Formulários, dark theme, app sidebars (details pane), modals. Those are for Task 6.
 
 ### Task 1 — Collapsed-state persistence (PHP)
-- [ ] Failing PHPUnit test: for a logged-in user with `avuz_theme/rail_collapsed = '1'`, the listener provides initial state `rail_collapsed: true`. With no value it provides `false`. A guest page gets no state.
-- [ ] `lib/Listener/RailStateListener.php` listens on `BeforeTemplateRenderedEvent` (logged-in only). It reads `IConfig::getUserValue(uid, 'avuz_theme', 'rail_collapsed', '0')` and calls `IInitialState::provideInitialState('rail_collapsed', bool)`. Register it in `Application::register`.
-- [ ] Writes use the existing OCS user-config endpoint. Confirm `avuz_theme` keys are writable there (core may restrict app IDs). If not, add a small `#[NoAdminRequired]` controller route `PUT /apps/avuz_theme/rail` with a test.
+- [x] Failing PHPUnit test: for a logged-in user with `avuz_theme/rail_collapsed = '1'`, the listener provides initial state `rail_collapsed: true`. With no value it provides `false`. A guest page gets no state.
+- [x] `lib/Listener/RailStateListener.php` listens on `BeforeTemplateRenderedEvent` (logged-in only). It reads `IUserConfig::getValueBool(uid, 'avuz_theme', 'rail_collapsed')` (`IConfig::getUserValue` is deprecated in 33) and provides `rail_collapsed`. Registered in `Application::register`.
+- [x] Writes: the OCS endpoint `PUT …/config/users/avuz_theme/rail_collapsed` (provisioning_api `PreferencesController::setPreference`) returns 400 unless a `BeforePreferenceSetEvent` listener marks the value valid. `lib/Listener/RailPreferenceValidator.php` accepts only `'0'|'1'` for that key, so no custom route is needed. Tests cover the valid values, invalid values, other keys and other apps.
+- [ ] Verify on staging (Task 7): a value saved by the OCS endpoint (stored as mixed) reads back through `getValueBool` without a type-conflict exception.
+
+Local run, since there's no phpunit in the repo: `composer install` `vendor-bin/phpunit` into a scratch dir, then `phpunit --bootstrap <scratch>/bootstrap.php apps/avuz_theme/tests/Unit`. That scratch bootstrap requires the main checkout's `3rdparty/autoload.php` (the submodule is empty in worktrees) and then `apps/avuz_theme/tests/bootstrap.php`.
 
 ### Task 2 — Rail model (pure JS, unit-tested)
 - [ ] `js/left-rail-model.mjs`, unit-tested in `tests/js/left-rail-model.test.mjs`. `splitApps(apps, availableHeight, itemHeight)` returns `{ visible, overflow }`. Overflow is non-empty only when the apps don't fit, and it reserves one slot for "Mais aplicativos". The active app always stays visible: if it would overflow, it swaps with the last visible one.
