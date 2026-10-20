@@ -54,6 +54,18 @@ Location: `themes/avuz/apps/{app}/img/*.svg`
 - Every boot enables `twofactor_totp` + `twofactor_backupcodes` and enforces 2FA for the `admin` group (`avuz_enforce_admin_2fa` in `docker/lib-apps.sh`, called from `docker/entrypoint.sh`). Idempotent; never narrows or disables an instance's existing enforcement (non-admin users unaffected). Opt out per stack with `AVUZ_ENFORCE_ADMIN_2FA=0` (default on).
 - Lost-authenticator recovery (backup code, `occ twofactorauth:disable <uid> totp` via Portainer exec, re-enroll, `occ twofactorauth:state <uid>`, automation/test-admin note): `docs/runbooks/admin-2fa-recovery.md`.
 
+### Impersonate (Deck #504)
+- The `impersonate` app (an admin logs in as a user to debug) is vendored at `apps/impersonate` from the upstream release tarball (v4.0.0, the server-33 release; sha256 in the Dockerfile, which fails the build on another version). Un-ignored in `.gitignore`. Server 34 needs v5.0.0.
+- Every boot runs `avuz_impersonate_sync` (`docker/lib-impersonate.sh`): writes app config `authorized` from `AVUZ_IMPERSONATE_GROUPS` (comma-separated, default/empty = `admin`; never `[]`, which the app reads as "no restriction"), then enables the app once per instance. An admin-disabled app stays off. `AVUZ_IMPERSONATE_ENABLED=0` disables it per stack; flipping back to 1 re-enables only an env-disabled app (marker `data/.avuz_impersonate_env_off`).
+- Groups set in the app's admin page are overwritten on the next boot: the env is the source of truth.
+- Logging: the app writes `User X trying to impersonate user Y` / `Changing to user Y` (warning) to the Avuz Conecta log (logreader); admin_audit has no impersonate listener. Actions taken while impersonating are logged as the impersonated user.
+
+### External sites icon library (Deck #417)
+- Every boot seeds 34 Lucide icons (`apps/avuz_theme/img/external-icons/`, light + `-dark` pairs, Lucide 0.555.0) into the External sites icon store (appdata `external/icons`, via IAppData, so S3 works): `docker/seed-external-icons.php`, called by `avuz_seed_external_icons` in `docker/lib-apps.sh`.
+- Each icon is offered once per instance (`avuz_theme/external_icons_seeded`): it never overwrites an existing file and never brings back an icon the admin deleted. Opt out per stack with `AVUZ_SEED_EXTERNAL_ICONS=0` (default on).
+- Change the set: edit `ICONS` in `scripts/generate-external-icons.py` (reads the theme's `js/lucide.js`), run it, commit the SVGs.
+- The admin Icons section points to https://lucide.dev/icons (pt_BR override in `themes/avuz/apps/external/l10n/pt_BR.json`; plain text, the template escapes it).
+
 ### Calendar "Criado por" (card 455)
 - `apps/dav/lib/CalDAV/CreatedBy/CreatedByPlugin.php` stamps `X-AVUZ-CREATED-BY;CN=<name>:<uid>` when someone other than the calendar owner creates an event (share/delegation) over CalDAV. Set on create, carried over on update (clients can't drop or forge it); owner-created events untouched.
 - The calendar overlay (`docker/overlays/calendar/event-created-by.patch`, sentinel `AVUZ-CREATED-BY-V1`) shows "Criado por <nome>" in the popover and full editor. Older events have no stamp.

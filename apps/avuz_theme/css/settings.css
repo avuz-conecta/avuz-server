@@ -33,3 +33,27 @@
     pointer-events: none;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
+
+/* ========================================================================= */
+/* Users page: 44px touch targets in the row action menu on phones
+/* The popper is teleported to <body>, so scope by the page's user table.
+/* NcActionButton sizes its row, icon box and long-text padding from
+/* --default-clickable-area (34px), so raising it keeps every entry aligned.
+/* ========================================================================= */
+@media (max-width: 600px) {
+    body:has(table.user-list) .v-popper__popper.action-item__popper {
+        --default-clickable-area: 44px;
+    }
+}
+
+/* ========================================================================= */
+/* Impersonate settings: groups select2 border meets 3:1 (core uses
+/* --color-border-dark, ~1.4:1). Focus keeps the primary border.
+/* ========================================================================= */
+#impersonate div.select2-container-multi .select2-choices {
+    border-color: var(--color-border-maxcontrast);
+}
+
+#impersonate div.select2-container-multi .select2-choices:focus-within {
+    border-color: var(--color-primary-element);
+}

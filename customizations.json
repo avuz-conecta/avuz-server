@@ -63,9 +63,9 @@
         "apps/avuz_theme/css/icons.css",
         "apps/avuz_theme/css/settings.css"
       ],
-      "description": "CSS: centered card login, dashboard card styling, header gradient/logo centering, icon colors, settings text overflow fix, dark shell (body bg + header icons follow enforce_theme=dark)",
+      "description": "CSS: centered card login, dashboard card styling, header gradient/logo centering, icon colors, settings text overflow fix, users-page row action menu 44px entries on phones (body:has(table.user-list) .action-item__popper, Deck #504), Impersonate settings select2 border via --color-border-maxcontrast (#impersonate, Deck #504), dark shell (body bg + header icons follow enforce_theme=dark). Login, every mode (light and dark, enforced or system): the 'Senha' label and 'Lembre-se de mim' text are #6b6b6b (WCAG AA: 4.72:1 on the #f1f1f1 input, 5.33:1 on the #fff card).",
       "risk": "low",
-      "notes": "CSS selectors target upstream DOM classes. If Nextcloud changes class names or HTML structure in v33, these may silently break without merge conflicts. Dark shell in header.css keys on body[data-theme-dark] and core vars --color-background-dark, --color-main-text, --color-background-plain-text. Under dark, header.css resets --color-background-plain-text and --background-image-invert-if-bright on #header and #app-dashboard (theming derives them from the bright admin background), so the greeting and 'Mais aplicativos' trigger are light; every app menu icon (themes/avuz and app-shipped black currentColor SVGs, active entry included) gets --background-invert-if-dark in the header and its overflow popover. Dashboard panels and app containers in theme.css use --color-main-background (white in light, dark surface in dark). The header.css dark rules skip guest pages (body:not(#body-login)); login.css pins core light tokens on body#body-login under dark so the login (password eye, help button) stays light."
+      "notes": "CSS selectors target upstream DOM classes. If Nextcloud changes class names or HTML structure in v33, these may silently break without merge conflicts. The login contrast rules (every mode) key on label[for=\"password\"] and #rememberme ~ .checkbox-content (the login form's NcPasswordField id and NcCheckboxRadioSwitch input id). Dark shell in header.css keys on body[data-theme-dark] and core vars --color-background-dark, --color-main-text, --color-background-plain-text. Under dark, header.css resets --color-background-plain-text and --background-image-invert-if-bright on #header and #app-dashboard (theming derives them from the bright admin background), so the greeting and 'Mais aplicativos' trigger are light; every app menu icon (themes/avuz and app-shipped black currentColor SVGs, active entry included) gets --background-invert-if-dark in the header and its overflow popover. Dashboard panels and app containers in theme.css use --color-main-background (white in light, dark surface in dark). The header.css dark rules skip guest pages (body:not(#body-login)); login.css pins core light tokens on body#body-login under dark so the login (password eye, help button) stays light."
     },
     {
       "id": "avuz-theme-js",
@@ -500,6 +500,44 @@
       "description": "429 page (core/templates/429.php): 'Muitas tentativas' / 'Aguarde alguns minutos e tente de novo.' / 'Voltar para o login', same card. Rendered by RateLimitingMiddleware (guest) and TooManyRequestsResponse (brute-force max delay: login, lost password, public share auth), which now renders as guest instead of a bare unstyled fragment; status stays 429. Both pass pageTitle 'Too many attempts' so the guest layout titles the tab 'Muitas tentativas – <theme name>'. Guest notice card (title, one sentence, next step) for the invalid/expired password-reset link: resetform() renders lostpassword/invalid-link instead of the generic error page (invalid, expired, unknown token, user without email). 'Pedir novo link' goes to login?direct=1#lostpassword (or the custom lost_password_link), which avuz_theme's login-lost-password.js turns into the 'Esqueceu a senha?' view; 'Voltar para o login' goes to the login page. lost_password_link=disabled still shows the generic error page. Status stays 200 + throttle.",
       "risk": "low",
       "notes": "core/css/guest-notice.css is plain CSS (no .scss), loaded by the template via Util::addStyle. pt_BR strings live in core/l10n/pt_BR.json (PHP reads core l10n from core/l10n + themes/avuz/core/l10n, not themes/avuz/apps/core); 'Back to login' is changed to 'Voltar para o login' there and in pt_BR.js. Upgrades overwrite these l10n files: re-add the strings. login-lost-password.js depends on the login Vue app's #lost-password button id."
+    },
+    {
+      "id": "impersonate-app",
+      "type": "docker",
+      "paths": [
+        "apps/impersonate",
+        "docker/lib-impersonate.sh",
+        "docker/tests/impersonate.test.sh",
+        "docker/entrypoint.sh",
+        "Dockerfile",
+        ".gitignore",
+        "portainer-stack.yml",
+        "portainer-stack-s3.yml",
+        "docker-compose.yml"
+      ],
+      "description": "Deck #504: upstream impersonate app (an admin logs in as a user to debug), vendored unmodified at apps/impersonate from impersonate-v4.0.0.tar.gz (nextcloud-releases/impersonate, sha256 8008ad02e36c44fd446ed3bb55ac866cbfb6225128150b289ab3de8141036ea8; nextcloud min/max-version 33). Every boot, avuz_impersonate_sync writes app config 'authorized' from AVUZ_IMPERSONATE_GROUPS (comma-separated, default admin) and enables the app once per instance. AVUZ_IMPERSONATE_ENABLED=0 disables it per stack. Layout fixes for its users-menu entry and settings select2 live in apps/avuz_theme/css/settings.css, so the vendored app stays unmodified.",
+      "risk": "low",
+      "notes": "Not in ENABLE_APPS: lib-impersonate.sh owns enable/disable so the env toggle works both ways. Admin-disabled app (installed_version set, enabled=no, no env-off marker) is never re-enabled; marker data/.avuz_impersonate_env_off records an env-driven disable. Never writes [] (the app treats an empty list as 'no group restriction'). Dockerfile ARG AVUZ_IMPERSONATE_VERSION fails the build on a missing or different version. Upgrade: server 34 needs impersonate v5.0.0 (min/max 34) — re-vendor the release tarball, verify its sha256, bump the ARG. Not stamp-gated, so no AVUZ_CONFIG_VERSION bump."
+    },
+    {
+      "id": "external-icon-library",
+      "type": "docker",
+      "paths": [
+        "apps/avuz_theme/img/external-icons/",
+        "scripts/generate-external-icons.py",
+        "docker/seed-external-icons.php",
+        "docker/lib-apps.sh",
+        "docker/entrypoint.sh",
+        "docker/tests/seed-external-icons.test.sh",
+        "themes/avuz/apps/external/l10n/pt_BR.json",
+        "REUSE.toml",
+        "portainer-stack.yml",
+        "portainer-stack-s3.yml",
+        "docker-compose.yml"
+      ],
+      "description": "Deck #417: 34 Lucide icons (light + -dark pairs, Lucide 0.555.0, generated from apps/avuz_theme/js/lucide.js) seeded at every boot into the External sites icon store (appdata external/icons via IAppData, local disk or S3). Each pair is offered once per instance (avuz_theme/external_icons_seeded): never overwrites an existing file, never re-adds an icon the admin deleted. Opt out per stack with AVUZ_SEED_EXTERNAL_ICONS=0. The admin Icons section points to https://lucide.dev/icons through a pt_BR override of 'Uploading an icon with the same name will replace the current icon.' (plain text: the template escapes it with p()).",
+      "risk": "low",
+      "notes": "No External sites code is patched. Relies on External sites listing appdata icons/ (SitesManager::getAvailableIcons) and serving <name>-dark.svg to clients (IconController::showIcon). Re-check both and the overridden source string on External sites upgrades. To change the set: edit ICONS in scripts/generate-external-icons.py, run it with python3 -I, commit the SVGs."
     }
   ]
 }
