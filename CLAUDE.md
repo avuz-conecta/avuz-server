@@ -16,7 +16,7 @@ Nextcloud deployment with custom branding ("Avuz Conecta") running in Docker. Mu
 - Primary color: `#2bb5e3`
 - Default language/locale: `pt_BR`
 - Theme: `avuz` (for translation/icon overrides)
-- Logos: `apps/avuz_theme/img/` (logo2.png, house-logo.svg, favicon-32.png)
+- Logos: `apps/avuz_theme/img/` (logo-login.png, house-logo.svg, favicon-32.png)
 
 ### App Renaming (via theme translations)
 - Files → Drive: `themes/avuz/apps/files/l10n/pt_BR.json`

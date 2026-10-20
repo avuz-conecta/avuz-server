@@ -49,7 +49,7 @@ class EMailTemplateTest extends TestCase {
 
 		$this->assertStringContainsString('src="' . self::LOGO_URL . '"', $html);
 		$this->assertStringContainsString('width="140"', $html);
-		$this->assertStringContainsString('height="46"', $html);
+		$this->assertStringContainsString('height="49"', $html);
 		$this->assertStringContainsString('width:140px;max-width:140px;height:auto', $html);
 	}
 
@@ -65,11 +65,18 @@ class EMailTemplateTest extends TestCase {
 		$body = $this->headerPart($this->headerHtml());
 
 		$this->assertStringContainsString('role="presentation"', $body);
-		$this->assertStringContainsString('padding:20px 0', $body);
+		$this->assertStringContainsString('padding:24px 0 8px', $body);
 	}
 
-	public function testAddHeaderKeepsTheSpacerBeforeTheBody(): void {
-		$this->assertStringContainsString('<td height="40px"', $this->headerHtml());
+	public function testAddHeaderKeepsASlimSpacerBeforeTheBody(): void {
+		$html = $this->headerHtml();
+		$spacer = substr($html, strpos($html, 'class="spacer'));
+		$spacer = substr($spacer, 0, strpos($spacer, '</table>'));
+
+		$this->assertStringContainsString('<td height="16px"', $spacer);
+		$this->assertStringContainsString('font-size:16px', $spacer);
+		$this->assertStringContainsString('line-height:16px', $spacer);
+		$this->assertStringNotContainsString('line-height:80px', $html);
 	}
 
 	public function testAddHeaderTwiceAddsTheLogoOnce(): void {

@@ -100,7 +100,7 @@ body#body-login .wrapper .v-align {
     overflow: visible;
 }
 
-/* Remove the second pseudo-element (old logo2 at bottom) */
+/* Remove the second pseudo-element (old bottom logo) */
 body#body-login .wrapper .v-align::after {
     display: none !important;
 }

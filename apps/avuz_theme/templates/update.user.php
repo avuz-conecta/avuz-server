@@ -105,7 +105,7 @@ $l = \OCP\Server::get(\OCP\L10N\IFactory::class)->get('lib');
             display: block;
             width: 400px;
             height: 128px;
-            background-image: url('<?php print_unescaped($avuzThemePath); ?>/img/logo2.png');
+            background-image: url('<?php print_unescaped($avuzThemePath); ?>/img/logo-login.png');
             background-repeat: no-repeat;
             background-position: center;
             background-size: contain;

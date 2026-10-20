@@ -19,8 +19,7 @@ Place your custom images in the `img/` directory:
 ```
 apps/avuz_theme/img/
 ├── network-diagram.png  ← Network/cloud diagram for left panel
-├── logo.png             ← Logo 1 (top of login form)
-└── logo2.png            ← Logo 2 (bottom of login form)
+└── logo.png             ← Logo 1 (top of login form)
 ```
 
 ### Image Specifications
@@ -35,18 +34,12 @@ apps/avuz_theme/img/
 - Format: PNG
 - Appears at the top of the white form card
 
-**logo2.png (Logo 2 - Bottom):**
-- Recommended size: 400x128px
-- Format: PNG
-- Appears at the bottom of the white form card
-
 ## Installation
 
 1. **Place your assets:**
    ```bash
    cp /path/to/your/network-diagram.png apps/avuz_theme/img/
    cp /path/to/your/logo.png apps/avuz_theme/img/
-   cp /path/to/your/logo2.png apps/avuz_theme/img/
    ```
 
 2. **Enable the app:**
@@ -119,7 +112,6 @@ docker exec nextcloud-app php occ app:list | grep avuz_theme
 3. Verify file names match exactly:
    - `network-diagram.png`
    - `logo.png`
-   - `logo2.png`
 
 ## File Structure
 
@@ -137,8 +129,7 @@ apps/avuz_theme/
 │   └── login.css                                  ← Custom login styles
 └── img/
     ├── network-diagram.png                        ← Left panel image
-    ├── logo.png                                   ← Top logo
-    └── logo2.png                                  ← Bottom logo
+    └── logo.png                                   ← Top logo
 ```
 
 ## How It Works

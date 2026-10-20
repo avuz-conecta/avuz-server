@@ -86,7 +86,6 @@
       "type": "app",
       "paths": [
         "apps/avuz_theme/img/logo.png",
-        "apps/avuz_theme/img/logo2.png",
         "apps/avuz_theme/img/logo-email.png",
         "apps/avuz_theme/img/logo-login.png",
         "apps/avuz_theme/img/network-diagram.png",
