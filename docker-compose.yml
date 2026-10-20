@@ -104,6 +104,9 @@ services:
       # Empty = booking e-mails use the default sender and SMTP. (app3 only)
       - AVUZ_BOOKING_SMTP_USER=
       - AVUZ_BOOKING_SMTP_PASSWORD=
+      # Impersonate; 0 = disable. GROUPS = who may impersonate (empty = admin)
+      - AVUZ_IMPERSONATE_ENABLED=1
+      - AVUZ_IMPERSONATE_GROUPS=admin
     depends_on:
       db:
         condition: service_healthy

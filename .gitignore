@@ -54,6 +54,7 @@ node_modules/
 !/apps/weather_status
 !/apps/webhook_listeners
 !/apps/workflowengine
+!/apps/impersonate
 # avuz: integration_openai is a version-pinned fork shipped as a git submodule
 !/apps/integration_openai
 /apps/files_external/3rdparty/irodsphp/PHPUnitTest

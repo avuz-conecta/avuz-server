@@ -76,6 +76,15 @@ RUN test -f apps/assinaturas/js/assinaturas-main.mjs \
               apps/assinaturas/tsconfig.node.json apps/assinaturas/eslint.config.js \
               apps/assinaturas/composer.lock apps/assinaturas/.nvmrc apps/assinaturas/.gitignore
 
+# Impersonate (Deck #504) is vendored at apps/impersonate from the upstream
+# release tarball impersonate-v4.0.0.tar.gz (nextcloud-releases/impersonate,
+# sha256 8008ad02e36c44fd446ed3bb55ac866cbfb6225128150b289ab3de8141036ea8),
+# the release built for server 33. Fail the build if it is missing or another
+# version. Enabled + group-restricted at boot by docker/lib-impersonate.sh.
+ARG AVUZ_IMPERSONATE_VERSION=4.0.0
+RUN grep -q "<version>${AVUZ_IMPERSONATE_VERSION}</version>" apps/impersonate/appinfo/info.xml \
+    || { echo "apps/impersonate is not ${AVUZ_IMPERSONATE_VERSION} — re-vendor it from the release tarball"; exit 1; }
+
 # Clean old compiled bundles and rebuild frontend
 RUN npm run build
 
