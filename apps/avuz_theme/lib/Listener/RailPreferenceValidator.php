@@ -11,7 +11,7 @@ use OCP\EventDispatcher\IEventListener;
 
 /**
  * Lets users save the rail state through the provisioning_api preferences
- * endpoint (PUT ocs/v2.php/apps/provisioning_api/api/v1/config/users/avuz_theme/rail_collapsed),
+ * endpoint (POST ocs/v2.php/apps/provisioning_api/api/v1/config/users/avuz_theme/rail_collapsed),
  * which refuses any app preference no listener vouches for.
  *
  * @template-implements IEventListener<BeforePreferenceSetEvent>

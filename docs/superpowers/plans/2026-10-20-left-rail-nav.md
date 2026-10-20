@@ -42,7 +42,7 @@ Checked OK: Painel, Drive, Talk, Calendário, Tarefas (board scrolls horizontall
 ### Task 1 — Collapsed-state persistence (PHP)
 - [x] Failing PHPUnit test: for a logged-in user with `avuz_theme/rail_collapsed = '1'`, the listener provides initial state `rail_collapsed: true`. With no value it provides `false`. A guest page gets no state.
 - [x] `lib/Listener/RailStateListener.php` listens on `BeforeTemplateRenderedEvent` (logged-in only). It reads `IUserConfig::getValueBool(uid, 'avuz_theme', 'rail_collapsed')` (`IConfig::getUserValue` is deprecated in 33) and provides `rail_collapsed`. Registered in `Application::register`.
-- [x] Writes: the OCS endpoint `PUT …/config/users/avuz_theme/rail_collapsed` (provisioning_api `PreferencesController::setPreference`) returns 400 unless a `BeforePreferenceSetEvent` listener marks the value valid. `lib/Listener/RailPreferenceValidator.php` accepts only `'0'|'1'` for that key, so no custom route is needed. Tests cover the valid values, invalid values, other keys and other apps.
+- [x] Writes: the OCS endpoint `POST …/config/users/avuz_theme/rail_collapsed` (provisioning_api `PreferencesController::setPreference`) returns 400 unless a `BeforePreferenceSetEvent` listener marks the value valid. `lib/Listener/RailPreferenceValidator.php` accepts only `'0'|'1'` for that key, so no custom route is needed. Tests cover the valid values, invalid values, other keys and other apps.
 - [ ] Verify on staging (Task 7): a value saved by the OCS endpoint (stored as mixed) reads back through `getValueBool` without a type-conflict exception.
 
 Local run, since there's no phpunit in the repo: `composer install` `vendor-bin/phpunit` into a scratch dir, then `phpunit --bootstrap <scratch>/bootstrap.php apps/avuz_theme/tests/Unit`. That scratch bootstrap requires the main checkout's `3rdparty/autoload.php` (the submodule is empty in worktrees) and then `apps/avuz_theme/tests/bootstrap.php`.
@@ -56,14 +56,15 @@ Local run, since there's no phpunit in the repo: `composer install` `vendor-bin/
 - [x] Tests cover: everything fits; overflow; partial slot; active app in overflow; active app already visible; only the "Mais" slot fits; empty list; no room.
 
 ### Task 3 — Rail rendering + toggle (`js/left-rail.js`)
-- [ ] Runs only for logged-in pages at ≥1024px (`matchMedia`), and re-evaluates on change. Reads `loadState('core','apps')` and `loadState('avuz_theme','rail_collapsed')` through `OCP.InitialState`.
-- [ ] Renders `<nav aria-label="Aplicativos">` inside `.header-start`, with these items:
+- [x] Renders on every logged-in page (`body#body-user` with the `rail_collapsed` state). No `matchMedia`: the ≥1024px switch lives in CSS (Task 4), so the layout never waits on JS. The script reads the `initial-state-core-apps` / `initial-state-avuz_theme-rail_collapsed` inputs and decodes the base64 as UTF-8.
+- [x] Renders `<nav id="avuz-rail" aria-label="Aplicativos">` inside `.header-start`, with these items:
   - the toggle `<button aria-expanded>`;
-  - app `<a>` links (icon `<img>` from the entry, name `<span>`, `aria-current="page"` on the active one, a tooltip with the name when collapsed);
-  - "Mais aplicativos", a `<button aria-haspopup="menu">` that opens a simple popover list.
-- [ ] Toggle: flips `body.avuz-rail-collapsed`, then PUTs the state. On failure it keeps the UI state and logs a console warning. It doesn't revert.
-- [ ] Recomputes `splitApps` on resize (rAF-throttled).
-- [ ] Add it to `Application.php` next to `center-header`. `center-header.js` exits early when the rail is active.
+  - app `<a>` links (icon `<img alt="">`, name `<span class="avuz-rail__label">`, `aria-current="page"` on the active one, a `title` tooltip only when collapsed);
+  - "Mais aplicativos", a disclosure `<button aria-expanded aria-controls>`. No `aria-haspopup`, since it isn't a menu widget. It opens `ul#avuz-rail-overflow` and focuses the first link. Escape closes it and returns focus; a click elsewhere also closes it.
+- [x] Toggle: flips `html.avuz-rail--collapsed`, then POSTs `configValue=0|1` (OCS-APIRequest + requesttoken). On failure (network or non-2xx) it keeps the UI state and logs a console warning. It doesn't revert.
+- [x] Recomputes `splitApps` on resize (rAF-throttled). Item height is 44px.
+- [x] Registered in `Application::boot` after `center-header` (the model first). `center-header.js` stays: it still centers the top header below 1024px, and above that `#nextcloud` is hidden by CSS anyway.
+- [x] Tests: `tests/js/left-rail.test.mjs` (jsdom from the root `node_modules`), 17 behaviors.
 
 ### Task 4 — Rail CSS (`css/left-rail.css`)
 - [ ] All rules sit inside `@media (min-width: 1024px)` and scope under `body.avuz-rail` (set by left-rail.js). Below 1024px, nothing changes.

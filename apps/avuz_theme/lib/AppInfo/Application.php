@@ -99,6 +99,10 @@ class Application extends App implements IBootstrap {
 		// Inject header centering JS
 		Util::addScript(self::APP_ID, 'center-header');
 
+		// Left rail app menu (from 1024px up, see css/left-rail.css); the model first
+		Util::addScript(self::APP_ID, 'left-rail-model');
+		Util::addScript(self::APP_ID, 'left-rail');
+
 		// Add hover tooltip to read-only Deck stack titles
 		Util::addScript(self::APP_ID, 'deck-stack-title');
 

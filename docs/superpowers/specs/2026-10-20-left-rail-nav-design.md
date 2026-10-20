@@ -41,7 +41,7 @@ No logo tile. The home link stays reachable as the "Painel" (dashboard) entry. T
 ### Behavior
 
 - **Toggle** flips between expanded and collapsed and animates width (200ms; `prefers-reduced-motion` disables it).
-- **Persistence:** stored per user in user config `avuz_theme / rail_collapsed` via `PUT ocs/v2.php/apps/provisioning_api/api/v1/config/users/avuz_theme/rail_collapsed`. The server injects the value as initial state so the first paint has the right width (no flash). Default: expanded.
+- **Persistence:** stored per user in user config `avuz_theme / rail_collapsed` via `POST ocs/v2.php/apps/provisioning_api/api/v1/config/users/avuz_theme/rail_collapsed`. The server injects the value as initial state so the first paint has the right width (no flash). Default: expanded.
 - **Overflow:** the rail computes how many apps fit its height; the rest go to "Mais aplicativos". Today's AppMenu computes this from width, so the rail renders its own list instead of reusing core's AppMenu.
 - **Content offset:** `#content` starts after the rail on the left and at the top of the page. Every place core and apps use `--header-height` for a top offset (app-navigation, sidebars, modals, popover max-heights) must look right with no top bar. The plan audits these.
 - **Breakpoint:** at <1024px viewport width, the rail hides and core's top header comes back unchanged.
