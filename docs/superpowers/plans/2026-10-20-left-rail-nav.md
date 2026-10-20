@@ -118,14 +118,11 @@ Open points:
 ## Part 2 — ConectaMail embedded mode (webmail-avuz)
 
 ### Task 8 — Embedded helper
-- [ ] Add `web/src/embedded.ts` exporting `isEmbedded()` (`window.self !== window.top`), with a test. `Login.tsx` imports it instead of its local copy.
+- [x] `web/src/embedded.ts` exports `isEmbedded(frameWindow = window)`, tested. `Login.tsx` imports it instead of its local copy. Commit `afddb0b` on webmail-avuz `feat/embedded-mode` (worktree `.claude/worktrees/embedded-mode`, off `origin/main` 5cbed75).
 
 ### Task 9 — Search form as a component
-- [ ] Failing test first:
-  - submitting with scope "all folders" runs the all-folder search;
-  - submitting with a folder opens that folder with the query;
-  - clearing the input resets the search.
-- [ ] Extract `<form className="search">` and its submit/clear logic from `Mailbox.tsx` into `components/SearchForm.tsx` (props: folders, current folder, the callbacks). Mailbox renders it in the topbar exactly as today.
+- [x] The submit/clear decisions moved to pure `web/src/search-submit.ts` (`planSearchSubmit`, `planSearchInputChange`), with 9 behavior tests. The repo tests pure modules only and doesn't render components.
+- [x] `components/SearchForm.tsx` renders the form, and `Mailbox.tsx` uses it in the topbar as before. `ALL_FOLDERS` moved to `search-scope.ts`: the root test runner compiles JSX in classic mode, so a pure module can't import a `.tsx`. The input also gained `aria-label="Pesquisar e-mails"`. Commit `f121408`. Gates: 849 tests, tsc and `vite build` all pass.
 
 ### Task 10 — Embedded layout
 - [ ] `Mailbox.tsx`: add the `embedded` class on `.app` when `isEmbedded()`. When embedded, render `SearchForm` at the top of the message-list column (under the folder title) instead of in the topbar.
