@@ -107,6 +107,8 @@ services:
       # Impersonate; 0 = disable. GROUPS = who may impersonate (empty = admin)
       - AVUZ_IMPERSONATE_ENABLED=1
       - AVUZ_IMPERSONATE_GROUPS=admin
+      # External sites Lucide icon library seed at boot; 0 = skip
+      - AVUZ_SEED_EXTERNAL_ICONS=1
     depends_on:
       db:
         condition: service_healthy

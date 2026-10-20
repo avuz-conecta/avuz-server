@@ -601,6 +601,23 @@ assert_eq "reports a failed reinstall and still closes the store" \
 unset -f _avuz_occ; source "$HERE/../lib-apps.sh"   # restore real wrapper
 rm -f "$RESTORE_LOG"
 
+# ── External sites icon library ──
+assert_eq "opt-out env skips the icon library seed" \
+    "→ External sites icon library disabled (AVUZ_SEED_EXTERNAL_ICONS=0) — skipping" \
+    "$(export AVUZ_SEED_EXTERNAL_ICONS=0; php() { echo "php $*"; }; avuz_seed_external_icons)"
+assert_eq "seeds the icon library by default" \
+    "PHPSEED external-icons" \
+    "$(AVUZ_OCC_DRYRUN=1 avuz_seed_external_icons)"
+assert_eq "logs the seeder outcome" \
+    "External sites icon library: seeded 34" \
+    "$(php() { echo "seeded 34"; }; avuz_seed_external_icons)"
+assert_eq "keeps booting when the seeder fails" \
+    "External sites icon library: failed: RuntimeException" \
+    "$(php() { echo "failed: RuntimeException"; return 1; }; avuz_seed_external_icons)"
+assert_eq "returns 0 when the seeder fails" \
+    "0" \
+    "$(php() { return 1; }; avuz_seed_external_icons >/dev/null; echo "$?")"
+
 # ── bounded occ ──
 assert_eq "runs a bounded occ call under timeout when the image has it" \
     "timeout 60 php occ assinaturas:webhook:ensure" \
