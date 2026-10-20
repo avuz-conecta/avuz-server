@@ -107,7 +107,7 @@ Instead of a local NC, this ran on staging conectahml with the Task 4/5 hot-patc
 | 200% zoom | ℹ️ 1440 at 200% = 720 CSS px, below 1024, so it gets the stock top header (core's mobile layout); expected |
 
 Open points:
-- [ ] **1024–1279px:** the expanded rail takes 220px of a small screen. Proposal: below 1280px, show the rail collapsed without saving it, unless the user expands it in that session. Patrick decides.
+- [x] **1024–1279px:** Patrick approved auto-collapse. `effectiveCollapsed` (model) applies the rule: below 1280px the rail starts collapsed; a toggle there goes to sessionStorage `avuz_theme.rail.narrowChoice` and is never POSTed; `matchMedia` change re-applies it. 11 new tests (model + jsdom). Staging at 1100×800: saved expanded but shown collapsed (content 1020px); expanding sends 0 POSTs and survives the next page; at 1440 the saved choice applies.
 - [ ] The dark-theme bell and contacts glyphs are dim images. Today's top bar has the same widgets and CSS, so this isn't from the rail; it's a possible follow-up.
 - [ ] 1920 wide not checked; low risk (more room).
 

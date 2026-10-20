@@ -14,7 +14,7 @@ function loadRailModel() {
 	return window.AvuzLeftRail;
 }
 
-const { splitApps, railToggle } = loadRailModel();
+const { splitApps, railToggle, effectiveCollapsed } = loadRailModel();
 
 function apps(...ids) {
 	return ids.map((id) => ({ id, name: id, active: false }));
@@ -95,5 +95,32 @@ describe('railToggle', () => {
 
 	it('offers to expand a collapsed rail', () => {
 		assert.deepEqual({ ...railToggle(true) }, { label: 'Expandir menu', ariaExpanded: 'false', direction: 'right' });
+	});
+});
+
+describe('effectiveCollapsed', () => {
+	describe('on a wide screen', () => {
+		it('follows the saved choice', () => {
+			assert.equal(effectiveCollapsed({ saved: true, narrow: false, sessionChoice: null }), true);
+			assert.equal(effectiveCollapsed({ saved: false, narrow: false, sessionChoice: null }), false);
+		});
+
+		it('ignores a choice made on a narrow screen this session', () => {
+			assert.equal(effectiveCollapsed({ saved: false, narrow: false, sessionChoice: 'collapsed' }), false);
+		});
+	});
+
+	describe('on a narrow screen', () => {
+		it('collapses even when the saved choice is expanded', () => {
+			assert.equal(effectiveCollapsed({ saved: false, narrow: true, sessionChoice: null }), true);
+		});
+
+		it('stays expanded once the user expanded it this session', () => {
+			assert.equal(effectiveCollapsed({ saved: true, narrow: true, sessionChoice: 'expanded' }), false);
+		});
+
+		it('collapses again when the user collapsed it this session', () => {
+			assert.equal(effectiveCollapsed({ saved: false, narrow: true, sessionChoice: 'collapsed' }), true);
+		});
 	});
 });
