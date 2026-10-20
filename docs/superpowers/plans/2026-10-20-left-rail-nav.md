@@ -48,9 +48,12 @@ Checked OK: Painel, Drive, Talk, Calendário, Tarefas (board scrolls horizontall
 Local run, since there's no phpunit in the repo: `composer install` `vendor-bin/phpunit` into a scratch dir, then `phpunit --bootstrap <scratch>/bootstrap.php apps/avuz_theme/tests/Unit`. That scratch bootstrap requires the main checkout's `3rdparty/autoload.php` (the submodule is empty in worktrees) and then `apps/avuz_theme/tests/bootstrap.php`.
 
 ### Task 2 — Rail model (pure JS, unit-tested)
-- [ ] `js/left-rail-model.mjs`, unit-tested in `tests/js/left-rail-model.test.mjs`. `splitApps(apps, availableHeight, itemHeight)` returns `{ visible, overflow }`. Overflow is non-empty only when the apps don't fit, and it reserves one slot for "Mais aplicativos". The active app always stays visible: if it would overflow, it swaps with the last visible one.
-- [ ] `railLabels(collapsed)` returns the toggle `label`, `icon` and `ariaExpanded`.
-- [ ] Tests cover: everything fits; overflow; active app in overflow; empty list.
+- [x] `js/left-rail-model.js` is a classic script exposing `window.AvuzLeftRail`. It isn't an `.mjs`: a relative module import would skip NC's `?v=` cache buster. Unit-tested in `tests/js/left-rail-model.test.mjs` through `vm`. `splitApps(apps, availableHeight, itemHeight)` returns `{ visible, overflow }`:
+  - overflow is non-empty only when the apps don't fit, and "Mais aplicativos" then takes one slot;
+  - the active app takes the last visible slot when it would overflow;
+  - with no room at all, every app goes to overflow, so none is lost.
+- [x] `railToggle(collapsed)` returns `{ label, ariaExpanded, direction }`.
+- [x] Tests cover: everything fits; overflow; partial slot; active app in overflow; active app already visible; only the "Mais" slot fits; empty list; no room.
 
 ### Task 3 — Rail rendering + toggle (`js/left-rail.js`)
 - [ ] Runs only for logged-in pages at ≥1024px (`matchMedia`), and re-evaluates on change. Reads `loadState('core','apps')` and `loadState('avuz_theme','rail_collapsed')` through `OCP.InitialState`.
