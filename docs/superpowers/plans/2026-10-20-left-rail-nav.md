@@ -141,7 +141,11 @@ Open points:
 ### Task 12 — Staging
 - [x] Built `registry.avuz.app/admin/webmail-avuz:9c091df` (`sha256:0900787b…`) from `feat/embedded-mode`. Stack 64 `TAG` went f0c4a5e → 9c091df (only that env changed; **rollback = TAG f0c4a5e**). The container was recreated. `/api/health` returns 200, and the live bundle contains the account footer and the `mailbox-account` styles.
 - [x] Opened directly (conectamailhml), it shows the standalone login, not embedded.
-- [ ] Embedded check through staging-3 (conectahmls3, stack 63 → `WEBMAIL_AVUZ_URL` = stack 64) needs a signed-in user with a mailbox. Stack 63 runs `:staging-3`, without the rail, so this checks the webmail's embedded mode under the old top bar.
+- [x] Embedded check through staging-3 (conectahmls3, under the old top bar; stack 63 has no rail):
+  - 1440×900: a single header (Avuz Conecta's). No ConectaMail brand or bar, no "Sair". "Novo e-mail" sits at the top of the folder column, the search ("Caixa de entrada ▾ | Pesquisar e-mails") in the list header, and the "Caixa de e-mail" footer shows the address + Contatos + Configurações.
+  - 780×800 (iframe ≤800): the top bar keeps only ☰ + search; the address, icons and "Sair" are gone; the list-header search is hidden (no duplicate).
+  - SSO for this user failed server-side: Zoho IMAP `mail_login_failed` with the stored credentials. This is unrelated to the layout; Patrick logged in with the mailbox password.
+- [ ] Interactive checks inside the frame need a person. The built-in browser's synthetic clicks don't reach the cross-origin iframe (even opening a message did nothing), while resize and screenshots do. Still to do: the footer Contatos/Configurações buttons open their dialogs; a search submitted from the list header (folder and "Todas as pastas"); the all-folder results keep the field.
 - [ ] Confirm that the Avuz Conecta logout ends the webmail session.
 - [ ] **Checkpoint:** Patrick approves. Prod rollout is a separate, gated step.
 
