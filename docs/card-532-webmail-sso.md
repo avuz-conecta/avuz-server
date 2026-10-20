@@ -203,6 +203,16 @@ today). When the user enters the mail password, the webmail can `postMessage`
 save, replace or remove it in personal settings (card 539,
 `docs/card-539-mailbox-password.md`); it survives logout.
 
+## Logout
+
+On Avuz Conecta logout (`BeforeUserLoggedOutEvent`), `WebmailSessionRevoker`
+posts `{"token": ...}` to `<WEBMAIL_AVUZ_URL>/api/auth/conecta-logout` with the
+`x-webmail-request: 1` header and a 3 s timeout. The token has the same format
+and secret, payload `{v:1, jti, uid, iat, exp, aud:"webmail-avuz-logout"}`.
+The webmail ends every session its SSO opened for that uid, in any browser.
+Mailbox-password logins stay. Failures are logged and never block the logout.
+Spec: `docs/superpowers/specs/2026-10-20-webmail-logout-revokes-sessions.md`.
+
 ## Security notes
 
 - Tokens live 60s, are signed, and are **never logged** (neither are passwords).
