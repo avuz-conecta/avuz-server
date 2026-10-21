@@ -24,7 +24,7 @@ Spec: `docs/superpowers/specs/2026-10-20-webmail-logout-revokes-sessions.md`
 ## 3. Staging
 
 - [x] Build `webmail-avuz:<sha>` from embedded-mode (PR #35) + this fix; set stack 64 `TAG`; verify container image.
-- [x] Merge conectamail fix into `avuz-customization-staging-3`, `build-push.sh latest staging 3`, redeploy stack 63; verify image.
+- [x] `build-push.sh latest staging 3` from this branch (avuz-customization + fix; the `-staging-3` branch is stale), redeploy stack 63; verify image.
 - [ ] Run QA T1–T7 in a browser (Bri, manual). No test credentials were available to the agent, so it did not log in.
 
 ## Results
