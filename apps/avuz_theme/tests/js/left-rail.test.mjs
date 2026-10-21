@@ -29,7 +29,7 @@ function stateInput(app, key, value) {
  * A logged-in page as the server renders it, with both scripts run in it.
  * jsdom has no layout, so the rail's app list reports `railHeight`.
  */
-function openPage({ collapsed = false, loggedIn = true, railHeight = ROOMY_RAIL, saveResponds = () => ({ ok: true }), narrow = false, sameSessionAs = null } = {}) {
+function openPage({ collapsed = false, loggedIn = true, railHeight = ROOMY_RAIL, saveResponds = () => ({ ok: true }) } = {}) {
 	const states = loggedIn ? stateInput('core', 'apps', APPS) + stateInput('avuz_theme', 'rail_collapsed', collapsed) : stateInput('core', 'apps', APPS);
 	const dom = new JSDOM(`<!doctype html><html><body id="${loggedIn ? 'body-user' : 'body-login'}">
 		<div id="initial-state-container">${states}</div>
@@ -45,25 +45,6 @@ function openPage({ collapsed = false, loggedIn = true, railHeight = ROOMY_RAIL,
 			return this.matches('nav[aria-label="Aplicativos"] ul:not([hidden])') && !this.closest('[hidden]') ? height.value : 0;
 		},
 	});
-
-	const media = { narrow, listeners: [] };
-	window.matchMedia = (query) => ({
-		media: query,
-		get matches() {
-			return media.narrow;
-		},
-		addEventListener: (type, listener) => media.listeners.push(listener),
-	});
-	const setNarrow = (value) => {
-		media.narrow = value;
-		media.listeners.forEach((listener) => listener({ matches: value }));
-	};
-	if (sameSessionAs) {
-		const previous = sameSessionAs.window.sessionStorage;
-		for (let index = 0; index < previous.length; index++) {
-			window.sessionStorage.setItem(previous.key(index), previous.getItem(previous.key(index)));
-		}
-	}
 
 	const saves = [];
 	const warnings = [];
@@ -88,9 +69,7 @@ function openPage({ collapsed = false, loggedIn = true, railHeight = ROOMY_RAIL,
 	const visibleLinks = () => [...rail().querySelectorAll('a')].filter((link) => !link.closest('[hidden]'));
 	const nextFrame = () => new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
 
-	const isCollapsed = () => window.document.documentElement.classList.contains('avuz-rail--collapsed');
-
-	return { window, document: window.document, rail, toggle, moreButton, visibleLinks, saves, warnings, height, nextFrame, setNarrow, isCollapsed };
+	return { window, document: window.document, rail, toggle, moreButton, visibleLinks, saves, warnings, height, nextFrame };
 }
 
 const names = (links) => links.map((link) => link.textContent.trim());
@@ -262,60 +241,6 @@ describe('left rail', () => {
 
 			assert.deepEqual(names(page.visibleLinks()), ['Painel', 'Drive', 'Mail', 'Tarefas', 'Formulários']);
 			assert.equal(page.moreButton(), undefined);
-		});
-	});
-
-	describe('on a narrow screen (below 1280px)', () => {
-		it('starts collapsed even when the saved choice is expanded', () => {
-			const page = openPage({ narrow: true });
-
-			assert.equal(page.isCollapsed(), true);
-			assert.equal(page.toggle().textContent.trim(), 'Expandir menu');
-		});
-
-		it('expands for this session without saving the choice', async () => {
-			const page = openPage({ narrow: true });
-
-			page.toggle().click();
-			await flush();
-
-			assert.equal(page.isCollapsed(), false);
-			assert.deepEqual(page.saves, []);
-		});
-
-		it('stays expanded on the next page of the same session', () => {
-			const first = openPage({ narrow: true });
-			first.toggle().click();
-
-			const next = openPage({ narrow: true, sameSessionAs: first });
-
-			assert.equal(next.isCollapsed(), false);
-		});
-
-		it('starts collapsed again in a new session', () => {
-			const first = openPage({ narrow: true });
-			first.toggle().click();
-
-			const next = openPage({ narrow: true });
-
-			assert.equal(next.isCollapsed(), true);
-		});
-
-		it('returns to the saved choice when the window widens', () => {
-			const page = openPage({ narrow: true });
-
-			page.setNarrow(false);
-
-			assert.equal(page.isCollapsed(), false);
-			assert.equal(page.toggle().textContent.trim(), 'Recolher menu');
-		});
-
-		it('collapses when the window narrows', () => {
-			const page = openPage();
-
-			page.setNarrow(true);
-
-			assert.equal(page.isCollapsed(), true);
 		});
 	});
 });

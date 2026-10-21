@@ -24,6 +24,12 @@
 		--avuz-rail-width: 220px;
 		--avuz-rail-gap: 4px;
 		--avuz-rail-item-height: 44px;
+		/* One icon column for every state: app icons, toggle and the foot widgets
+		   are centered 36px from the left edge, expanded or collapsed */
+		--avuz-rail-padding: 12px;
+		--avuz-rail-icon-size: 20px;
+		--avuz-rail-icon-center: 36px;
+		--avuz-rail-item-padding: calc(var(--avuz-rail-icon-center) - var(--avuz-rail-padding) - var(--avuz-rail-icon-size) / 2);
 		--avuz-rail-transition: 200ms ease;
 		--header-height: 0px;
 		--body-height: calc(100% - env(safe-area-inset-bottom) - 2 * var(--body-container-margin));
@@ -63,11 +69,22 @@
 		display: none !important;
 	}
 
+	/* Foot widgets: centered on the icon column (core sizes each one --header-height square) */
 	body#body-user #header .header-end {
 		flex-direction: column !important;
-		align-items: center !important;
+		align-items: flex-start !important;
+		align-self: stretch;
 		flex-shrink: 0;
 		gap: var(--avuz-rail-gap);
+		box-sizing: border-box;
+		width: 100%;
+		margin: 0 !important;
+		padding: 0 0 0 calc(var(--avuz-rail-icon-center) - var(--header-height) / 2) !important;
+	}
+
+	/* Contacts are one click away in the rail (Contatos); the header shortcut is redundant there */
+	body#body-user #header #contactsmenu {
+		display: none !important;
 	}
 
 	/* Core positions header menus fixed under a top bar (top: header-height; right) */
@@ -111,7 +128,7 @@
 		flex-direction: column;
 		gap: var(--avuz-rail-gap);
 		min-height: 0;
-		padding: 0 12px;
+		padding: 0 var(--avuz-rail-padding);
 	}
 
 	.avuz-rail__apps,
@@ -144,7 +161,7 @@
 		min-height: var(--avuz-rail-item-height);
 		box-sizing: border-box;
 		margin: 0;
-		padding: 0 12px;
+		padding: 0 var(--avuz-rail-item-padding);
 		border: 0;
 		border-radius: var(--border-radius-element, 10px);
 		background: transparent;
@@ -159,6 +176,19 @@
 
 	.avuz-rail__toggle {
 		color: var(--color-text-maxcontrast);
+	}
+
+	/* Core styles every button (padding, margin, width) with a stronger selector;
+	   keep the toggle and "Mais aplicativos" full width on the icon column */
+	#avuz-rail button:is(.avuz-rail__toggle, .avuz-rail__app) {
+		width: 100%;
+		min-width: 0;
+		margin: 0;
+		padding: 0 var(--avuz-rail-item-padding);
+	}
+
+	html.avuz-rail--collapsed #avuz-rail :is(button.avuz-rail__toggle, .avuz-rail__apps button.avuz-rail__app) {
+		padding: 0;
 	}
 
 	.avuz-rail__toggle:hover,
@@ -179,7 +209,7 @@
 	.avuz-rail__app[aria-current='page']::before {
 		content: '';
 		position: absolute;
-		left: -12px;
+		left: calc(-1 * var(--avuz-rail-padding));
 		top: 11px;
 		width: 4px;
 		height: 22px;
@@ -189,8 +219,8 @@
 
 	.avuz-rail__icon {
 		flex-shrink: 0;
-		width: 20px;
-		height: 20px;
+		width: var(--avuz-rail-icon-size);
+		height: var(--avuz-rail-icon-size);
 	}
 
 	.avuz-rail__label {

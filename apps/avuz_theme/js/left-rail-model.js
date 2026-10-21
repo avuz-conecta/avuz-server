@@ -10,9 +10,6 @@
  *
  * railToggle gives the toggle button's label, aria-expanded and arrow
  * direction for the current state.
- *
- * effectiveCollapsed decides the state to show from the saved choice, the
- * screen width and the choice made on a narrow screen this session.
  */
 (function leftRailModel() {
 	'use strict';
@@ -21,7 +18,6 @@
 		expanded: { label: 'Recolher menu', ariaExpanded: 'true', direction: 'left' },
 		collapsed: { label: 'Expandir menu', ariaExpanded: 'false', direction: 'right' },
 	};
-	var SESSION_CHOICES = Object.freeze({ expanded: 'expanded', collapsed: 'collapsed' });
 
 	function slotsFor(availableHeight, itemHeight) {
 		if (itemHeight <= 0) {
@@ -55,21 +51,5 @@
 		return collapsed ? TOGGLE_BY_STATE.collapsed : TOGGLE_BY_STATE.expanded;
 	}
 
-	/**
-	 * Wide screens follow the saved choice. Narrow ones (below 1280px) start
-	 * collapsed and only follow what the user chose there this session.
-	 */
-	function effectiveCollapsed(state) {
-		if (!state.narrow) {
-			return state.saved;
-		}
-		return state.sessionChoice !== SESSION_CHOICES.expanded;
-	}
-
-	window.AvuzLeftRail = Object.freeze({
-		splitApps: splitApps,
-		railToggle: railToggle,
-		effectiveCollapsed: effectiveCollapsed,
-		SESSION_CHOICES: SESSION_CHOICES,
-	});
+	window.AvuzLeftRail = Object.freeze({ splitApps: splitApps, railToggle: railToggle });
 }());
