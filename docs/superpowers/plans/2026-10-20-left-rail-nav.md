@@ -164,3 +164,9 @@ The spec's acceptance criteria 1–8 hold on staging, with evidence (screenshots
   - Once #23 merges, a plain `avuz-customization` build serves `:staging-3` again.
 - [ ] Cosmetic, webmail: at ~1100px the footer label "Caixa de e-mail" wraps onto 2 lines and the address truncates (narrow folder column).
 
+
+## Prod: app3 pilot (2026-10-21, approved by Patrick per action)
+- [x] NC: `avuzconecta:2026.10.21-ae92937` (`sha256:206dbfb0…`), built with `--no-latest` (fleet `:latest` stays `8f6d956d…`). Ships the rail + Mail fit + #17/#18/#19 (Impersonate 4.0.0 now enabled on app3). Stack 14 (ep6) image pin `2026.10.20-de3f5ea` → `2026.10.21-ae92937`. Healthy in ~150s, 0 restarts, files match the build, login page unchanged. **Rollback:** pin `2026.10.20-de3f5ea` again.
+- [x] Webmail: PR avuz-conecta/webmail-avuz#35 merged (`79756d5`, tree identical to `9c091df`). Prod stack 98 (ep5, conectamail.avuz.app) `TAG` `f0c4a5e` → `9c091df` (`sha256:0900787b…`, same image as staging). Only the webmail container was recreated; Redis and Postgres kept running. `/api/health` returns 200, and the live bundle is `index-BPIUb39C.js` with the embedded footer. **Rollback:** `TAG=f0c4a5e`.
+- [ ] Signed-in check of both on app3 (Patrick).
+- [ ] Not shipped: the logout fix (avuz-server#23 + webmail-avuz#36), which waits for Bri's T1–T7.
