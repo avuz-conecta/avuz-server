@@ -34,6 +34,7 @@ Each part ships alone. Part 2 removes the double header even with the old top ba
 | Spacer | — | — |
 | Unified search | icon + "Pesquisar" | icon |
 | Notifications | icon + "Notificações" + unread badge | icon + badge |
+| Contacts menu | hidden (Contatos is in the rail) | hidden |
 | User menu | avatar + display name + "Perfil e sair" | avatar |
 
 No logo tile. The home link stays reachable as the "Painel" (dashboard) entry. The contacts menu keeps its current behavior; the user menu covers everything else.
@@ -42,6 +43,8 @@ No logo tile. The home link stays reachable as the "Painel" (dashboard) entry. T
 
 - **Toggle** flips between expanded and collapsed and animates width (200ms; `prefers-reduced-motion` disables it).
 - **Persistence:** stored per user in user config `avuz_theme / rail_collapsed` via `POST ocs/v2.php/apps/provisioning_api/api/v1/config/users/avuz_theme/rail_collapsed`. The server injects the value as initial state so the first paint has the right width (no flash). Default: expanded.
+- **Default (revised 2026-10-21):** expanded on every screen width. No narrow-screen auto-collapse: Patrick reviewed it on staging-3 and wants the saved choice everywhere, expanded until the user collapses it.
+- **Icon column:** app icons, the toggle, "Mais aplicativos" and the foot widgets all center at 36px from the left edge, expanded or collapsed, so nothing shifts when the rail toggles.
 - **Overflow:** the rail computes how many apps fit its height; the rest go to "Mais aplicativos". Today's AppMenu computes this from width, so the rail renders its own list instead of reusing core's AppMenu.
 - **Content offset:** `#content` starts after the rail on the left and at the top of the page. Every place core and apps use `--header-height` for a top offset (app-navigation, sidebars, modals, popover max-heights) must look right with no top bar. The plan audits these.
 - **Breakpoint:** at <1024px viewport width, the rail hides and core's top header comes back unchanged.
