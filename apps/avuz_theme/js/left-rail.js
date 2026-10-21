@@ -9,9 +9,6 @@
  *   (RailPreferenceValidator vouches for it). A failed save keeps the new
  *   state for this page and warns in the console. Only these toggles animate
  *   (html.avuz-rail--animated); the saved state applies on load without one.
- *   Below 1280px the rail starts collapsed whatever was saved; a toggle there
- *   only lasts the browser session (sessionStorage) and is never saved.
- *   Crossing 1280px re-applies the rule (window.AvuzLeftRail.effectiveCollapsed).
  * - one link per app (core/apps initial state, already in the user's order),
  *   the current one with aria-current="page". Collapsed, each gets its name as
  *   a tooltip; the name stays in the link for screen readers.
@@ -33,8 +30,6 @@
 	var RAIL_ID = 'avuz-rail';
 	var OVERFLOW_ID = 'avuz-rail-overflow';
 	var ITEM_HEIGHT = 44;
-	var NARROW_QUERY = '(max-width: 1279px)';
-	var SESSION_CHOICE_KEY = 'avuz_theme.rail.narrowChoice';
 	var MORE_LABEL = 'Mais aplicativos';
 	var RAIL_LABEL = 'Aplicativos';
 	var PREFERENCE_SERVICE = 'apps/provisioning_api/api/v1/config/users/avuz_theme';
@@ -113,27 +108,6 @@
 		return document.documentElement.classList.contains(COLLAPSED_CLASS);
 	}
 
-	function narrowMedia() {
-		return typeof window.matchMedia === 'function' ? window.matchMedia(NARROW_QUERY) : null;
-	}
-
-	// sessionStorage can be missing or throw (private mode, blocked storage)
-	function readSessionChoice() {
-		try {
-			return window.sessionStorage.getItem(SESSION_CHOICE_KEY);
-		} catch (error) {
-			return null;
-		}
-	}
-
-	function writeSessionChoice(choice) {
-		try {
-			window.sessionStorage.setItem(SESSION_CHOICE_KEY, choice);
-		} catch (error) {
-			console.warn('[avuz_theme] left rail: could not remember the choice for this session', error);
-		}
-	}
-
 	function saveCollapsed(collapsed) {
 		var body = new URLSearchParams();
 		body.set('configValue', collapsed ? '1' : '0');
@@ -154,9 +128,7 @@
 		});
 	}
 
-	function createRail(apps, preferences) {
-		var media = narrowMedia();
-		var choices = window.AvuzLeftRail.SESSION_CHOICES;
+	function createRail(apps) {
 		var nav = document.createElement('nav');
 		nav.id = RAIL_ID;
 		nav.className = 'avuz-rail';
@@ -240,35 +212,13 @@
 			applyTooltips();
 		}
 
-		function isNarrow() {
-			return media !== null && media.matches;
-		}
-
-		function applyCollapsed() {
-			var collapsed = window.AvuzLeftRail.effectiveCollapsed({
-				saved: preferences.saved,
-				narrow: isNarrow(),
-				sessionChoice: readSessionChoice(),
-			});
-			document.documentElement.classList.toggle(COLLAPSED_CLASS, collapsed);
-			renderToggle();
-		}
-
 		toggle.addEventListener('click', function toggleRail() {
 			var collapsed = !isCollapsed();
 			document.documentElement.classList.add(ANIMATED_CLASS);
-			if (isNarrow()) {
-				writeSessionChoice(collapsed ? choices.collapsed : choices.expanded);
-			} else {
-				preferences.saved = collapsed;
-				saveCollapsed(collapsed);
-			}
-			applyCollapsed();
+			document.documentElement.classList.toggle(COLLAPSED_CLASS, collapsed);
+			renderToggle();
+			saveCollapsed(collapsed);
 		});
-
-		if (media !== null) {
-			media.addEventListener('change', applyCollapsed);
-		}
 
 		moreButton.addEventListener('click', function toggleOverflow() {
 			if (isOverflowOpen()) {
@@ -314,7 +264,7 @@
 		}
 		window.addEventListener('resize', scheduleRender);
 
-		return { nav: nav, applyCollapsed: applyCollapsed, renderApps: renderApps };
+		return { nav: nav, renderToggle: renderToggle, renderApps: renderApps };
 	}
 
 	function init() {
@@ -327,10 +277,11 @@
 			return;
 		}
 		var apps = readState(APPS_STATE_ID);
+		document.documentElement.classList.toggle(COLLAPSED_CLASS, collapsed);
 
-		var rail = createRail(Array.isArray(apps) ? apps : [], { saved: collapsed });
+		var rail = createRail(Array.isArray(apps) ? apps : []);
 		headerStart.appendChild(rail.nav);
-		rail.applyCollapsed();
+		rail.renderToggle();
 		rail.renderApps();
 	}
 
