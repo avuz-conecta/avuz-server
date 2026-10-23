@@ -1,0 +1,206 @@
+{
+  "book-open-dark.svg": [
+    "d658cb8da58dc85c6bcaaf2fe1055016dd4f78c7ce2091b136d36790e47db520"
+  ],
+  "book-open.svg": [
+    "dfeb37afa011eaadb6d442e1b43e001e7122a2f164b92a448030296d5d1d7775"
+  ],
+  "briefcase-dark.svg": [
+    "1c8ed01b7f84fc7152838742037fbefc7b84d4865923ed112bb990ef255dfb1b"
+  ],
+  "briefcase.svg": [
+    "51ba4e3bc00c8978bd79fa4783e95e72d9de58f21a3dfcf95cd04b3ac913ad2d"
+  ],
+  "building-2-dark.svg": [
+    "3e56f5b699236c60bb4fcf8b760e26d6fd92a52d7b4567257a40dc7555a9ec88"
+  ],
+  "building-2.svg": [
+    "95f9ef216a2f36a287a97db5cfbc1681fd4d3f12f8fbcc04e0f7059adbf195ef"
+  ],
+  "calendar-dark.svg": [
+    "3d8ab2ec079558b52354ce1fce99323394d0602fcb12acb52633af2f66a546c2"
+  ],
+  "calendar.svg": [
+    "e269d4ed227f39d5e46ed60602d52db5603b6f22280731729058513251078f7b"
+  ],
+  "chart-column-dark.svg": [
+    "b017b236750b50139843efa369d985b7fb1b4d3d132fd4686fc9146fc5aa1fcc"
+  ],
+  "chart-column.svg": [
+    "019312493b22bec669c2cf3fe06a5f15fc650e1a1440bad63c696ffcb620e715"
+  ],
+  "chart-pie-dark.svg": [
+    "8c934aa86d783d3cfa82e1e97df4ae248f63d6da4d71b03bf907972586076644"
+  ],
+  "chart-pie.svg": [
+    "b09b9cdc407c719539a679b0a423924d59e858b9e0d2a1b5652f2278de7e1530"
+  ],
+  "circle-help-dark.svg": [
+    "3a929a7d8438e37e008db270007cde00d794e1a624d573bd089adc4799463487"
+  ],
+  "circle-help.svg": [
+    "9a1d8c71726de176da697b20291a3923522fd336f47ffe3cc070bad6f3cfc39b"
+  ],
+  "clipboard-list-dark.svg": [
+    "8a005478e1611673e0a6f984188a9483eda1811d46848b8095b485434cace52a"
+  ],
+  "clipboard-list.svg": [
+    "c7e855e5b83040e30de07beea341589349b5eade2c8c1c7d1d89e13143c2ca30"
+  ],
+  "cloud-dark.svg": [
+    "81e28ecec97a9956fa4c42523b5139e5c3579b2d092918b3d0a828c919a18b7e"
+  ],
+  "cloud.svg": [
+    "3b31d710d15ed6ea4cb0cea314a6541a7c42f00e7af1a3028e0cb83539c4217f"
+  ],
+  "cog-dark.svg": [
+    "f28c28d3d5c620340ef1bca02a15e5af3223cb21468e564ccbbfb20bfda2b7d4"
+  ],
+  "cog.svg": [
+    "ee04a2a96c1934e2e50d2546b9f399900d8a2b343824d3af5b8f2bbb7e6349a5"
+  ],
+  "credit-card-dark.svg": [
+    "973ec7b5ba91ca21441cb65667b60655ad1609a909d8e55b6c485d26c1c3d9cd"
+  ],
+  "credit-card.svg": [
+    "52e348d523e4eecfbbe0d8826f0febcaeed9bb48c00e8706942f781a1722192c"
+  ],
+  "database-dark.svg": [
+    "8812eea0df9106cc12be682937e2e0e563dc04b0f701535dab1d2099ffdcd9f7"
+  ],
+  "database.svg": [
+    "813151983345d0c31316029f91453d01d76cc6ccaa38904bd51f5f41e7427441"
+  ],
+  "external-link-dark.svg": [
+    "00fe08deae40843db2a36cd00d04f95fd2a7938702f6eef93d5a40dd4ee0fd27"
+  ],
+  "external-link.svg": [
+    "afa55ead3534f9e4ca44ebac2ec1b22ab47a383f5a747c9a534636b69b7723e9"
+  ],
+  "file-text-dark.svg": [
+    "82ec5e3d4df9d06bbb7d7d747dddd3955111fbe8f6262e321be816b8b12fc6a7"
+  ],
+  "file-text.svg": [
+    "4485e379c93f88ed2bdb43663f43257ae7ce759791c3256015231c8aa25e96ca"
+  ],
+  "folder-dark.svg": [
+    "c3619e904ccf57d232d1b978e4dcd3df2892ae8eb62b1fef77cf1aa4a0ca3da3"
+  ],
+  "folder.svg": [
+    "abe45d2a4ad512550d3efe69f83cfebf5634217dbed8afe83811e9d788d5389a"
+  ],
+  "globe-dark.svg": [
+    "0a58d1295dffbfccfda7bccc78990c2242d2d52221d408aa2717d20a8aa8a7a2"
+  ],
+  "globe.svg": [
+    "e08a82c0e9862b2a3e4003d14c2c517398ca5776e7e04db2756401d50e734d59"
+  ],
+  "graduation-cap-dark.svg": [
+    "8b37f4baee830c012106085d7c181157c94c844f8456dc17cc60b4f6ba98ff9a"
+  ],
+  "graduation-cap.svg": [
+    "e21f603304e1a3918d3a62c691f88025255852d8522a2b6719e62cf625009e39"
+  ],
+  "headset-dark.svg": [
+    "635ef9a1b451220295b0cebaada20b7e40c77defa1ba4e209aa505fc8a85e612"
+  ],
+  "headset.svg": [
+    "574b92cd46938802658b8024f5d067b740815a15cfca21cae00bd7de39b7a4bc"
+  ],
+  "house-dark.svg": [
+    "59a63023ff040c6a4c7532f356288cc10bd9da1bc5deb71c653f42d8e1562e73"
+  ],
+  "house.svg": [
+    "80a1efe20724aeccce20d5d1b0a968715ea4157085c09f04c03b06527ea36467"
+  ],
+  "landmark-dark.svg": [
+    "d4a9323c6adf213e06b0eadb25ef773b197b273b30ed5f016b0f82e26207e5fb"
+  ],
+  "landmark.svg": [
+    "49fb863ae88416511c56af7b5f69de77f5fc21c07c78e74cd65481de5a3d8f04"
+  ],
+  "link-dark.svg": [
+    "70a293ed566b545da1e1f2de165ccee0945f798871716b56158947dca1024379"
+  ],
+  "link.svg": [
+    "4ff1c71cf7e00251d13cdb2219a44988a3bc9132797ee8a4d3617660a1f91ce8"
+  ],
+  "mail-dark.svg": [
+    "c322611d7191ffd4c09bcab6604ad03a87cfd91375c4760e01a901060cf1e120"
+  ],
+  "mail.svg": [
+    "a1eef0a9224cddfd071d6a478a56c1151b37573cd18317c10f8c13971f7c846f"
+  ],
+  "map-pin-dark.svg": [
+    "c91339f9b857817af89ceedf67a2b4e5527c926bc427c56477800d85e2fceba5"
+  ],
+  "map-pin.svg": [
+    "6deb840a55e15623542110a5f72cdf0c6e075ae2c77e3ce9caf99da3dcc08ed4"
+  ],
+  "message-circle-dark.svg": [
+    "8638600c93c6464840ecee5f7d72dc92553e653cebdcaba2a50cc9589022a88f"
+  ],
+  "message-circle.svg": [
+    "74c3b4ff20ce681a56362b854cd850234a29ac98a6d3d918144d2237843a1077"
+  ],
+  "newspaper-dark.svg": [
+    "9134a83d3e72fa8f99f2365d1728b87d9b10ee9f08c2be5e6653810bb0c97dc3"
+  ],
+  "newspaper.svg": [
+    "54da9f962fedb62c37cfff1030e31602a3e6222b6c6854925fc8dcd600b4f2bc"
+  ],
+  "phone-dark.svg": [
+    "1f4a230c115d7807ae7c604c9b227a84a7e02e1ce7f0e200ba3d43dc3de8ca3a"
+  ],
+  "phone.svg": [
+    "9f941df91178dfe9786e4f765b0ab34be5703323067f70c6e2af6030b59c7307"
+  ],
+  "receipt-dark.svg": [
+    "d3f5b35870f1bed7655d48496c7c0c34a5fcb3253151bbe571e5a7d8e2a8529d"
+  ],
+  "receipt.svg": [
+    "6d126e65b30e6f9e4e5aa27b2cbf6f9f05e524f02a5adedb252e29f2d51a661e"
+  ],
+  "server-dark.svg": [
+    "0d81defe0d3bb716b573fc96bff44f776e7c38c4db49dea7857b38caddf63b46"
+  ],
+  "server.svg": [
+    "e8c4f808587df6c7790336fdf4e5d462d164f12f70ba3d781e0f06d3ae2dc27c"
+  ],
+  "shield-check-dark.svg": [
+    "be883ef7d3e9330653c2adaa5f9ca1e4f3e52b73c4644e405657bf17418b0290"
+  ],
+  "shield-check.svg": [
+    "d7cfb1de96312a72b987a75cf8ac23aa9518e1665e043120e50a6792b3665ceb"
+  ],
+  "shopping-cart-dark.svg": [
+    "7cb9894543bbb64471deb5dea105783d9176284244b0e6b435df7e2f6ae10c47"
+  ],
+  "shopping-cart.svg": [
+    "85b63b535db88213346b1c0d54e88de1b4875c3373cf7b3d9514a6e4b1648312"
+  ],
+  "truck-dark.svg": [
+    "f8ff22d87225c509d9f4dc14d73b267453fe9372bb69e6dfeb0872a431f6b8ee"
+  ],
+  "truck.svg": [
+    "8fee2298ad2d441d6f6661e0ea202fe2aa1dd31b488586e32f95cba82803bec9"
+  ],
+  "users-dark.svg": [
+    "0dca424202cf6566d64a13515a2a3187544d017b5c305a7aa25bc5e537142a2c"
+  ],
+  "users.svg": [
+    "e7736ae816f2cc2c1a105113b55d3f9ac53b59d98e776020898a7bfd235c7d64"
+  ],
+  "video-dark.svg": [
+    "436601532f85e37ebc01d59448147edc0f66ccf072b0ddd0b692d79aa3402b00"
+  ],
+  "video.svg": [
+    "4c2ad87b5f0d531dff510ce5c0c73e7a1dba85c4e270792859a564d1f2c17e8a"
+  ],
+  "wallet-dark.svg": [
+    "3f6af7b84416fcfb1de2955a76abcb06397896222ff01cce3448ad8a04582975"
+  ],
+  "wallet.svg": [
+    "75e9679a604374615ef8357f7a8fde628df89c47040d1e6b4c787464ffd070b2"
+  ]
+}
