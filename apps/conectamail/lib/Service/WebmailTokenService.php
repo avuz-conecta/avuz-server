@@ -16,12 +16,16 @@ use OCP\IConfig;
  * enc_pass reuses the shared credential_key so the webmail decrypts it with
  * ROUNDCUBE_CREDENTIAL_KEY, exactly like Roundcube does. See
  * docs/card-532-webmail-sso.md for the validation contract.
+ *
+ * Logout token: same format and secret, payload {v:1, jti, uid, iat, exp, aud:"webmail-avuz-logout"}.
+ * The distinct audience keeps a login token from revoking and a logout token from signing in.
  */
 class WebmailTokenService
 {
     private const APP_ID = 'conectamail';
     private const TOKEN_TTL = 60;
     private const AUDIENCE = 'webmail-avuz';
+    private const LOGOUT_AUDIENCE = 'webmail-avuz-logout';
     private const PASSWORD_SOURCE_MAILBOX = 'mailbox';
     private const PASSWORD_SOURCE_LOGIN = 'login';
 
@@ -93,10 +97,28 @@ class WebmailTokenService
             'aud' => self::AUDIENCE,
         ];
 
-        $payloadSegment = $this->base64url((string) json_encode($payload));
-        $signature = $this->base64url(hash_hmac('sha256', $payloadSegment, $this->secret(), true));
+        return $this->sign($payload);
+    }
 
-        return $payloadSegment . '.' . $signature;
+    /**
+     * Signed request for the webmail to end the user's SSO sessions, or null
+     * when the feature is inert (URL or secret unset).
+     */
+    public function buildLogoutToken(string $userId): ?string
+    {
+        if (!$this->isConfigured()) {
+            return null;
+        }
+
+        $now = time();
+        return $this->sign([
+            'v' => 1,
+            'jti' => bin2hex(random_bytes(16)),
+            'uid' => $userId,
+            'iat' => $now,
+            'exp' => $now + self::TOKEN_TTL,
+            'aud' => self::LOGOUT_AUDIENCE,
+        ]);
     }
 
     /**
@@ -134,6 +156,17 @@ class WebmailTokenService
         }
 
         return null;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function sign(array $payload): string
+    {
+        $payloadSegment = $this->base64url((string) json_encode($payload));
+        $signature = $this->base64url(hash_hmac('sha256', $payloadSegment, $this->secret(), true));
+
+        return $payloadSegment . '.' . $signature;
     }
 
     private function secret(): string
