@@ -12,6 +12,9 @@
  * - one link per app (core/apps initial state, already in the user's order),
  *   the current one with aria-current="page". Collapsed, each gets its name as
  *   a tooltip; the name stays in the link for screen readers.
+ * - icons from window.AvuzIcons (js/material-icons.js, Material Symbols): an
+ *   app with a glyph draws it inline, filled while it is the current app; any
+ *   other app, or every app when the icon set is missing, shows its own image.
  * - "Mais aplicativos", a disclosure holding the apps that don't fit the
  *   rail's height (window.AvuzLeftRail.splitApps), recomputed on resize.
  *   Escape or a click elsewhere closes it.
@@ -36,11 +39,7 @@
 	var PREFERENCE_KEY = 'rail_collapsed';
 	var OCS_VERSION = 2;
 	var SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
-	var ICON_PATHS = {
-		left: ['m11 17-5-5 5-5', 'm18 17-5-5 5-5'],
-		right: ['m6 17 5-5-5-5', 'm13 17 5-5-5-5'],
-		more: ['M5 12h.01', 'M12 12h.01', 'M19 12h.01'],
-	};
+	var RAIL_CONTROL_BY_DIRECTION = { left: 'collapse', right: 'expand' };
 
 	function readState(elementId) {
 		var stateElement = document.getElementById(elementId);
@@ -55,24 +54,46 @@
 		}
 	}
 
-	function icon(name) {
+	function ownEntry(map, key) {
+		return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+	}
+
+	function glyphIcon(name, filled) {
+		var icons = window.AvuzIcons;
+		var glyph = icons && name ? ownEntry(icons.glyphs, name) : undefined;
+		if (!glyph) {
+			return null;
+		}
 		var svg = document.createElementNS(SVG_NAMESPACE, 'svg');
-		svg.setAttribute('viewBox', '0 0 24 24');
-		svg.setAttribute('width', '20');
-		svg.setAttribute('height', '20');
-		svg.setAttribute('fill', 'none');
-		svg.setAttribute('stroke', 'currentColor');
-		svg.setAttribute('stroke-width', '2');
-		svg.setAttribute('stroke-linecap', 'round');
-		svg.setAttribute('stroke-linejoin', 'round');
+		svg.setAttribute('viewBox', icons.viewBox);
+		svg.setAttribute('fill', 'currentColor');
 		svg.setAttribute('aria-hidden', 'true');
 		svg.setAttribute('class', 'avuz-rail__icon');
-		ICON_PATHS[name].forEach(function addPath(definition) {
-			var path = document.createElementNS(SVG_NAMESPACE, 'path');
-			path.setAttribute('d', definition);
-			svg.appendChild(path);
-		});
+		var path = document.createElementNS(SVG_NAMESPACE, 'path');
+		path.setAttribute('d', filled ? glyph.fill : glyph.regular);
+		svg.appendChild(path);
 		return svg;
+	}
+
+	function controlIcon(control) {
+		return window.AvuzIcons ? glyphIcon(ownEntry(window.AvuzIcons.rail, control), false) : null;
+	}
+
+	function appIcon(app) {
+		var glyphName = window.AvuzIcons ? ownEntry(window.AvuzIcons.apps, app.id) : undefined;
+		var glyph = glyphIcon(glyphName, app.active);
+		if (glyph) {
+			return glyph;
+		}
+		var image = document.createElement('img');
+		image.className = 'avuz-rail__icon';
+		image.src = app.icon;
+		image.alt = '';
+		return image;
+	}
+
+	function iconAndLabel(iconElement, text) {
+		return [iconElement, label(text)].filter(Boolean);
 	}
 
 	function label(text) {
@@ -89,12 +110,7 @@
 		if (app.active) {
 			link.setAttribute('aria-current', 'page');
 		}
-		var image = document.createElement('img');
-		image.className = 'avuz-rail__icon';
-		image.src = app.icon;
-		image.alt = '';
-		link.appendChild(image);
-		link.appendChild(label(app.name));
+		link.append.apply(link, iconAndLabel(appIcon(app), app.name));
 		return link;
 	}
 
@@ -146,8 +162,7 @@
 		moreButton.className = 'avuz-rail__app avuz-rail__more';
 		moreButton.setAttribute('aria-expanded', 'false');
 		moreButton.setAttribute('aria-controls', OVERFLOW_ID);
-		moreButton.appendChild(icon('more'));
-		moreButton.appendChild(label(MORE_LABEL));
+		moreButton.append.apply(moreButton, iconAndLabel(controlIcon('more'), MORE_LABEL));
 
 		var overflowList = document.createElement('ul');
 		overflowList.id = OVERFLOW_ID;
@@ -195,7 +210,7 @@
 
 		function renderToggle() {
 			var state = window.AvuzLeftRail.railToggle(isCollapsed());
-			toggle.replaceChildren(icon(state.direction), label(state.label));
+			toggle.replaceChildren.apply(toggle, iconAndLabel(controlIcon(RAIL_CONTROL_BY_DIRECTION[state.direction]), state.label));
 			toggle.setAttribute('aria-expanded', state.ariaExpanded);
 			applyTooltips();
 		}

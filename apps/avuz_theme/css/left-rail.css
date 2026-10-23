@@ -27,7 +27,7 @@
 		/* One icon column for every state: app icons, toggle and the foot widgets
 		   are centered 36px from the left edge, expanded or collapsed */
 		--avuz-rail-padding: 12px;
-		--avuz-rail-icon-size: 20px;
+		--avuz-rail-icon-size: 19px;
 		--avuz-rail-icon-center: 36px;
 		--avuz-rail-item-padding: calc(var(--avuz-rail-icon-center) - var(--avuz-rail-padding) - var(--avuz-rail-icon-size) / 2);
 		--avuz-rail-transition: 200ms ease;
@@ -259,7 +259,7 @@
 		box-shadow: 0 0 10px var(--color-box-shadow);
 	}
 
-	/* App icons are black strokes (themes/avuz), like the header's: invert on dark */
+	/* Apps without a Material glyph show their own image, black like the header's: invert on dark */
 	body#body-user:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) img.avuz-rail__icon {
 		filter: var(--background-invert-if-dark);
 	}
