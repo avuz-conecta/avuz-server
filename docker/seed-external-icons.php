@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-// Seeds the Avuz icon library (Lucide, Deck #417) into the External sites icon
-// store: appdata `external/icons`, written through IAppData so it works on local
-// disk and on S3. The admin "Icons" section lists that folder and site entries
-// may only pick names from it.
+// Seeds the Avuz icon library (Material Symbols, Deck #417) into the External
+// sites icon store: appdata `external/icons`, written through IAppData so it
+// works on local disk and on S3. The admin "Icons" section lists that folder and
+// site entries may only pick names from it.
 //
 // Each library icon is a pair, <name>.svg + <name>-dark.svg (mobile/desktop
 // clients), and is offered once per instance:
@@ -15,8 +15,16 @@ declare(strict_types=1);
 //     an icon the admin deletes stays deleted. Only names added to the library
 //     by a later image are seeded on later boots.
 //
+// Then it upgrades what earlier images seeded. superseded.json lists, per file,
+// the hashes of library versions the generator replaced. A pair whose existing
+// files are all ours (superseded or current) gets the current content; a pair
+// with any other file is the admin's and is kept. Missing files stay missing.
+// The upgrade runs once per superseded.json (avuz_theme/external_icons_library).
+//
+// Design: docs/superpowers/specs/2026-10-23-external-icons-material-design.md
 // Usage: php seed-external-icons.php
-// Prints one outcome line: seeded <pairs written> | unchanged | skipped: <reason> | failed: <reason>.
+// Prints one outcome line: seeded <pairs written>, upgraded <pairs>, kept <pairs>
+// | unchanged | skipped: <reason> | failed: <reason>.
 
 use OCP\App\IAppManager;
 use OCP\Files\AppData\IAppDataFactory;
@@ -31,6 +39,8 @@ const AVUZ_EXTERNAL_APP = 'external';
 const AVUZ_ICONS_FOLDER = 'icons';
 const AVUZ_SEEDED_APP = 'avuz_theme';
 const AVUZ_SEEDED_KEY = 'external_icons_seeded';
+const AVUZ_LIBRARY_KEY = 'external_icons_library';
+const AVUZ_SUPERSEDED_FILE = 'superseded.json';
 const AVUZ_DARK_SUFFIX = '-dark';
 const AVUZ_ICON_EXTENSION = '.svg';
 
@@ -97,6 +107,59 @@ function avuzIconsFolder(IAppDataFactory $appDataFactory): ISimpleFolder {
 	}
 }
 
+/** @return array<string, list<string>> per file name, hashes of earlier library versions */
+function avuzSupersededHashes(string $libraryDir): array {
+	$path = "$libraryDir/" . AVUZ_SUPERSEDED_FILE;
+	$stored = is_file($path) ? json_decode((string)file_get_contents($path), true) : null;
+	if (!is_array($stored)) {
+		avuzFail('invalid ' . AVUZ_SUPERSEDED_FILE);
+	}
+	foreach ($stored as $hashes) {
+		if (!is_array($hashes) || !array_is_list($hashes)) {
+			avuzFail('invalid ' . AVUZ_SUPERSEDED_FILE);
+		}
+	}
+	return $stored;
+}
+
+function avuzLibraryFile(string $libraryDir, string $file): string {
+	$content = file_get_contents("$libraryDir/$file");
+	if ($content === false) {
+		throw new RuntimeException("cannot read $file");
+	}
+	return $content;
+}
+
+/**
+ * Gives a pair the current library content when every file it still has is
+ * ours: an earlier library version (superseded) or the current one.
+ *
+ * @param array<string, list<string>> $superseded
+ * @return 'upgraded'|'kept'|'current'
+ */
+function avuzUpgradePair(ISimpleFolder $folder, string $libraryDir, string $name, array $superseded): string {
+	$staleFiles = [];
+	foreach (avuzIconFiles($name) as $file) {
+		if (!$folder->fileExists($file)) {
+			continue;
+		}
+		$storeFile = $folder->getFile($file);
+		$storeContent = $storeFile->getContent();
+		$libraryContent = avuzLibraryFile($libraryDir, $file);
+		if ($storeContent === $libraryContent) {
+			continue;
+		}
+		if (!in_array(hash('sha256', $storeContent), $superseded[$file] ?? [], true)) {
+			return 'kept';
+		}
+		$staleFiles[] = [$storeFile, $libraryContent];
+	}
+	foreach ($staleFiles as [$storeFile, $libraryContent]) {
+		$storeFile->putContent($libraryContent);
+	}
+	return $staleFiles === [] ? 'current' : 'upgraded';
+}
+
 // Writes both files of a pair unless either one exists. Returns whether it wrote.
 function avuzSeedPair(ISimpleFolder $folder, string $libraryDir, string $name): bool {
 	$files = avuzIconFiles($name);
@@ -106,11 +169,7 @@ function avuzSeedPair(ISimpleFolder $folder, string $libraryDir, string $name): 
 		}
 	}
 	foreach ($files as $file) {
-		$content = file_get_contents("$libraryDir/$file");
-		if ($content === false) {
-			throw new RuntimeException("cannot read $file");
-		}
-		$folder->newFile($file, $content);
+		$folder->newFile($file, avuzLibraryFile($libraryDir, $file));
 	}
 	return true;
 }
@@ -120,6 +179,9 @@ if ($libraryNames === []) {
 	echo "skipped: empty icon library\n";
 	exit(0);
 }
+
+$superseded = avuzSupersededHashes(AVUZ_LIBRARY_DIR);
+$libraryVersion = hash_file('sha256', AVUZ_LIBRARY_DIR . '/' . AVUZ_SUPERSEDED_FILE);
 
 avuzDropToConfigOwner();
 
@@ -132,7 +194,8 @@ try {
 	$appConfig = Server::get(IAppConfig::class);
 	$seededNames = avuzSeededNames($appConfig);
 	$pendingNames = avuzPendingNames($libraryNames, $seededNames);
-	if ($pendingNames === []) {
+	$upgradeDue = $appConfig->getValueString(AVUZ_SEEDED_APP, AVUZ_LIBRARY_KEY) !== $libraryVersion;
+	if ($pendingNames === [] && !$upgradeDue) {
 		echo "unchanged\n";
 		exit(0);
 	}
@@ -143,7 +206,15 @@ try {
 		$writtenCount += avuzSeedPair($folder, AVUZ_LIBRARY_DIR, $name) ? 1 : 0;
 	}
 	$appConfig->setValueString(AVUZ_SEEDED_APP, AVUZ_SEEDED_KEY, json_encode([...$seededNames, ...$pendingNames]));
-	echo "seeded $writtenCount\n";
+
+	$upgradeOutcomes = array_map(
+		static fn (string $name): string => avuzUpgradePair($folder, AVUZ_LIBRARY_DIR, $name, $superseded),
+		$upgradeDue ? $libraryNames : [],
+	);
+	$appConfig->setValueString(AVUZ_SEEDED_APP, AVUZ_LIBRARY_KEY, $libraryVersion);
+	$upgradedCount = count(array_keys($upgradeOutcomes, 'upgraded', true));
+	$keptCount = count(array_keys($upgradeOutcomes, 'kept', true));
+	echo "seeded $writtenCount, upgraded $upgradedCount, kept $keptCount\n";
 } catch (\Throwable $exception) {
 	avuzFail(get_class($exception));
 }
