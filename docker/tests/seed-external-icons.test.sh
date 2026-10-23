@@ -47,6 +47,7 @@ namespace OCP\Files {
 
 namespace OCP\Files\SimpleFS {
 	interface ISimpleFile {
+		public function getSize(): int|float;
 		public function getContent(): string;
 		public function putContent($data): void;
 	}
@@ -87,10 +88,17 @@ namespace OCP {
 	final class FakeFile implements Files\SimpleFS\ISimpleFile {
 		public function __construct(private string $path) {
 		}
+		public function getSize(): int|float {
+			return filesize($this->path);
+		}
+		// Like core SimpleFile on a failed object-store read: "" (false coerced).
 		public function getContent(): string {
 			$state = fakeState();
 			$state['reads'] = ($state['reads'] ?? 0) + 1;
 			saveFakeState($state);
+			if (in_array(basename($this->path), $state['unreadable'] ?? [], true)) {
+				return '';
+			}
 			return file_get_contents($this->path);
 		}
 		public function putContent($data): void {
@@ -332,6 +340,17 @@ assert_eq "does not record the new superseded list after a failed upgrade" "no" 
 set_state throw false
 run
 assert_eq "finishes the upgrade on the next boot" "seeded 0, upgraded 2, kept 0" "$output"
+
+reset_instance
+seed_old_library
+set_state unreadable '["globe.svg"]'
+run
+assert_eq "fails instead of keeping a pair whose store file cannot be read" "failed: RuntimeException" "$output"
+assert_eq "leaves the unreadable pair for the next boot" "<svg>old globe dark</svg>" "$(cat "$ICONS/globe-dark.svg")"
+assert_eq "does not record the new superseded list after a failed read" "no" "$(recorded_current_list)"
+set_state unreadable '[]'
+run
+assert_eq "upgrades the pair once the store file reads again" "seeded 0, upgraded 2, kept 0" "$output"
 
 # ── broken superseded list ──
 reset_instance

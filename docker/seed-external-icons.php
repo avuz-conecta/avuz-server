@@ -29,6 +29,7 @@ declare(strict_types=1);
 use OCP\App\IAppManager;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\NotFoundException;
+use OCP\Files\SimpleFS\ISimpleFile;
 use OCP\Files\SimpleFS\ISimpleFolder;
 use OCP\IAppConfig;
 use OCP\Server;
@@ -130,6 +131,17 @@ function avuzLibraryFile(string $libraryDir, string $file): string {
 	return $content;
 }
 
+// On a failed object-store read core SimpleFile returns "" instead of throwing.
+// Judging that "" would keep the pair as the admin's for good, so fail the run:
+// the library key stays unrecorded and the next boot retries.
+function avuzStoreContent(ISimpleFile $storeFile, string $file): string {
+	$content = $storeFile->getContent();
+	if ($content === '' && $storeFile->getSize() > 0) {
+		throw new RuntimeException("cannot read $file");
+	}
+	return $content;
+}
+
 /**
  * Gives a pair the current library content when every file it still has is
  * ours: an earlier library version (superseded) or the current one.
@@ -144,7 +156,7 @@ function avuzUpgradePair(ISimpleFolder $folder, string $libraryDir, string $name
 			continue;
 		}
 		$storeFile = $folder->getFile($file);
-		$storeContent = $storeFile->getContent();
+		$storeContent = avuzStoreContent($storeFile, $file);
 		$libraryContent = avuzLibraryFile($libraryDir, $file);
 		if ($storeContent === $libraryContent) {
 			continue;
