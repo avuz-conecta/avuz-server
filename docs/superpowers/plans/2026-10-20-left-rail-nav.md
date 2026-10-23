@@ -170,3 +170,9 @@ The spec's acceptance criteria 1–8 hold on staging, with evidence (screenshots
 - [x] Webmail: PR avuz-conecta/webmail-avuz#35 merged (`79756d5`, tree identical to `9c091df`). Prod stack 98 (ep5, conectamail.avuz.app) `TAG` `f0c4a5e` → `9c091df` (`sha256:0900787b…`, same image as staging). Only the webmail container was recreated; Redis and Postgres kept running. `/api/health` returns 200, and the live bundle is `index-BPIUb39C.js` with the embedded footer. **Rollback:** `TAG=f0c4a5e`.
 - [x] Signed-in check on app3 (Patrick, 2026-10-21): rail and embedded webmail both OK. The browser first showed the old webmail until a hard reload (Cmd+Shift+R); the server side was correct the whole time.
 - [ ] Not shipped: the logout fix (avuz-server#23 + webmail-avuz#36), which waits for Bri's T1–T7.
+
+## app3 update 2026-10-23 (avuz-server #23/#24/#25 merged)
+- [x] Staging stacks 8 and 63 run `0d1ece72…` (avuz-customization `03599c5d2fc`). Stack 63's first boot (app upgrade + full config pass, about 7.5 min on S3) outran the 300s start period; autoheal restarted it once and the second boot came up clean in about 90s.
+- [x] app3 pinned `2026.10.23-03599c5` (`sha256:9c6fbe15…`, `--no-latest`). **Incident:** pre-pulling the image filled the endpoint 6 host disk to 100%, and app3 crash-looped on FileSequence (33 restarts). Pruning unused images (approved) brought the disk to 51%, and app3 was healthy about 1 minute later. app3 was down from 16:58 to about 17:26 UTC. The ~10 other tenants on that host stayed healthy with no disk errors.
+- [x] Verified: avuz_theme 1.0.10, conectamail 1.2.7, rail Material icons + logout revoker files match the build, External sites icons "upgraded 34", public status 200.
+- [ ] Prevention: prune old pinned images before each app3 deploy (or a weekly prune on the hosts). The rollback image `:2026.10.21-ae92937` was pruned and must be re-pulled to roll back.
