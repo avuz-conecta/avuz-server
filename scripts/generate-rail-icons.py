@@ -16,17 +16,15 @@ Usage: python3 -I scripts/generate-rail-icons.py
 """
 
 import json
-import re
 import sys
-import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from material_symbols import (  # noqa: E402
+    DARK_FILL, LIGHT_FILL, PACKAGE, STYLE, VERSION, VIEW_BOX, download, glyph_path, render_svg,
+)
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PACKAGE = "@material-symbols/svg-200"
-VERSION = "0.48.1"
-STYLE = "rounded"
-PACKAGE_URL = f"https://cdn.jsdelivr.net/npm/{PACKAGE}@{VERSION}"
-VIEW_BOX = "0 -960 960 960"
 
 SCRIPT_OUTPUT = REPO_ROOT / "apps/avuz_theme/js/material-icons.js"
 LICENSE_OUTPUT = REPO_ROOT / "apps/avuz_theme/js/material-icons.LICENSE"
@@ -52,8 +50,6 @@ RAIL_GLYPHS = {
     "more": "more_horiz",
 }
 
-LIGHT_FILL = "currentColor"
-DARK_FILL = "#000000"
 # (glyph, path relative to the repo, fill)
 ICON_FILES = [
     ("bolt", "themes/avuz/apps/activity/img/activity.svg", LIGHT_FILL),
@@ -77,29 +73,6 @@ ICON_FILES = [
     ("chat_bubble", "themes/avuz/apps/spreed/img/app-dark.svg", DARK_FILL),
     ("mail", "apps/conectamail/img/mail.svg", LIGHT_FILL),
 ]
-
-SINGLE_PATH = re.compile(r'^<svg[^>]*viewBox="0 -960 960 960"[^>]*><path d="([^"]+)"/></svg>$')
-
-
-def download(path: str) -> str:
-    with urllib.request.urlopen(f"{PACKAGE_URL}/{path}", timeout=30) as response:
-        return response.read().decode("utf-8")
-
-
-def glyph_path(file_name: str) -> str:
-    source = download(f"{STYLE}/{file_name}.svg").strip()
-    match = SINGLE_PATH.match(source)
-    if match is None:
-        raise ValueError(f"{file_name}: expected one <path> on a {VIEW_BOX} viewBox, got {source[:120]}")
-    return match.group(1)
-
-
-def render_svg(path_data: str, fill: str) -> str:
-    return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="{VIEW_BOX}" fill="{fill}">\n'
-        f'  <path d="{path_data}"/>\n'
-        "</svg>\n"
-    )
 
 
 def render_script(glyphs: dict) -> str:

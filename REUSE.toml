@@ -406,7 +406,7 @@ SPDX-FileCopyrightText = "2025 Nextcloud GmbH and Nextcloud contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
 [[annotations]]
-path = ["apps/avuz_theme/img/external-icons/**.svg", "apps/avuz_theme/js/lucide.js"]
+path = ["apps/avuz_theme/img/external-icons/**.svg"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2022 Lucide Contributors, 2013-2022 Cole Bemis (Feather)"
-SPDX-License-Identifier = "ISC"
+SPDX-FileCopyrightText = "Google LLC (Material Symbols)"
+SPDX-License-Identifier = "Apache-2.0"

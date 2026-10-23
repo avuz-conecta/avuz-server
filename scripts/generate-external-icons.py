@@ -1,91 +1,126 @@
 #!/usr/bin/env python3
-"""Generate the External sites icon library (Deck #417) from the pinned Lucide build.
+"""Generate the External sites icon library (Deck #417) from Material Symbols.
 
-Reads the icon nodes from apps/avuz_theme/js/lucide.js (the Lucide UMD bundle the
-theme already ships, version in its @license header) and writes, per icon:
-  <name>.svg       stroke="currentColor", like themes/avuz/apps/*/img/<app>.svg
-  <name>-dark.svg  stroke="#000000", the variant External sites serves to the
+Same glyphs as the left rail (Rounded, weight 200, see scripts/material_symbols.py).
+Writes, per icon, into apps/avuz_theme/img/external-icons/:
+  <name>.svg       fill="currentColor", like themes/avuz/apps/*/img/<app>.svg
+  <name>-dark.svg  fill="#000000", the variant External sites serves to the
                    mobile and desktop clients
-into apps/avuz_theme/img/external-icons/. docker/seed-external-icons.php copies
-them into the External sites icon store at boot.
+  superseded.json  per file name, the SHA-256 of every earlier version this
+                   script replaced, so the boot seed can upgrade copies an
+                   instance still holds untouched
+  LICENSE
+File names never change: configured sites store the name. docker/seed-external-icons.php
+copies the library into the External sites icon store at boot.
 
+Design: docs/superpowers/specs/2026-10-23-external-icons-material-design.md
 Usage: python3 -I scripts/generate-external-icons.py
 """
 
+import hashlib
 import json
-import re
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-LUCIDE_BUNDLE = REPO_ROOT / "apps/avuz_theme/js/lucide.js"
-OUTPUT_DIR = REPO_ROOT / "apps/avuz_theme/img/external-icons"
-
-ICONS = [
-    "briefcase", "book-open", "building-2", "calendar", "chart-column", "chart-pie",
-    "circle-help", "clipboard-list", "cloud", "cog", "credit-card", "database",
-    "external-link", "file-text", "folder", "globe", "graduation-cap", "headset",
-    "house", "landmark", "link", "mail", "map-pin", "message-circle", "newspaper",
-    "phone", "receipt", "server", "shield-check", "shopping-cart", "truck", "users",
-    "video", "wallet",
-]
-
-LIGHT_STROKE = "currentColor"
-DARK_STROKE = "#000000"
-SVG_OPEN = (
-    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" '
-    'fill="none" stroke="{stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from material_symbols import (  # noqa: E402
+    DARK_FILL, LIGHT_FILL, PACKAGE, STYLE, VERSION, download, glyph_path, render_svg,
 )
-UNQUOTED_KEY = re.compile(r'([{,])([A-Za-z][\w-]*):')
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = REPO_ROOT / "apps/avuz_theme/img/external-icons"
+SUPERSEDED_FILE = OUTPUT_DIR / "superseded.json"
+LICENSE_FILE = OUTPUT_DIR / "LICENSE"
+
+GLYPH_BY_ICON = {
+    "briefcase": "work",
+    "book-open": "menu_book",
+    "building-2": "apartment",
+    "calendar": "calendar_today",
+    "chart-column": "bar_chart",
+    "chart-pie": "pie_chart",
+    "circle-help": "help",
+    "clipboard-list": "assignment",
+    "cloud": "cloud",
+    "cog": "settings",
+    "credit-card": "credit_card",
+    "database": "database",
+    "external-link": "open_in_new",
+    "file-text": "description",
+    "folder": "folder",
+    "globe": "language",
+    "graduation-cap": "school",
+    "headset": "support_agent",
+    "house": "home",
+    "landmark": "account_balance",
+    "link": "link",
+    "mail": "mail",
+    "map-pin": "location_on",
+    "message-circle": "chat_bubble",
+    "newspaper": "newspaper",
+    "phone": "call",
+    "receipt": "receipt_long",
+    "server": "dns",
+    "shield-check": "verified_user",
+    "shopping-cart": "shopping_cart",
+    "truck": "local_shipping",
+    "users": "group",
+    "video": "videocam",
+    "wallet": "account_balance_wallet",
+}
 
 
-def pascal_case(icon_name: str) -> str:
-    return "".join(part[:1].upper() + part[1:] for part in icon_name.split("-"))
+def sha256(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
 
 
-def bracketed_array(source: str, start: int) -> str:
-    depth = 0
-    for index in range(start, len(source)):
-        if source[index] == "[":
-            depth += 1
-        elif source[index] == "]":
-            depth -= 1
-            if depth == 0:
-                return source[start:index + 1]
-    raise ValueError("unbalanced icon node array")
+def icon_files(glyphs: dict) -> dict:
+    files = {}
+    for icon_name, glyph in GLYPH_BY_ICON.items():
+        files[f"{icon_name}.svg"] = render_svg(glyphs[glyph], LIGHT_FILL)
+        files[f"{icon_name}-dark.svg"] = render_svg(glyphs[glyph], DARK_FILL)
+    return files
 
 
-def icon_nodes(bundle: str, icon_name: str) -> list:
-    export = re.search(rf'[{{,]{pascal_case(icon_name)}:([\w$]+)[,}}]', bundle)
-    if export is None:
-        raise KeyError(f"{icon_name} is not exported by {LUCIDE_BUNDLE.name}")
-    definition = re.search(rf'[,;\s]{re.escape(export.group(1))}=\[', bundle)
-    if definition is None:
-        raise KeyError(f"{icon_name}: no definition for {export.group(1)}")
-    array_source = bracketed_array(bundle, definition.end() - 1)
-    return json.loads(UNQUOTED_KEY.sub(r'\1"\2":', array_source))
+def read_superseded() -> dict:
+    if not SUPERSEDED_FILE.exists():
+        return {}
+    return json.loads(SUPERSEDED_FILE.read_text(encoding="utf-8"))
 
 
-def render_svg(nodes: list, stroke: str) -> str:
-    elements = [
-        "  <{tag} {attributes}/>".format(
-            tag=tag,
-            attributes=" ".join(f'{name}="{value}"' for name, value in attributes.items()),
-        )
-        for tag, attributes in nodes
-    ]
-    return "\n".join([SVG_OPEN.format(stroke=stroke), *elements, "</svg>"]) + "\n"
+def supersede(superseded: dict, file_name: str, new_content: str) -> None:
+    path = OUTPUT_DIR / file_name
+    if not path.exists():
+        return
+    old_content = path.read_bytes()
+    if old_content == new_content.encode("utf-8"):
+        return
+    superseded[file_name] = sorted({*superseded.get(file_name, []), sha256(old_content)})
+
+
+def render_license(package_license: str) -> str:
+    return (
+        f"Icons in this directory are Material Symbols ({STYLE.capitalize()}, weight 200),\n"
+        f"{PACKAGE}@{VERSION} (https://fonts.google.com/icons), generated by\n"
+        "scripts/generate-external-icons.py.\n\n"
+        f"{package_license}"
+    )
 
 
 def main() -> int:
-    bundle = LUCIDE_BUNDLE.read_text(encoding="utf-8")
-    version = re.search(r"@license lucide v([\d.]+)", bundle).group(1)
+    glyphs = {glyph: glyph_path(glyph) for glyph in sorted(set(GLYPH_BY_ICON.values()))}
+    package_license = download("LICENSE")
+    files = icon_files(glyphs)
+
+    superseded = read_superseded()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    for icon_name in ICONS:
-        nodes = icon_nodes(bundle, icon_name)
-        (OUTPUT_DIR / f"{icon_name}.svg").write_text(render_svg(nodes, LIGHT_STROKE), encoding="utf-8")
-        (OUTPUT_DIR / f"{icon_name}-dark.svg").write_text(render_svg(nodes, DARK_STROKE), encoding="utf-8")
-    print(f"wrote {len(ICONS)} icons (Lucide {version}) to {OUTPUT_DIR.relative_to(REPO_ROOT)}")
+    for file_name, content in files.items():
+        supersede(superseded, file_name, content)
+        (OUTPUT_DIR / file_name).write_text(content, encoding="utf-8")
+    SUPERSEDED_FILE.write_text(json.dumps(superseded, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    LICENSE_FILE.write_text(render_license(package_license), encoding="utf-8")
+
+    print(f"wrote {len(GLYPH_BY_ICON)} icons ({PACKAGE}@{VERSION} {STYLE}) to {OUTPUT_DIR.relative_to(REPO_ROOT)}")
     return 0
 
 

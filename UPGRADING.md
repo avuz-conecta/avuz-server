@@ -97,7 +97,7 @@ This checks:
 
 Test checklist:
 - [ ] Login page shows split-screen layout with Avuz branding
-- [ ] Navigation icons are Lucide-style SVGs
+- [ ] Navigation icons are Material Symbols (Rounded, weight 200) SVGs
 - [ ] "Files" appears as "Drive" in pt_BR
 - [ ] "Deck" appears as "Tarefas" in pt_BR
 - [ ] New user creation triggers Avuz welcome board
@@ -171,7 +171,7 @@ avuz(meta): update customizations.json for v33
 apps/avuz_theme/          # Custom Nextcloud app (PHP, CSS, JS, images)
   ├── lib/                # Event listeners, services, mail template
   ├── css/                # Login, theme, header, icons styling
-  ├── js/                 # Lucide icons, favicon, header centering
+  ├── js/                 # Material Symbols glyphs, favicon, header centering
   ├── img/                # Logos, favicons, network diagram
   └── templates/          # Maintenance page override
 

@@ -591,9 +591,10 @@ avuz_enforce_admin_2fa() {
     return 0
 }
 
-# Seed the Lucide icon library (apps/avuz_theme/img/external-icons) into the
-# External sites icon store on every boot. Each icon is offered once per
-# instance and never overwrites or resurrects an admin's icon (see
+# Seed the Material Symbols icon library (apps/avuz_theme/img/external-icons)
+# into the External sites icon store on every boot. Each icon is offered once
+# per instance; untouched copies of earlier library versions are upgraded; an
+# admin's icon is never overwritten or resurrected (see
 # docker/seed-external-icons.php). Opt out per stack with
 # AVUZ_SEED_EXTERNAL_ICONS=0 (default on). Non-fatal.
 avuz_seed_external_icons() {
