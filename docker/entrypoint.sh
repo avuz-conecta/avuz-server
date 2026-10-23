@@ -997,9 +997,10 @@ if [ "$NC_INSTALLED" -eq 0 ]; then
     done
 fi
 
-# Lucide icon library for External sites (Deck #417). Every boot, after Phase 4
-# so a fresh install already has the app enabled. Adds only icons the instance
-# has never had; admin uploads and deletions stick. Opt out per stack with
+# Material Symbols icon library for External sites (Deck #417). Every boot, after
+# Phase 4 so a fresh install already has the app enabled. Adds only icons the
+# instance has never had and upgrades untouched copies of earlier library
+# versions; admin uploads and deletions stick. Opt out per stack with
 # AVUZ_SEED_EXTERNAL_ICONS=0. See docker/lib-apps.sh.
 avuz_seed_external_icons
 

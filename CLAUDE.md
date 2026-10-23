@@ -59,10 +59,12 @@ Nextcloud deployment with custom branding ("Avuz Conecta") running in Docker. Mu
 - Logging: the app writes `User X trying to impersonate user Y` / `Changing to user Y` (warning) to the Avuz Conecta log (logreader); admin_audit has no impersonate listener. Actions taken while impersonating are logged as the impersonated user.
 
 ### External sites icon library (Deck #417)
-- Every boot seeds 34 Lucide icons (`apps/avuz_theme/img/external-icons/`, light + `-dark` pairs, Lucide 0.555.0) into the External sites icon store (appdata `external/icons`, via IAppData, so S3 works): `docker/seed-external-icons.php`, called by `avuz_seed_external_icons` in `docker/lib-apps.sh`.
+- Every boot seeds 34 Material Symbols icons (`apps/avuz_theme/img/external-icons/`, light + `-dark` pairs, Rounded weight 200, `@material-symbols/svg-200@0.48.1`, same glyphs as the left rail) into the External sites icon store (appdata `external/icons`, via IAppData, so S3 works): `docker/seed-external-icons.php`, called by `avuz_seed_external_icons` in `docker/lib-apps.sh`.
 - Each icon is offered once per instance (`avuz_theme/external_icons_seeded`): it never overwrites an existing file and never brings back an icon the admin deleted. Opt out per stack with `AVUZ_SEED_EXTERNAL_ICONS=0` (default on).
-- Change the set: edit `ICONS` in `scripts/generate-external-icons.py` (reads the theme's `js/lucide.js`), run it, commit the SVGs.
-- The admin Icons section points to https://lucide.dev/icons (pt_BR override in `themes/avuz/apps/external/l10n/pt_BR.json`; plain text, the template escapes it).
+- Upgrade: `superseded.json` (next to the SVGs) lists, per file, the SHA-256 of every library version the generator replaced (today: the 68 Lucide 0.555.0 files). When it changes, the next boot gives each store pair the current content if every file it still has is ours (superseded or current); a pair with any other file is the admin's and is kept; missing files stay missing. Runs once per `superseded.json` (`avuz_theme/external_icons_library`). Boot log: `seeded N, upgraded N, kept N`.
+- Change a glyph: edit `GLYPH_BY_ICON` in `scripts/generate-external-icons.py` (file name → Material glyph; never rename a file, sites store the name), run it with `python3 -I`, commit the SVGs and `superseded.json`. Glyph download is shared with the rail in `scripts/material_symbols.py`.
+- External sites caches icons for 24h (`/apps/external/icons/<name>`); purge that path in Cloudflare after a glyph change to show it sooner.
+- The admin Icons section points to https://fonts.google.com/icons (pt_BR override in `themes/avuz/apps/external/l10n/pt_BR.json`; plain text, the template escapes it).
 
 ### Calendar "Criado por" (card 455)
 - `apps/dav/lib/CalDAV/CreatedBy/CreatedByPlugin.php` stamps `X-AVUZ-CREATED-BY;CN=<name>:<uid>` when someone other than the calendar owner creates an event (share/delegation) over CalDAV. Set on create, carried over on update (clients can't drop or forge it); owner-created events untouched.
