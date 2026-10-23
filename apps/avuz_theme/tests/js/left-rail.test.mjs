@@ -6,6 +6,7 @@ import { JSDOM } from 'jsdom';
 
 const MODEL_SCRIPT = readFileSync(fileURLToPath(new URL('../../js/left-rail-model.js', import.meta.url)), 'utf8');
 const RAIL_SCRIPT = readFileSync(fileURLToPath(new URL('../../js/left-rail.js', import.meta.url)), 'utf8');
+const ICONS_SCRIPT = readFileSync(fileURLToPath(new URL('../../js/material-icons.js', import.meta.url)), 'utf8');
 const ITEM_HEIGHT = 44;
 const ROOMY_RAIL = 20 * ITEM_HEIGHT;
 const SAVE_URL = '/ocs/v2.php/apps/provisioning_api/api/v1/config/users/avuz_theme/rail_collapsed';
@@ -18,6 +19,7 @@ const APPS = [
 	{ id: 'deck', name: 'Tarefas', href: '/apps/deck/', icon: '/apps/deck/img/deck.svg', active: false },
 	{ id: 'forms', name: 'Formulários', href: '/apps/forms/', icon: '/apps/forms/img/forms.svg', active: false },
 ];
+const EXTERNAL_SITE = { id: 'external_index1', name: 'Portal', href: '/apps/external/1', icon: '/apps/external/icons/globe.svg', active: false };
 
 const encodeState = (value) => Buffer.from(JSON.stringify(value)).toString('base64');
 
@@ -29,8 +31,8 @@ function stateInput(app, key, value) {
  * A logged-in page as the server renders it, with both scripts run in it.
  * jsdom has no layout, so the rail's app list reports `railHeight`.
  */
-function openPage({ collapsed = false, loggedIn = true, railHeight = ROOMY_RAIL, saveResponds = () => ({ ok: true }) } = {}) {
-	const states = loggedIn ? stateInput('core', 'apps', APPS) + stateInput('avuz_theme', 'rail_collapsed', collapsed) : stateInput('core', 'apps', APPS);
+function openPage({ apps = APPS, collapsed = false, icons = true, loggedIn = true, railHeight = ROOMY_RAIL, saveResponds = () => ({ ok: true }) } = {}) {
+	const states = loggedIn ? stateInput('core', 'apps', apps) + stateInput('avuz_theme', 'rail_collapsed', collapsed) : stateInput('core', 'apps', apps);
 	const dom = new JSDOM(`<!doctype html><html><body id="${loggedIn ? 'body-user' : 'body-login'}">
 		<div id="initial-state-container">${states}</div>
 		<header id="header"><div class="header-start"><nav id="header-start__appmenu"></nav></div><div class="header-end"></div></header>
@@ -59,6 +61,9 @@ function openPage({ collapsed = false, loggedIn = true, railHeight = ROOMY_RAIL,
 	};
 	window.console.warn = (...args) => warnings.push(args.join(' '));
 
+	if (icons) {
+		window.eval(ICONS_SCRIPT);
+	}
 	window.eval(MODEL_SCRIPT);
 	window.eval(RAIL_SCRIPT);
 	window.document.dispatchEvent(new window.Event('DOMContentLoaded'));
@@ -71,6 +76,10 @@ function openPage({ collapsed = false, loggedIn = true, railHeight = ROOMY_RAIL,
 
 	return { window, document: window.document, rail, toggle, moreButton, visibleLinks, saves, warnings, height, nextFrame };
 }
+
+/** The path data a control draws, or the image it shows. */
+const drawnPath = (control) => control.querySelector('svg path')?.getAttribute('d');
+const glyph = (page, name) => page.window.AvuzIcons.glyphs[name];
 
 const names = (links) => links.map((link) => link.textContent.trim());
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -92,11 +101,52 @@ describe('left rail', () => {
 		});
 
 		it('shows app icons as decoration, the name being the label', () => {
+			const page = openPage({ apps: [...APPS, EXTERNAL_SITE] });
+
+			const [glyphIcon, imageIcon] = [page.visibleLinks()[0].querySelector('svg'), page.visibleLinks()[5].querySelector('img')];
+			assert.equal(glyphIcon.getAttribute('aria-hidden'), 'true');
+			assert.equal(imageIcon.getAttribute('alt'), '');
+		});
+	});
+
+	describe('icons', () => {
+		it('draws each known app with its Material glyph', () => {
 			const page = openPage();
 
-			const icon = page.visibleLinks()[0].querySelector('img');
-			assert.equal(icon.getAttribute('src'), '/core/img/dashboard.svg');
-			assert.equal(icon.getAttribute('alt'), '');
+			const [dashboard, files] = page.visibleLinks();
+			assert.equal(drawnPath(dashboard), glyph(page, 'space_dashboard').regular);
+			assert.equal(drawnPath(files), glyph(page, 'folder').regular);
+			assert.equal(files.querySelector('img'), null);
+		});
+
+		it('fills the glyph of the current app', () => {
+			const page = openPage();
+
+			const current = page.visibleLinks().find((link) => link.getAttribute('aria-current') === 'page');
+			assert.equal(drawnPath(current), glyph(page, 'mail').fill);
+		});
+
+		it('keeps the app image for an app without a glyph', () => {
+			const page = openPage({ apps: [...APPS, EXTERNAL_SITE] });
+
+			const portal = page.visibleLinks().find((link) => link.textContent.trim() === 'Portal');
+			assert.equal(portal.querySelector('svg'), null);
+			assert.equal(portal.querySelector('img').getAttribute('src'), EXTERNAL_SITE.icon);
+		});
+
+		it('shows every app image when the icon set did not load', () => {
+			const page = openPage({ icons: false });
+
+			assert.deepEqual(page.visibleLinks().map((link) => link.querySelector('img')?.getAttribute('src')), APPS.map((app) => app.icon));
+		});
+
+		it('draws the toggle arrows and "Mais aplicativos" with Material glyphs', () => {
+			const page = openPage({ railHeight: 3 * ITEM_HEIGHT });
+
+			assert.equal(drawnPath(page.toggle()), glyph(page, 'keyboard_double_arrow_left').regular);
+			assert.equal(drawnPath(page.moreButton()), glyph(page, 'more_horiz').regular);
+			page.toggle().click();
+			assert.equal(drawnPath(page.toggle()), glyph(page, 'keyboard_double_arrow_right').regular);
 		});
 	});
 

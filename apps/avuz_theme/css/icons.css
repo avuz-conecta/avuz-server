@@ -1,6 +1,6 @@
 /**
  * Icon Customization
- * Theme SVG icons with Lucide styling
+ * Theme SVG icons (Material Symbols, filled glyphs: scripts/generate-rail-icons.py)
  */
 
 /* ========================================================================= */
@@ -32,9 +32,8 @@
 .app-menu-icon__icon {
     width: 20px !important;
     height: 20px !important;
-    stroke: currentColor !important;
-    stroke-width: 2 !important;
-    fill: none !important;
+    fill: currentColor !important;
+    stroke: none !important;
     /* FIX: Disable the problematic filter and mask */
     filter: none !important;
     mask: none !important;

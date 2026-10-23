@@ -84,7 +84,7 @@ class Application extends App implements IBootstrap {
 		// Inject theme CSS for cards and backgrounds
 		Util::addStyle(self::APP_ID, 'theme');
 
-		// Inject icon CSS for Lucide integration
+		// Inject icon CSS (header app menu colors, dashboard widget icons)
 		Util::addStyle(self::APP_ID, 'icons');
 
 		// Inject settings page CSS fixes
@@ -93,11 +93,11 @@ class Application extends App implements IBootstrap {
 		// Inject floating help + support widget CSS
 		Util::addStyle(self::APP_ID, 'help-widget');
 
-		// Inject Lucide library
-		Util::addScript(self::APP_ID, 'lucide');
+		// Material Symbols glyphs (window.AvuzIcons) for the left rail and the favicon; load before both
+		Util::addScript(self::APP_ID, 'material-icons');
 
-		// Inject Lucide icons initialization
-		Util::addScript(self::APP_ID, 'lucide-icons');
+		// Browser tab icon follows the current app
+		Util::addScript(self::APP_ID, 'favicon');
 
 		// Inject header centering JS
 		Util::addScript(self::APP_ID, 'center-header');

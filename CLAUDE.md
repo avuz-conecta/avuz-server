@@ -22,16 +22,14 @@ Nextcloud deployment with custom branding ("Avuz Conecta") running in Docker. Mu
 - Files → Drive: `themes/avuz/apps/files/l10n/pt_BR.json`
 - Deck → Tarefas: `themes/avuz/apps/deck/l10n/pt_BR.json`
 
-### Icon Overrides (Lucide-style SVGs)
-Location: `themes/avuz/apps/{app}/img/*.svg`
-- activity → zap icon
-- assinaturas (signature) — after adding or changing one on a running instance, clear the `imagePath-` distributed cache (or the old path sticks)
-- calendar, contacts (users), dashboard, deck (square-kanban)
-- files (folder), forms (layout-list), mail, settings, spreed (message-circle)
+### App icons (Material Symbols Rounded, weight 200)
+- One source: `scripts/generate-rail-icons.py` (pinned `@material-symbols/svg-200`; edit `GLYPH_BY_APP` / `ICON_FILES`, run it, commit the output). It writes `apps/avuz_theme/js/material-icons.js` (`window.AvuzIcons`), the theme overrides `themes/avuz/apps/{app}/img/*.svg` (light `currentColor`, `-dark` `#000000`) and `apps/conectamail/img/mail.svg`. Design: `docs/superpowers/specs/2026-10-23-rail-material-icons-design.md`.
+- Left rail draws known apps inline from `AvuzIcons` (19px, filled for the open app); other apps show their own image. The favicon (`js/favicon.js`) uses the same glyphs.
+- Theme SVGs have no `?v=` and are cached 6 months (browser + Cloudflare): purge `/themes/avuz/apps/*` in Cloudflare after changing one. After adding a new override file on a running instance, clear the `imagePath-` distributed cache (or the old path sticks).
 
 ### CSS Customizations (`apps/avuz_theme/css/icons.css`)
 - Menu link colors: `#00679e` (normal), `#2bb5e3` (active)
-- SVG icon styling: stroke-based, currentColor
+- SVG icon styling: filled glyphs, currentColor
 
 ### Talk recording chunked upload
 - spreed patched via overlay (`docker/overlays/spreed/lib/...`) applied during Docker build. Sentinel `AVUZ-CHUNKED-UPLOAD-V1` lives in the overlay's `RecordingController.php`; entrypoint verifies the running container's spreed has it.
@@ -269,7 +267,7 @@ cutoff printed by the original run. Never roll an image with
 ```
 apps/avuz_theme/
 ├── css/icons.css
-├── js/lucide-icons.js (favicon updates only)
+├── js/material-icons.js (generated glyphs), favicon.js, left-rail.js
 ├── img/ (logos, favicons)
 └── templates/update.user.php
 
