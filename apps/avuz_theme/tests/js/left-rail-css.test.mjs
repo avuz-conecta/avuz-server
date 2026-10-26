@@ -57,6 +57,14 @@ describe('left rail stylesheet', () => {
 		assert.deepEqual(appPageOnly, []);
 	});
 
+	it('draws Material foot icons only once the rail script provided them', () => {
+		const railRules = topLevelBlocks(STYLESHEET).find((block) => block.prelude === RAIL_MEDIA).body;
+		const footSelectors = selectorsIn(railRules).filter((selector) => /#unified-search|#notifications/.test(selector));
+
+		assert.ok(footSelectors.length > 0);
+		assert.deepEqual(footSelectors.filter((selector) => !selector.startsWith('html.avuz-rail--material-foot ')), []);
+	});
+
 	it('keeps a hidden "Mais aplicativos" list hidden despite its flex layout', () => {
 		const railRules = topLevelBlocks(STYLESHEET).find((block) => block.prelude === RAIL_MEDIA).body;
 

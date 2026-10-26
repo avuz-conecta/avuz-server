@@ -21,7 +21,10 @@
  *   Escape or a click elsewhere closes it.
  *
  * The header-end widgets (search, notifications, contacts, user menu) stay
- * core's own; the stylesheet stacks them at the rail's foot.
+ * core's own; the stylesheet stacks them at the rail's foot. Search and
+ * notifications get Material glyphs too: this script hands them to the
+ * stylesheet as mask images (--avuz-rail-icon-*) and marks the page with
+ * html.avuz-rail--material-foot, so core's icons stay if the set is missing.
  */
 (function leftRail() {
 	'use strict';
@@ -41,6 +44,8 @@
 	var OCS_VERSION = 2;
 	var SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 	var RAIL_CONTROL_BY_DIRECTION = { left: 'collapse', right: 'expand' };
+	var FOOT_ICONS_CLASS = 'avuz-rail--material-foot';
+	var FOOT_CONTROLS = ['search', 'notifications'];
 
 	function readState(elementId) {
 		var stateElement = document.getElementById(elementId);
@@ -91,6 +96,23 @@
 		image.src = app.icon;
 		image.alt = '';
 		return image;
+	}
+
+	function maskImage(glyphName) {
+		var icons = window.AvuzIcons;
+		var svg = '<svg xmlns="' + SVG_NAMESPACE + '" viewBox="' + icons.viewBox + '"><path d="' + icons.glyphs[glyphName].regular + '"/></svg>';
+		return 'url("data:image/svg+xml;base64,' + btoa(svg) + '")';
+	}
+
+	function applyFootIcons() {
+		if (!window.AvuzIcons) {
+			return;
+		}
+		var root = document.documentElement;
+		FOOT_CONTROLS.forEach(function setMask(control) {
+			root.style.setProperty('--avuz-rail-icon-' + control, maskImage(window.AvuzIcons.rail[control]));
+		});
+		root.classList.add(FOOT_ICONS_CLASS);
 	}
 
 	function iconAndLabel(iconElement, text) {
@@ -299,6 +321,7 @@
 		headerStart.appendChild(rail.nav);
 		rail.renderToggle();
 		rail.renderApps();
+		applyFootIcons();
 	}
 
 	if (document.readyState === 'loading') {

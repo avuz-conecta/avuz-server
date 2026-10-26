@@ -140,6 +140,26 @@ describe('left rail', () => {
 			assert.deepEqual(page.visibleLinks().map((link) => link.querySelector('img')?.getAttribute('src')), APPS.map((app) => app.icon));
 		});
 
+		it('hands search and notifications their Material glyphs for the rail foot', () => {
+			const page = openPage();
+
+			const root = page.document.documentElement;
+			const maskedPath = (property) => {
+				const value = root.style.getPropertyValue(property);
+				const svg = page.window.atob(value.match(/base64,([^")]+)/)[1]);
+				return svg.match(/ d="([^"]+)"/)[1];
+			};
+			assert.equal(root.classList.contains('avuz-rail--material-foot'), true);
+			assert.equal(maskedPath('--avuz-rail-icon-search'), glyph(page, 'search').regular);
+			assert.equal(maskedPath('--avuz-rail-icon-notifications'), glyph(page, 'notifications').regular);
+		});
+
+		it('leaves the foot icons to core when the icon set did not load', () => {
+			const page = openPage({ icons: false });
+
+			assert.equal(page.document.documentElement.classList.contains('avuz-rail--material-foot'), false);
+		});
+
 		it('draws the toggle arrows and "Mais aplicativos" with Material glyphs', () => {
 			const page = openPage({ railHeight: 3 * ITEM_HEIGHT });
 
