@@ -34,11 +34,35 @@ function topLevelBlocks(css) {
 	return blocks;
 }
 
+/** Every selector of every rule, including rules nested in at-rules. */
+function selectorsIn(css) {
+	return topLevelBlocks(css).flatMap((block) => (block.prelude.startsWith('@')
+		? selectorsIn(block.body)
+		: block.prelude.split(/,(?![^(]*\))/).map((selector) => selector.trim())));
+}
+
 describe('left rail stylesheet', () => {
 	it('below 1024px only hides the rail, leaving the core header as it is', () => {
 		const outsideRailMedia = topLevelBlocks(STYLESHEET).filter((block) => block.prelude !== RAIL_MEDIA);
 
 		assert.deepEqual(outsideRailMedia, [{ prelude: '#avuz-rail', body: '\n\tdisplay: none;\n' }]);
+	});
+
+	it('lays out settings pages like app pages (core renders them as body#body-settings)', () => {
+		const railRules = topLevelBlocks(STYLESHEET).find((block) => block.prelude === RAIL_MEDIA).body;
+		const selectors = selectorsIn(railRules);
+		const appPageOnly = selectors.filter((selector) => selector.includes('#body-user') && !selector.includes('#body-settings'));
+
+		assert.ok(selectors.some((selector) => selector.includes('#body-user')));
+		assert.deepEqual(appPageOnly, []);
+	});
+
+	it('draws Material foot icons only once the rail script provided them', () => {
+		const railRules = topLevelBlocks(STYLESHEET).find((block) => block.prelude === RAIL_MEDIA).body;
+		const footSelectors = selectorsIn(railRules).filter((selector) => /#unified-search|#notifications/.test(selector));
+
+		assert.ok(footSelectors.length > 0);
+		assert.deepEqual(footSelectors.filter((selector) => !selector.startsWith('html.avuz-rail--material-foot ')), []);
 	});
 
 	it('keeps a hidden "Mais aplicativos" list hidden despite its flex layout', () => {

@@ -29,7 +29,7 @@ Each icon shows its filled version for the open app.
   step of its own. That's a follow-up. `lucide.js` stays in the repo because
   `scripts/generate-external-icons.py` reads it.
 - Icons inside apps (Files actions, Deck, Talk). Those are each app's own.
-- Core header widgets at the rail's foot (search, notifications, user menu).
+- The user menu avatar at the rail's foot.
 - Fleet rollout. The rail is app3-only. Prod is gated per action.
 
 ## Design
@@ -69,6 +69,7 @@ Glyph per app id:
 | settings | Configurações | `settings` |
 | rail: collapse / expand | | `keyboard_double_arrow_left` / `_right` |
 | rail: more | Mais aplicativos | `more_horiz` |
+| rail foot: search / notifications | Pesquisar / Notificações | `search` / `notifications` |
 
 ### Rail
 
@@ -82,6 +83,19 @@ Glyph per app id:
   `<img>`. The rail still works.
 - `--avuz-rail-icon-size` goes from 20px to 19px. The icon column stays
   centered 36px from the edge (the padding already derives from the icon size).
+
+### Rail foot (search, notifications)
+
+Core draws these (unified search `mdiMagnify`, the notifications app's bell
+with its unread dot). `left-rail.js` hands the Material `search` and
+`notifications` glyphs to the stylesheet as mask images
+(`--avuz-rail-icon-*`) and adds `html.avuz-rail--material-foot`. Under that
+class the stylesheet draws each glyph at 19px behind core's icon, whose path
+turns transparent; the unread dot (`path.notification__dot`) stays core's
+own. Without the class (icon set missing), core's icons stay.
+
+Added 2026-10-26 after Patrick saw the old style next to the avatar. The
+rail also covers settings, admin and help pages (`body#body-settings`).
 
 ### Favicon
 

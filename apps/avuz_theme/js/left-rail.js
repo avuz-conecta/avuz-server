@@ -2,8 +2,9 @@
  * Left rail: the app menu as a column on the left (css/left-rail.css lays it
  * out from 1024px up; below that core's top header stays as it is).
  *
- * Logged-in pages only (body#body-user with the rail_collapsed initial state
- * from RailStateListener). Renders inside #header .header-start:
+ * Logged-in pages only (body#body-user, or body#body-settings on settings,
+ * admin and help pages, with the rail_collapsed initial state from
+ * RailStateListener). Renders inside #header .header-start:
  * - a toggle that collapses the rail to icons (html.avuz-rail--collapsed) and
  *   saves the choice through the provisioning_api preferences endpoint
  *   (RailPreferenceValidator vouches for it). A failed save keeps the new
@@ -20,12 +21,15 @@
  *   Escape or a click elsewhere closes it.
  *
  * The header-end widgets (search, notifications, contacts, user menu) stay
- * core's own; the stylesheet stacks them at the rail's foot.
+ * core's own; the stylesheet stacks them at the rail's foot. Search and
+ * notifications get Material glyphs too: this script hands them to the
+ * stylesheet as mask images (--avuz-rail-icon-*) and marks the page with
+ * html.avuz-rail--material-foot, so core's icons stay if the set is missing.
  */
 (function leftRail() {
 	'use strict';
 
-	var LOGGED_IN_BODY_ID = 'body-user';
+	var LOGGED_IN_BODY_IDS = ['body-user', 'body-settings'];
 	var APPS_STATE_ID = 'initial-state-core-apps';
 	var COLLAPSED_STATE_ID = 'initial-state-avuz_theme-rail_collapsed';
 	var COLLAPSED_CLASS = 'avuz-rail--collapsed';
@@ -40,6 +44,8 @@
 	var OCS_VERSION = 2;
 	var SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 	var RAIL_CONTROL_BY_DIRECTION = { left: 'collapse', right: 'expand' };
+	var FOOT_ICONS_CLASS = 'avuz-rail--material-foot';
+	var FOOT_CONTROLS = ['search', 'notifications'];
 
 	function readState(elementId) {
 		var stateElement = document.getElementById(elementId);
@@ -90,6 +96,23 @@
 		image.src = app.icon;
 		image.alt = '';
 		return image;
+	}
+
+	function maskImage(glyphName) {
+		var icons = window.AvuzIcons;
+		var svg = '<svg xmlns="' + SVG_NAMESPACE + '" viewBox="' + icons.viewBox + '"><path d="' + icons.glyphs[glyphName].regular + '"/></svg>';
+		return 'url("data:image/svg+xml;base64,' + btoa(svg) + '")';
+	}
+
+	function applyFootIcons() {
+		if (!window.AvuzIcons) {
+			return;
+		}
+		var root = document.documentElement;
+		FOOT_CONTROLS.forEach(function setMask(control) {
+			root.style.setProperty('--avuz-rail-icon-' + control, maskImage(window.AvuzIcons.rail[control]));
+		});
+		root.classList.add(FOOT_ICONS_CLASS);
 	}
 
 	function iconAndLabel(iconElement, text) {
@@ -283,7 +306,7 @@
 	}
 
 	function init() {
-		if (document.body.id !== LOGGED_IN_BODY_ID || document.getElementById(RAIL_ID)) {
+		if (!LOGGED_IN_BODY_IDS.includes(document.body.id) || document.getElementById(RAIL_ID)) {
 			return;
 		}
 		var collapsed = readState(COLLAPSED_STATE_ID);
@@ -298,6 +321,7 @@
 		headerStart.appendChild(rail.nav);
 		rail.renderToggle();
 		rail.renderApps();
+		applyFootIcons();
 	}
 
 	if (document.readyState === 'loading') {
