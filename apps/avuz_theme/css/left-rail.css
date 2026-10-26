@@ -260,6 +260,41 @@
 		box-shadow: 0 0 10px var(--color-box-shadow);
 	}
 
+	/* Foot widgets: Material search and notifications glyphs (masks from
+	   js/left-rail.js) drawn behind core's icons, which turn transparent.
+	   The unread dot (path.notification__dot) stays core's own. */
+	html.avuz-rail--material-foot body:is(#body-user, #body-settings) #header :is(#unified-search .icon-vue, #notifications .notifications-button__icon) {
+		position: relative;
+	}
+
+	html.avuz-rail--material-foot body:is(#body-user, #body-settings) #header :is(#unified-search .icon-vue, #notifications .notifications-button__icon)::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		width: var(--avuz-rail-icon-size);
+		height: var(--avuz-rail-icon-size);
+		margin: auto;
+		background-color: currentColor;
+		-webkit-mask: var(--avuz-rail-foot-icon) center / contain no-repeat;
+		mask: var(--avuz-rail-foot-icon) center / contain no-repeat;
+	}
+
+	html.avuz-rail--material-foot body:is(#body-user, #body-settings) #header #unified-search .icon-vue::before {
+		--avuz-rail-foot-icon: var(--avuz-rail-icon-search);
+	}
+
+	html.avuz-rail--material-foot body:is(#body-user, #body-settings) #header #notifications .notifications-button__icon::before {
+		--avuz-rail-foot-icon: var(--avuz-rail-icon-notifications);
+	}
+
+	html.avuz-rail--material-foot body:is(#body-user, #body-settings) #header :is(#unified-search .icon-vue, #notifications .notifications-button__icon) svg {
+		position: relative;
+	}
+
+	html.avuz-rail--material-foot body:is(#body-user, #body-settings) #header :is(#unified-search .icon-vue, #notifications .notifications-button__icon) svg path:not(.notification__dot) {
+		fill: transparent;
+	}
+
 	/* Apps without a Material glyph show their own image, black like the header's: invert on dark */
 	body:is(#body-user, #body-settings):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) img.avuz-rail__icon {
 		filter: var(--background-invert-if-dark);

@@ -50,6 +50,8 @@ RAIL_GLYPHS = {
     "collapse": "keyboard_double_arrow_left",
     "expand": "keyboard_double_arrow_right",
     "more": "more_horiz",
+    "search": "search",
+    "notifications": "notifications",
 }
 
 LIGHT_FILL = "currentColor"
