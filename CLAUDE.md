@@ -22,6 +22,9 @@ Nextcloud deployment with custom branding ("Avuz Conecta") running in Docker. Mu
 - Files → Drive: `themes/avuz/apps/files/l10n/pt_BR.json`
 - Deck → Tarefas: `themes/avuz/apps/deck/l10n/pt_BR.json`
 
+### App menu order
+- Mail sits right after Drive: conectamail's navigation `<order>` is 1 (files 0). The Dockerfile moves Activity from 1 to 2 (equal orders sort unpredictably) and fails the build if Activity's order changes upstream. Users who reordered apps in their own settings keep their order.
+
 ### App icons (Material Symbols Rounded, weight 400)
 - One source: `scripts/generate-rail-icons.py` (weight and pin in `scripts/material_symbols.py`, shared with the External sites generator; edit `GLYPH_BY_APP` / `ICON_FILES`, run it, commit the output). It writes `apps/avuz_theme/js/material-icons.js` (`window.AvuzIcons`), the theme overrides `themes/avuz/apps/{app}/img/*.svg` (light `currentColor`, `-dark` `#000000`), the user menu icons (`themes/avuz/apps/settings/img/{personal,admin,apps,users,help}.svg`, `themes/avuz/apps/theming/img/accessibility-dark.svg`, `themes/avuz/core/img/actions/logout.svg`) and `apps/conectamail/img/mail.svg`. Design: `docs/superpowers/specs/2026-10-23-rail-material-icons-design.md`.
 - Left rail draws known apps inline from `AvuzIcons` (20px, filled for the open app); other apps show their own image. Search and notifications at the rail foot are masked Material glyphs; user menu icons are drawn at 20px (`css/icons.css`). The favicon (`js/favicon.js`) uses the same glyphs.
