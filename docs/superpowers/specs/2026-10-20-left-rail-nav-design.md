@@ -11,6 +11,7 @@ Opening ConectaMail inside Avuz Conecta stacks two headers: the Avuz Conecta app
 Option F from the canvas, in two independent parts:
 
 1. **Avuz Conecta:** the top app bar becomes a left rail, expanded (220px, icon + label) or collapsed (72px, icon only). The user's choice persists.
+   - **Revised 2026-10-26:** no collapse for now. Patrick asked for the rail always expanded. The toggle, the collapsed layout and the saved `rail_collapsed` preference (listener, validator, OCS save) are gone; restore them from git history if collapse comes back. Saved values stay in `oc_preferences`, unread.
 2. **Webmail (ConectaMail only, not the Roundcube fork):** when framed inside Avuz Conecta, it hides its top bar. Search moves atop the message list. Mailbox email, contacts and settings move to the folder column footer. "Sair" and the ConectaMail logo go away.
 
 Each part ships alone. Part 2 removes the double header even with the old top bar; part 1 helps every app.

@@ -4,7 +4,7 @@
  * From 1024px up (core's own mobile breakpoint) on logged-in pages, #header
  * becomes a fixed column: the rail on top, core's header-end widgets (search,
  * notifications, contacts, user menu) stacked at its foot, their menus opening
- * beside it. Expanded 220px, collapsed 72px (html.avuz-rail--collapsed).
+ * beside it. Always expanded: 220px, icon and name.
  * Below 1024px only #avuz-rail is hidden: core's top header stays as it is.
  *
  * Logged-in pages are body#body-user, or body#body-settings on settings, admin
@@ -25,19 +25,13 @@
 		--avuz-rail-width: 220px;
 		--avuz-rail-gap: 4px;
 		--avuz-rail-item-height: 44px;
-		/* One icon column for every state: app icons, toggle and the foot widgets
-		   are centered 36px from the left edge, expanded or collapsed */
+		/* One icon column: app icons and the foot widgets are centered 36px from the left edge */
 		--avuz-rail-padding: 12px;
 		--avuz-rail-icon-size: 20px;
 		--avuz-rail-icon-center: 36px;
 		--avuz-rail-item-padding: calc(var(--avuz-rail-icon-center) - var(--avuz-rail-padding) - var(--avuz-rail-icon-size) / 2);
-		--avuz-rail-transition: 200ms ease;
 		--header-height: 0px;
 		--body-height: calc(100% - env(safe-area-inset-bottom) - 2 * var(--body-container-margin));
-	}
-
-	html.avuz-rail--collapsed body:is(#body-user, #body-settings) {
-		--avuz-rail-width: 72px;
 	}
 
 	body:is(#body-user, #body-settings) #header {
@@ -105,15 +99,6 @@
 		width: calc(100% - var(--avuz-rail-width) - var(--body-container-margin)) !important;
 	}
 
-	/* Animate only toggles the user makes, never the saved state applied on load */
-	html.avuz-rail--animated body:is(#body-user, #body-settings) #header {
-		transition: width var(--avuz-rail-transition);
-	}
-
-	html.avuz-rail--animated body:is(#body-user, #body-settings) > :is(#content, #content-vue) {
-		transition: margin-left var(--avuz-rail-transition), width var(--avuz-rail-transition);
-	}
-
 	body:is(#body-user, #body-settings) :is(#content, #content-vue) :is(#content, #content-vue) {
 		position: relative !important;
 		inset: auto !important;
@@ -151,7 +136,6 @@
 		display: none;
 	}
 
-	.avuz-rail__toggle,
 	.avuz-rail__app {
 		position: relative;
 		display: flex;
@@ -175,29 +159,19 @@
 		cursor: pointer;
 	}
 
-	.avuz-rail__toggle {
-		color: var(--color-text-maxcontrast);
-	}
-
 	/* Core styles every button (padding, margin, width) with a stronger selector;
-	   keep the toggle and "Mais aplicativos" full width on the icon column */
-	#avuz-rail button:is(.avuz-rail__toggle, .avuz-rail__app) {
+	   keep "Mais aplicativos" full width on the icon column */
+	#avuz-rail button.avuz-rail__app {
 		width: 100%;
 		min-width: 0;
 		margin: 0;
 		padding: 0 var(--avuz-rail-item-padding);
 	}
 
-	html.avuz-rail--collapsed #avuz-rail :is(button.avuz-rail__toggle, .avuz-rail__apps button.avuz-rail__app) {
-		padding: 0;
-	}
-
-	.avuz-rail__toggle:hover,
 	.avuz-rail__app:hover {
 		background: var(--color-background-hover);
 	}
 
-	.avuz-rail__toggle:focus-visible,
 	.avuz-rail__app:focus-visible {
 		outline: 2px solid var(--color-main-text);
 		outline-offset: -2px;
@@ -230,22 +204,7 @@
 		text-overflow: ellipsis;
 	}
 
-	/* Collapsed: icons only, the name stays readable to screen readers */
-	html.avuz-rail--collapsed :is(.avuz-rail__toggle, .avuz-rail__apps .avuz-rail__app) {
-		justify-content: center;
-		padding: 0;
-	}
-
-	html.avuz-rail--collapsed :is(.avuz-rail__toggle, .avuz-rail__apps) .avuz-rail__label {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip-path: inset(50%);
-		white-space: nowrap;
-	}
-
-	/* "Mais aplicativos" list: beside the rail, aligned to its bottom, always labelled */
+	/* "Mais aplicativos" list: beside the rail, aligned to its bottom */
 	.avuz-rail__overflow {
 		position: absolute;
 		left: calc(100% + var(--avuz-rail-gap));
@@ -298,12 +257,5 @@
 	/* Apps without a Material glyph show their own image, black like the header's: invert on dark */
 	body:is(#body-user, #body-settings):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) img.avuz-rail__icon {
 		filter: var(--background-invert-if-dark);
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		html.avuz-rail--animated body:is(#body-user, #body-settings) #header,
-		html.avuz-rail--animated body:is(#body-user, #body-settings) > :is(#content, #content-vue) {
-			transition: none;
-		}
 	}
 }

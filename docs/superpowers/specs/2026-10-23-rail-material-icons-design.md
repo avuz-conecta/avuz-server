@@ -10,7 +10,7 @@ Each icon shows its filled version for the open app.
 
 ## Goals
 
-- The rail's app icons, collapse/expand toggle and "Mais aplicativos" use
+- The rail's app icons and "Mais aplicativos" use
   Material Symbols Rounded, weight 200, drawn at 19px.
 - The open app (`aria-current="page"`) shows the filled version of its icon.
 - Light and dark themes both render correctly, without the dark-mode invert filter.
@@ -67,7 +67,6 @@ Glyph per app id:
 | activity | Atividade | `bolt` |
 | assinaturas | Assinaturas | `signature` |
 | settings | Configurações | `settings` |
-| rail: collapse / expand | | `keyboard_double_arrow_left` / `_right` |
 | rail: more | Mais aplicativos | `more_horiz` |
 | rail foot: search / notifications | Pesquisar / Notificações | `search` / `notifications` |
 
@@ -132,6 +131,11 @@ overrides of core's `imagePath()` icons (`settings/img/{personal,admin,apps,user
 20px instead of 16px. The overrides live at new `/themes/avuz/…` URLs, so no
 cache purge is needed for them; clear the `imagePath-` distributed cache after
 the deploy so the server hands out the new paths.
+
+## Update 2026-10-26: no collapse
+
+Patrick removed the collapse option: the rail stays expanded. The collapse
+and expand glyphs left the set (`RAIL_GLYPHS`).
 
 ## Decided by Patrick
 
