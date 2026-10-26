@@ -123,9 +123,9 @@ That would blank a filled glyph if core ever inlines one, so it changes to
 ## Update 2026-10-26: heavier, bigger, user menu
 
 Patrick found the icons too small and thin. Every glyph moved from weight 200
-to **weight 300**, and the rail draws them at **20px** (`WEIGHT` in
+to **weight 400** (300 on staging first, then "a little bit thicker"), and the rail draws them at **20px** (`WEIGHT` in
 `scripts/material_symbols.py`, shared with the External sites library, whose
-`superseded.json` records the weight-200 hashes so the boot upgrades untouched
+`superseded.json` records the earlier hashes so the boot upgrades untouched
 copies). The user menu (avatar) also gets Material glyphs through theme
 overrides of core's `imagePath()` icons (`settings/img/{personal,admin,apps,users,help}.svg`,
 `theming/img/accessibility-dark.svg`, `core/img/actions/logout.svg`), drawn at
