@@ -166,13 +166,27 @@ describe('left rail', () => {
 		});
 	});
 
-	describe('layout', () => {
-		it('stays expanded, offering no way to collapse it', () => {
+	describe('icons only', () => {
+		it('offers no control to expand the rail', () => {
 			const page = openPage();
 
-			assert.deepEqual([...page.rail().querySelectorAll('button')].map((button) => button.textContent.trim()), []);
-			assert.equal(page.visibleLinks()[0].querySelector('.avuz-rail__label').textContent, 'Painel');
-			assert.equal(page.visibleLinks()[0].getAttribute('title'), null);
+			assert.deepEqual([...page.rail().querySelectorAll('button')], []);
+		});
+
+		it('gives each app its name as a tooltip, keeping the name in the link', () => {
+			const page = openPage();
+
+			assert.deepEqual(page.visibleLinks().map((link) => link.title), ['Painel', 'Drive', 'Mail', 'Tarefas', 'Formulários']);
+			assert.equal(page.visibleLinks()[0].textContent.trim(), 'Painel');
+		});
+
+		it('names "Mais aplicativos" in its tooltip, leaving the extra apps labelled', () => {
+			const page = openPage({ railHeight: 3 * ITEM_HEIGHT });
+
+			page.moreButton().click();
+
+			assert.equal(page.moreButton().title, 'Mais aplicativos');
+			assert.deepEqual(page.visibleLinks().filter((link) => link.closest('.avuz-rail__overflow')).map((link) => link.title), ['', '', '']);
 		});
 	});
 

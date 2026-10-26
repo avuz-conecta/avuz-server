@@ -48,6 +48,12 @@ describe('left rail stylesheet', () => {
 		assert.deepEqual(outsideRailMedia, [{ prelude: '#avuz-rail', body: '\n\tdisplay: none;\n' }]);
 	});
 
+	it('keeps the rail icons only, 72px wide, with no wider state', () => {
+		const railRules = topLevelBlocks(STYLESHEET).find((block) => block.prelude === RAIL_MEDIA).body;
+
+		assert.deepEqual([...railRules.matchAll(/--avuz-rail-width:\s*([^;]+);/g)].map((match) => match[1]), ['72px']);
+	});
+
 	it('lays out settings pages like app pages (core renders them as body#body-settings)', () => {
 		const railRules = topLevelBlocks(STYLESHEET).find((block) => block.prelude === RAIL_MEDIA).body;
 		const selectors = selectorsIn(railRules);

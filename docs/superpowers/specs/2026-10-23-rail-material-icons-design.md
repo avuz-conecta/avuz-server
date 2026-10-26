@@ -132,10 +132,10 @@ overrides of core's `imagePath()` icons (`settings/img/{personal,admin,apps,user
 cache purge is needed for them; clear the `imagePath-` distributed cache after
 the deploy so the server hands out the new paths.
 
-## Update 2026-10-26: no collapse
+## Update 2026-10-26: icons only
 
-Patrick removed the collapse option: the rail stays expanded. The collapse
-and expand glyphs left the set (`RAIL_GLYPHS`).
+Patrick removed the toggle: the rail is always collapsed (icons only, 72px,
+names as tooltips). The collapse and expand glyphs left the set (`RAIL_GLYPHS`).
 
 ## Decided by Patrick
 

@@ -3,7 +3,8 @@
  * out from 1024px up; below that core's top header stays as it is).
  *
  * Logged-in pages only (body#body-user, or body#body-settings on settings,
- * admin and help pages). Always expanded: icon and name for every app.
+ * admin and help pages). Icons only: each app's name is its tooltip and stays
+ * in the link for screen readers.
  * Renders inside #header .header-start:
  * - one link per app (core/apps initial state, already in the user's order),
  *   the current one with aria-current="page".
@@ -187,6 +188,9 @@
 			}
 			appList.replaceChildren.apply(appList, items);
 			overflowList.replaceChildren.apply(overflowList, split.overflow.map(function toItem(app) { return listItem(appLink(app)); }));
+			appList.querySelectorAll('.avuz-rail__app').forEach(function setTooltip(control) {
+				control.title = control.querySelector('.avuz-rail__label').textContent;
+			});
 		}
 
 		moreButton.addEventListener('click', function toggleOverflow() {
