@@ -22,9 +22,9 @@ Nextcloud deployment with custom branding ("Avuz Conecta") running in Docker. Mu
 - Files → Drive: `themes/avuz/apps/files/l10n/pt_BR.json`
 - Deck → Tarefas: `themes/avuz/apps/deck/l10n/pt_BR.json`
 
-### App icons (Material Symbols Rounded, weight 200)
-- One source: `scripts/generate-rail-icons.py` (pinned `@material-symbols/svg-200`; edit `GLYPH_BY_APP` / `ICON_FILES`, run it, commit the output). It writes `apps/avuz_theme/js/material-icons.js` (`window.AvuzIcons`), the theme overrides `themes/avuz/apps/{app}/img/*.svg` (light `currentColor`, `-dark` `#000000`) and `apps/conectamail/img/mail.svg`. Design: `docs/superpowers/specs/2026-10-23-rail-material-icons-design.md`.
-- Left rail draws known apps inline from `AvuzIcons` (19px, filled for the open app); other apps show their own image. The favicon (`js/favicon.js`) uses the same glyphs.
+### App icons (Material Symbols Rounded, weight 300)
+- One source: `scripts/generate-rail-icons.py` (weight and pin in `scripts/material_symbols.py`, shared with the External sites generator; edit `GLYPH_BY_APP` / `ICON_FILES`, run it, commit the output). It writes `apps/avuz_theme/js/material-icons.js` (`window.AvuzIcons`), the theme overrides `themes/avuz/apps/{app}/img/*.svg` (light `currentColor`, `-dark` `#000000`), the user menu icons (`themes/avuz/apps/settings/img/{personal,admin,apps,users,help}.svg`, `themes/avuz/apps/theming/img/accessibility-dark.svg`, `themes/avuz/core/img/actions/logout.svg`) and `apps/conectamail/img/mail.svg`. Design: `docs/superpowers/specs/2026-10-23-rail-material-icons-design.md`.
+- Left rail draws known apps inline from `AvuzIcons` (20px, filled for the open app); other apps show their own image. Search and notifications at the rail foot are masked Material glyphs; user menu icons are drawn at 20px (`css/icons.css`). The favicon (`js/favicon.js`) uses the same glyphs.
 - Theme SVGs have no `?v=` and are cached 6 months (browser + Cloudflare): purge `/themes/avuz/apps/*` in Cloudflare after changing one. After adding a new override file on a running instance, clear the `imagePath-` distributed cache (or the old path sticks).
 
 ### CSS Customizations (`apps/avuz_theme/css/icons.css`)
@@ -59,7 +59,7 @@ Nextcloud deployment with custom branding ("Avuz Conecta") running in Docker. Mu
 - Logging: the app writes `User X trying to impersonate user Y` / `Changing to user Y` (warning) to the Avuz Conecta log (logreader); admin_audit has no impersonate listener. Actions taken while impersonating are logged as the impersonated user.
 
 ### External sites icon library (Deck #417)
-- Every boot seeds 34 Material Symbols icons (`apps/avuz_theme/img/external-icons/`, light + `-dark` pairs, Rounded weight 200, `@material-symbols/svg-200@0.48.1`, same glyphs as the left rail) into the External sites icon store (appdata `external/icons`, via IAppData, so S3 works): `docker/seed-external-icons.php`, called by `avuz_seed_external_icons` in `docker/lib-apps.sh`.
+- Every boot seeds 34 Material Symbols icons (`apps/avuz_theme/img/external-icons/`, light + `-dark` pairs, Rounded weight 300, `@material-symbols/svg-300@0.48.1`, same glyphs as the left rail) into the External sites icon store (appdata `external/icons`, via IAppData, so S3 works): `docker/seed-external-icons.php`, called by `avuz_seed_external_icons` in `docker/lib-apps.sh`.
 - Each icon is offered once per instance (`avuz_theme/external_icons_seeded`): it never overwrites an existing file and never brings back an icon the admin deleted. Opt out per stack with `AVUZ_SEED_EXTERNAL_ICONS=0` (default on).
 - Upgrade: `superseded.json` (next to the SVGs) lists, per file, the SHA-256 of every library version the generator replaced (today: the 68 Lucide 0.555.0 files). When it changes, the next boot gives each store pair the current content if every file it still has is ours (superseded or current); a pair with any other file is the admin's and is kept; missing files stay missing. Runs once per `superseded.json` (`avuz_theme/external_icons_library`). Boot log: `seeded N, upgraded N, kept N`.
 - Change a glyph: edit `GLYPH_BY_ICON` in `scripts/generate-external-icons.py` (file name → Material glyph; never rename a file, sites store the name), run it with `python3 -I`, commit the SVGs and `superseded.json`. Glyph download is shared with the rail in `scripts/material_symbols.py`.

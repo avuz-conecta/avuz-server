@@ -120,6 +120,19 @@ That would blank a filled glyph if core ever inlines one, so it changes to
   sub-1024px header until their cache expires. That's accepted.
 - Clear the `imagePath-` distributed cache only if a path changes. None does.
 
+## Update 2026-10-26: heavier, bigger, user menu
+
+Patrick found the icons too small and thin. Every glyph moved from weight 200
+to **weight 300**, and the rail draws them at **20px** (`WEIGHT` in
+`scripts/material_symbols.py`, shared with the External sites library, whose
+`superseded.json` records the weight-200 hashes so the boot upgrades untouched
+copies). The user menu (avatar) also gets Material glyphs through theme
+overrides of core's `imagePath()` icons (`settings/img/{personal,admin,apps,users,help}.svg`,
+`theming/img/accessibility-dark.svg`, `core/img/actions/logout.svg`), drawn at
+20px instead of 16px. The overrides live at new `/themes/avuz/…` URLs, so no
+cache purge is needed for them; clear the `imagePath-` distributed cache after
+the deploy so the server hands out the new paths.
+
 ## Decided by Patrick
 
 - Library: Material Symbols Rounded. Weight 200, 19px (variant D3).

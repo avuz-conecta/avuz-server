@@ -1,4 +1,4 @@
-"""Pinned Material Symbols glyphs (Rounded, weight 200), shared by the icon generators.
+"""Pinned Material Symbols glyphs (Rounded, weight 300), shared by the icon generators.
 
 Downloads from the npm package through jsDelivr. Every glyph must be a single
 <path> on the 960-unit viewBox, so it renders as one fill="currentColor" shape.
@@ -9,7 +9,8 @@ Used by scripts/generate-rail-icons.py and scripts/generate-external-icons.py.
 import re
 import urllib.request
 
-PACKAGE = "@material-symbols/svg-200"
+WEIGHT = 300
+PACKAGE = f"@material-symbols/svg-{WEIGHT}"
 VERSION = "0.48.1"
 STYLE = "rounded"
 PACKAGE_URL = f"https://cdn.jsdelivr.net/npm/{PACKAGE}@{VERSION}"
