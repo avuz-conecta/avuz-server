@@ -85,13 +85,6 @@ ARG AVUZ_IMPERSONATE_VERSION=4.0.0
 RUN grep -q "<version>${AVUZ_IMPERSONATE_VERSION}</version>" apps/impersonate/appinfo/info.xml \
     || { echo "apps/impersonate is not ${AVUZ_IMPERSONATE_VERSION} — re-vendor it from the release tarball"; exit 1; }
 
-# App menu: Mail (conectamail, order 1) sits right after Drive (files, 0).
-# Activity ships with order 1 too, and equal orders sort unpredictably, so it
-# moves to 2. Fail the build if Activity's order is not the 1 we expect.
-RUN grep -q "<order>1</order>" apps/activity/appinfo/info.xml \
-    || { echo "apps/activity navigation order changed — revisit the Mail placement"; exit 1; } \
-    && sed -i 's|<order>1</order>|<order>2</order>|' apps/activity/appinfo/info.xml
-
 # Clean old compiled bundles and rebuild frontend
 RUN npm run build
 

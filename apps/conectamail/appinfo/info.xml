@@ -23,7 +23,7 @@
         <navigation>
             <name>Mail</name>
             <route>conectamail.page.index</route>
-            <order>1</order>
+            <order>10</order>
             <icon>mail.svg</icon>
         </navigation>
     </navigations>

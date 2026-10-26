@@ -48,6 +48,15 @@ class NavigationManager implements INavigationManager {
 	private $config;
 	/** User defined app order (cached for the `add` function) */
 	private ?array $customAppOrder = null;
+	/** Avuz: the most used apps right after the start page (dashboard, -10); a user's own order wins */
+	private const AVUZ_APP_ORDER = [
+		'files' => -9,
+		'conectamail' => -8,
+		'mail' => -8,
+		'spreed' => -7,
+		'deck' => -6,
+		'calendar' => -5,
+	];
 	private LoggerInterface $logger;
 
 	public function __construct(
@@ -99,8 +108,8 @@ class NavigationManager implements INavigationManager {
 				$entry['app'] = $id;
 			}
 
-			// Set order from user defined app order
-			$entry['order'] = (int)($this->customAppOrder[$id]['order'] ?? $entry['order'] ?? 100);
+			// Set order from user defined app order, then the Avuz default
+			$entry['order'] = (int)($this->customAppOrder[$id]['order'] ?? self::AVUZ_APP_ORDER[$id] ?? $entry['order'] ?? 100);
 		}
 
 		$this->entries[$id] = $entry;
