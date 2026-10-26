@@ -31,9 +31,9 @@ function stateInput(app, key, value) {
  * A logged-in page as the server renders it, with both scripts run in it.
  * jsdom has no layout, so the rail's app list reports `railHeight`.
  */
-function openPage({ apps = APPS, collapsed = false, icons = true, loggedIn = true, railHeight = ROOMY_RAIL, saveResponds = () => ({ ok: true }) } = {}) {
+function openPage({ apps = APPS, bodyId = 'body-user', collapsed = false, icons = true, loggedIn = true, railHeight = ROOMY_RAIL, saveResponds = () => ({ ok: true }) } = {}) {
 	const states = loggedIn ? stateInput('core', 'apps', apps) + stateInput('avuz_theme', 'rail_collapsed', collapsed) : stateInput('core', 'apps', apps);
-	const dom = new JSDOM(`<!doctype html><html><body id="${loggedIn ? 'body-user' : 'body-login'}">
+	const dom = new JSDOM(`<!doctype html><html><body id="${loggedIn ? bodyId : 'body-login'}">
 		<div id="initial-state-container">${states}</div>
 		<header id="header"><div class="header-start"><nav id="header-start__appmenu"></nav></div><div class="header-end"></div></header>
 		<main id="content"><a href="#" id="outside">fora</a></main>
@@ -147,6 +147,15 @@ describe('left rail', () => {
 			assert.equal(drawnPath(page.moreButton()), glyph(page, 'more_horiz').regular);
 			page.toggle().click();
 			assert.equal(drawnPath(page.toggle()), glyph(page, 'keyboard_double_arrow_right').regular);
+		});
+	});
+
+	describe('on a settings page', () => {
+		it('renders the rail with every app, as on an app page', () => {
+			const page = openPage({ bodyId: 'body-settings' });
+
+			assert.ok(page.rail());
+			assert.deepEqual(names(page.visibleLinks()), ['Painel', 'Drive', 'Mail', 'Tarefas', 'Formulários']);
 		});
 	});
 

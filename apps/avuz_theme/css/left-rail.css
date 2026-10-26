@@ -7,9 +7,10 @@
  * beside it. Expanded 220px, collapsed 72px (html.avuz-rail--collapsed).
  * Below 1024px only #avuz-rail is hidden: core's top header stays as it is.
  *
- * Theming declares its variables on :root and again on body[data-theme-*],
- * so the overrides sit on body#body-user to win. With --header-height 0 every
- * app's calc(100vh - var(--header-height)) and top: var(--header-height)
+ * Logged-in pages are body#body-user, or body#body-settings on settings, admin
+ * and help pages (core's TemplateLayout); both get the rail. Theming declares
+ * its variables on :root and again on body[data-theme-*], so the overrides sit
+ * on the body id to win. With --header-height 0 every app's calc(100vh - var(--header-height)) and top: var(--header-height)
  * fills the page without per-app fixes; #header gets 50px back for its own
  * widgets. Vue apps render #content-vue instead of #content, and Talk nests
  * one inside the other.
@@ -20,7 +21,7 @@
 }
 
 @media (min-width: 1024px) {
-	body#body-user {
+	body:is(#body-user, #body-settings) {
 		--avuz-rail-width: 220px;
 		--avuz-rail-gap: 4px;
 		--avuz-rail-item-height: 44px;
@@ -35,11 +36,11 @@
 		--body-height: calc(100% - env(safe-area-inset-bottom) - 2 * var(--body-container-margin));
 	}
 
-	html.avuz-rail--collapsed body#body-user {
+	html.avuz-rail--collapsed body:is(#body-user, #body-settings) {
 		--avuz-rail-width: 72px;
 	}
 
-	body#body-user #header {
+	body:is(#body-user, #body-settings) #header {
 		--header-height: 50px;
 		position: fixed !important;
 		inset: 0 auto 0 0 !important;
@@ -54,7 +55,7 @@
 		background: transparent !important;
 	}
 
-	body#body-user #header .header-start {
+	body:is(#body-user, #body-settings) #header .header-start {
 		flex: 1 1 auto !important;
 		flex-direction: column !important;
 		align-items: stretch !important;
@@ -63,14 +64,14 @@
 	}
 
 	/* Core's app menu mounts over #header-start__appmenu as nav.app-menu (no id) */
-	body#body-user #header #nextcloud,
-	body#body-user #header #header-start__appmenu,
-	body#body-user #header .header-start > .app-menu {
+	body:is(#body-user, #body-settings) #header #nextcloud,
+	body:is(#body-user, #body-settings) #header #header-start__appmenu,
+	body:is(#body-user, #body-settings) #header .header-start > .app-menu {
 		display: none !important;
 	}
 
 	/* Foot widgets: centered on the icon column (core sizes each one --header-height square) */
-	body#body-user #header .header-end {
+	body:is(#body-user, #body-settings) #header .header-end {
 		flex-direction: column !important;
 		align-items: flex-start !important;
 		align-self: stretch;
@@ -83,37 +84,37 @@
 	}
 
 	/* Contacts are one click away in the rail (Contatos); the header shortcut is redundant there */
-	body#body-user #header #contactsmenu {
+	body:is(#body-user, #body-settings) #header #contactsmenu {
 		display: none !important;
 	}
 
 	/* Core positions header menus fixed under a top bar (top: header-height; right) */
-	body#body-user #header .header-menu__wrapper {
+	body:is(#body-user, #body-settings) #header .header-menu__wrapper {
 		top: auto !important;
 		right: auto !important;
 		left: calc(var(--avuz-rail-width) + var(--avuz-rail-gap)) !important;
 		bottom: var(--body-container-margin) !important;
 	}
 
-	body#body-user #header .header-menu__wrapper .header-menu__content {
+	body:is(#body-user, #body-settings) #header .header-menu__wrapper .header-menu__content {
 		max-height: calc(100vh - 2 * var(--body-container-margin)) !important;
 	}
 
-	body#body-user > :is(#content, #content-vue) {
+	body:is(#body-user, #body-settings) > :is(#content, #content-vue) {
 		margin: var(--body-container-margin) var(--body-container-margin) var(--body-container-margin) var(--avuz-rail-width) !important;
 		width: calc(100% - var(--avuz-rail-width) - var(--body-container-margin)) !important;
 	}
 
 	/* Animate only toggles the user makes, never the saved state applied on load */
-	html.avuz-rail--animated body#body-user #header {
+	html.avuz-rail--animated body:is(#body-user, #body-settings) #header {
 		transition: width var(--avuz-rail-transition);
 	}
 
-	html.avuz-rail--animated body#body-user > :is(#content, #content-vue) {
+	html.avuz-rail--animated body:is(#body-user, #body-settings) > :is(#content, #content-vue) {
 		transition: margin-left var(--avuz-rail-transition), width var(--avuz-rail-transition);
 	}
 
-	body#body-user :is(#content, #content-vue) :is(#content, #content-vue) {
+	body:is(#body-user, #body-settings) :is(#content, #content-vue) :is(#content, #content-vue) {
 		position: relative !important;
 		inset: auto !important;
 		margin: 0 !important;
@@ -260,13 +261,13 @@
 	}
 
 	/* Apps without a Material glyph show their own image, black like the header's: invert on dark */
-	body#body-user:is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) img.avuz-rail__icon {
+	body:is(#body-user, #body-settings):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) img.avuz-rail__icon {
 		filter: var(--background-invert-if-dark);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		html.avuz-rail--animated body#body-user #header,
-		html.avuz-rail--animated body#body-user > :is(#content, #content-vue) {
+		html.avuz-rail--animated body:is(#body-user, #body-settings) #header,
+		html.avuz-rail--animated body:is(#body-user, #body-settings) > :is(#content, #content-vue) {
 			transition: none;
 		}
 	}
