@@ -2,8 +2,9 @@
  * Left rail: the app menu as a column on the left (css/left-rail.css lays it
  * out from 1024px up; below that core's top header stays as it is).
  *
- * Logged-in pages only (body#body-user with the rail_collapsed initial state
- * from RailStateListener). Renders inside #header .header-start:
+ * Logged-in pages only (body#body-user, or body#body-settings on settings,
+ * admin and help pages, with the rail_collapsed initial state from
+ * RailStateListener). Renders inside #header .header-start:
  * - a toggle that collapses the rail to icons (html.avuz-rail--collapsed) and
  *   saves the choice through the provisioning_api preferences endpoint
  *   (RailPreferenceValidator vouches for it). A failed save keeps the new
@@ -25,7 +26,7 @@
 (function leftRail() {
 	'use strict';
 
-	var LOGGED_IN_BODY_ID = 'body-user';
+	var LOGGED_IN_BODY_IDS = ['body-user', 'body-settings'];
 	var APPS_STATE_ID = 'initial-state-core-apps';
 	var COLLAPSED_STATE_ID = 'initial-state-avuz_theme-rail_collapsed';
 	var COLLAPSED_CLASS = 'avuz-rail--collapsed';
@@ -283,7 +284,7 @@
 	}
 
 	function init() {
-		if (document.body.id !== LOGGED_IN_BODY_ID || document.getElementById(RAIL_ID)) {
+		if (!LOGGED_IN_BODY_IDS.includes(document.body.id) || document.getElementById(RAIL_ID)) {
 			return;
 		}
 		var collapsed = readState(COLLAPSED_STATE_ID);
