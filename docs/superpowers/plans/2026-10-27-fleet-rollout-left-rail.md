@@ -168,7 +168,7 @@ Secrets are written by env-var name, never as an `occ --value`, so nothing reach
   - `302 /`;
   - `/api/auth/me` 200;
   - `frame-ancestors` on `/` with that cookie = `'self' <tenant origin>` only.
-- **Logout:** run `WebmailSessionRevoker::revoke(<uid>)`, then `/api/auth/me` should be 401. `scripts/conectamail-sso-probe.php` does both checks: modes `login`, `me`, `revoker`; usage is in its header. It never prints tokens.
+- **Logout:** run `WebmailSessionRevoker::revoke(<uid>)`, then `/api/auth/me` should be 401. `scripts/conectamail-sso-probe.php` does both checks: modes `login`, `me`, `revoker`; usage is in its header. It never prints tokens. `revoker` ends **every** SSO session of that uid, in all browsers. On a real user, end only the probe's own session with `signout`.
 - **Browser (pilot user):** Mail opens ConectaMail embedded, contacts load, and logging out of Conecta ends the webmail session.
 - **Users with only a login password** (`enc_password`): the first SSO tries it on Zoho. If Zoho refuses, they see the webmail login once. The password they type there is saved in Conecta (postMessage) for the next time. Tell the client.
 
