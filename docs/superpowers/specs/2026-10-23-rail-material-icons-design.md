@@ -137,6 +137,22 @@ the deploy so the server hands out the new paths.
 Patrick removed the toggle: the rail is always collapsed (icons only, 72px,
 names as tooltips). The collapse and expand glyphs left the set (`RAIL_GLYPHS`).
 
+## Update 2026-10-27: External sites in the rail
+
+Patrick asked for the External sites entries to match the app icons.
+`AvuzIcons.external` maps each library file name (`scripts/external_icon_glyphs.py`,
+shared with the library generator), plus the app's own `external` and
+`settings` defaults, to its glyph. The rail reads the file name from the
+entry's icon URL (`AvuzLeftRail.externalIconName`, light and `-dark` alike) and
+draws the glyph inline, filled while the site is open. An uploaded icon keeps
+its image. If an admin replaced a library file with their own under the same
+name, the rail still draws the library glyph.
+
+A redirect site (not embedded) opened in the same tab: the rail ignored the
+entry's `target`, which core's app menu turns into `_blank`. It now opens in a
+new tab (`rel="noopener noreferrer"`), its name and tooltip ending in
+"(abre em nova aba)".
+
 ## Decided by Patrick
 
 - Library: Material Symbols Rounded. Weight 200, 19px (variant D3).

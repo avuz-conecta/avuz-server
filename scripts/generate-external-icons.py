@@ -23,6 +23,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from external_icon_glyphs import GLYPH_BY_ICON  # noqa: E402
 from material_symbols import (  # noqa: E402
     DARK_FILL, LIGHT_FILL, PACKAGE, STYLE, VERSION, WEIGHT, download, glyph_path, render_svg,
 )
@@ -31,43 +32,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = REPO_ROOT / "apps/avuz_theme/img/external-icons"
 SUPERSEDED_FILE = OUTPUT_DIR / "superseded.json"
 LICENSE_FILE = OUTPUT_DIR / "LICENSE"
-
-GLYPH_BY_ICON = {
-    "briefcase": "work",
-    "book-open": "menu_book",
-    "building-2": "apartment",
-    "calendar": "calendar_today",
-    "chart-column": "bar_chart",
-    "chart-pie": "pie_chart",
-    "circle-help": "help",
-    "clipboard-list": "assignment",
-    "cloud": "cloud",
-    "cog": "settings",
-    "credit-card": "credit_card",
-    "database": "database",
-    "external-link": "open_in_new",
-    "file-text": "description",
-    "folder": "folder",
-    "globe": "language",
-    "graduation-cap": "school",
-    "headset": "support_agent",
-    "house": "home",
-    "landmark": "account_balance",
-    "link": "link",
-    "mail": "mail",
-    "map-pin": "location_on",
-    "message-circle": "chat_bubble",
-    "newspaper": "newspaper",
-    "phone": "call",
-    "receipt": "receipt_long",
-    "server": "dns",
-    "shield-check": "verified_user",
-    "shopping-cart": "shopping_cart",
-    "truck": "local_shipping",
-    "users": "group",
-    "video": "videocam",
-    "wallet": "account_balance_wallet",
-}
 
 
 def sha256(content: bytes) -> str:

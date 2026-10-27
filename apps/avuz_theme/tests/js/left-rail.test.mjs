@@ -17,7 +17,9 @@ const APPS = [
 	{ id: 'deck', name: 'Tarefas', href: '/apps/deck/', icon: '/apps/deck/img/deck.svg', active: false },
 	{ id: 'forms', name: 'Formulários', href: '/apps/forms/', icon: '/apps/forms/img/forms.svg', active: false },
 ];
-const EXTERNAL_SITE = { id: 'external_index1', name: 'Portal', href: '/apps/external/1', icon: '/apps/external/icons/globe.svg', active: false };
+const EXTERNAL_SITE = { id: 'external_index1', name: 'Portal', href: '/apps/external/1', icon: '/apps/external/icons/globe.svg', active: false, target: false };
+const UPLOADED_ICON_SITE = { id: 'external_index2', name: 'Cliente', href: '/apps/external/2', icon: '/apps/external/icons/logo-cliente.png', active: false, target: false };
+const REDIRECT_SITE = { id: 'external_index3', name: 'Banco', href: 'https://banco.example/', icon: '/apps/external/icons/landmark-dark.svg', active: false, target: true };
 
 const encodeState = (value) => Buffer.from(JSON.stringify(value)).toString('base64');
 
@@ -83,7 +85,7 @@ describe('left rail', () => {
 		});
 
 		it('shows app icons as decoration, the name being the label', () => {
-			const page = openPage({ apps: [...APPS, EXTERNAL_SITE] });
+			const page = openPage({ apps: [...APPS, UPLOADED_ICON_SITE] });
 
 			const [glyphIcon, imageIcon] = [page.visibleLinks()[0].querySelector('svg'), page.visibleLinks()[5].querySelector('img')];
 			assert.equal(glyphIcon.getAttribute('aria-hidden'), 'true');
@@ -109,11 +111,40 @@ describe('left rail', () => {
 		});
 
 		it('keeps the app image for an app without a glyph', () => {
-			const page = openPage({ apps: [...APPS, EXTERNAL_SITE] });
+			const page = openPage({ apps: [...APPS, UPLOADED_ICON_SITE] });
 
-			const portal = page.visibleLinks().find((link) => link.textContent.trim() === 'Portal');
-			assert.equal(portal.querySelector('svg'), null);
-			assert.equal(portal.querySelector('img').getAttribute('src'), EXTERNAL_SITE.icon);
+			const site = page.visibleLinks().find((link) => link.textContent.trim() === 'Cliente');
+			assert.equal(site.querySelector('svg'), null);
+			assert.equal(site.querySelector('img').getAttribute('src'), UPLOADED_ICON_SITE.icon);
+		});
+
+		describe('of external sites', () => {
+			it('draws a library icon with its Material glyph', () => {
+				const page = openPage({ apps: [...APPS, EXTERNAL_SITE] });
+
+				const portal = page.visibleLinks().find((link) => link.textContent.trim() === 'Portal');
+				assert.equal(drawnPath(portal), glyph(page, 'language').regular);
+				assert.equal(portal.querySelector('img'), null);
+			});
+
+			it('draws the dark file of a library icon with the same glyph', () => {
+				const page = openPage({ apps: [...APPS, REDIRECT_SITE] });
+
+				assert.equal(drawnPath(page.visibleLinks()[5]), glyph(page, 'account_balance').regular);
+			});
+
+			it('fills the glyph of the open site', () => {
+				const page = openPage({ apps: [...APPS.map((app) => ({ ...app, active: false })), { ...EXTERNAL_SITE, active: true }] });
+
+				const current = page.visibleLinks().find((link) => link.getAttribute('aria-current') === 'page');
+				assert.equal(drawnPath(current), glyph(page, 'language').fill);
+			});
+
+			it("draws the External sites default icon with a glyph too", () => {
+				const page = openPage({ apps: [...APPS, { ...EXTERNAL_SITE, icon: '/apps/external/icons/external.svg' }] });
+
+				assert.equal(drawnPath(page.visibleLinks()[5]), glyph(page, 'language').regular);
+			});
 		});
 
 		it('shows every app image when the icon set did not load', () => {
@@ -187,6 +218,43 @@ describe('left rail', () => {
 
 			assert.equal(page.moreButton().title, 'Mais aplicativos');
 			assert.deepEqual(page.visibleLinks().filter((link) => link.closest('.avuz-rail__overflow')).map((link) => link.title), ['', '', '']);
+		});
+	});
+
+	describe('external sites that open outside', () => {
+		it('opens a redirect site in a new tab, without handing it this page', () => {
+			const page = openPage({ apps: [...APPS, REDIRECT_SITE] });
+
+			const site = page.visibleLinks()[5];
+			assert.equal(site.getAttribute('href'), 'https://banco.example/');
+			assert.equal(site.target, '_blank');
+			assert.equal(site.rel, 'noopener noreferrer');
+		});
+
+		it('tells the new tab apart in its name and tooltip', () => {
+			const page = openPage({ apps: [...APPS, REDIRECT_SITE] });
+
+			const site = page.visibleLinks()[5];
+			assert.equal(site.textContent.trim(), 'Banco (abre em nova aba)');
+			assert.equal(site.title, 'Banco (abre em nova aba)');
+		});
+
+		it('keeps an embedded site in the same tab', () => {
+			const page = openPage({ apps: [...APPS, EXTERNAL_SITE] });
+
+			const site = page.visibleLinks()[5];
+			assert.equal(site.target, '');
+			assert.equal(site.rel, '');
+			assert.equal(site.textContent.trim(), 'Portal');
+		});
+
+		it('opens a redirect site in a new tab from "Mais aplicativos" too', () => {
+			const page = openPage({ apps: [...APPS, REDIRECT_SITE], railHeight: 3 * ITEM_HEIGHT });
+
+			page.moreButton().click();
+
+			const site = page.visibleLinks().find((link) => link.getAttribute('href') === 'https://banco.example/');
+			assert.equal(site.target, '_blank');
 		});
 	});
 

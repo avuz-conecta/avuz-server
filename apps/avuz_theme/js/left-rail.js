@@ -9,8 +9,11 @@
  * - one link per app (core/apps initial state, already in the user's order),
  *   the current one with aria-current="page".
  * - icons from window.AvuzIcons (js/material-icons.js, Material Symbols): an
- *   app with a glyph draws it inline, filled while it is the current app; any
- *   other app, or every app when the icon set is missing, shows its own image.
+ *   app with a glyph draws it inline, filled while it is the current app; so
+ *   does an External sites site whose icon is in the library. Any other app,
+ *   or every app when the icon set is missing, shows its own image.
+ * - a site External sites opens outside (redirect) opens in a new tab, as in
+ *   core's app menu, and says so in its name.
  * - "Mais aplicativos", a disclosure holding the apps that don't fit the
  *   rail's height (window.AvuzLeftRail.splitApps), recomputed on resize.
  *   Escape or a click elsewhere closes it.
@@ -34,6 +37,7 @@
 	var SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 	var FOOT_ICONS_CLASS = 'avuz-rail--material-foot';
 	var FOOT_CONTROLS = ['search', 'notifications'];
+	var NEW_TAB_SUFFIX = ' (abre em nova aba)';
 
 	function readState(elementId) {
 		var stateElement = document.getElementById(elementId);
@@ -73,9 +77,17 @@
 		return window.AvuzIcons ? glyphIcon(ownEntry(window.AvuzIcons.rail, control), false) : null;
 	}
 
+	function appGlyphName(app) {
+		var icons = window.AvuzIcons;
+		if (!icons) {
+			return undefined;
+		}
+		var externalIcon = window.AvuzLeftRail.externalIconName(app.icon);
+		return externalIcon ? ownEntry(icons.external, externalIcon) : ownEntry(icons.apps, app.id);
+	}
+
 	function appIcon(app) {
-		var glyphName = window.AvuzIcons ? ownEntry(window.AvuzIcons.apps, app.id) : undefined;
-		var glyph = glyphIcon(glyphName, app.active);
+		var glyph = glyphIcon(appGlyphName(app), app.active);
 		if (glyph) {
 			return glyph;
 		}
@@ -121,7 +133,11 @@
 		if (app.active) {
 			link.setAttribute('aria-current', 'page');
 		}
-		link.append.apply(link, iconAndLabel(appIcon(app), app.name));
+		if (app.target) {
+			link.target = '_blank';
+			link.rel = 'noopener noreferrer';
+		}
+		link.append.apply(link, iconAndLabel(appIcon(app), app.target ? app.name + NEW_TAB_SUFFIX : app.name));
 		return link;
 	}
 
