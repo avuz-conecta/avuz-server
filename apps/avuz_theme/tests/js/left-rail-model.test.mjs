@@ -14,7 +14,7 @@ function loadRailModel() {
 	return window.AvuzLeftRail;
 }
 
-const { splitApps } = loadRailModel();
+const { splitApps, externalIconName } = loadRailModel();
 
 function apps(...ids) {
 	return ids.map((id) => ({ id, name: id, active: false }));
@@ -85,5 +85,35 @@ describe('splitApps', () => {
 
 			assert.deepEqual([ids(visible), ids(overflow)], [[], ['a']]);
 		});
+	});
+});
+
+describe('externalIconName', () => {
+	it('reads the icon file name from an External sites icon URL', () => {
+		assert.equal(externalIconName('/apps/external/icons/briefcase.svg'), 'briefcase');
+	});
+
+	it('names the light and dark files alike', () => {
+		assert.equal(externalIconName('/index.php/apps/external/icons/building-2-dark.svg'), 'building-2');
+	});
+
+	it('ignores the host and query string', () => {
+		assert.equal(externalIconName('https://conecta.example/index.php/apps/external/icons/globe.svg?v=3'), 'globe');
+	});
+
+	it('decodes an escaped file name', () => {
+		assert.equal(externalIconName('/apps/external/icons/meu%20site.svg'), 'meu site');
+	});
+
+	it('returns nothing for an uploaded image that is not an SVG', () => {
+		assert.equal(externalIconName('/apps/external/icons/logo.png'), undefined);
+	});
+
+	it('returns nothing for an icon outside External sites', () => {
+		assert.equal(externalIconName('/apps/forms/img/briefcase.svg'), undefined);
+	});
+
+	it('returns nothing for a malformed escape', () => {
+		assert.equal(externalIconName('/apps/external/icons/%E0%A4%A.svg'), undefined);
 	});
 });

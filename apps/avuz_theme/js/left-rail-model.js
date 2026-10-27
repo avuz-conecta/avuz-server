@@ -7,6 +7,10 @@
  * the user's order) fit the rail's height and which go behind
  * "Mais aplicativos". That entry takes one slot whenever anything overflows.
  * The active app always stays visible: it takes the last visible slot.
+ *
+ * externalIconName reads an External sites icon URL
+ * (/apps/external/icons/<name>.svg, or <name>-dark.svg) back to the icon
+ * file name the rail looks up in window.AvuzIcons.external.
  */
 (function leftRailModel() {
 	'use strict';
@@ -39,5 +43,19 @@
 		};
 	}
 
-	window.AvuzLeftRail = Object.freeze({ splitApps: splitApps });
+	var EXTERNAL_ICON_PATTERN = /\/apps\/external\/icons\/([^/?#]+?)(?:-dark)?\.svg(?:[?#]|$)/;
+
+	function externalIconName(iconUrl) {
+		var match = EXTERNAL_ICON_PATTERN.exec(iconUrl);
+		if (!match) {
+			return undefined;
+		}
+		try {
+			return decodeURIComponent(match[1]);
+		} catch (error) {
+			return undefined;
+		}
+	}
+
+	window.AvuzLeftRail = Object.freeze({ splitApps: splitApps, externalIconName: externalIconName });
 }());
