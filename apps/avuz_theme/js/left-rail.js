@@ -3,16 +3,11 @@
  * out from 1024px up; below that core's top header stays as it is).
  *
  * Logged-in pages only (body#body-user, or body#body-settings on settings,
- * admin and help pages, with the rail_collapsed initial state from
- * RailStateListener). Renders inside #header .header-start:
- * - a toggle that collapses the rail to icons (html.avuz-rail--collapsed) and
- *   saves the choice through the provisioning_api preferences endpoint
- *   (RailPreferenceValidator vouches for it). A failed save keeps the new
- *   state for this page and warns in the console. Only these toggles animate
- *   (html.avuz-rail--animated); the saved state applies on load without one.
+ * admin and help pages). Icons only: each app's name is its tooltip and stays
+ * in the link for screen readers.
+ * Renders inside #header .header-start:
  * - one link per app (core/apps initial state, already in the user's order),
- *   the current one with aria-current="page". Collapsed, each gets its name as
- *   a tooltip; the name stays in the link for screen readers.
+ *   the current one with aria-current="page".
  * - icons from window.AvuzIcons (js/material-icons.js, Material Symbols): an
  *   app with a glyph draws it inline, filled while it is the current app; any
  *   other app, or every app when the icon set is missing, shows its own image.
@@ -31,19 +26,12 @@
 
 	var LOGGED_IN_BODY_IDS = ['body-user', 'body-settings'];
 	var APPS_STATE_ID = 'initial-state-core-apps';
-	var COLLAPSED_STATE_ID = 'initial-state-avuz_theme-rail_collapsed';
-	var COLLAPSED_CLASS = 'avuz-rail--collapsed';
-	var ANIMATED_CLASS = 'avuz-rail--animated';
 	var RAIL_ID = 'avuz-rail';
 	var OVERFLOW_ID = 'avuz-rail-overflow';
 	var ITEM_HEIGHT = 44;
 	var MORE_LABEL = 'Mais aplicativos';
 	var RAIL_LABEL = 'Aplicativos';
-	var PREFERENCE_SERVICE = 'apps/provisioning_api/api/v1/config/users/avuz_theme';
-	var PREFERENCE_KEY = 'rail_collapsed';
-	var OCS_VERSION = 2;
 	var SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
-	var RAIL_CONTROL_BY_DIRECTION = { left: 'collapse', right: 'expand' };
 	var FOOT_ICONS_CLASS = 'avuz-rail--material-foot';
 	var FOOT_CONTROLS = ['search', 'notifications'];
 
@@ -143,39 +131,11 @@
 		return item;
 	}
 
-	function isCollapsed() {
-		return document.documentElement.classList.contains(COLLAPSED_CLASS);
-	}
-
-	function saveCollapsed(collapsed) {
-		var body = new URLSearchParams();
-		body.set('configValue', collapsed ? '1' : '0');
-		return fetch(OC.linkToOCS(PREFERENCE_SERVICE, OCS_VERSION) + PREFERENCE_KEY, {
-			method: 'POST',
-			headers: {
-				requesttoken: OC.requestToken,
-				'OCS-APIRequest': 'true',
-				'Content-Type': 'application/x-www-form-urlencoded',
-			},
-			body: body,
-		}).then(function checkSaved(response) {
-			if (!response.ok) {
-				console.warn('[avuz_theme] left rail: could not save the collapsed state, HTTP ' + response.status);
-			}
-		}, function reportFailure(error) {
-			console.warn('[avuz_theme] left rail: could not save the collapsed state', error);
-		});
-	}
-
 	function createRail(apps) {
 		var nav = document.createElement('nav');
 		nav.id = RAIL_ID;
 		nav.className = 'avuz-rail';
 		nav.setAttribute('aria-label', RAIL_LABEL);
-
-		var toggle = document.createElement('button');
-		toggle.type = 'button';
-		toggle.className = 'avuz-rail__toggle';
 
 		var appList = document.createElement('ul');
 		appList.className = 'avuz-rail__apps';
@@ -192,7 +152,6 @@
 		overflowList.className = 'avuz-rail__overflow';
 		overflowList.hidden = true;
 
-		nav.appendChild(toggle);
 		nav.appendChild(appList);
 		nav.appendChild(overflowList);
 
@@ -220,24 +179,6 @@
 			}
 		}
 
-		function applyTooltips() {
-			var collapsed = isCollapsed();
-			nav.querySelectorAll('.avuz-rail__apps .avuz-rail__app, .avuz-rail__toggle').forEach(function setTooltip(control) {
-				if (collapsed) {
-					control.title = control.querySelector('.avuz-rail__label').textContent;
-					return;
-				}
-				control.removeAttribute('title');
-			});
-		}
-
-		function renderToggle() {
-			var state = window.AvuzLeftRail.railToggle(isCollapsed());
-			toggle.replaceChildren.apply(toggle, iconAndLabel(controlIcon(RAIL_CONTROL_BY_DIRECTION[state.direction]), state.label));
-			toggle.setAttribute('aria-expanded', state.ariaExpanded);
-			applyTooltips();
-		}
-
 		function renderApps() {
 			closeOverflow(false);
 			var split = window.AvuzLeftRail.splitApps(apps, appList.clientHeight, ITEM_HEIGHT);
@@ -247,16 +188,10 @@
 			}
 			appList.replaceChildren.apply(appList, items);
 			overflowList.replaceChildren.apply(overflowList, split.overflow.map(function toItem(app) { return listItem(appLink(app)); }));
-			applyTooltips();
+			appList.querySelectorAll('.avuz-rail__app').forEach(function setTooltip(control) {
+				control.title = control.querySelector('.avuz-rail__label').textContent;
+			});
 		}
-
-		toggle.addEventListener('click', function toggleRail() {
-			var collapsed = !isCollapsed();
-			document.documentElement.classList.add(ANIMATED_CLASS);
-			document.documentElement.classList.toggle(COLLAPSED_CLASS, collapsed);
-			renderToggle();
-			saveCollapsed(collapsed);
-		});
 
 		moreButton.addEventListener('click', function toggleOverflow() {
 			if (isOverflowOpen()) {
@@ -302,24 +237,21 @@
 		}
 		window.addEventListener('resize', scheduleRender);
 
-		return { nav: nav, renderToggle: renderToggle, renderApps: renderApps };
+		return { nav: nav, renderApps: renderApps };
 	}
 
 	function init() {
 		if (!LOGGED_IN_BODY_IDS.includes(document.body.id) || document.getElementById(RAIL_ID)) {
 			return;
 		}
-		var collapsed = readState(COLLAPSED_STATE_ID);
 		var headerStart = document.querySelector('#header .header-start');
-		if (typeof collapsed !== 'boolean' || !headerStart || !window.AvuzLeftRail) {
+		if (!headerStart || !window.AvuzLeftRail) {
 			return;
 		}
 		var apps = readState(APPS_STATE_ID);
-		document.documentElement.classList.toggle(COLLAPSED_CLASS, collapsed);
 
 		var rail = createRail(Array.isArray(apps) ? apps : []);
 		headerStart.appendChild(rail.nav);
-		rail.renderToggle();
 		rail.renderApps();
 		applyFootIcons();
 	}

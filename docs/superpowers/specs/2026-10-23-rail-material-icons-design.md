@@ -10,7 +10,7 @@ Each icon shows its filled version for the open app.
 
 ## Goals
 
-- The rail's app icons, collapse/expand toggle and "Mais aplicativos" use
+- The rail's app icons and "Mais aplicativos" use
   Material Symbols Rounded, weight 200, drawn at 19px.
 - The open app (`aria-current="page"`) shows the filled version of its icon.
 - Light and dark themes both render correctly, without the dark-mode invert filter.
@@ -67,7 +67,6 @@ Glyph per app id:
 | activity | Atividade | `bolt` |
 | assinaturas | Assinaturas | `signature` |
 | settings | Configurações | `settings` |
-| rail: collapse / expand | | `keyboard_double_arrow_left` / `_right` |
 | rail: more | Mais aplicativos | `more_horiz` |
 | rail foot: search / notifications | Pesquisar / Notificações | `search` / `notifications` |
 
@@ -119,6 +118,24 @@ That would blank a filled glyph if core ever inlines one, so it changes to
   after the deploy. Browsers that cached them still show Lucide on the
   sub-1024px header until their cache expires. That's accepted.
 - Clear the `imagePath-` distributed cache only if a path changes. None does.
+
+## Update 2026-10-26: heavier, bigger, user menu
+
+Patrick found the icons too small and thin. Every glyph moved from weight 200
+to **weight 400** (300 on staging first, then "a little bit thicker"), and the rail draws them at **20px** (`WEIGHT` in
+`scripts/material_symbols.py`, shared with the External sites library, whose
+`superseded.json` records the earlier hashes so the boot upgrades untouched
+copies). The user menu (avatar) also gets Material glyphs through theme
+overrides of core's `imagePath()` icons (`settings/img/{personal,admin,apps,users,help}.svg`,
+`theming/img/accessibility-dark.svg`, `core/img/actions/logout.svg`), drawn at
+20px instead of 16px. The overrides live at new `/themes/avuz/…` URLs, so no
+cache purge is needed for them; clear the `imagePath-` distributed cache after
+the deploy so the server hands out the new paths.
+
+## Update 2026-10-26: icons only
+
+Patrick removed the toggle: the rail is always collapsed (icons only, 72px,
+names as tooltips). The collapse and expand glyphs left the set (`RAIL_GLYPHS`).
 
 ## Decided by Patrick
 

@@ -14,7 +14,7 @@ function loadRailModel() {
 	return window.AvuzLeftRail;
 }
 
-const { splitApps, railToggle } = loadRailModel();
+const { splitApps } = loadRailModel();
 
 function apps(...ids) {
 	return ids.map((id) => ({ id, name: id, active: false }));
@@ -85,15 +85,5 @@ describe('splitApps', () => {
 
 			assert.deepEqual([ids(visible), ids(overflow)], [[], ['a']]);
 		});
-	});
-});
-
-describe('railToggle', () => {
-	it('offers to collapse an expanded rail', () => {
-		assert.deepEqual({ ...railToggle(false) }, { label: 'Recolher menu', ariaExpanded: 'true', direction: 'left' });
-	});
-
-	it('offers to expand a collapsed rail', () => {
-		assert.deepEqual({ ...railToggle(true) }, { label: 'Expandir menu', ariaExpanded: 'false', direction: 'right' });
 	});
 });

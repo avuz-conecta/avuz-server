@@ -9,8 +9,6 @@ const RAIL_SCRIPT = readFileSync(fileURLToPath(new URL('../../js/left-rail.js', 
 const ICONS_SCRIPT = readFileSync(fileURLToPath(new URL('../../js/material-icons.js', import.meta.url)), 'utf8');
 const ITEM_HEIGHT = 44;
 const ROOMY_RAIL = 20 * ITEM_HEIGHT;
-const SAVE_URL = '/ocs/v2.php/apps/provisioning_api/api/v1/config/users/avuz_theme/rail_collapsed';
-const REQUEST_TOKEN = 'token-123';
 
 const APPS = [
 	{ id: 'dashboard', name: 'Painel', href: '/apps/dashboard/', icon: '/core/img/dashboard.svg', active: false },
@@ -31,10 +29,9 @@ function stateInput(app, key, value) {
  * A logged-in page as the server renders it, with both scripts run in it.
  * jsdom has no layout, so the rail's app list reports `railHeight`.
  */
-function openPage({ apps = APPS, bodyId = 'body-user', collapsed = false, icons = true, loggedIn = true, railHeight = ROOMY_RAIL, saveResponds = () => ({ ok: true }) } = {}) {
-	const states = loggedIn ? stateInput('core', 'apps', apps) + stateInput('avuz_theme', 'rail_collapsed', collapsed) : stateInput('core', 'apps', apps);
+function openPage({ apps = APPS, bodyId = 'body-user', icons = true, loggedIn = true, railHeight = ROOMY_RAIL } = {}) {
 	const dom = new JSDOM(`<!doctype html><html><body id="${loggedIn ? bodyId : 'body-login'}">
-		<div id="initial-state-container">${states}</div>
+		<div id="initial-state-container">${stateInput('core', 'apps', apps)}</div>
 		<header id="header"><div class="header-start"><nav id="header-start__appmenu"></nav></div><div class="header-end"></div></header>
 		<main id="content"><a href="#" id="outside">fora</a></main>
 	</body></html>`, { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://conecta.example/apps/conectamail/' });
@@ -48,19 +45,6 @@ function openPage({ apps = APPS, bodyId = 'body-user', collapsed = false, icons 
 		},
 	});
 
-	const saves = [];
-	const warnings = [];
-	window.OC = { requestToken: REQUEST_TOKEN, linkToOCS: (service, version) => `/ocs/v${version}.php/${service}/` };
-	window.fetch = async (url, init) => {
-		saves.push({ url, method: init.method, body: String(init.body), token: init.headers.requesttoken, ocsHeader: init.headers['OCS-APIRequest'] });
-		const response = saveResponds();
-		if (response instanceof Error) {
-			throw response;
-		}
-		return response;
-	};
-	window.console.warn = (...args) => warnings.push(args.join(' '));
-
 	if (icons) {
 		window.eval(ICONS_SCRIPT);
 	}
@@ -69,12 +53,11 @@ function openPage({ apps = APPS, bodyId = 'body-user', collapsed = false, icons 
 	window.document.dispatchEvent(new window.Event('DOMContentLoaded'));
 
 	const rail = () => window.document.querySelector('nav[aria-label="Aplicativos"]');
-	const toggle = () => rail().querySelector('button');
 	const moreButton = () => [...rail().querySelectorAll('button')].find((button) => button.textContent.trim() === 'Mais aplicativos');
 	const visibleLinks = () => [...rail().querySelectorAll('a')].filter((link) => !link.closest('[hidden]'));
 	const nextFrame = () => new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
 
-	return { window, document: window.document, rail, toggle, moreButton, visibleLinks, saves, warnings, height, nextFrame };
+	return { window, document: window.document, rail, moreButton, visibleLinks, height, nextFrame };
 }
 
 /** The path data a control draws, or the image it shows. */
@@ -82,7 +65,6 @@ const drawnPath = (control) => control.querySelector('svg path')?.getAttribute('
 const glyph = (page, name) => page.window.AvuzIcons.glyphs[name];
 
 const names = (links) => links.map((link) => link.textContent.trim());
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('left rail', () => {
 	describe('on a logged-in page', () => {
@@ -160,13 +142,10 @@ describe('left rail', () => {
 			assert.equal(page.document.documentElement.classList.contains('avuz-rail--material-foot'), false);
 		});
 
-		it('draws the toggle arrows and "Mais aplicativos" with Material glyphs', () => {
+		it('draws "Mais aplicativos" with its Material glyph', () => {
 			const page = openPage({ railHeight: 3 * ITEM_HEIGHT });
 
-			assert.equal(drawnPath(page.toggle()), glyph(page, 'keyboard_double_arrow_left').regular);
 			assert.equal(drawnPath(page.moreButton()), glyph(page, 'more_horiz').regular);
-			page.toggle().click();
-			assert.equal(drawnPath(page.toggle()), glyph(page, 'keyboard_double_arrow_right').regular);
 		});
 	});
 
@@ -187,83 +166,27 @@ describe('left rail', () => {
 		});
 	});
 
-	describe('toggle', () => {
-		it('starts expanded when the user never collapsed it', () => {
+	describe('icons only', () => {
+		it('offers no control to expand the rail', () => {
 			const page = openPage();
 
-			assert.equal(page.document.documentElement.classList.contains('avuz-rail--collapsed'), false);
-			assert.equal(page.toggle().textContent.trim(), 'Recolher menu');
-			assert.equal(page.toggle().getAttribute('aria-expanded'), 'true');
+			assert.deepEqual([...page.rail().querySelectorAll('button')], []);
 		});
 
-		it('starts collapsed when the user saved it collapsed', () => {
-			const page = openPage({ collapsed: true });
-
-			assert.equal(page.document.documentElement.classList.contains('avuz-rail--collapsed'), true);
-			assert.equal(page.toggle().textContent.trim(), 'Expandir menu');
-			assert.equal(page.toggle().getAttribute('aria-expanded'), 'false');
-		});
-
-		it('applies the saved state on load without animating it', () => {
-			const page = openPage({ collapsed: true });
-
-			assert.equal(page.document.documentElement.classList.contains('avuz-rail--animated'), false);
-		});
-
-		it('animates a toggle the user makes', () => {
+		it('gives each app its name as a tooltip, keeping the name in the link', () => {
 			const page = openPage();
 
-			page.toggle().click();
-
-			assert.equal(page.document.documentElement.classList.contains('avuz-rail--animated'), true);
+			assert.deepEqual(page.visibleLinks().map((link) => link.title), ['Painel', 'Drive', 'Mail', 'Tarefas', 'Formulários']);
+			assert.equal(page.visibleLinks()[0].textContent.trim(), 'Painel');
 		});
 
-		it('collapses the rail and saves the choice', async () => {
-			const page = openPage();
+		it('names "Mais aplicativos" in its tooltip, leaving the extra apps labelled', () => {
+			const page = openPage({ railHeight: 3 * ITEM_HEIGHT });
 
-			page.toggle().click();
-			await flush();
+			page.moreButton().click();
 
-			assert.equal(page.document.documentElement.classList.contains('avuz-rail--collapsed'), true);
-			assert.equal(page.toggle().textContent.trim(), 'Expandir menu');
-			assert.deepEqual(page.saves, [{ url: SAVE_URL, method: 'POST', body: 'configValue=1', token: REQUEST_TOKEN, ocsHeader: 'true' }]);
-		});
-
-		it('expands a collapsed rail and saves the choice', async () => {
-			const page = openPage({ collapsed: true });
-
-			page.toggle().click();
-			await flush();
-
-			assert.equal(page.document.documentElement.classList.contains('avuz-rail--collapsed'), false);
-			assert.deepEqual(page.saves.map((save) => save.body), ['configValue=0']);
-		});
-
-		it('keeps the new state and warns when saving fails', async () => {
-			const page = openPage({ saveResponds: () => new Error('offline') });
-
-			page.toggle().click();
-			await flush();
-
-			assert.equal(page.document.documentElement.classList.contains('avuz-rail--collapsed'), true);
-			assert.equal(page.warnings.length, 1);
-		});
-
-		it('warns when the server refuses the value', async () => {
-			const page = openPage({ saveResponds: () => ({ ok: false, status: 400 }) });
-
-			page.toggle().click();
-			await flush();
-
-			assert.equal(page.warnings.length, 1);
-		});
-
-		it('shows app names as tooltips only while collapsed', () => {
-			const page = openPage();
-
-			assert.equal(page.visibleLinks()[0].getAttribute('title'), null);
-			page.toggle().click();
-			assert.equal(page.visibleLinks()[0].getAttribute('title'), 'Painel');
+			assert.equal(page.moreButton().title, 'Mais aplicativos');
+			assert.deepEqual(page.visibleLinks().filter((link) => link.closest('.avuz-rail__overflow')).map((link) => link.title), ['', '', '']);
 		});
 	});
 

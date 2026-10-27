@@ -172,6 +172,44 @@ class NavigationManagerTest extends TestCase {
 		$this->assertEmpty($this->navigationManager->getAll('all'), 'Expected no navigation entry exists after clear()');
 	}
 
+	private function addAppLinks(array $orderById): void {
+		foreach ($orderById as $id => $order) {
+			$this->navigationManager->add(['id' => $id, 'app' => $id, 'name' => $id, 'order' => $order, 'href' => "/apps/$id/", 'icon' => '', 'type' => 'link']);
+		}
+	}
+
+	/** Upstream orders: Talk -5 sits before Drive, Mail and Tarefas share 10 */
+	private const UPSTREAM_APP_ORDER = [
+		'forms' => 77, 'deck' => 10, 'conectamail' => 10, 'calendar' => 5, 'contacts' => 4,
+		'activity' => 1, 'files' => 0, 'spreed' => -5, 'dashboard' => -10,
+	];
+
+	public function testAvuzDefaultAppOrder(): void {
+		$this->addAppLinks(self::UPSTREAM_APP_ORDER);
+
+		$this->assertSame(
+			['dashboard', 'files', 'conectamail', 'spreed', 'deck', 'calendar', 'activity', 'contacts', 'forms'],
+			array_keys($this->navigationManager->getAll()),
+		);
+	}
+
+	public function testUserAppOrderWinsOverAvuzDefault(): void {
+		$user = $this->createMock(IUser::class);
+		$user->method('getUID')->willReturn('user1');
+		$this->userSession->method('isLoggedIn')->willReturn(true);
+		$this->userSession->method('getUser')->willReturn($user);
+		$this->config->method('getUserValue')->willReturnCallback(
+			fn (string $userId, string $appName, string $key, mixed $default = '') => $key === 'apporder'
+				? json_encode(['forms' => ['app' => 'forms', 'order' => -20]])
+				: $default
+		);
+		$this->navigationManager->clear(false);
+
+		$this->addAppLinks(self::UPSTREAM_APP_ORDER);
+
+		$this->assertSame('forms', array_key_first($this->navigationManager->getAll()));
+	}
+
 	public function testAddArrayClearGetAll(): void {
 		$entry = [
 			'id' => 'entry id',

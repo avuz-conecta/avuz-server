@@ -7,17 +7,9 @@
  * the user's order) fit the rail's height and which go behind
  * "Mais aplicativos". That entry takes one slot whenever anything overflows.
  * The active app always stays visible: it takes the last visible slot.
- *
- * railToggle gives the toggle button's label, aria-expanded and arrow
- * direction for the current state.
  */
 (function leftRailModel() {
 	'use strict';
-
-	var TOGGLE_BY_STATE = {
-		expanded: { label: 'Recolher menu', ariaExpanded: 'true', direction: 'left' },
-		collapsed: { label: 'Expandir menu', ariaExpanded: 'false', direction: 'right' },
-	};
 
 	function slotsFor(availableHeight, itemHeight) {
 		if (itemHeight <= 0) {
@@ -47,9 +39,5 @@
 		};
 	}
 
-	function railToggle(collapsed) {
-		return collapsed ? TOGGLE_BY_STATE.collapsed : TOGGLE_BY_STATE.expanded;
-	}
-
-	window.AvuzLeftRail = Object.freeze({ splitApps: splitApps, railToggle: railToggle });
+	window.AvuzLeftRail = Object.freeze({ splitApps: splitApps });
 }());

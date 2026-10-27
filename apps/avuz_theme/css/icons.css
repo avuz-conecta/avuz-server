@@ -39,6 +39,14 @@
     mask: none !important;
 }
 
+/* User menu (avatar): Material glyphs from themes/avuz (scripts/generate-rail-icons.py)
+   at the rail's 20px instead of core's 16px; core still inverts them in dark mode. */
+body .account-menu-entry .account-menu-entry__icon {
+    width: 20px;
+    height: 20px;
+    margin: calc((var(--default-clickable-area) - 20px) / 2);
+}
+
 /* Style contacts menu icon */
 #contactsmenu .contactsmenu__trigger-icon svg {
     width: 24px !important;
