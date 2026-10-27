@@ -3,7 +3,8 @@
 // Tokens, app passwords and cookies never leave the container. Delete /tmp/probe-jar-*.txt afterwards.
 //   B=$(base64 < scripts/conectamail-sso-probe.php)
 //   ./scripts/portainer-exec.sh -u www-data <container> sh -c "echo $B | base64 -d > /tmp/probe.php && php /tmp/probe.php login <uid> t1; rm /tmp/probe.php"
-// Usage: php probe.php <mode> <uid> <jar-name>   (mode: login | me | contacts | page | logout | revoker)
+// Usage: php probe.php <mode> <uid> <jar-name>   (mode: login | me | signout | contacts | page | logout | revoker)
+// signout ends only this probe's session; logout and revoker end EVERY SSO session of the uid (all browsers).
 // login: mint SSO token in-container, open webmail session (token never printed)
 // me: session status + frame-ancestors with the jar's cookie
 // logout: mint logout token, POST conecta-logout, print revoked count
@@ -54,6 +55,10 @@ if ($mode === 'login') {
     CURLOPT_POSTFIELDS => json_encode(['token' => $tokens->buildLogoutToken($uid)])]);
   $body = curl_exec($ch);
   echo '  conecta-logout: ' . curl_getinfo($ch, CURLINFO_RESPONSE_CODE) . " $body\n";
+} elseif ($mode === 'signout') {
+  [$status, , $body] = http("$base/api/auth/logout", [CURLOPT_POST => true, CURLOPT_POSTFIELDS => '',
+    CURLOPT_HTTPHEADER => ['x-webmail-request: 1']]);
+  echo "  signout: $status $body\n";
 } elseif ($mode === 'contacts') {
   sleep(5);
   [$status, , $body] = http("$base/api/contacts/status");
