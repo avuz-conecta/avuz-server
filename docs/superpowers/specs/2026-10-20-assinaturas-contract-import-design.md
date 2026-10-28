@@ -111,7 +111,7 @@ The contract card of an imported contract offers **"Importar renovação"**. It 
 
 ### Where it starts
 
-- **Contratos screen:** an "Importar contrato assinado" button next to the filters, and in the empty state. The empty-state text changes to mention both ways.
+- **Entry point: open.** Where "Importar contrato assinado" lives (button, menu, empty state) is decided by the Contratos-vs-envelopes design, since that design may fold the Contratos screen into the envelope list (Patrick, 2026-10-28). Whatever it decides, the import is offered only where the add-on is on.
 - **Who can import:** anyone who can use the app (`assinaturas` group, managers, admins).
 - **Add-on off:** the button and the endpoints are gone (403 `contracts_disabled`). Existing imported contracts stay stored and stop alerting, the same as other contracts.
 
@@ -155,7 +155,7 @@ Imported envelopes appear there with the status "Importado" and can be filtered 
 - "Exclua a renovação primeiro."
 - "Arquivo indisponível"
 - "Assinado fora do AvuzConecta · importado por {name} em {date}"
-- Empty state: "Marque um documento como contrato ao criar um envelope, ou importe um contrato já assinado."
+- Empty-state wording: set by the Contratos-vs-envelopes design, together with the entry point.
 
 The UI never names the signing provider or "Nextcloud".
 
@@ -182,6 +182,6 @@ The UI never names the signing provider or "Nextcloud".
 **Vitest:**
 - the import flow with and without an AI suggestion;
 - the form offers fixed dates only;
-- the empty state and button show only with the add-on on;
+- the import entry point shows only with the add-on on;
 - the imported envelope page shows the "assinado fora" line and no signers;
 - the envelope list shows "Importado".
