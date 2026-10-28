@@ -1,6 +1,6 @@
 # Assinaturas: contracts inside the envelope list
 
-Date: 2026-10-28 · Status: written, awaiting Patrick's approval
+Date: 2026-10-28 · Status: approved by Patrick (2026-10-28)
 Changes the Contratos screen from `2026-10-07-assinaturas-contracts-design.md`, and settles the open entry point of `2026-10-20-assinaturas-contract-import-design.md`.
 
 ## Why

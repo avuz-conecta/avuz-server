@@ -1,6 +1,6 @@
 # Assinaturas: import contracts signed elsewhere
 
-Date: 2026-10-20 · Status: written, awaiting Patrick's approval
+Date: 2026-10-20 · Status: approved by Patrick (2026-10-28)
 Builds on `2026-10-07-assinaturas-contracts-design.md` and `2026-10-18-assinaturas-contract-term-from-signing-design.md`.
 
 ## Why
