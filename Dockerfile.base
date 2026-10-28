@@ -2,7 +2,9 @@
 # Base image with PHP extensions and runtime packages
 # Rebuild only when PHP version or extensions change
 # ============================================
-FROM php:8.3-fpm-alpine
+# Pinned: a floating tag lets the buildx cache keep shipping an old PHP.
+# 8.3.36 fixes CVE-2026-109618/109619 (PHP2Shell).
+FROM php:8.3.36-fpm-alpine3.23
 
 # Install php-extension-installer
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
@@ -61,6 +63,7 @@ RUN { \
   echo 'max_input_time=3600'; \
   echo 'date.timezone=UTC'; \
   echo 'expose_php=Off'; \
+  echo 'session.upload_progress.enabled=0'; \
   echo 'error_reporting=E_ALL & ~E_WARNING'; \
   } > /usr/local/etc/php/conf.d/nextcloud.ini
 
