@@ -53,7 +53,7 @@ On desktop the column sits after Status. It shows the envelope's contract in one
 | Expired | "Vencido em 03/10/2026" |
 | Ended | "Encerrado" |
 | Terms held, envelope not yet completed | "Após assinatura" |
-| No contract | empty cell |
+| No contract | "Não possui" (neutral) |
 
 - **Several documents with contracts:** the envelope shows the most urgent one (earliest key date among active contracts, else the most recent expired), followed by "+1", "+2".
 - **Renewed contracts** are never shown. Their successor is what counts.
