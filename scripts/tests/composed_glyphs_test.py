@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from composed_glyphs import COMPOSITIONS, Composition, absolute_subpaths, compose, is_composed  # noqa: E402
+from composed_glyphs import COMPOSITIONS, DRAWN_GLYPHS, Composition, absolute_subpaths, avuz_glyph_path, is_avuz_glyph  # noqa: E402
 
 FRAME = "M0-100h100v100H0Zm10-10h80v-80H10Z"
 CHECK = "m20-50 20 20 40-40-5-5-35 35-15-15Z"
@@ -42,16 +42,20 @@ class Compose(unittest.TestCase):
         del COMPOSITIONS["test_framed_check"]
 
     def test_keeps_the_chosen_frame_subpaths_and_places_the_inner_glyph(self):
-        path = compose("test_framed_check", fake_glyph_path)
+        path = avuz_glyph_path("test_framed_check", fake_glyph_path)
 
         self.assertEqual(path, "M0-100H100V0H0ZM20-45L30-35L50-55L47.5-57.5L30-40L22.5-47.5Z")
 
     def test_draws_the_filled_variant_as_the_regular_shape(self):
-        self.assertTrue(is_composed("test_framed_check-fill"))
-        self.assertEqual(compose("test_framed_check-fill", fake_glyph_path), compose("test_framed_check", fake_glyph_path))
+        self.assertTrue(is_avuz_glyph("test_framed_check-fill"))
+        self.assertEqual(avuz_glyph_path("test_framed_check-fill", fake_glyph_path), avuz_glyph_path("test_framed_check", fake_glyph_path))
+
+    def test_returns_a_drawn_glyph_as_stored_for_both_variants(self):
+        self.assertEqual(avuz_glyph_path("avuz_mountains", fake_glyph_path), DRAWN_GLYPHS["avuz_mountains"])
+        self.assertEqual(avuz_glyph_path("avuz_mountains-fill", fake_glyph_path), DRAWN_GLYPHS["avuz_mountains"])
 
     def test_leaves_plain_material_names_to_the_package(self):
-        self.assertFalse(is_composed("desktop_cloud"))
+        self.assertFalse(is_avuz_glyph("desktop_cloud"))
 
 
 if __name__ == "__main__":

@@ -393,9 +393,9 @@ assert_eq "records nothing after a storage failure, so the next boot retries" ""
 # ── shipped library ──
 reset_instance
 run "$SHIPPED_SCRIPT"
-assert_eq "seeds all 38 shipped icons" "seeded 38, upgraded 0, kept 0" "$output"
-assert_eq "ships a dark variant for every icon" "38" "$(cd "$ICONS" && ls ./*-dark.svg | wc -l | tr -d ' ')"
-assert_eq "ships only SVG pairs" "76" "$(cd "$ICONS" && ls | wc -l | tr -d ' ')"
+assert_eq "seeds all 39 shipped icons" "seeded 39, upgraded 0, kept 0" "$output"
+assert_eq "ships a dark variant for every icon" "39" "$(cd "$ICONS" && ls ./*-dark.svg | wc -l | tr -d ' ')"
+assert_eq "ships only SVG pairs" "78" "$(cd "$ICONS" && ls | wc -l | tr -d ' ')"
 assert_eq "lists an earlier version for each of the 68 files the Lucide library shipped" "68" "$(php -r 'echo count(json_decode(file_get_contents($argv[1]), true));' "$SHIPPED_LIBRARY/superseded.json")"
 assert_eq "never lists a shipped file's current version as superseded" "" "$(php -r '
     $library = $argv[1];

@@ -9,7 +9,7 @@ Used by scripts/generate-rail-icons.py and scripts/generate-external-icons.py.
 import re
 import urllib.request
 
-from composed_glyphs import compose, is_composed
+from composed_glyphs import avuz_glyph_path, is_avuz_glyph
 
 WEIGHT = 400
 PACKAGE = f"@material-symbols/svg-{WEIGHT}"
@@ -30,8 +30,8 @@ def download(path: str) -> str:
 
 
 def glyph_path(file_name: str) -> str:
-    if is_composed(file_name):
-        return compose(file_name, glyph_path)
+    if is_avuz_glyph(file_name):
+        return avuz_glyph_path(file_name, glyph_path)
     source = download(f"{STYLE}/{file_name}.svg").strip()
     match = SINGLE_PATH.match(source)
     if match is None:

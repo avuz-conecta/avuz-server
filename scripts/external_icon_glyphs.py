@@ -33,6 +33,7 @@ GLYPH_BY_ICON = {
     "monitor-check": "avuz_desktop_check",
     "monitor-cloud": "desktop_cloud",
     "monitor-image": "avuz_desktop_image",
+    "mountains": "avuz_mountains",
     "newspaper": "newspaper",
     "phone": "call",
     "receipt": "receipt_long",
