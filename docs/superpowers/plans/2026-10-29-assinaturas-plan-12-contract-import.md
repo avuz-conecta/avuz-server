@@ -147,8 +147,8 @@ Both are in the avuz-server worktree. Read both before every task.
 
 ### Task 0: Branch and bundle the "Não possui" badge
 
-- [ ] **Step 1:** `git switch main && git switch -c contract-import && git merge --no-ff no-contract-badge -m "Merge branch 'no-contract-badge' into contract-import"`.
-- [ ] **Step 2:** `npx vitest run src/dashboard`. Expected: PASS, including `labels an envelope without a contract as having none`.
+- [x] **Step 1:** `git switch main && git switch -c contract-import && git merge --no-ff no-contract-badge -m "Merge branch 'no-contract-badge' into contract-import"`.
+- [x] **Step 2:** `npx vitest run src/dashboard`. Expected: PASS, including `labels an envelope without a contract as having none`.
 
 No review gate: the badge was reviewed in the previous session (7140b22, full Vitest green).
 
@@ -179,7 +179,7 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
   - `Envelope::$importedAt` (`?int`, column `imported_at`).
   - `EnvelopeFilter::Imported = 'imported'` → `[EnvelopeStatus::Imported]`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `testHidesAnImportInProgressFromManagers`: an `importing` envelope of user A, a manager B, and an A-owned folder where B has Gerenciar. Asserts `canSee` and `canAct` are false for B and true for A.
   - `testLeavesImportsInProgressOutOfEveryList`:
     - an `importing` envelope of the searcher, under the `mine` and `company` scopes;
@@ -194,9 +194,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
     - `EnvelopeRemoval::remove` on an `imported` envelope throws `ActionRejected` with `errorCode` `not_removable`;
     - the envelope row is still there.
 
-- [ ] **Step 2:** Run `tests/env/phpunit.sh --filter 'AccessPolicyTest|EnvelopeMapperSearchTest|ContractReadingsTest|EnvelopeRemovalTest'`. Expected: the new tests FAIL.
+- [x] **Step 2:** Run `tests/env/phpunit.sh --filter 'AccessPolicyTest|EnvelopeMapperSearchTest|ContractReadingsTest|EnvelopeRemovalTest'`. Expected: the new tests FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
   - **Migration:** follow `Version000800Date20261009000000` for shape. Add `imported_at` as `Types::BIGINT`, nullable. Add the getter, setter and type to `Envelope`.
   - **`AccessPolicy`:**
     - `canSee` and `canAct` return `owner === user && canUseApp(user)` when the status is `Importing`, before any other rule.
@@ -207,9 +207,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
   - **`EnvelopeDrafts::sourceOf`:** accepts `READABLE_BY_AI` statuses instead of `assertDraft`. Keep 409 `not_a_draft` for any other.
   - **`EnvelopeRemoval::remove`:** throws `new ActionRejected('not_removable', 'Imports are deleted from their own page')` with HTTP 409 for `Importing` and `Imported`. Imports are deleted with `ContractImports::delete`, which also deletes the contract.
 
-- [ ] **Step 4:** Run the Step 2 command. Expected: PASS. Then run `tests/env/phpunit.sh --filter 'Envelope|Access|Reading|Removal'`. Expected: PASS.
+- [x] **Step 4:** Run the Step 2 command. Expected: PASS. Then run `tests/env/phpunit.sh --filter 'Envelope|Access|Reading|Removal'`. Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(imports): importing and imported envelope statuses`.
+- [x] **Step 5: Commit** `feat(imports): importing and imported envelope statuses`.
 
 ---
 
@@ -235,7 +235,7 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
   - `POST /api/v1/imports` with `{fileId: int, folderId?: int|null, renewsContractId?: int|null}` → 201 envelope detail.
   - The envelope detail gains `renewsContractTerms: ContractTerms|null`. It is set only for an `importing` envelope with `renews_contract_id`: that contract's terms (the `toArray()` shape) plus `id`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `testStartsAnImportFromAPdfOfTheOwner`:
     - status `importing`;
     - title = the file name without extension (`Apólice 2026.pdf` → `Apólice 2026`);
@@ -259,9 +259,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
     - `testFilesTheImportInTheGivenFolder`: needs Editar, else 403, as `EnvelopeFiling`.
     - `testReturnsTheRenewedTermsWithARenewalImport`: the detail carries `renewsContractTerms.id`.
 
-- [ ] **Step 2:** Run `tests/env/phpunit.sh --filter 'ContractImportsTest|ImportControllerTest'`. Expected: FAIL (class not found).
+- [x] **Step 2:** Run `tests/env/phpunit.sh --filter 'ContractImportsTest|ImportControllerTest'`. Expected: FAIL (class not found).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
   - **Validating the file:** extract the private `EnvelopeDrafts::ownerPdf` into a public method on `EnvelopeDrafts` (`ownerPdf(string $ownerUid, int $fileId): File`) and call it. Don't copy it.
   - **The new document:** created as `EnvelopeDrafts::newDocument` does. Make that public, or move it to `DocumentMapper` as a named constructor.
   - **Duplicate check:** a `DocumentMapper::isSourceOfImport(int $fileId): bool` query joins envelopes with `status = imported`.
@@ -278,9 +278,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
     - `#[NoAdminRequired]`, `#[FrontpageRoute(verb: 'POST', url: '/api/v1/imports')]`.
   - **Sweep job:** `ImportSweepJob` runs every 3600 s and calls `sweepAbandoned()`. It logs `info` with the count only when it is > 0.
 
-- [ ] **Step 4:** Run the Step 2 command. Expected: PASS.
+- [x] **Step 4:** Run the Step 2 command. Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(imports): start an import from a Drive PDF`.
+- [x] **Step 5: Commit** `feat(imports): start an import from a Drive PDF`.
 
 ---
 
@@ -300,7 +300,7 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
   - `ContractAlerts::recordDueAsSent(Contract $contract, string $today): void`
   - `POST /api/v1/imports/{uuid}/confirm` with `{title: string, terms: object}` → 200 envelope detail.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `testConfirmsAnImportIntoAnActiveContract`:
     - status `imported`, `imported_at` = now;
     - one contract on the document with `continues_contract_id` null and the given `source`;
@@ -328,9 +328,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
     - `EnvelopeMapper::findDueForSync` doesn't return it;
     - `SendJob`'s claim (`EnvelopeSender::claim`) throws `SendConflict`.
 
-- [ ] **Step 2:** Run `tests/env/phpunit.sh --filter 'ContractImportsTest|ImportControllerTest|ContractLifecycleTest|Usage'`. Expected: the new tests FAIL.
+- [x] **Step 2:** Run `tests/env/phpunit.sh --filter 'ContractImportsTest|ImportControllerTest|ContractLifecycleTest|Usage'`. Expected: the new tests FAIL.
 
-- [ ] **Step 3: Implement `confirm`**
+- [x] **Step 3: Implement `confirm`**
   - **Validate first, write nothing yet:**
     - status `Importing`, else `ImportRejected('not_importing', …, 409)`;
     - title as `EnvelopeDrafts::assertTitle` (reuse it: make it public static);
@@ -358,9 +358,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
     10. Record `ContractEvent::Registered` on the import envelope, with `['contractId' => id]` and the actor, as `ContractActions::register`.
   - **`recordDueAsSent`:** records every offset in `dueOffsets($contract, daysBetween(today, keyDate))` via `record()`, with no notification. For an `expired` contract (days left < 0) it records nothing.
 
-- [ ] **Step 4:** Run the Step 2 command. Expected: PASS.
+- [x] **Step 4:** Run the Step 2 command. Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(imports): confirm an import into a tracked contract`.
+- [x] **Step 5: Commit** `feat(imports): confirm an import into a tracked contract`.
 
 ---
 
@@ -383,7 +383,7 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
     - `documents[].fileAvailable: boolean`: the owner can still read the file. It is true for all other statuses.
   - `permissions.deleteImport: boolean`: owner for `importing`; owner or `canSeeAll` for `imported`; false otherwise.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `testDeletesAnImportAndKeepsTheDriveFile`: the envelope, document, contract, contract alerts and events are gone. The Drive file still exists, with its etag unchanged.
   - `testCancelsAnImportInProgress`: the owner deletes an `importing` one.
   - `testRefusesDeletingAnImportARenewalContinues`: 409 `renewal_exists`, and nothing is deleted.
@@ -396,9 +396,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
     - `testMarksAnImportedDocumentUnavailableOnceTheFileIsGone`;
     - `testCarriesTheImportDate`.
 
-- [ ] **Step 2:** Run `tests/env/phpunit.sh --filter 'ContractImportsTest|ImportControllerTest|EnvelopeDetailsTest'`. Expected: FAIL.
+- [x] **Step 2:** Run `tests/env/phpunit.sh --filter 'ContractImportsTest|ImportControllerTest|EnvelopeDetailsTest'`. Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
   - **`delete`:**
     - Permission check, then status (`Importing` or `Imported`).
     - Then `ContractMapper::findContinuing(contract id) !== null` → `renewal_exists`.
@@ -409,9 +409,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
     - the guard is `canSee`;
     - the file is read as the owner, with `EnvelopeDrafts::ownerPdf`; any `DraftRejected` gives 404 `file_unavailable`.
 
-- [ ] **Step 4:** Run the Step 2 command. Expected: PASS. Then run `tests/env/phpunit.sh`. Expected: PASS (about 1750 tests, about 30 min; run it in the background).
+- [x] **Step 4:** Run the Step 2 command. Expected: PASS. Then run `tests/env/phpunit.sh`. Expected: PASS (about 1750 tests, about 30 min; run it in the background).
 
-- [ ] **Step 5: Docs**
+- [x] **Step 5: Docs**
   - `docs/api.md`: new section "Imports", after "Contracts", covering:
     - the three routes and the document route;
     - the two statuses;
@@ -419,7 +419,7 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
     - `renewsContractTerms`, `importedAt`, `fileAvailable`, `permissions.deleteImport`.
   - Add the `imported` filter to the Listing section. Add each code to the Errors table.
 
-- [ ] **Step 6: Commit** `feat(imports): delete an import and serve its document`.
+- [x] **Step 6: Commit** `feat(imports): delete an import and serve its document`.
 
 ---
 
@@ -446,7 +446,7 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
   - `startNewImport(router: Router, folderId: number | null, renewsContractId?: number | null): Promise<void>` in `src/import/start-import.ts`
   - `EnvelopeStatus` gains `'importing' | 'imported'`; `EnvelopeFilter` gains `'imported'`; `EnvelopePermissions.deleteImport`; `EnvelopeDocument.fileAvailable`; `EnvelopeDetail.importedAt` and `renewsContractTerms`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `envelope-status.spec.ts`: `labels an imported envelope "Importado"`.
   - `DashboardView.spec.ts`:
     - `shows the "Importados" chip only while contract management is on`;
@@ -460,9 +460,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
     - `does nothing when the picker closes empty`.
     - `shows "Este arquivo já foi importado." on file_already_imported`.
 
-- [ ] **Step 2:** Run `npx vitest run src/api src/import src/dashboard src/layout src/presentation`. Expected: the new tests FAIL.
+- [x] **Step 2:** Run `npx vitest run src/api src/import src/dashboard src/layout src/presentation`. Expected: the new tests FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
   - **`pickDocumentNodes`:** add an optional `mimeTypes` parameter defaulting to today's `acceptedMimeTypes(...)`. The import passes `['application/pdf']`.
   - **`FILTER_ORDER`:** becomes a function `filterOrder(contractsEnabled: boolean)` that appends `'imported'` when the add-on is on. Update its callers.
   - **Status presentation:**
@@ -473,9 +473,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
   - **Sidebar button:** an `AvButton` `variant="secondary"` `size="large"` under the new-envelope button, shown when `appConfig().contractsEnabled`. It calls `startNewImport(router, folderForNewEnvelope(...))`, with the same busy flag pattern.
   - **Error messages:** add the pt_BR messages for every new error code to `error-messages.ts`.
 
-- [ ] **Step 4:** Run the Step 2 command, then `npx vue-tsc --noEmit && npx eslint src`. Expected: PASS.
+- [x] **Step 4:** Run the Step 2 command, then `npx vue-tsc --noEmit && npx eslint src`. Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(imports): import entry points and imported rows in the list`.
+- [x] **Step 5: Commit** `feat(imports): import entry points and imported rows in the list`.
 
 ---
 
@@ -494,7 +494,7 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
   - `initialImportForm(envelope: EnvelopeDetail): ContractForm`: the renewed contract's terms with `startsOn` and `endsOn` blanked, or `emptyContractForm()`.
   - `isReadableByAi(envelope: EnvelopeDetail | undefined): boolean`, replacing the private `isEditableDraft` in `contract-readings.ts`: status `draft` or `importing`, and `permissions.edit`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `ImportView.spec.ts`:
     - `fills the form with what the AI read and marks it "Sugerido pela IA"`;
     - `works without an AI suggestion`: AI off, or the reading failed;
@@ -508,9 +508,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
     - `opens the import form for the owner's import in progress`;
     - `opens the detail page for an imported envelope`.
 
-- [ ] **Step 2:** Run `npx vitest run src/import src/envelope src/wizard`. Expected: FAIL.
+- [x] **Step 2:** Run `npx vitest run src/import src/envelope src/wizard`. Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
   - **`EnvelopeView`:** `importing` with `permissions.edit` renders `ImportView` (async component, like `WizardView`), in the `navigation` layout.
   - **`ImportView` layout:** one column with:
     - the heading;
@@ -523,9 +523,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
   - **AI suggestions:** applied once per reading, the same way `ContractStep` does (`suggestedForm`, `applySuggestion` and `suggestedFields`). Extract the shared piece from `ContractStep` into `src/contracts/contract-suggestion.ts` instead of copying it.
   - **Mutations:** `useDialogMutation` patterns. A confirm success replaces the envelope cache with the returned detail; the page re-renders as the detail page.
 
-- [ ] **Step 4:** Run the Step 2 command, then `npx vue-tsc --noEmit && npx eslint src`. Expected: PASS.
+- [x] **Step 4:** Run the Step 2 command, then `npx vue-tsc --noEmit && npx eslint src`. Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(imports): import form with AI suggestions`.
+- [x] **Step 5: Commit** `feat(imports): import form with AI suggestions`.
 
 ---
 
@@ -539,7 +539,7 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
 **Interfaces:**
 - Consumes (Task 5): `deleteImport`, `importDocumentUrl`, `startNewImport`; `permissions.deleteImport`, `importedAt`, `fileAvailable`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `DetailView.spec.ts`:
     - `shows that an imported envelope was signed elsewhere`: "Assinado fora do AvuzConecta · importado por Ana Souza em 29/10/2026";
     - `shows no signers, progress, timeline or reminders for an imported envelope`;
@@ -553,9 +553,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
     - `keeps "Renovar" next to "Importar renovação"`;
     - `hides "Importar renovação" on an ended or renewed contract`.
 
-- [ ] **Step 2:** Run `npx vitest run src/detail`. Expected: FAIL.
+- [x] **Step 2:** Run `npx vitest run src/detail`. Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
   - **`DetailView`:** for `status === 'imported'`, render `DetailHeader`, `ImportedLine`, `DocumentsCard` and `ContractCard` only, on desktop and phone. No `SignersCard`, `ProgressCard`, `TimelineCard` or `EnvelopeBanners`, and no aside column.
   - **`DocumentsCard`:**
     - for imported documents, a link "Abrir" to `importDocumentUrl`;
@@ -564,9 +564,9 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
   - **`ContractCard`:** the "Importar renovação" button sits beside "Renovar". Its condition is `envelope.status === 'imported' && envelope.canActOnContracts && contract changeable`.
   - **Date format:** "importado em" uses `formatCalendarDate` on the instance-local day of `importedAt`.
 
-- [ ] **Step 4:** Run `npx vitest run` (the full suite), then `npx vue-tsc --noEmit && npx eslint src`. Expected: PASS.
+- [x] **Step 4:** Run `npx vitest run` (the full suite), then `npx vue-tsc --noEmit && npx eslint src`. Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(imports): imported envelope page and renewal import`.
+- [x] **Step 5: Commit** `feat(imports): imported envelope page and renewal import`.
 
 ---
 
@@ -579,10 +579,10 @@ No review gate: the badge was reviewed in the previous session (7140b22, full Vi
   - `CLAUDE.md`: one sentence on imports in the Assinaturas contracts bullet;
   - this plan: tick boxes.
 
-- [ ] **Step 1:** `node scripts/add-translations.mjs` with every new string. Then `npx vitest run src/l10n.spec.ts`. Expected: PASS (no untranslated source string).
-- [ ] **Step 2:** `npm run build`. Expected: exit 0, and `js/` changed.
-- [ ] **Step 3:** The full PHP suite (`tests/env/phpunit.sh`, background) and `npx vitest run`. Expected: both green.
-- [ ] **Step 4:** Commit `chore: release 0.11.0`. Merge `contract-import` into `main` with `--no-ff`, then push `main`. This is Patrick's go.
-- [ ] **Step 5:** In avuz-server, `git -C apps/assinaturas fetch && git -C apps/assinaturas checkout <0.11.0 sha>`. Commit `chore: pin Assinaturas 0.11.0 (contract import, "Não possui" badge)`, with the CLAUDE.md line.
+- [x] **Step 1:** `node scripts/add-translations.mjs` with every new string. Then `npx vitest run src/l10n.spec.ts`. Expected: PASS (no untranslated source string).
+- [x] **Step 2:** `npm run build`. Expected: exit 0, and `js/` changed.
+- [x] **Step 3:** The full PHP suite (`tests/env/phpunit.sh`, background) and `npx vitest run`. Expected: both green.
+- [x] **Step 4:** Commit `chore: release 0.11.0`. Merge `contract-import` into `main` with `--no-ff`, then push `main`. This is Patrick's go.
+- [x] **Step 5:** In avuz-server, `git -C apps/assinaturas fetch && git -C apps/assinaturas checkout <0.11.0 sha>`. Commit `chore: pin Assinaturas 0.11.0 (contract import, "Não possui" badge)`, with the CLAUDE.md line.
 
 Deploying to conecta-2 (`:staging-2`) is a separate step after this plan, using the usual recipe.
