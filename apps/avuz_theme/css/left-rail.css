@@ -4,8 +4,8 @@
  * From 1024px up (core's own mobile breakpoint) on logged-in pages, #header
  * becomes a fixed column: the rail on top, core's header-end widgets (search,
  * notifications, contacts, user menu) stacked at its foot, their menus opening
- * beside it. Icons only, 72px wide: each app's name is its tooltip and stays in
- * the link for screen readers. "Mais aplicativos" opens a labelled list beside it.
+ * beside it. Icons only, 72px wide: each app's name stays in the link for
+ * screen readers and shows beside the icon, at once, on hover and keyboard focus. "Mais aplicativos" opens a labelled list beside it.
  * Below 1024px only #avuz-rail is hidden: core's top header stays as it is.
  *
  * Logged-in pages are body#body-user, or body#body-settings on settings, admin
@@ -29,6 +29,7 @@
 		/* One icon column: app icons and the foot widgets are centered 36px from the left edge */
 		--avuz-rail-padding: 12px;
 		--avuz-rail-icon-size: 20px;
+		--avuz-rail-tooltip-gap: 8px;
 		--avuz-rail-icon-center: 36px;
 		--avuz-rail-item-padding: calc(var(--avuz-rail-icon-center) - var(--avuz-rail-padding) - var(--avuz-rail-icon-size) / 2);
 		--header-height: 0px;
@@ -127,10 +128,12 @@
 		list-style: none;
 	}
 
+	/* Clips apps that don't fit yet (the script moves them to "Mais aplicativos"), not the tooltips beside them */
 	.avuz-rail__apps {
 		flex: 1 1 auto;
 		min-height: 0;
-		overflow: hidden;
+		overflow-x: visible;
+		overflow-y: clip;
 	}
 
 	.avuz-rail__overflow[hidden] {
@@ -205,7 +208,7 @@
 		text-overflow: ellipsis;
 	}
 
-	/* Icons only: the name stays in the link for screen readers and shows as its tooltip */
+	/* Icons only: the name stays in the link for screen readers and shows as its tooltip (below) */
 	#avuz-rail .avuz-rail__apps :is(a, button).avuz-rail__app {
 		justify-content: center;
 		padding: 0;
@@ -218,6 +221,36 @@
 		overflow: hidden;
 		clip-path: inset(50%);
 		white-space: nowrap;
+	}
+
+	/* Tooltip: the name beside the icon, at once, on hover and keyboard focus.
+	   Not while "Mais aplicativos" is open, nor after Escape (js/left-rail.js). */
+	#avuz-rail:not(.avuz-rail--tooltip-dismissed) .avuz-rail__apps .avuz-rail__app:not([aria-expanded='true']):is(:hover, :focus-visible) .avuz-rail__label {
+		z-index: 1;
+		top: 50%;
+		left: calc(100% + var(--avuz-rail-tooltip-gap));
+		width: auto;
+		height: auto;
+		overflow: visible;
+		clip-path: none;
+		padding: 4px 10px;
+		border-radius: var(--border-radius-element, 8px);
+		background: var(--color-main-text);
+		color: var(--color-main-background);
+		font-size: 13px;
+		line-height: 20px;
+		box-shadow: 0 2px 8px var(--color-box-shadow);
+		transform: translateY(-50%);
+	}
+
+	/* Bridges the gap to the icon, so the pointer can move onto the tooltip without losing it */
+	.avuz-rail__apps .avuz-rail__label::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		right: 100%;
+		width: var(--avuz-rail-tooltip-gap);
+		height: 100%;
 	}
 
 	/* "Mais aplicativos" list: beside the rail, aligned to its bottom */
