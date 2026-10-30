@@ -71,6 +71,25 @@ describe('left rail stylesheet', () => {
 		assert.deepEqual(footSelectors.filter((selector) => !selector.startsWith('html.avuz-rail--material-foot ')), []);
 	});
 
+	describe('tooltip', () => {
+		const railRules = () => topLevelBlocks(STYLESHEET).find((block) => block.prelude === RAIL_MEDIA).body;
+		const tooltipSelector = () => selectorsIn(railRules()).find((selector) => selector.endsWith(':is(:hover, :focus-visible) .avuz-rail__label'));
+
+		it('shows the app name on hover and keyboard focus, with no transition delay', () => {
+			assert.ok(tooltipSelector());
+			assert.doesNotMatch(railRules(), /transition/);
+		});
+
+		it('stays hidden while "Mais aplicativos" is open and after Escape', () => {
+			assert.match(tooltipSelector(), /^#avuz-rail:not\(\.avuz-rail--tooltip-dismissed\) /);
+			assert.match(tooltipSelector(), /\.avuz-rail__app:not\(\[aria-expanded='true'\]\)/);
+		});
+
+		it('is not clipped by the app list, which clips only vertically', () => {
+			assert.match(railRules(), /\.avuz-rail__apps\s*\{[^}]*overflow-x:\s*visible;\s*overflow-y:\s*clip;/);
+		});
+	});
+
 	it('keeps a hidden "Mais aplicativos" list hidden despite its flex layout', () => {
 		const railRules = topLevelBlocks(STYLESHEET).find((block) => block.prelude === RAIL_MEDIA).body;
 

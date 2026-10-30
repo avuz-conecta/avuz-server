@@ -3,8 +3,10 @@
  * out from 1024px up; below that core's top header stays as it is).
  *
  * Logged-in pages only (body#body-user, or body#body-settings on settings,
- * admin and help pages). Icons only: each app's name is its tooltip and stays
- * in the link for screen readers.
+ * admin and help pages). Icons only: each app's name stays in the link for
+ * screen readers, and the stylesheet shows it beside the icon as a tooltip,
+ * at once, on hover and keyboard focus. Escape hides it until the pointer or
+ * focus moves to another icon.
  * Renders inside #header .header-start:
  * - one link per app (core/apps initial state, already in the user's order),
  *   the current one with aria-current="page".
@@ -38,6 +40,7 @@
 	var FOOT_ICONS_CLASS = 'avuz-rail--material-foot';
 	var FOOT_CONTROLS = ['search', 'notifications'];
 	var NEW_TAB_SUFFIX = ' (abre em nova aba)';
+	var TOOLTIP_DISMISSED_CLASS = 'avuz-rail--tooltip-dismissed';
 
 	function readState(elementId) {
 		var stateElement = document.getElementById(elementId);
@@ -204,10 +207,34 @@
 			}
 			appList.replaceChildren.apply(appList, items);
 			overflowList.replaceChildren.apply(overflowList, split.overflow.map(function toItem(app) { return listItem(appLink(app)); }));
-			appList.querySelectorAll('.avuz-rail__app').forEach(function setTooltip(control) {
-				control.title = control.querySelector('.avuz-rail__label').textContent;
-			});
 		}
+
+		var pointedControl = null;
+		var dismissedControl = null;
+
+		function restoreTooltip() {
+			dismissedControl = null;
+			nav.classList.remove(TOOLTIP_DISMISSED_CLASS);
+		}
+
+		function enterControl(event) {
+			pointedControl = event.target.closest('.avuz-rail__app');
+			if (dismissedControl && pointedControl !== dismissedControl) {
+				restoreTooltip();
+			}
+		}
+
+		function leaveControl(event) {
+			if (!dismissedControl || dismissedControl.contains(event.relatedTarget)) {
+				return;
+			}
+			restoreTooltip();
+		}
+
+		appList.addEventListener('mouseover', enterControl);
+		appList.addEventListener('focusin', enterControl);
+		appList.addEventListener('mouseout', leaveControl);
+		appList.addEventListener('focusout', leaveControl);
 
 		moreButton.addEventListener('click', function toggleOverflow() {
 			if (isOverflowOpen()) {
@@ -222,6 +249,14 @@
 				return;
 			}
 			closeOverflow(true);
+		});
+
+		document.addEventListener('keydown', function hideTooltipOnEscape(event) {
+			if (event.key !== 'Escape' || !pointedControl) {
+				return;
+			}
+			dismissedControl = pointedControl;
+			nav.classList.add(TOOLTIP_DISMISSED_CLASS);
 		});
 
 		document.addEventListener('click', function closeOnOutsideClick(event) {

@@ -204,20 +204,81 @@ describe('left rail', () => {
 			assert.deepEqual([...page.rail().querySelectorAll('button')], []);
 		});
 
-		it('gives each app its name as a tooltip, keeping the name in the link', () => {
+		it('keeps each app name in its link, for the tooltip and screen readers', () => {
 			const page = openPage();
 
-			assert.deepEqual(page.visibleLinks().map((link) => link.title), ['Painel', 'Drive', 'Mail', 'Tarefas', 'Formulários']);
-			assert.equal(page.visibleLinks()[0].textContent.trim(), 'Painel');
+			assert.deepEqual(names(page.visibleLinks()), ['Painel', 'Drive', 'Mail', 'Tarefas', 'Formulários']);
 		});
 
-		it('names "Mais aplicativos" in its tooltip, leaving the extra apps labelled', () => {
+		it('sets no native title, whose delayed tooltip would double the instant one', () => {
 			const page = openPage({ railHeight: 3 * ITEM_HEIGHT });
 
 			page.moreButton().click();
 
-			assert.equal(page.moreButton().title, 'Mais aplicativos');
-			assert.deepEqual(page.visibleLinks().filter((link) => link.closest('.avuz-rail__overflow')).map((link) => link.title), ['', '', '']);
+			assert.deepEqual([...page.rail().querySelectorAll('[title]')], []);
+		});
+	});
+
+	describe('tooltip', () => {
+		const dismissed = (page) => page.rail().classList.contains('avuz-rail--tooltip-dismissed');
+		const pressEscape = (page) => page.document.dispatchEvent(new page.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+		const hover = (page, control) => control.querySelector('.avuz-rail__icon').dispatchEvent(new page.window.MouseEvent('mouseover', { bubbles: true }));
+
+		it('hides on Escape while an icon is hovered', () => {
+			const page = openPage();
+			hover(page, page.visibleLinks()[1]);
+
+			pressEscape(page);
+
+			assert.equal(dismissed(page), true);
+		});
+
+		it('hides on Escape while an icon has keyboard focus', () => {
+			const page = openPage();
+			page.visibleLinks()[1].focus();
+
+			pressEscape(page);
+
+			assert.equal(dismissed(page), true);
+		});
+
+		it('stays hidden while the pointer moves within the same icon', () => {
+			const page = openPage();
+			const drive = page.visibleLinks()[1];
+			hover(page, drive);
+			pressEscape(page);
+
+			drive.dispatchEvent(new page.window.MouseEvent('mouseover', { bubbles: true }));
+
+			assert.equal(dismissed(page), true);
+		});
+
+		it('shows again on the next icon', () => {
+			const page = openPage();
+			hover(page, page.visibleLinks()[1]);
+			pressEscape(page);
+
+			hover(page, page.visibleLinks()[2]);
+
+			assert.equal(dismissed(page), false);
+		});
+
+		it('shows again once focus leaves the icon', () => {
+			const page = openPage();
+			page.visibleLinks()[1].focus();
+			pressEscape(page);
+
+			page.document.getElementById('outside').focus();
+
+			assert.equal(dismissed(page), false);
+		});
+
+		it('ignores Escape before any icon was hovered or focused', () => {
+			const page = openPage();
+
+			pressEscape(page);
+
+			assert.equal(dismissed(page), false);
 		});
 	});
 
@@ -231,12 +292,11 @@ describe('left rail', () => {
 			assert.equal(site.rel, 'noopener noreferrer');
 		});
 
-		it('tells the new tab apart in its name and tooltip', () => {
+		it('tells the new tab apart in its name, which the tooltip shows', () => {
 			const page = openPage({ apps: [...APPS, REDIRECT_SITE] });
 
 			const site = page.visibleLinks()[5];
 			assert.equal(site.textContent.trim(), 'Banco (abre em nova aba)');
-			assert.equal(site.title, 'Banco (abre em nova aba)');
 		});
 
 		it('keeps an embedded site in the same tab', () => {
