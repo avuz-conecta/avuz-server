@@ -1,6 +1,6 @@
 # Assinaturas Plan 13: Signer Emails Sent by Avuz Conecta
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Create documents with `disable_signer_emails: true` and send the invite, next-group invite, reminder, signed copy and closing notice from Avuz Conecta, so release 0.12.0 reaches every signer with the sender's message.
 
@@ -72,7 +72,7 @@
   - `EnvelopeMapper::scheduleClosingMail(int $envelopeId, int $until, int $now): void`, `finishClosingMail(int $envelopeId, ?int $nextSyncAt): void`
   - `SignerMessage::introduction(Envelope): string`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `SignerMailerTest`, using `RecordingMailer`:
 
@@ -108,12 +108,12 @@ public function testClaimClosingMailWinsOnceAndReleaseAllowsARetry(): void;
 
 `MailHealthTest`: `testIsNotConfiguredWithoutASmtpHost`, `testLastFailureRoundTrips`.
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `tests/env/phpunit.sh --filter 'SignerMailerTest|SignerClaimsTest|MailHealthTest'`
 Expected: FAIL, classes not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 - Migration, nullable BIGINT: `invite_attempted_at`, `invite_failed_at`, `copy_sent_at`, `closing_notice_sent_at` on `assinaturas_signers`; `closing_mail_until` on `assinaturas_envelopes`. Guard with `hasColumn`, as `Version001100Date20261029000000` does.
 - Entities gain the matching fields in `FIELD_TYPES`.
@@ -137,12 +137,12 @@ Exact copy not in the tests:
 | Cancelled | `Assinatura cancelada` | `{sender} cancelou "{title}". O documento não seguirá para assinatura.`, then `Motivo: {reason}` |
 | Refused | `Assinatura recusada` | `"{title}" foi recusado por um dos signatários. O documento não seguirá para assinatura.` |
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `tests/env/phpunit.sh --filter 'SignerMailerTest|SignerClaimsTest|MailHealthTest'`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/Mail lib/Migration lib/Db lib/Send/SignerMessage.php appinfo/info.xml tests
@@ -162,7 +162,7 @@ git commit -m "feat(mail): render signer emails and add the mail bookkeeping"
   - `SignerInvites::resend(Envelope, Signer): void`: invites one signer now, ignoring turn checks already made by the caller. Throws `SignerMailFailed` or `ZapSignException` after recording the failure
   - Events `invite_sent`, `invite_failed`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `SignerInvitesTest`:
 
@@ -194,12 +194,12 @@ public function testCreateAsksZapSignForNoSignerEmails(): void; // payload disab
 
 Add to `EnvelopeCreationTest`: the signer payload has neither `custom_message` nor `send_automatic_email`.
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `tests/env/phpunit.sh --filter 'SignerInvitesTest|EnvelopeSenderTest|EnvelopeCreationTest'`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 - `inviteDue`: return null unless the status is `sending` or `pending` and `cancelRequestedAt` is null. Due = `SigningTurn::isOpen`, has a ZapSign token, `emailBouncedAt` null, in the current group when signing order is on, and (`releasedAt` null or `inviteFailedAt` set). Claim each due signer, fetch `SignUrls` once only when one was claimed, send.
 - On success: `released_at` keeps its first value or takes now, `invite_failed_at` null, `invite_attempted_at` null, event `invite_sent`.
@@ -209,12 +209,12 @@ Expected: FAIL.
 - `NewSigner`: drop `$message`, `custom_message` and `send_automatic_email`. `EnvelopeCreation` stops composing a message.
 - Listener: add `invite_failed` to `SIGNER_SUBJECTS`. Notifier subject: `'The invitation to %2$s for "%1$s" could not be sent.'`, pt_BR `O convite para %2$s de "%1$s" não pôde ser enviado.`
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `tests/env/phpunit.sh --filter 'SignerInvitesTest|EnvelopeSenderTest|EnvelopeCreationTest'`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib tests l10n
@@ -229,7 +229,7 @@ git commit -m "feat(send): invite the first group from Avuz Conecta"
 **Interfaces:**
 - Consumes: `SignerInvites::inviteDue`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```php
 public function testInvitesTheNextGroupWhenTheSyncSeesTheGroupFinished(): void;
@@ -238,21 +238,21 @@ public function testRecoveryInvitesOnceAndReturnsToTheNormalSchedule(): void;
 public function testADocumentNoLongerPendingInvitesNobody(): void;
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `tests/env/phpunit.sh --filter 'EnvelopeSynchronizerTest|EnvelopeLifecycleTest'`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `reschedule`, while `$providerPending`, call `inviteDue` before the reminders, on a fresh row. `next_sync_at` is the earliest of the normal schedule, the next reminder and the invite retry.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `tests/env/phpunit.sh --filter 'EnvelopeSynchronizerTest|EnvelopeLifecycleTest'`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/Sync tests/Integration/Sync
@@ -272,7 +272,7 @@ git commit -m "feat(sync): invite the next group and retry failed invites"
   - `POST …/remind` answers 502 `mail_failed`
   - `SignerReminders::cooldownEndsAt` returns null while `inviteFailedAt` is set
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `SignerRemindersTest`:
 
@@ -294,12 +294,12 @@ public function testALaterGroupIsNotInvited(): void;                          //
 public function testTheRetryGoesToTheCorrectedAddress(): void;                // correction during a failure, then inviteDue
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `tests/env/phpunit.sh --filter 'SignerRemindersTest|SignerCorrectionsTest'`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 - `remind`: a signer with `releasedAt` null or `inviteFailedAt` set goes through `SignerInvites::resend`. Anyone else gets `SignerMailer::reminder` with a fresh URL. `SignerMailFailed` becomes `ActionRejected('mail_failed', …, 502)`, recording no reminder.
 - `sendAutomatic`: on `SignerMailFailed` or `ZapSignException`, log a warning with the uuid and return `now + 3600`. Don't mark the signer reminded.
@@ -307,12 +307,12 @@ Expected: FAIL.
 - `SignerCorrections`: `updateSignerEmail` stays, because the code goes to that address. If the signer is remindable, `resend` and set `lastReminderAt`. No window check. Drop `RELEASE_AFTER_EMAIL_UPDATE`.
 - Remove `ZapSignClient::releaseSigner`, `SignerMessage::compose` and the `release` command in `tests/spike/run.php`. Update `tests/e2e/lifecycle.php` for the new flow.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `tests/env/phpunit.sh --filter 'SignerRemindersTest|SignerCorrectionsTest|ZapSignClient'`
 Expected: PASS. `grep -rn releaseSigner lib tests` finds nothing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib tests
@@ -334,7 +334,7 @@ git commit -m "feat(actions): remind and correct through our own email"
   - `ClosingMail::sendBeforeRemoval(Envelope): void`: one best-effort pass, no retry
   - Event `signed_copy_sent`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `ClosingMailTest`:
 
@@ -353,12 +353,12 @@ public function testFinishingLetsACompletedEnvelopeSyncOnceMore(): void; // unsa
 
 Add to `EnvelopeCancellationTest`: `testCancelAsksZapSignNotToNotify` (`notify_signer` false), `testCancelAnswersWithoutWaitingForMail` (no message sent inside `cancel`). Add to `EnvelopeRemovalTest`: `testRemovingALiveEnvelopeTellsInvitedSigners`, `testAMailFailureDoesNotBlockTheRemoval`. Add to `EnvelopeCompletionTest`: `testOnlyTheFirstCompletionSchedulesMail`.
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `tests/env/phpunit.sh --filter 'ClosingMailTest|EnvelopeCancellationTest|EnvelopeRemovalTest|EnvelopeCompletionTest'`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 - `synchronize`: before the in-flight check, `if ($this->closingMail->isDue($envelope)) { $this->closingMail->send($envelope); return; }`. Closing mail takes the whole sync turn.
 - `send`: each signer is claimed before sending and released on failure. Copy goes to all signers. Notice goes to signers with `releasedAt` set whose status isn't `refused`. Past `closing_mail_until`, log and finish.
@@ -367,12 +367,12 @@ Expected: FAIL.
 - `EnvelopeCancellation` and `EnvelopeRemoval`: `notify_signer` is always false.
 - `EnvelopeRemoval`: `sendBeforeRemoval` runs before the rows go, only for a live envelope. Failures are logged and ignored. **Ruling:** a deleted envelope can't retry, because its rows are gone, so this one case sends once. Spec says retry; it costs a lost notice on a rare admin action.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `tests/env/phpunit.sh --filter 'ClosingMailTest|EnvelopeCancellationTest|EnvelopeRemovalTest|EnvelopeCompletionTest|EnvelopeSynchronizerTest'`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib tests
@@ -388,7 +388,7 @@ git commit -m "feat(mail): send the signed copy and the closing notice"
 **Interfaces:**
 - Consumes: signer `inviteFailedAt`, `inviteError`, codes `mail_failed`, `mail_not_configured`, events from Tasks 2 and 5.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 it('shows a signer whose invite failed as not sent', ...)        // label 'Invitation not sent', tone 'warning'
@@ -402,12 +402,12 @@ it('explains mail_not_configured and mail_failed', ...)
 
 Add a PHP test: `EnvelopeView` returns `inviteFailedAt`.
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `npx vitest run src/presentation src/detail src/api`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 - `signerStateView`: after the waiting-group check, an open signer with `inviteFailedAt` shows `Invitation not sent`, pt_BR `Convite não enviado`, tone `warning`.
 - `cooldownEndsAt`: null when `inviteFailedAt` is set.
@@ -423,12 +423,12 @@ Expected: FAIL.
 | `Invitation to {signer} not sent` | `Convite para {signer} não enviado` |
 | `Signed copy sent to {signer}` | `Cópia assinada enviada para {signer}` |
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run && npm run lint && npm run build`
 Expected: PASS, build writes `js/`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src lib l10n js dist tests
@@ -444,7 +444,7 @@ git commit -m "feat(ui): show failed invites and drop the correction countdown"
 - Consumes: `MailHealth`.
 - Produces: `status` gains `"mail": {"configured": bool, "lastFailureAt": int|null}`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```php
 public function testStatusReportsMailSetupAndLastFailure(): void;
@@ -455,23 +455,23 @@ it('warns when email is not set up', ...)
 it('shows when email last failed', ...)
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `npx vitest run src/admin && tests/env/phpunit.sh --filter AdminController`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add the field and a line in the health card: `Email to signers`, `Set up` or `Not set up`, and `Last failure` with `NcDateTime`. pt_BR: `E-mail aos signatários`, `Configurado`, `Não configurado`, `Última falha`.
 
 Update `docs/api.md`: the `remind` and `email` rows, the cooldown and correction passages, cancel and delete (no ZapSign notice, our notice to invited signers only), `inviteFailedAt`, the new codes, the new events, a short *Signer emails* section with the retry rules, and `emailBouncedAt` (now only from ZapSign's code email).
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/admin && tests/env/phpunit.sh --filter AdminController`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib src l10n docs tests js dist
@@ -483,25 +483,25 @@ git commit -m "feat(admin): report email health; document signer emails"
 **Files:**
 - Modify: `appinfo/info.xml`. In avuz-server: `apps/assinaturas`, `docs/assinaturas-tenant-runbook.md`, `CLAUDE.md`, this plan
 
-- [ ] **Step 1: Ask Patrick to reopen document A's links**
+- [x] **Step 1: Ask Patrick to reopen document A's links**
 
 The links are in the scratchpad file from the spike. If the page no longer offers the signed document, stop: the spec says attach the PDFs instead.
 
-- [ ] **Step 2: Run everything**
+- [x] **Step 2: Run everything**
 
 Run in the background: `tests/env/phpunit.sh --testdox`, then `npx vitest run`, `npm run lint`, `npm run build`.
 Expected: all green, and no `sign_url` in any log call.
 
-- [ ] **Step 3: Bump to 0.12.0 and commit**
+- [x] **Step 3: Bump to 0.12.0 and commit**
 
 ```bash
 git add appinfo/info.xml js dist
 git commit -m "chore: release 0.12.0"
 ```
 
-- [ ] **Step 4: Merge into `main` and push, once Patrick says so**
+- [x] **Step 4: Merge into `main` and push, once Patrick says so**
 
-- [ ] **Step 5: Pin in avuz-server**
+- [x] **Step 5: Pin in avuz-server**
 
 - On a branch off `avuz-customization`, point `apps/assinaturas` at the merged commit.
 - Runbook step 2: drop "Set the sender text and Reply-To". Add: the instance default sender is verified in the mail provider, and check which address owns the sub-account, because that address keeps getting ZapSign's owner notices.
