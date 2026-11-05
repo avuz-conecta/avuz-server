@@ -211,6 +211,10 @@ Four documents in `/spike-own-emails/`, created without `send_automatic_email` a
 | S1 order and signing | Group 2's link shows "Não é a sua vez de assinar" until group 1 signs. Both groups then signed with no release call |
 | S3 signed copy on `sign_url` | After completion both links open ZapSign's download page. Same-day check only |
 | S4 code | Typed signature ended as `assinaturaTela-tokenEmail`, with the signer on the corrected address |
+| S2 cancel | `notify_signer: false`: no cancel email in either inbox |
+| S5 signer emails | The Gmail signer of A and C received nothing: no invite, next-group invite, signed copy or refusal notice |
+| S4 code delivery | "Avuz Conecta via ZapSign" code email reached the corrected address |
+| Owner notices (closes Spike 5) | The account owner still gets ZapSign-branded emails: one per signature, one per refusal, and the last signature's carries the PDF. The flag doesn't touch them |
 | API on the document | `POST /refuse/` needs a `User-Agent` header. A refused signer reports `rejeitou` with `signed_at` set |
 
 The waiting page tells a later group "enviaremos uma notificação quando sua vez chegar". With the flag on, that notification is our invite.

@@ -1,6 +1,6 @@
 # Assinaturas: signer emails sent by Avuz Conecta
 
-**Status:** approved by Patrick, 2026-11-05. Spikes pending.
+**Status:** approved by Patrick, 2026-11-05. Spikes passed.
 **Target:** Assinaturas 0.12.0, before the Plan 5 pilot.
 **Source:** ZapSign's answers in `docs/zapsign/sandbox-findings.md` (last section).
 
@@ -50,6 +50,7 @@ Creating documents with `disable_signer_emails: true` and mailing the `sign_url`
 - ZapSign's verification code still comes from ZapSign.
 - Every email now spends ZeptoMail credits, and all tenants share one account. The 10/10 to 14/10 outage would now stop invites as well as other mail.
 - We can't tell delivered from accepted. `viewedAt` is the real proof that a signer got the link.
+- The ZapSign account owner keeps receiving ZapSign-branded notices for each signature and refusal, plus the signed PDF. `disable_signer_emails` doesn't cover them. Before Plan 5, find out which address owns each sub-account and whether the panel can turn these off.
 
 ## Behavior
 
@@ -89,7 +90,7 @@ Other subjects:
 
 ZapSign sent this until now, so we have to replace it. The email links to the signer's `sign_url`, which should show the signed document once the envelope completes.
 
-- Spike S3 must confirm that. If it fails, attach the PDFs instead. An envelope over the mail provider's size limit then gets a note to ask the sender for the files.
+- The sandbox confirmed it on the day of signing. If the recheck fails, attach the PDFs instead. An envelope over the mail provider's size limit then gets a note to ask the sender for the files.
 - Failing to save a signed file to Drive doesn't hold the copy back.
 
 ### Failure and retry
@@ -147,15 +148,15 @@ A corrected address is invited at once, with the existing rate limit on that rou
 
 No migration and no per-envelope switch. Only sandbox envelopes exist, on conecta-2 and app3. An open one keeps ZapSign's emails on, so a signer there could get both emails for the next group. That's acceptable on the sandbox.
 
-## Spike first (sandbox)
+## Spike results (sandbox, 2026-11-05)
 
-Run these before planning the code. Each answer can change the design.
+Details in `docs/zapsign/sandbox-findings.md`, *Own-email spikes*.
 
-- **S1.** With the flag on and no release call, `sign_url` opens and signing works, in both groups, with the out-of-order block on.
-- **S2.** With the flag on and `notify_signer: false`, nobody gets a cancel email.
-- **S3.** After completion, `sign_url` shows the signed document, also a few days later.
-- **S4.** With the flag on, ZapSign's code email still goes out, to a corrected address too.
-- **S5.** Nothing from ZapSign reaches signers on refusal, expiry or completion.
+- With the flag on and no release call, signing works in both groups and the out-of-order block holds.
+- With `notify_signer: false`, no cancel email goes out.
+- After completion, `sign_url` opens the download page. Recheck a few days later, before release.
+- ZapSign's code still goes out, to the corrected address.
+- Signers get nothing else from ZapSign on completion or refusal. Expiry wasn't tested.
 
 ## Verification
 
@@ -166,11 +167,10 @@ Run these before planning the code. Each answer can change the design.
 
 ## Rollout
 
-1. Spike, then update this spec.
-2. Plan and build on an `assinaturas` branch, release 0.12.0, pin in `avuz-server`.
-3. conecta-2, then app3 (still sandbox), with Patrick's word for each production step.
-4. Update `docs/assinaturas-tenant-runbook.md`: drop the "sender text and Reply-To" panel step, add "instance default sender verified in the mail provider".
-5. Update the Assinaturas section in `CLAUDE.md`.
+1. Plan and build on an `assinaturas` branch, release 0.12.0, pin in `avuz-server`.
+2. conecta-2, then app3 (still sandbox), with Patrick's word for each production step.
+3. Update `docs/assinaturas-tenant-runbook.md`: drop the "sender text and Reply-To" panel step, add "instance default sender verified in the mail provider".
+4. Update the Assinaturas section in `CLAUDE.md`.
 
 ## Left to the builder
 
