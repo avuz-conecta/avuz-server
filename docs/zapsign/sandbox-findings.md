@@ -201,3 +201,16 @@ Reply to `docs/zapsign/email-2026-10-30.md`. Where it differs from the 2026-09-2
 | `custom_message` on release | Not possible. Works only at creation with `send_automatic_email: true`. Alternatives: anchor placement (`signature_placement`, `rubrica_placement`) or own invites | Our message field does not reach the first group's email. Anchors don't fit the visual placement editor |
 | Post-sign button | "Acessar documentos assinados" can't be hidden | Accept |
 | Typed signature | Code is mandatory, no exception. `auth_mode: assinaturaTela` doesn't remove it. `require_cpf` asks for the CPF; `validate_cpf` checks CPF, name and birth date, is additive and has an extra charge | CPF-only is impossible. Per-document switch is closed |
+
+## Own-email spikes (2026-11-05, sandbox, `disable_signer_emails: true`)
+
+Four documents in `/spike-own-emails/`, created without `send_automatic_email` and with no release call.
+
+| Spike | Result |
+|---|---|
+| S1 order and signing | Group 2's link shows "Não é a sua vez de assinar" until group 1 signs. Both groups then signed with no release call |
+| S3 signed copy on `sign_url` | After completion both links open ZapSign's download page. Same-day check only |
+| S4 code | Typed signature ended as `assinaturaTela-tokenEmail`, with the signer on the corrected address |
+| API on the document | `POST /refuse/` needs a `User-Agent` header. A refused signer reports `rejeitou` with `signed_at` set |
+
+The waiting page tells a later group "enviaremos uma notificação quando sua vez chegar". With the flag on, that notification is our invite.
