@@ -513,6 +513,6 @@ git add apps/assinaturas docs CLAUDE.md
 git commit -m "chore: pin Assinaturas 0.12.0 (signer emails sent by Avuz Conecta)"
 ```
 
-- [ ] **Step 6: Deploy to conecta-2 once Patrick says so, then hand over**
+- [x] **Step 6: Deploy to conecta-2 once Patrick says so, then hand over**
 
 Sandbox run: two groups, invite, reminder, correction, cancel, refusal, completion, one with SMTP broken. Confirm the next group's invite arrives within seconds of the webhook; if it only comes with the poller, stop and report. Grok bot checks signer rows and notifications. Patrick checks real inboxes, spam included, on Gmail and Outlook.
