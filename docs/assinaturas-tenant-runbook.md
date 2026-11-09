@@ -19,14 +19,15 @@ Create a WAF custom rule so ZapSign webhooks reach the app.
 
 2. In the ZapSign panel, for this sub-account (by hand):
    - Configurações → Organização → Preferências: turn on "Bloquear assinatura fora da ordem definida".
-   - Set the sender text and Reply-To.
+   - Note which address owns the sub-account. That address keeps getting ZapSign's owner notices (each signature and refusal, plus the signed PDF), and the signers' emails no longer depend on this panel.
 3. In the tenant's Portainer stack, set:
    - `ZAPSIGN_API_TOKEN`: the token from the file.
    - `ZAPSIGN_ENVIRONMENT`: `production` (or `sandbox`).
    - `ZAPSIGN_COMPANY_NAME`: the company shown to signers.
    - `ZAPSIGN_WEBHOOK_SECRET`: optional; empty keeps the app's generated secret.
-4. Redeploy the stack.
-5. Delete the token file.
+4. Check that the instance's default sender is verified in the mail provider. Avuz Conecta mails signers itself, and Send is refused while the instance has no SMTP host.
+5. Redeploy the stack.
+6. Delete the token file.
 
 ## 3. Verify
 

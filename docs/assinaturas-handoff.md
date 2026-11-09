@@ -116,7 +116,7 @@ Read this first if you are picking up the Assinaturas work.
    - Options:
      - turn off "Digitar" account-wide (draw/upload only, no code, plus `validate_cpf`);
      - keep the code and add CPF as an extra factor;
-     - ask ZapSign support for a per-document switch.
+     - ~~ask ZapSign support for a per-document switch~~ ZapSign answered no on 2026-11-05: the code is mandatory, and `validate_cpf` is additive and has an extra charge.
 4. **Plan 5:** app3 production pilot, then fleet rollout. On hold.
 
 ## Known behaviour and backlog (not bugs unless Patrick says so)

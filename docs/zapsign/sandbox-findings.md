@@ -180,3 +180,41 @@ The app shipped in the `:staging-2` image (app 0.4.2 → 0.4.4), configured from
 | Real phone (Patrick) | Placement editor pinch/drag/scroll/resize, dashboard, detail: all good |
 
 Bugs found and fixed during staging: white header icon (no Avuz theme override → `themes/avuz/apps/assinaturas/img/`), unstyled toasts (`@nextcloud/dialogs` 7 CSS never imported → app 0.4.3), signer-row countdown button covering the status pill at ~690px (app 0.4.4). A JPEG2000 page that once rendered blank in one Chrome session did not reproduce anywhere afterwards (stock pdf.js and the app bundle, Chrome and Chromium, local and staging).
+
+## ZapSign answers (2026-11-05, from their team)
+
+Reply to `docs/zapsign/email-2026-10-30.md`. Where it differs from the 2026-09-29 answers, this one wins.
+
+| Topic | Answer | Consequence |
+|---|---|---|
+| Out-of-order block | No API. Panel only, per sub-account. `signature_order_active` and `order_group` set the sequence, but enforcement needs the panel setting | Stays a manual step in the tenant runbook. Provisioning can't be fully automated |
+| Webhook retries | Retries happen on non-200, with no fixed count or interval guaranteed | Keep the idempotent inbox and `SyncPollerJob` as the safety net. No change |
+| `email_bounce` | Exists in production, but fires only when the mail service reports a failure, so a bad address gives no immediate event | Still to verify in Plan 5 |
+| Limits | 20 files and 20 MB for the **whole envelope**, PDF and DOCX in any mix. Production partner terms; the sandbox may stay lower | `EnvelopeLimits` already matches. Sandbox limit needs a change on their side if we want to test 20 files |
+| Own invites | Allowed: `disable_signer_emails: true` plus our own mail with `sign_url`. Sender, content and visual identity of the invite are ours. Signing page keeps ZapSign's identity | Viable, and the only route to per-user sender, Reply-To and first-email message |
+| `disable_signer_emails` scope | Turns off signer emails. **OTP codes still go out** from ZapSign | Typed signature still sends a ZapSign-branded code email. Signed copy and group progression become our job |
+| Audit and legal | Own distribution is a supported flow and doesn't invalidate the signature by itself. Evidence stays at ZapSign | They did **not** say whether the report records the delivery channel |
+| LGPD | ZapSign is, as a rule, the operator. Controller depends on who does what, sub-accounts included. DPA is a public page | Legal to read the DPA. No per-contract DPA was offered |
+| Sender and Reply-To per document | Not available via API. `brand_name` and `created_by` don't do this | Contradicts the 2026-09-29 hint of an endpoint. Per-sub-account panel setting remains in the runbook, unconfirmed |
+| "via ZapSign" in the sender | No API parameter to remove it | Contradicts 2026-09-29 ("should disappear"). Stays while ZapSign sends the mail |
+| Email layout | No centered logo, no footer removal | Stays while ZapSign sends the mail |
+| `custom_message` on release | Not possible. Works only at creation with `send_automatic_email: true`. Alternatives: anchor placement (`signature_placement`, `rubrica_placement`) or own invites | Our message field does not reach the first group's email. Anchors don't fit the visual placement editor |
+| Post-sign button | "Acessar documentos assinados" can't be hidden | Accept |
+| Typed signature | Code is mandatory, no exception. `auth_mode: assinaturaTela` doesn't remove it. `require_cpf` asks for the CPF; `validate_cpf` checks CPF, name and birth date, is additive and has an extra charge | CPF-only is impossible. Per-document switch is closed |
+
+## Own-email spikes (2026-11-05, sandbox, `disable_signer_emails: true`)
+
+Four documents in `/spike-own-emails/`, created without `send_automatic_email` and with no release call.
+
+| Spike | Result |
+|---|---|
+| S1 order and signing | Group 2's link shows "Não é a sua vez de assinar" until group 1 signs. Both groups then signed with no release call |
+| S3 signed copy on `sign_url` | After completion both links open ZapSign's download page. Same-day check only |
+| S4 code | Typed signature ended as `assinaturaTela-tokenEmail`, with the signer on the corrected address |
+| S2 cancel | `notify_signer: false`: no cancel email in either inbox |
+| S5 signer emails | The Gmail signer of A and C received nothing: no invite, next-group invite, signed copy or refusal notice |
+| S4 code delivery | "Avuz Conecta via ZapSign" code email reached the corrected address |
+| Owner notices (closes Spike 5) | The account owner still gets ZapSign-branded emails: one per signature, one per refusal, and the last signature's carries the PDF. The flag doesn't touch them |
+| API on the document | `POST /refuse/` needs a `User-Agent` header. A refused signer reports `rejeitou` with `signed_at` set |
+
+The waiting page tells a later group "enviaremos uma notificação quando sua vez chegar". With the flag on, that notification is our invite.
