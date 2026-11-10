@@ -1,0 +1,139 @@
+/**
+ * Deck (Tarefas): board header actions (Adicionar lista, Filtro, Modos de
+ * visualização, Detalhes) redrawn as thin outline icons, plus the
+ * "Nova lista" dialog bits (js/deck-new-stack.js; base look comes from
+ * css/deck-new-card.css and css/deck-new-board.css).
+ */
+
+.app-deck .board-actions {
+	gap: 2px;
+}
+
+.app-deck .board-actions .button-vue--tertiary {
+	width: 36px !important;
+	height: 36px !important;
+	min-width: 36px !important;
+	min-height: 36px !important;
+	border-radius: 10px !important;
+	color: var(--color-main-text, #2b3141) !important;
+	transition: background-color 0.12s, color 0.12s;
+}
+
+.app-deck .board-actions .button-vue--tertiary:hover,
+.app-deck .board-actions .button-vue--tertiary[aria-expanded="true"] {
+	background: var(--color-background-hover, #f1f2f5) !important;
+	color: var(--color-primary-element, #15171b) !important;
+}
+
+/* Stock icons (Material SVGs / icon-menu-sidebar) are hidden and replaced by
+   a mask painted with currentColor */
+.app-deck .board-actions .button-vue__icon > span {
+	display: block !important;
+	width: 20px !important;
+	height: 20px !important;
+	background: currentColor !important;
+	-webkit-mask: var(--avuz-hdr-icon) center / 20px 20px no-repeat;
+	mask: var(--avuz-hdr-icon) center / 20px 20px no-repeat;
+	opacity: 1 !important;
+}
+
+.app-deck .board-actions .button-vue__icon > span > svg {
+	display: none !important;
+}
+
+/* Adicionar lista: two columns + plus */
+.app-deck .board-actions #stack-add .button-vue__icon > span {
+	--avuz-hdr-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='4' width='6.5' height='16' rx='1.8'/%3E%3Crect x='13.5' y='4' width='7' height='8.5' rx='1.8'/%3E%3Cpath d='M17 15.5v5M14.5 18h5'/%3E%3C/svg%3E");
+}
+
+/* Filtro: funnel; when a filter is applied the icon turns accent with a dot */
+.app-deck .board-actions .filter-button .button-vue__icon > span {
+	--avuz-hdr-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 5.5h16l-6.2 7.2v5.6l-3.6 1.9v-7.5z'/%3E%3C/svg%3E");
+}
+
+.app-deck .board-actions .filter-button:has(.material-design-icon:not(.filter-off-outline-icon)) {
+	position: relative;
+	color: var(--color-primary-element, #15171b) !important;
+}
+
+.app-deck .board-actions .filter-button:has(.material-design-icon:not(.filter-off-outline-icon))::after {
+	content: "";
+	position: absolute;
+	top: 7px;
+	right: 7px;
+	width: 7px;
+	height: 7px;
+	border: 1.5px solid var(--color-main-background, #fff);
+	border-radius: 50%;
+	background: var(--color-primary-element, #15171b);
+}
+
+/* Modos de visualização: three dots */
+.app-deck .board-actions .action-item__menutoggle .button-vue__icon > span {
+	--avuz-hdr-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23000'%3E%3Ccircle cx='5.5' cy='12' r='1.6'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3Ccircle cx='18.5' cy='12' r='1.6'/%3E%3C/svg%3E");
+}
+
+/* Abrir detalhes: panel with a right sidebar */
+.app-deck .board-actions button[aria-label="Abrir detalhes"] .button-vue__icon > span,
+.app-deck .board-actions .icon-menu-sidebar {
+	--avuz-hdr-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='4.5' width='17' height='15' rx='2.6'/%3E%3Cpath d='M14.5 4.5v15M17 8.5h1M17 11.5h1'/%3E%3C/svg%3E");
+	background-image: none !important;
+}
+
+/* "Nova lista" dialog */
+.avuz-ns {
+	width: min(520px, 100%);
+}
+
+.avuz-ns__preview {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 12px 14px;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-top: 4px solid var(--c, var(--color-border-dark, #d3d7dd));
+	border-radius: 10px;
+	background: var(--color-background-hover, #f7f8fa);
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--color-main-text, #15171b);
+}
+
+.avuz-ns__preview span {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.avuz-ns__preview span:empty::before {
+	content: "Nome da lista";
+	font-weight: 500;
+	color: var(--color-text-maxcontrast, #868d97);
+}
+
+button.avuz-nb__color.avuz-ns__none {
+	background: var(--color-main-background, #fff) !important;
+	border: 1.5px dashed var(--color-border-dark, #c4c9d1) !important;
+	--c: var(--color-text-maxcontrast, #868d97);
+}
+
+button.avuz-nb__color.avuz-ns__none::after {
+	content: "";
+	position: absolute;
+	inset: 50% 4px auto;
+	height: 1.5px;
+	background: var(--color-border-dark, #c4c9d1);
+	transform: rotate(-45deg);
+}
+
+/* Active filter: Deck switches the button to "primary" (now black); keep it
+   light with a dark icon and the dot instead of a black blob */
+.app-deck .board-actions .filter-button.button-vue--vue-primary {
+	width: 36px !important;
+	height: 36px !important;
+	min-width: 36px !important;
+	min-height: 36px !important;
+	border-radius: 10px !important;
+	background: rgba(16, 20, 28, 0.08) !important;
+	color: #15171b !important;
+}

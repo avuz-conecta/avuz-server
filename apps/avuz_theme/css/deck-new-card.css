@@ -1,0 +1,509 @@
+/**
+ * Deck (Tarefas): "Novo cartão" dialog (js/deck-new-card.js)
+ */
+
+.avuz-nc-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding: 8vh 16px 16px;
+	background: rgba(15, 18, 24, 0.45);
+	animation: avuz-nc-fade 0.14s ease-out;
+	box-sizing: border-box;
+	overflow-y: auto;
+}
+
+.avuz-nc,
+.avuz-nc * {
+	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
+	box-sizing: border-box;
+}
+
+.avuz-nc {
+	width: min(680px, 100%);
+	margin: 0;
+	border-radius: 16px;
+	background: var(--color-main-background, #fff);
+	color: var(--color-main-text, #15171b);
+	box-shadow: 0 30px 80px -20px rgba(15, 18, 24, 0.45);
+	animation: avuz-nc-in 0.16s ease-out;
+}
+
+.avuz-nc__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 18px 22px 6px;
+}
+
+.avuz-nc__head h2 {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 650;
+	letter-spacing: -0.01em;
+}
+
+button.avuz-nc__x {
+	width: 34px !important;
+	height: 34px !important;
+	min-height: 34px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 8px !important;
+	background: none !important;
+	color: var(--color-text-maxcontrast, #868d97) !important;
+	font-size: 24px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+button.avuz-nc__x:hover {
+	background: var(--color-background-hover, #f4f5f7) !important;
+	color: var(--color-main-text, #15171b) !important;
+}
+
+.avuz-nc__body {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 8px 22px 18px;
+}
+
+/* Big title field, like a document heading. A textarea so long titles wrap
+   (height follows the text, set by deck-new-card.js). */
+textarea.avuz-nc__title {
+	display: block;
+	width: 100% !important;
+	min-height: 48px !important;
+	max-height: 40vh;
+	margin: 0 !important;
+	padding: 11px 14px !important;
+	line-height: 1.4 !important;
+	resize: none !important;
+	overflow-y: auto;
+	overflow-wrap: anywhere;
+	white-space: pre-wrap;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 10px !important;
+	background: var(--color-background-hover, #f4f5f7) !important;
+	font-size: 18px !important;
+	font-weight: 600 !important;
+	color: var(--color-main-text, #15171b) !important;
+}
+
+textarea.avuz-nc__title.invalid {
+	border-color: #c0392f !important;
+}
+
+.avuz-nc__row {
+	display: grid;
+	grid-template-columns: 1.3fr 1fr 1fr;
+	gap: 12px;
+}
+
+.avuz-nc__field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	min-width: 0;
+}
+
+.avuz-nc__field > span {
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--color-text-maxcontrast, #6b717c);
+}
+
+.avuz-nc select:not(.avuz-rte-select),
+.avuz-nc input[type="datetime-local"],
+.avuz-nc textarea:not(.avuz-nc__title),
+.avuz-nc input.avuz-nc__filter {
+	width: 100% !important;
+	min-height: 40px !important;
+	margin: 0 !important;
+	padding: 8px 12px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 9px !important;
+	background: var(--color-main-background, #fff) !important;
+	font-size: 14px !important;
+	color: var(--color-main-text, #15171b) !important;
+}
+
+.avuz-nc textarea:not(.avuz-nc__title) {
+	min-height: 130px !important;
+	line-height: 1.55 !important;
+	resize: vertical;
+}
+
+.avuz-nc select:not(.avuz-rte-select):focus,
+.avuz-nc input:not(.avuz-rte-pop input):focus,
+.avuz-nc textarea:focus {
+	outline: none !important;
+	border-color: rgba(21, 23, 27, 0.5) !important;
+	box-shadow: 0 0 0 3px rgba(21, 23, 27, 0.12) !important;
+}
+
+/* Subtasks: a light checklist, one editable row per item */
+.avuz-nc__subtasks,
+.avuz-nc__files {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.avuz-nc__subtasks:empty,
+.avuz-nc__files:empty {
+	display: none;
+}
+
+.avuz-nc__subtasks li,
+.avuz-nc__files li {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 38px;
+	padding: 0 6px 0 12px;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 9px;
+	background: var(--color-main-background, #fff);
+}
+
+.avuz-nc__subtasks li i {
+	flex: none;
+	width: 15px;
+	height: 15px;
+	border: 1.6px solid var(--color-border-dark, #c4c9d1);
+	border-radius: 5px;
+}
+
+.avuz-nc .avuz-nc__subtasks li input {
+	flex: 1;
+	min-width: 0;
+	height: 34px !important;
+	min-height: 34px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	font-size: 14px !important;
+	color: var(--color-main-text, #15171b) !important;
+}
+
+.avuz-nc__subtasks li button,
+.avuz-nc__files li button {
+	flex: none;
+	width: 28px !important;
+	height: 28px !important;
+	min-height: 28px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 7px !important;
+	background: none !important;
+	color: var(--color-text-maxcontrast, #868d97) !important;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.avuz-nc__subtasks li button:hover,
+.avuz-nc__files li button:hover {
+	background: var(--color-background-hover, #f4f5f7) !important;
+	color: #c0392f !important;
+}
+
+.avuz-nc input.avuz-nc__subtask-new {
+	width: 100% !important;
+	min-height: 40px !important;
+	margin: 0 !important;
+	padding: 8px 12px 8px 36px !important;
+	border: 1px dashed var(--color-border-dark, #d3d7dd) !important;
+	border-radius: 9px !important;
+	background: var(--color-main-background, #fff) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23868d97' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E") no-repeat 12px center / 15px !important;
+	font-size: 14px !important;
+	color: var(--color-main-text, #15171b) !important;
+}
+
+/* Attachments: drop zone + file rows */
+.avuz-nc__drop {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+	min-height: 54px;
+	padding: 10px 14px;
+	border: 1px dashed var(--color-border-dark, #d3d7dd);
+	border-radius: 10px;
+	background: var(--color-background-hover, #f7f8fa);
+	color: var(--color-text-maxcontrast, #6b717c);
+	font-size: 13.5px;
+	cursor: pointer;
+	transition: border-color 0.12s, background 0.12s;
+}
+
+.avuz-nc__drop::before {
+	content: "";
+	width: 17px;
+	height: 17px;
+	margin-right: 4px;
+	background: currentColor;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.4 11.1l-8.9 8.9a5.5 5.5 0 0 1-7.8-7.8l8.9-8.9a3.7 3.7 0 0 1 5.2 5.2l-8.9 8.9a1.8 1.8 0 0 1-2.6-2.6l8.2-8.2'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.4 11.1l-8.9 8.9a5.5 5.5 0 0 1-7.8-7.8l8.9-8.9a3.7 3.7 0 0 1 5.2 5.2l-8.9 8.9a1.8 1.8 0 0 1-2.6-2.6l8.2-8.2'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.avuz-nc__drop b {
+	color: var(--color-primary-element, #15171b);
+	font-weight: 600;
+}
+
+.avuz-nc__drop:hover,
+.avuz-nc__drop.over {
+	border-color: rgba(21, 23, 27, 0.55);
+	background: rgba(21, 23, 27, 0.06);
+}
+
+.avuz-nc__files li i {
+	flex: none;
+	width: 16px;
+	height: 16px;
+	background: var(--color-text-maxcontrast, #868d97);
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z'/%3E%3Cpath d='M14 3v5h5'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z'/%3E%3Cpath d='M14 3v5h5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.avuz-nc__files li span {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	font-size: 13.5px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.avuz-nc__files li small {
+	flex: none;
+	font-size: 12px;
+	color: var(--color-text-maxcontrast, #868d97);
+}
+
+/* Toggle chips for labels and people */
+.avuz-nc__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+button.avuz-nc__chip {
+	display: inline-flex !important;
+	align-items: center;
+	gap: 7px;
+	height: 32px !important;
+	min-height: 32px !important;
+	margin: 0 !important;
+	padding: 0 12px 0 9px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 99px !important;
+	background: var(--color-main-background, #fff) !important;
+	color: var(--color-main-text, #15171b) !important;
+	font-size: 13px !important;
+	font-weight: 500 !important;
+	cursor: pointer;
+}
+
+button.avuz-nc__chip:hover {
+	background: var(--color-background-hover, #f4f5f7) !important;
+}
+
+button.avuz-nc__chip[hidden] {
+	display: none !important;
+}
+
+.avuz-nc__label i {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--c);
+}
+
+button.avuz-nc__label[aria-pressed="true"] {
+	border-color: var(--c) !important;
+	background: color-mix(in srgb, var(--c) 16%, transparent) !important;
+	font-weight: 600 !important;
+}
+
+.avuz-nc__person b {
+	display: grid;
+	place-items: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: var(--color-background-dark, #e9ebef);
+	font-size: 9.5px;
+	font-weight: 700;
+	color: var(--color-text-maxcontrast, #4d535c);
+}
+
+.avuz-nc__person small {
+	font-size: 11px;
+	color: var(--color-text-maxcontrast, #868d97);
+}
+
+button.avuz-nc__person[aria-pressed="true"] {
+	border-color: rgba(21, 23, 27, 0.45) !important;
+	background: rgba(21, 23, 27, 0.1) !important;
+	color: #15171b !important;
+	font-weight: 600 !important;
+}
+
+button.avuz-nc__person[aria-pressed="true"] b {
+	background: #15171b;
+	color: #fff;
+}
+
+.avuz-nc__none {
+	font-size: 13px;
+	font-style: normal;
+	color: var(--color-text-maxcontrast, #868d97);
+}
+
+.avuz-nc__error {
+	margin: 0;
+	padding: 9px 12px;
+	border-radius: 9px;
+	background: rgba(192, 57, 47, 0.1);
+	color: #c0392f;
+	font-size: 13px;
+}
+
+.avuz-nc__foot {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 14px 22px;
+	border-top: 1px solid var(--color-border, #e3e5e9);
+}
+
+.avuz-nc__hint {
+	flex: 1;
+	font-size: 12px;
+	color: var(--color-text-maxcontrast, #868d97);
+}
+
+.avuz-nc__foot button {
+	height: 40px !important;
+	min-height: 40px !important;
+	margin: 0 !important;
+	padding: 0 18px !important;
+	border-radius: 10px !important;
+	font-size: 14px !important;
+	font-weight: 600 !important;
+	cursor: pointer;
+}
+
+button.avuz-nc__cancel {
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	background: var(--color-main-background, #fff) !important;
+	color: var(--color-main-text, #15171b) !important;
+}
+
+button.avuz-nc__create {
+	border: 0 !important;
+	background: #15171b !important;
+	color: #fff !important;
+}
+
+button.avuz-nc__create:disabled {
+	opacity: 0.6;
+}
+
+@keyframes avuz-nc-fade {
+	from { opacity: 0; }
+}
+
+@keyframes avuz-nc-in {
+	from { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+
+@media (max-width: 640px) {
+	.avuz-nc-overlay {
+		padding: 0;
+	}
+
+	.avuz-nc {
+		min-height: 100%;
+		border-radius: 0;
+	}
+
+	.avuz-nc__row {
+		grid-template-columns: 1fr;
+	}
+
+	.avuz-nc__hint {
+		display: none;
+	}
+}
+
+/* Rich description editor (Nextcloud Text + js/deck-editor-toolbar.js) */
+.avuz-nc__editor--rich {
+	min-width: 0;
+}
+
+.avuz-nc__editor--rich .text-editor,
+.avuz-nc__editor--rich .editor {
+	height: auto !important;
+	min-height: 0 !important;
+	overflow: visible !important;
+	background: transparent !important;
+}
+
+.avuz-nc__editor--rich .avuz-rte-toolbar {
+	position: static;
+	padding: 4px 6px;
+}
+
+.avuz-nc__editor--rich .editor.avuz-rte-on .ProseMirror {
+	min-height: 150px;
+	max-height: 40vh;
+	overflow-y: auto;
+	padding: 12px 14px !important;
+	font-size: 14.5px;
+}
+
+.avuz-nc__editor--rich .editor:not(.avuz-rte-on) .ProseMirror {
+	min-height: 150px;
+	padding: 12px 14px !important;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 9px;
+}
+
+/* "Novo cartão" wider so the editor toolbar fits on one line; on narrower
+   screens the bar scrolls sideways instead of breaking into two rows */
+.avuz-nc:not(.avuz-nb, .avuz-ns) {
+	width: min(960px, 100%);
+}
+
+.avuz-nc__editor--rich .avuz-rte-toolbar {
+	flex-wrap: nowrap !important;
+}
+
+.avuz-nc__editor--rich .avuz-rte-toolbar > * {
+	flex-shrink: 0;
+}
+
+/* (scrolling would clip the link/emoji/callout pop-ups, so only when the
+   dialog is narrower than the bar) */
+@media (max-width: 1000px) {
+	.avuz-nc__editor--rich .avuz-rte-toolbar {
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+}

@@ -11,18 +11,104 @@
 /* ========================================================================= */
 
 /* Force a contrasting color on the links/buttons that contain the icons */
-#header .app-menu .app-menu-entry__link,
 #header .header-end .actions > div > a,
 #header .header-end .actions > div > .menutoggle,
 #header .header-end .actions > div > button {
     color: #00679e !important; /* A darker, legible blue for contrast */
 }
 
-/* Highlight the active app icon with the brand's primary blue */
-#header .app-menu .app-menu-entry__link--active,
-#header .app-menu .app-menu-entry__link--active:hover,
-#header .app-menu .app-menu-entry__link--active:focus {
-    color: #2bb5e3 !important; /* Avuz Blue */
+/* ========================================================================= */
+/* App menu in Avuz Helpdesk style (frontend/src/styles/global.css .nav-link):
+/* 44px rounded buttons, muted icon, soft hover, primary-soft active pill and
+/* a dark tooltip with the app name. Icons are tinted through a CSS mask set
+/* by js/menu-icons.js, since Nextcloud renders them as <img>.
+/* ========================================================================= */
+#header .app-menu {
+    --avuz-nav-text: #2b3141;
+    --avuz-nav-muted: #99a0ad;
+    --avuz-nav-hover-bg: rgba(43, 49, 65, 0.06);
+    --avuz-nav-primary: #15171b;
+    --avuz-nav-primary-soft: #eceef1;
+}
+
+#header .app-menu .app-menu__list {
+    gap: 4px;
+}
+
+#header .app-menu .app-menu-entry__link {
+    width: 44px !important;
+    height: 44px !important;
+    margin: 3px auto !important; /* centered in the 50px header */
+    border-radius: 11px;
+    color: var(--avuz-nav-muted) !important;
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+#header .app-menu .app-menu-entry:hover .app-menu-entry__link,
+#header .app-menu .app-menu-entry:focus-within .app-menu-entry__link {
+    background-color: var(--avuz-nav-hover-bg);
+    color: var(--avuz-nav-text) !important;
+}
+
+#header .app-menu .app-menu-entry--active .app-menu-entry__link,
+#header .app-menu .app-menu-entry--active:hover .app-menu-entry__link,
+#header .app-menu .app-menu-entry--active:focus-within .app-menu-entry__link {
+    background-color: var(--avuz-nav-primary-soft);
+    color: var(--avuz-nav-primary) !important;
+}
+
+/* Drop Nextcloud's active dot — the pill above replaces it */
+#header .app-menu .app-menu-entry--active::before {
+    display: none !important;
+}
+
+/* Keep icons still on hover (Nextcloud lifts them to show labels underneath) */
+#header .app-menu .app-menu-entry__icon,
+#header .app-menu .app-menu__list:hover .app-menu-entry__icon,
+#header .app-menu .app-menu__list:focus-within .app-menu-entry__icon {
+    margin-block-end: 0 !important;
+}
+
+/* Masked icon: the <img> stays for layout/fallback, the wrapper paints it */
+.app-menu-icon.avuz-menu-icon {
+    background-color: currentColor;
+    -webkit-mask: var(--avuz-menu-icon) center / contain no-repeat;
+    mask: var(--avuz-menu-icon) center / contain no-repeat;
+}
+
+.app-menu-icon.avuz-menu-icon .app-menu-icon__icon {
+    opacity: 0 !important;
+}
+
+/* App name as a dark tooltip below the hovered icon only */
+#header .app-menu .app-menu-entry__label,
+#header .app-menu .app-menu__list:hover .app-menu-entry__label,
+#header .app-menu .app-menu__list:focus-within .app-menu-entry__label {
+    top: calc(100% + 4px) !important;
+    bottom: auto !important;
+    inset-inline-start: 50% !important;
+    transform: translate(-50%, -4px) !important;
+    max-width: none !important;
+    overflow: visible;
+    padding: 6px 11px;
+    border-radius: 7px;
+    background: var(--avuz-nav-text);
+    color: #fff !important;
+    font-size: 12.5px;
+    font-weight: 600 !important;
+    letter-spacing: 0;
+    white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(20, 25, 40, 0.14);
+    pointer-events: none;
+    opacity: 0 !important;
+    z-index: 2000;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+#header .app-menu .app-menu-entry:hover .app-menu-entry__label,
+#header .app-menu .app-menu-entry:focus-within .app-menu-entry__label {
+    opacity: 1 !important;
+    transform: translate(-50%, 0) !important;
 }
 
 
@@ -57,6 +143,11 @@ body .account-menu-entry .account-menu-entry__icon {
     /* FIX: Disable the problematic filter and mask */
     filter: none !important;
     mask: none !important;
+}
+
+/* Hide the contacts menu (header shortcut to contacts) — Contatos stays in the app menu */
+#header #contactsmenu {
+    display: none !important;
 }
 
 /* Hide development notice in settings footer */
@@ -116,4 +207,217 @@ body .account-menu-entry .account-menu-entry__icon {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* ========================================================================= */
+/* Left sidebar app menu (Avuz Helpdesk .sidebar, 76px column).
+/*
+/* Nextcloud's AppMenu decides how many apps to show from the <nav> WIDTH
+/* (floor(width / 50px)), so the <nav> itself stays viewport-wide but
+/* invisible and click-through; only its list is drawn as the sidebar.
+/* Below 900px (Helpdesk's breakpoint) the menu stays in the top header.
+/* ========================================================================= */
+@media (min-width: 901px) {
+    body:has(#header .app-menu) {
+        --avuz-sidebar-width: 76px;
+    }
+
+    #header .header-start .app-menu {
+        position: fixed !important;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        width: 100vw;
+        height: 100vh;
+        flex: none !important;
+        display: block !important;
+        pointer-events: none;
+        z-index: 2100;
+        /* No fade-in: the opacity gate in header.css only waits for
+           center-header.js, which is pointless for the sidebar */
+        opacity: 1 !important;
+    }
+
+    #header .app-menu .app-menu__list {
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: 0;
+        width: var(--avuz-sidebar-width);
+        height: 100%;
+        margin: 0 !important;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 20px 10px 240px; /* room for the header actions at the bottom */
+        background: #fff;
+        border-inline-end: 1px solid #ebedf1;
+        pointer-events: auto;
+    }
+
+    #header .app-menu .app-menu-entry {
+        width: 100%;
+        height: 44px;
+        display: flex;
+        justify-content: center;
+    }
+
+    #header .app-menu .app-menu-entry__link {
+        margin: 0 !important;
+    }
+
+    /* "More apps" overflow button (only when apps don't fit) at the bottom */
+    #header .app-menu > :not(.app-menu__list) {
+        position: absolute;
+        inset-block-end: 20px;
+        inset-inline-start: 16px;
+        pointer-events: auto;
+    }
+
+    /* Tooltip to the right of the icon, as in the Helpdesk sidebar */
+    #header .app-menu .app-menu-entry__label,
+    #header .app-menu .app-menu__list:hover .app-menu-entry__label,
+    #header .app-menu .app-menu__list:focus-within .app-menu-entry__label {
+        top: 50% !important;
+        inset-inline-start: calc(100% + 4px) !important;
+        transform: translate(-4px, -50%) !important;
+    }
+
+    #header .app-menu .app-menu-entry:hover .app-menu-entry__label,
+    #header .app-menu .app-menu-entry:focus-within .app-menu-entry__label {
+        transform: translate(0, -50%) !important;
+    }
+
+    /* Header actions (search, notifications, contacts, account) move to the
+       bottom of the sidebar, like the Helpdesk's gear (.nav-item-bottom), so the
+       top strip can go away and the content gets the full height. */
+    body:has(#header .app-menu) {
+        /* Shrink Nextcloud's header to the same gap as the other page edges.
+           Redeclared here because :root/[data-theme-*] define both. */
+        --header-height: var(--body-container-margin);
+        --body-height: calc(100% - env(safe-area-inset-bottom) - var(--header-height) - var(--body-container-margin));
+    }
+
+    body:has(#header .app-menu) #header .header-end {
+        position: fixed;
+        inset-block-end: 0;
+        inset-inline-start: 10px;
+        width: calc(var(--avuz-sidebar-width) - 20px);
+        height: auto;
+        margin: 0;
+        padding: 12px 0 20px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        border-top: 1px solid #ebedf1;
+        z-index: 2200;
+    }
+
+    body:has(#header .app-menu) #header .header-end > div,
+    body:has(#header .app-menu) #header .header-end > nav,
+    body:has(#header .app-menu) #header .header-end > form,
+    body:has(#header .app-menu) #header .header-end .header-menu {
+        width: 44px;
+        height: 44px;
+    }
+
+    body:has(#header .app-menu) #header .header-end .header-menu__trigger {
+        --button-size: 44px !important;
+        width: 44px !important;
+        height: 44px !important;
+        min-height: 44px;
+        border-radius: 11px !important;
+        opacity: 1;
+        color: #99a0ad !important;
+    }
+
+    body:has(#header .app-menu) #header .header-end .header-menu__trigger:hover,
+    body:has(#header .app-menu) #header .header-end .header-menu--opened .header-menu__trigger,
+    body:has(#header .app-menu) #header .header-end .header-menu__trigger[aria-expanded="true"] {
+        background-color: rgba(43, 49, 65, 0.06) !important;
+        color: #2b3141 !important;
+    }
+
+    /* Header action icons redrawn in the Helpdesk outline style (Nextcloud ships
+       filled Material icons here). Same mask trick as the app menu. */
+    body:has(#header .app-menu) #unified-search .header-menu__trigger .icon-vue,
+    body:has(#header .app-menu) #notifications .notifications-button__icon {
+        position: relative;
+        width: 20px !important;
+        height: 20px !important;
+        background-color: currentColor;
+        -webkit-mask: var(--avuz-action-icon) center / 20px no-repeat;
+        mask: var(--avuz-action-icon) center / 20px no-repeat;
+    }
+
+    body:has(#header .app-menu) #unified-search .header-menu__trigger .icon-vue svg,
+    body:has(#header .app-menu) #notifications .notifications-button__icon svg {
+        visibility: hidden;
+    }
+
+    body:has(#header .app-menu) #unified-search .header-menu__trigger .icon-vue {
+        --avuz-action-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2211%22 cy=%2211%22 r=%226.5%22/%3E%3Cpath d=%22M20 20l-4.2-4.2%22/%3E%3C/svg%3E");
+    }
+
+    body:has(#header .app-menu) #notifications .notifications-button__icon {
+        --avuz-action-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 9a6 6 0 1112 0c0 3.4 1 5.5 1.8 6.5H4.2C5 14.5 6 12.4 6 9z%22/%3E%3Cpath d=%22M9.5 18a2.5 2.5 0 005 0%22/%3E%3C/svg%3E");
+    }
+
+    /* Unread dot: Nextcloud draws it inside the (now hidden) bell SVG */
+    body:has(#header .app-menu) #notifications .header-menu__trigger {
+        position: relative;
+    }
+
+    body:has(#header .app-menu) #notifications .header-menu__trigger:has(.notification__dot)::after {
+        content: "";
+        position: absolute;
+        top: 10px;
+        inset-inline-end: 10px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #e5534b;
+        box-shadow: 0 0 0 2px #fff;
+    }
+
+    body:has(#header .app-menu) #notifications .header-menu__trigger:has(.notification__dot--warning)::after {
+        background: #f0a020;
+    }
+
+    /* Popovers open to the right of the sidebar, anchored to the bottom */
+    body:has(#header .app-menu) #header .header-end .header-menu__wrapper {
+        top: auto !important;
+        inset-block-end: 16px;
+        inset-inline-start: calc(var(--avuz-sidebar-width) + 8px);
+        inset-inline-end: auto !important;
+        margin: 0 !important;
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(30, 41, 59, 0.1);
+    }
+
+    body:has(#header .app-menu) #header .header-end .header-menu__caret,
+    body:has(#header .app-menu) #header .header-end .header-menu__carret {
+        display: none !important;
+    }
+
+    body:has(#header .app-menu) #header .header-end .header-menu__content {
+        max-height: calc(100vh - 32px) !important;
+    }
+
+    /* Make room for the sidebar. Some apps (Talk, Forms, Activity, Contacts)
+       nest #content-vue inside #content: offset only the outermost one, or the
+       sidebar width is applied twice and leaves a gray gap. */
+    body:has(#header .app-menu) #content,
+    body:has(#header .app-menu) #content-vue:not(#content #content-vue) {
+        margin-inline-start: calc(var(--avuz-sidebar-width) + var(--body-container-margin)) !important;
+        width: calc(100% - var(--avuz-sidebar-width) - var(--body-container-margin) * 2) !important;
+    }
+
+    /* The nested one is position:fixed too, so its width is still relative to
+       the viewport: shrink it to match the outer container. */
+    body:has(#header .app-menu) #content #content-vue {
+        width: calc(100% - var(--avuz-sidebar-width) - var(--body-container-margin) * 2) !important;
+    }
 }

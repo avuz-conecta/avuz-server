@@ -1,0 +1,698 @@
+/**
+ * Deck (Tarefas): board details as a centered modal
+ *
+ * Deck opens the board details (Compartilhando, Etiquetas, Campos, Modelos,
+ * Itens excluídos, Atividade) in Nextcloud's narrow right sidebar, where the
+ * tabs get cramped and cut off. Present that same sidebar as a large centered
+ * window over a dimmed board instead.
+ *
+ * Scoped to the BOARD sidebar only (it is the one with #tab-sharing); card
+ * details reuse #app-sidebar-vue and keep the stock sidebar.
+ * Clicking outside closes it: js/deck-board-details.js.
+ */
+
+/* Lift Deck's content (a fixed stacking context) above the header, so the
+   dimmed backdrop also covers the app menu sidebar while the modal is open. */
+body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
+	z-index: 2050;
+}
+
+.app-deck #app-sidebar-vue:has(#tab-sharing) {
+	position: fixed !important;
+	inset: 0 !important;
+	margin: auto !important;
+	width: min(1000px, calc(100vw - 64px)) !important;
+	min-width: 0 !important;
+	max-width: none !important;
+	height: min(720px, calc(100vh - 64px)) !important;
+	border: 0 !important;
+	border-radius: 16px;
+	overflow: hidden;
+	background: var(--color-main-background);
+	/* Backdrop: a huge spread shadow dims everything around the window */
+	box-shadow:
+		0 24px 64px rgba(20, 25, 40, 0.28),
+		0 0 0 100vmax rgba(20, 25, 40, 0.45);
+	z-index: 2100 !important;
+	animation: avuz-board-details-in 0.16s ease-out;
+}
+
+/* No drag handle: the window has a fixed size */
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar__resize-handle,
+.app-deck #app-sidebar-vue:has(#tab-sharing) [class*="resize-handle"] {
+	display: none !important;
+}
+
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-header {
+	padding-inline: 12px;
+}
+
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__content {
+	padding: 8px 32px 32px;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Tabs in the Avuz Helpdesk style (.tab-btn): 14px/500 label next to a 20px
+/* outline icon, muted when idle, primary with a 2px underline when active.
+/* Nextcloud's filled Material icons are hidden and repainted through a mask.
+/* ------------------------------------------------------------------------- */
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__nav {
+	justify-content: flex-start;
+	gap: 4px;
+	padding-inline: 32px;
+	border-bottom: 1px solid #ebedf1;
+}
+
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab {
+	flex: 0 0 auto !important;
+	min-width: 0 !important;
+	height: auto !important;
+	padding: 0 !important;
+	margin-inline-end: 16px;
+	border: 0 !important;
+	border-radius: 0 !important;
+	background: none !important;
+	color: #99a0ad !important;
+}
+
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab:hover {
+	color: #2b3141 !important;
+}
+
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab[aria-selected="true"] {
+	color: #15171b !important;
+}
+
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab .checkbox-content {
+	flex-direction: row !important;
+	align-items: center;
+	gap: 8px;
+	width: auto !important;
+	height: auto !important;
+	padding: 12px 4px !important;
+	border-bottom: 2px solid transparent;
+	background: none !important;
+	color: inherit !important;
+}
+
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab[aria-selected="true"] .checkbox-content {
+	border-bottom-color: #15171b;
+}
+
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab .checkbox-content__text,
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab-caption {
+	font-size: 14px !important;
+	font-weight: 500 !important;
+	color: inherit !important;
+	white-space: nowrap;
+	overflow: visible !important;
+}
+
+/* Nextcloud's own active-tab underline is replaced by the one above */
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab::after,
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab::before {
+	display: none !important;
+}
+
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab .checkbox-content__icon,
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab .material-design-icon {
+	width: 20px !important;
+	height: 20px !important;
+	margin: 0 !important;
+}
+
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab .material-design-icon {
+	background-color: currentColor;
+	-webkit-mask: var(--avuz-tab-icon) center / 20px no-repeat;
+	mask: var(--avuz-tab-icon) center / 20px no-repeat;
+}
+
+.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab .material-design-icon svg {
+	visibility: hidden;
+}
+
+/* Compartilhando */
+.app-deck #app-sidebar-vue:has(#tab-sharing) #tab-button-sharing {
+	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2218%22 cy=%225.5%22 r=%222.5%22/%3E%3Ccircle cx=%226%22 cy=%2212%22 r=%222.5%22/%3E%3Ccircle cx=%2218%22 cy=%2218.5%22 r=%222.5%22/%3E%3Cpath d=%22M8.2 10.8l7.6-4.1M8.2 13.2l7.6 4.1%22/%3E%3C/svg%3E");
+}
+
+/* Etiquetas — Helpdesk TagIcon */
+.app-deck #app-sidebar-vue:has(#tab-sharing) #tab-button-tags {
+	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12.6 2.5H4.5a2 2 0 00-2 2v8.1a2 2 0 00.6 1.42l9 9a2 2 0 002.83 0l7.17-7.17a2 2 0 000-2.83l-9-9a2 2 0 00-1.4-.52z%22/%3E%3Ccircle cx=%227.7%22 cy=%227.7%22 r=%221.4%22/%3E%3C/svg%3E");
+}
+
+/* Campos */
+.app-deck #app-sidebar-vue:has(#tab-sharing) #tab-button-custom-fields {
+	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M9 6h11M9 12h11M9 18h11%22/%3E%3Cpath d=%22M4.5 6h.01M4.5 12h.01M4.5 18h.01%22/%3E%3C/svg%3E");
+}
+
+/* Modelos — Helpdesk FileIcon */
+.app-deck #app-sidebar-vue:has(#tab-sharing) #tab-button-templates {
+	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M14 2.5H7a1.5 1.5 0 00-1.5 1.5v16A1.5 1.5 0 007 21.5h10a1.5 1.5 0 001.5-1.5V8z%22/%3E%3Cpath d=%22M14 2.5V8h4.5%22/%3E%3C/svg%3E");
+}
+
+/* Itens excluídos */
+.app-deck #app-sidebar-vue:has(#tab-sharing) #tab-button-deleted {
+	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 7h16M10 11v6M14 11v6%22/%3E%3Cpath d=%22M5.5 7l1 12.5A1.5 1.5 0 008 21h8a1.5 1.5 0 001.5-1.5L18.5 7%22/%3E%3Cpath d=%22M9 7V4.5A1.5 1.5 0 0110.5 3h3A1.5 1.5 0 0115 4.5V7%22/%3E%3C/svg%3E");
+}
+
+/* Atividade — same glyph as the Atividade app */
+.app-deck #app-sidebar-vue:has(#tab-sharing) #tab-button-activity {
+	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 12h4l2.5-6 5 12 2.5-6h4%22/%3E%3C/svg%3E");
+}
+
+@keyframes avuz-board-details-in {
+	from {
+		opacity: 0;
+		transform: scale(0.97);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+/* ========================================================================= */
+/* Card modal tabs: minimal segmented control with thin-stroke icons          */
+/* (Detalhes · Subtarefas · Tempo · Anexos · Comentários · Atividade)         */
+/* ========================================================================= */
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__nav {
+	display: flex !important;
+	justify-content: stretch !important;
+	gap: 2px;
+	margin: 6px 0 14px !important;
+	padding: 4px !important;
+	border: 0 !important;
+	border-radius: 12px;
+	background: var(--color-background-hover, #f4f5f7);
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab {
+	flex: 1 1 0 !important;
+	min-width: 0 !important;
+	height: auto !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	border: 0 !important;
+	border-radius: 9px !important;
+	background: transparent !important;
+	color: var(--color-text-maxcontrast, #6b717c) !important;
+	transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab:hover {
+	color: var(--color-main-text, #15171b) !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab[aria-selected="true"] {
+	background: var(--color-main-background, #fff) !important;
+	color: var(--color-main-text, #15171b) !important;
+	box-shadow: 0 1px 2px rgba(16, 20, 28, 0.08), 0 0 0 1px rgba(16, 20, 28, 0.04) !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content {
+	flex-direction: row !important;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	width: 100% !important;
+	height: 36px !important;
+	padding: 0 8px !important;
+	border: 0 !important;
+	background: none !important;
+	color: inherit !important;
+}
+
+/* Icon and label sit together in the middle of the segment */
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__wrapper,
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__text {
+	flex: 0 1 auto !important;
+	width: auto !important;
+	min-width: 0;
+	margin: 0 !important;
+	padding: 0 !important;
+}
+
+/* Nextcloud's own underline / checked background are replaced by the pill */
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab::after,
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab::before,
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content::after,
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content::before {
+	display: none !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__text,
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab-caption {
+	overflow: hidden !important;
+	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
+	font-size: 13px !important;
+	font-weight: 550 !important;
+	letter-spacing: -0.005em;
+	color: inherit !important;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/* Icon: the stock (filled) glyph is hidden and a thin outline one painted */
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__icon {
+	position: relative;
+	flex: none;
+	width: 17px !important;
+	height: 17px !important;
+	margin: 0 !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__icon > * {
+	visibility: hidden;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__icon::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background-color: currentColor;
+	-webkit-mask: var(--avuz-tab-icon) center / 17px no-repeat;
+	mask: var(--avuz-tab-icon) center / 17px no-repeat;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab[aria-selected="true"] .checkbox-content__icon::after {
+	background-color: var(--color-primary-element, #15171b);
+}
+
+/* Detalhes — document */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-button-details {
+	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%224.5%22 y=%223%22 width=%2215%22 height=%2218%22 rx=%222.5%22/%3E%3Cpath d=%22M8.5 8h7M8.5 12h7M8.5 16h4%22/%3E%3C/svg%3E");
+}
+
+/* Subtarefas — checklist */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-button-subtasks {
+	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m3.5 6.5 1.8 1.8 3-3M3.5 14l1.8 1.8 3-3M12 7h8.5M12 14.5h8.5M12 20h5%22/%3E%3C/svg%3E");
+}
+
+/* Tempo — stopwatch */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-button-time {
+	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2213.5%22 r=%227.5%22/%3E%3Cpath d=%22M12 10v3.5l2.3 1.6M9.5 2.5h5M12 2.5V6M18.5 6.5l1.2-1.2%22/%3E%3C/svg%3E");
+}
+
+/* Anexos — paperclip */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-button-attachments {
+	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m20.5 11.6-8.3 8.3a5.2 5.2 0 0 1-7.4-7.4l8.6-8.6a3.5 3.5 0 0 1 5 5l-8.4 8.4a1.7 1.7 0 0 1-2.5-2.5l7.7-7.7%22/%3E%3C/svg%3E");
+}
+
+/* Comentários — chat bubble */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-button-comments {
+	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M20.5 14.5a2 2 0 0 1-2 2H8.5l-5 4V5.5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z%22/%3E%3Cpath d=%22M8 8.5h8M8 12h5%22/%3E%3C/svg%3E");
+}
+
+/* Atividade — pulse */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-button-timeline {
+	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 12h4l2.5-6.5 5 13 2.5-6.5h4%22/%3E%3C/svg%3E");
+}
+
+/* Narrow cards: icons only */
+@media (max-width: 760px) {
+	.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__text,
+	.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab-caption {
+		display: none !important;
+	}
+}
+
+/* ------------------------------------------------------------------------- */
+/* Card modal: compact header and a two-column "properties" grid             */
+/* (Etiquetas | Responsáveis, Início | Vencimento), small pill actions       */
+/* ------------------------------------------------------------------------- */
+.modal-container #app-sidebar-vue:has(#tab-button-details),
+.modal-container #app-sidebar-vue:has(#tab-button-details) *:not(.material-design-icon, .material-design-icon *, .ProseMirror pre, .ProseMirror code) {
+	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+/* Header: title + meta line */
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-header__mainname {
+	font-size: 20px !important;
+	font-weight: 650 !important;
+	line-height: 1.3 !important;
+	letter-spacing: -0.015em;
+	color: #15171b;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-header__mainname-input {
+	height: 42px !important;
+	min-height: 42px !important;
+	padding: 0 12px !important;
+	border: 1px solid var(--color-border-dark, #c4c9d1) !important;
+	border-radius: 10px !important;
+	font-size: 18px !important;
+	font-weight: 600 !important;
+	box-shadow: 0 0 0 3px rgba(16, 20, 28, 0.06) !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-header__subname {
+	margin-top: 2px !important;
+	font-size: 12.5px !important;
+	color: var(--color-text-maxcontrast, #868d97) !important;
+}
+
+/* Properties: row 1 Etiquetas | Responsáveis (half each); row 2 the two
+   dates as compact boxes followed by Recorrência / Marcar como concluído */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px 12px;
+	padding-top: 6px;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > .selector-wrapper {
+	flex: 1 1 calc(50% - 6px);
+	min-width: 260px;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > .card-date-selectors {
+	display: contents !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > .card-date-selectors > .selector-wrapper {
+	flex: 0 1 236px;
+	min-width: 200px;
+	min-height: 38px !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > .card-done-row {
+	flex: 1 1 auto;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > :not(.selector-wrapper, .card-date-selectors, .card-done-row) {
+	flex: 1 1 100%;
+}
+
+/* Each property is a compact field box: icon + control */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper {
+	display: flex !important;
+	align-items: center;
+	gap: 4px;
+	box-sizing: border-box;
+	min-height: 42px;
+	margin: 0 !important;
+	padding: 0 4px 0 10px !important;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 10px;
+	background: var(--color-main-background, #fff);
+	transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper:hover {
+	border-color: var(--color-border-dark, #c4c9d1);
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper:focus-within {
+	border-color: rgba(16, 20, 28, 0.4);
+	box-shadow: 0 0 0 3px rgba(16, 20, 28, 0.06);
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--icon {
+	display: flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 22px !important;
+	min-width: 22px !important;
+	height: 22px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	color: var(--color-text-maxcontrast, #868d97);
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--icon svg {
+	width: 18px !important;
+	height: 18px !important;
+}
+
+/* Selects without their own frame (the box above is the frame) */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--selector {
+	flex: 1 1 auto;
+	min-width: 0 !important;
+	width: auto !important;
+	margin: 0 !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__dropdown-toggle {
+	min-height: 38px !important;
+	padding: 2px 0 !important;
+	border: 0 !important;
+	border-radius: 8px !important;
+	background: transparent !important;
+	box-shadow: none !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__search,
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__search::placeholder {
+	font-size: 13.5px !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__search::placeholder,
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__open-indicator {
+	color: var(--color-text-maxcontrast, #868d97) !important;
+}
+
+/* Selected labels as small pills */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__selected {
+	min-height: 24px !important;
+	margin: 2px 4px 2px 0 !important;
+	border-radius: 99px !important;
+	font-size: 12.5px !important;
+	font-weight: 600 !important;
+}
+
+/* Dates: same box, placeholder + small "+" */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--content {
+	display: flex;
+	flex: 1 1 auto;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px;
+	min-width: 0;
+	margin: 0 !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--placeholder {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font-size: 13.5px !important;
+	color: var(--color-text-maxcontrast, #868d97) !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--content .button-vue--tertiary {
+	width: 32px !important;
+	height: 32px !important;
+	min-width: 32px !important;
+	min-height: 32px !important;
+	border-radius: 8px !important;
+	color: var(--color-text-maxcontrast, #868d97) !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--content .button-vue--tertiary:hover {
+	background: rgba(16, 20, 28, 0.06) !important;
+	color: #15171b !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--content .material-design-icon svg {
+	width: 18px !important;
+	height: 18px !important;
+}
+
+/* Date pickers/values keep a compact height */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--content input,
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--content .mx-input {
+	min-width: 0;
+	height: 32px !important;
+	min-height: 32px !important;
+	padding: 0 2px !important;
+	border: 0 !important;
+	box-shadow: none !important;
+	font-size: 13.5px !important;
+}
+
+/* Recorrência / Marcar como concluído: small pills */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-done-row {
+	display: flex !important;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 0 !important;
+	padding: 0 !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-done-row .button-vue {
+	height: 34px !important;
+	min-height: 34px !important;
+	margin: 0 !important;
+	padding: 0 14px 0 10px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 99px !important;
+	background: var(--color-main-background, #fff) !important;
+	color: #15171b !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-done-row .button-vue:hover {
+	border-color: var(--color-border-dark, #c4c9d1) !important;
+	background: var(--color-background-hover, #f6f7f9) !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-done-row .button-vue .button-vue__text {
+	font-size: 13px !important;
+	font-weight: 500 !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-done-row .button-vue__icon {
+	width: 24px !important;
+	min-width: 24px !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-done-row .button-vue__icon svg {
+	width: 17px !important;
+	height: 17px !important;
+}
+
+/* Description caption like the other section captions */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details [data-test="description"] {
+	margin-top: 10px;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details [data-test="description"] > h5 {
+	margin: 0 0 8px !important;
+	padding: 0 2px !important;
+	border: 0 !important;
+	font-size: 11px !important;
+	font-weight: 650 !important;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--color-text-maxcontrast, #868d97) !important;
+}
+
+@media (max-width: 760px) {
+	.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > .selector-wrapper,
+	.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > .card-date-selectors > .selector-wrapper {
+		flex: 1 1 100%;
+	}
+}
+
+/* The title gets focused programmatically: no browser focus ring, a soft
+   hover instead to hint it is editable */
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-header__mainname {
+	margin-inline-start: -6px !important;
+	padding: 2px 6px !important;
+	border-radius: 8px;
+	outline: none !important;
+	cursor: text;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-header__mainname:hover {
+	background: var(--color-background-hover, #f4f5f7);
+}
+
+/* Open label/people dropdown: the field box stays as it is and the list opens
+   as a floating panel aligned to the whole box (vue-select positions it
+   against the select itself, which sits after the icon) */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper {
+	position: relative;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .v-select {
+	position: static !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs--open .vs__dropdown-toggle,
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__dropdown-toggle {
+	border: 0 !important;
+	border-radius: 8px !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+/* NcSelect appends the list to <body>; js/deck-board-details.js lines it up
+   with the whole field box (class avuz-card-dd) */
+body > .vs__dropdown-menu.avuz-card-dd {
+	position: fixed !important;
+	top: var(--avuz-dd-top) !important;
+	bottom: auto !important;
+	left: var(--avuz-dd-left) !important;
+	width: var(--avuz-dd-width) !important;
+	transform: none !important;
+	box-sizing: border-box;
+	max-height: 300px !important;
+	margin: 0 !important;
+	padding: 6px !important;
+	overflow-y: auto;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 12px !important;
+	background: var(--color-main-background, #fff) !important;
+	box-shadow: 0 16px 40px -12px rgba(16, 20, 28, 0.25) !important;
+}
+
+body > .vs__dropdown-menu.avuz-card-dd.avuz-card-dd--up {
+	top: auto !important;
+	bottom: var(--avuz-dd-bottom) !important;
+}
+
+body > .vs__dropdown-menu.avuz-card-dd,
+body > .vs__dropdown-menu.avuz-card-dd * {
+	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+body > .vs__dropdown-menu.avuz-card-dd .vs__dropdown-option {
+	display: flex !important;
+	align-items: center;
+	min-height: 38px !important;
+	margin: 0 !important;
+	padding: 4px 10px !important;
+	border-radius: 8px !important;
+	background: none !important;
+	font-size: 13.5px !important;
+	color: var(--color-main-text, #15171b) !important;
+	white-space: nowrap;
+}
+
+body > .vs__dropdown-menu.avuz-card-dd .vs__dropdown-option--highlight,
+body > .vs__dropdown-menu.avuz-card-dd .vs__dropdown-option:hover {
+	background: var(--color-background-hover, #f4f5f7) !important;
+}
+
+body > .vs__dropdown-menu.avuz-card-dd .vs__dropdown-option--selected {
+	font-weight: 600 !important;
+}
+
+/* Label options: compact pills */
+body > .vs__dropdown-menu.avuz-card-dd .vs__dropdown-option [style*="background"] {
+	padding: 2px 10px !important;
+	border-radius: 99px !important;
+	font-size: 12.5px !important;
+	font-weight: 600 !important;
+	line-height: 20px !important;
+}
+
+/* Date with a value: picker + "⋯" stay on one line inside the compact box */
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-date-selectors .selector-wrapper--content {
+	display: flex !important;
+	flex-wrap: nowrap !important;
+	align-items: center !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-date-selectors .native-datetime-picker {
+	flex: 1 1 auto;
+	min-width: 0;
+	margin: 0 !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-date-selectors .native-datetime-picker--input {
+	width: 100% !important;
+	min-width: 0 !important;
+	margin: 0 !important;
+	background: transparent !important;
+	color: var(--color-main-text, #15171b) !important;
+}
+
+.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-date-selectors .selector-wrapper--content > .action-item {
+	flex: none;
+}

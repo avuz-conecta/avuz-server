@@ -1,0 +1,267 @@
+/*
+ * Administração › Segurança › "Restrição de acesso por IP" (js/ip-access-admin.js)
+ * Mirrors the native NcSettingsSection / NcCheckboxRadioSwitch / NcTextField /
+ * NcButton / NcNoteCard look of the other sections on this page, using the
+ * server's CSS variables so light and dark themes both follow.
+ */
+#avuz-ip-access.section {
+	padding: 30px;
+}
+
+.avuz-ipa h2.avuz-ipa__title {
+	margin: 0 0 12px;
+	padding: 0;
+	font-size: 20px;
+	font-weight: bold;
+	line-height: 30px;
+	color: var(--color-main-text);
+}
+
+.avuz-ipa__desc {
+	max-width: 900px;
+	margin: -3px 0 15px;
+	line-height: 1.5;
+	color: var(--color-text-maxcontrast);
+}
+
+.avuz-ipa h3 {
+	margin: 20px 0 8px;
+	font-size: 16px;
+	font-weight: bold;
+	color: var(--color-main-text);
+}
+
+/* switch — NcCheckboxRadioSwitch type="switch" */
+.avuz-ipa__switch {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	min-height: var(--default-clickable-area, 34px);
+	padding: 4px 9px;
+	border-radius: var(--border-radius-element, 8px);
+	color: var(--color-main-text);
+	cursor: pointer;
+	user-select: none;
+}
+
+.avuz-ipa__switch:hover {
+	background-color: var(--color-background-hover);
+}
+
+.avuz-ipa__switch input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.avuz-ipa__track {
+	position: relative;
+	flex: none;
+	width: 30px;
+	height: 15px;
+	margin: 0 3px;
+	border-radius: 99px;
+	background-color: var(--color-text-maxcontrast);
+}
+
+.avuz-ipa__track::after {
+	content: "";
+	position: absolute;
+	top: 4px;
+	left: 4px;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background-color: var(--color-main-background);
+	transition: transform 0.1s;
+}
+
+.avuz-ipa__switch input:checked + .avuz-ipa__track {
+	background-color: var(--color-primary-element);
+}
+
+.avuz-ipa__switch input:checked + .avuz-ipa__track::after {
+	top: 2.5px;
+	left: 2.5px;
+	width: 10px;
+	height: 10px;
+	transform: translateX(15px);
+}
+
+.avuz-ipa__switch input:focus-visible + .avuz-ipa__track {
+	outline: 2px solid var(--color-main-text);
+	outline-offset: 2px;
+}
+
+/* allowlist */
+.avuz-ipa__body {
+	max-width: 900px;
+}
+
+.avuz-ipa__me {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	margin: 0 0 12px;
+}
+
+.avuz-ipa__me strong {
+	font-variant-numeric: tabular-nums;
+}
+
+/* buttons — NcButton secondary / primary */
+.avuz-ipa button.avuz-ipa__btn {
+	min-height: var(--default-clickable-area, 34px);
+	margin: 0;
+	padding: 0 16px;
+	border: 0;
+	border-radius: var(--border-radius-element, 8px);
+	background-color: var(--color-primary-element-light);
+	color: var(--color-primary-element-light-text);
+	font-size: var(--default-font-size, 15px);
+	font-weight: bold;
+	cursor: pointer;
+}
+
+.avuz-ipa button.avuz-ipa__btn:hover:not(:disabled) {
+	background-color: var(--color-primary-element-light-hover);
+}
+
+.avuz-ipa button.avuz-ipa__primary {
+	background-color: var(--color-primary-element);
+	color: var(--color-primary-element-text);
+}
+
+.avuz-ipa button.avuz-ipa__primary:hover:not(:disabled) {
+	background-color: var(--color-primary-element-hover);
+}
+
+.avuz-ipa button.avuz-ipa__btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.avuz-ipa__list {
+	margin: 0 0 12px;
+	padding: 0;
+	list-style: none;
+}
+
+.avuz-ipa__list:empty {
+	display: none;
+}
+
+.avuz-ipa__list li {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	min-height: 44px;
+	padding: 0 0 0 8px;
+	border-bottom: 1px solid var(--color-border);
+}
+
+.avuz-ipa__list code {
+	min-width: 190px;
+	font-family: var(--font-face-monospace, monospace);
+	font-weight: bold;
+}
+
+.avuz-ipa__list span {
+	flex: 1;
+	color: var(--color-main-text);
+}
+
+.avuz-ipa__list em {
+	font-style: normal;
+	color: var(--color-text-maxcontrast);
+}
+
+.avuz-ipa button.avuz-ipa__remove {
+	width: var(--default-clickable-area, 34px);
+	height: var(--default-clickable-area, 34px);
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: var(--border-radius-element, 8px);
+	background: none;
+	color: var(--color-text-maxcontrast);
+	font-size: 20px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.avuz-ipa button.avuz-ipa__remove:hover {
+	background-color: var(--color-background-hover);
+	color: var(--color-error-text);
+}
+
+.avuz-ipa__empty {
+	margin: 0 0 12px;
+	color: var(--color-text-maxcontrast);
+}
+
+/* inputs — NcTextField */
+.avuz-ipa__add {
+	display: flex;
+	gap: 10px;
+}
+
+.avuz-ipa .avuz-ipa__add input {
+	flex: 1 1 0;
+	min-width: 0;
+	height: var(--default-clickable-area, 34px);
+	margin: 0;
+	padding: 0 8px;
+	border: 0;
+	border-radius: var(--border-radius-element, 8px);
+	background-color: var(--color-main-background);
+	box-shadow: 0 -1px var(--color-border-maxcontrast), 0 0 0 1px color-mix(in srgb, var(--color-border-maxcontrast) 35%, transparent);
+	color: var(--color-main-text);
+	font-size: var(--default-font-size, 15px);
+}
+
+.avuz-ipa .avuz-ipa__add input:hover,
+.avuz-ipa .avuz-ipa__add input:focus {
+	box-shadow: 0 0 0 2px var(--color-main-text);
+	outline: none;
+}
+
+.avuz-ipa__add button {
+	flex: none;
+}
+
+/* Nextcloud's settings styles reset <p> margins, hence the specificity */
+.avuz-ipa p.avuz-ipa__hint {
+	margin: 12px 0 0 !important;
+	font-size: 13px;
+	line-height: 1.4;
+	color: var(--color-text-maxcontrast);
+}
+
+/* NcNoteCard warning / error */
+.avuz-ipa__note {
+	max-width: 900px;
+	margin: 15px 0;
+	padding: 8px 8px 8px 12px;
+	border-inline-start: 4px solid;
+	border-radius: var(--border-radius, 4px);
+	color: var(--color-main-text);
+}
+
+.avuz-ipa__warn {
+	border-color: var(--color-warning-text);
+	background-color: var(--color-warning);
+}
+
+.avuz-ipa__error {
+	border-color: var(--color-error-text);
+	background-color: var(--color-error);
+}
+
+@media (max-width: 760px) {
+	.avuz-ipa__add {
+		flex-direction: column;
+	}
+}

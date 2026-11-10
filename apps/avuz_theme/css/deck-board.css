@@ -1,0 +1,1525 @@
+/**
+ * Deck (Tarefas): modern board layout
+ *
+ * Soft grey canvas, lists as rounded panels (colour shown as a dot + top
+ * stripe instead of a filled header), white cards with a subtle border and a
+ * lift on hover, system font for crisp titles, per-list card counter and an
+ * "Adicionar cartão" button at the bottom of each list (js/deck-board.js).
+ */
+
+.app-deck {
+	--avuz-board-bg: #f6f7f9;
+	--avuz-list-bg: #eef0f3;
+	--avuz-card-border: rgba(16, 20, 28, 0.08);
+	--avuz-ink: #15171b;
+	--avuz-muted: #7a818c;
+}
+
+.app-deck .board-wrapper,
+.app-deck .board-wrapper *,
+.app-deck .overview-wrapper,
+.app-deck .overview-wrapper *,
+.app-deck #app-content-vue:has(.board-list),
+.app-deck #app-content-vue:has(.board-list) *,
+.app-deck .controls,
+.app-deck .controls * {
+	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+/* ---------------------------------------------------------------- header */
+.app-deck .controls {
+	border-bottom: 1px solid rgba(16, 20, 28, 0.06);
+}
+
+.app-deck .board-title h2 {
+	font-size: 18px !important;
+	font-weight: 650 !important;
+	letter-spacing: -0.015em;
+	color: var(--avuz-ink);
+}
+
+.app-deck .board-title .board-bullet {
+	width: 12px !important;
+	height: 12px !important;
+	box-shadow: 0 0 0 3px rgba(16, 20, 28, 0.06);
+}
+
+/* ---------------------------------------------------------------- canvas */
+.app-deck .board-wrapper {
+	background: var(--avuz-board-bg) !important;
+}
+
+.app-deck .board {
+	padding: 16px 18px 24px !important;
+	gap: 0;
+}
+
+.app-deck .board > .smooth-dnd-container.horizontal {
+	align-items: flex-start;
+	gap: 14px;
+}
+
+.app-deck .board .stack-draggable-wrapper.smooth-dnd-draggable-wrapper {
+	flex: 0 0 292px !important;
+	width: 292px !important;
+	min-width: 0 !important;
+	padding: 0 !important;
+}
+
+/* ---------------------------------------------------------------- lists */
+.app-deck .board .stack {
+	box-sizing: border-box;
+	width: 100% !important;
+	padding: 4px 6px 8px !important;
+	border: 0 !important;
+	border-radius: 16px !important;
+	background: var(--avuz-list-bg) !important;
+}
+
+.app-deck .board .stack--colored {
+	background: color-mix(in srgb, var(--stack-color) 7%, var(--avuz-list-bg)) !important;
+	box-shadow: inset 0 3px 0 var(--stack-color);
+}
+
+.app-deck .board .stack__header {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	min-height: 42px;
+	margin: 0 !important;
+	padding: 4px 4px 4px 10px !important;
+	border-radius: 12px !important;
+	background: inherit !important;
+	background-color: transparent !important;
+	color: var(--avuz-ink) !important;
+}
+
+.app-deck .board .stack__header::before {
+	display: none !important;
+}
+
+/* Long list names wrap to two lines (full name on hover via title) instead
+   of being cut after a few characters */
+.app-deck .board .stack__header > h3 {
+	display: -webkit-box !important;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	flex: 1 1 auto;
+	min-width: 0;
+	margin: 0 !important;
+	padding: 0 !important;
+	overflow: hidden !important;
+	white-space: normal !important;
+	text-overflow: ellipsis;
+	overflow-wrap: anywhere;
+	font-size: 13.5px !important;
+	font-weight: 650 !important;
+	line-height: 1.35 !important;
+	letter-spacing: -0.005em;
+	color: var(--avuz-ink) !important;
+	cursor: pointer;
+}
+
+.app-deck .board .stack__header > h3:not(.stack__title) {
+	cursor: default;
+}
+
+.app-deck .board .stack--colored .stack__header > h3::before {
+	content: "";
+	display: inline-block;
+	width: 9px;
+	height: 9px;
+	margin: 0 8px 1px 0;
+	border-radius: 50%;
+	background: var(--stack-color);
+	vertical-align: middle;
+}
+
+/* Pencil to rename/recolour the list (js/deck-new-stack.js), on hover */
+.app-deck .board .stack__header button.avuz-stack-edit {
+	order: 0;
+	flex: none;
+	width: 26px !important;
+	height: 26px !important;
+	min-width: 26px !important;
+	min-height: 26px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 7px !important;
+	background: none !important;
+	color: var(--avuz-muted) !important;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+
+.app-deck .board .stack__header button.avuz-stack-edit::before {
+	content: "";
+	display: block;
+	width: 15px;
+	height: 15px;
+	margin: auto;
+	background: currentColor;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z'/%3E%3Cpath d='M13.5 6.5l4 4'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z'/%3E%3Cpath d='M13.5 6.5l4 4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.app-deck .board .stack__header:hover button.avuz-stack-edit,
+.app-deck .board .stack__header button.avuz-stack-edit:focus-visible {
+	opacity: 1;
+}
+
+.app-deck .board .stack__header button.avuz-stack-edit:hover {
+	background: rgba(16, 20, 28, 0.06) !important;
+	color: var(--avuz-ink) !important;
+}
+
+@media (hover: none) {
+	.app-deck .board .stack__header button.avuz-stack-edit {
+		opacity: 1;
+	}
+}
+
+/* Card counter (data-avuz-count set by js/deck-board.js) */
+.app-deck .board .stack__header[data-avuz-count]::after {
+	content: attr(data-avuz-count);
+	order: 1;
+	min-width: 22px;
+	height: 20px;
+	margin-inline-end: 2px;
+	padding: 0 7px;
+	box-sizing: border-box;
+	border-radius: 99px;
+	background: rgba(16, 20, 28, 0.07);
+	font-size: 11.5px;
+	font-weight: 600;
+	line-height: 20px;
+	text-align: center;
+	color: var(--avuz-muted);
+}
+
+.app-deck .board .stack__header > .action-item,
+.app-deck .board .stack__header > button {
+	order: 2;
+}
+
+/* Header buttons: thin icons, quieter until hover */
+.app-deck .board .stack__header .button-vue--tertiary {
+	width: 30px !important;
+	height: 30px !important;
+	min-width: 30px !important;
+	min-height: 30px !important;
+	border-radius: 8px !important;
+	color: var(--avuz-muted) !important;
+}
+
+.app-deck .board .stack__header .button-vue--tertiary:hover {
+	background: rgba(16, 20, 28, 0.06) !important;
+	color: var(--avuz-ink) !important;
+}
+
+.app-deck .board .stack__header .button-vue__icon > span {
+	display: block !important;
+	width: 18px !important;
+	height: 18px !important;
+	background: currentColor;
+	-webkit-mask: var(--avuz-ico) center / 18px 18px no-repeat;
+	mask: var(--avuz-ico) center / 18px 18px no-repeat;
+}
+
+.app-deck .board .stack__header .button-vue__icon > span > svg {
+	display: none !important;
+}
+
+.app-deck .board .stack__header .dots-horizontal-icon {
+	--avuz-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23000'%3E%3Ccircle cx='5.5' cy='12' r='1.6'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3Ccircle cx='18.5' cy='12' r='1.6'/%3E%3C/svg%3E");
+}
+
+.app-deck .board .stack__header .card-plus-outline-icon {
+	--avuz-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+}
+
+/* Cards area */
+.app-deck .board .stack .dnd-container {
+	margin: 0 !important;
+	padding: 2px 2px 0 !important;
+	gap: 0;
+}
+
+.app-deck .board .stack .dnd-container > .smooth-dnd-draggable-wrapper {
+	padding: 0 0 8px !important;
+}
+
+/* ---------------------------------------------------------------- cards */
+.app-deck :is(.board, .overview) .card {
+	margin: 0 !important;
+	padding: 12px 12px 8px !important;
+	border: 1px solid var(--avuz-card-border) !important;
+	border-radius: 12px !important;
+	background: var(--color-main-background, #fff) !important;
+	box-shadow: 0 1px 2px rgba(16, 20, 28, 0.04) !important;
+	transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+.app-deck :is(.board, .overview) .card:hover {
+	border-color: rgba(16, 20, 28, 0.14) !important;
+	box-shadow: 0 8px 20px -10px rgba(16, 20, 28, 0.28) !important;
+	transform: translateY(-1px);
+}
+
+/* Deck draws a thick 2px border on focus (e.g. after closing a card) */
+.app-deck :is(.board, .overview) .card:focus,
+.app-deck :is(.board, .overview) .card:focus-within {
+	border: 1px solid rgba(16, 20, 28, 0.24) !important;
+	outline: none !important;
+}
+
+.app-deck :is(.board, .overview) .card:focus-visible {
+	outline: 2px solid rgba(16, 20, 28, 0.3) !important;
+	outline-offset: 2px;
+}
+
+.app-deck :is(.board, .overview) .card.current-card {
+	border-color: var(--avuz-ink) !important;
+	box-shadow: 0 0 0 1px var(--avuz-ink) !important;
+}
+
+.app-deck :is(.board, .overview) .card-upper {
+	padding: 0 !important;
+	min-height: 0 !important;
+}
+
+.app-deck :is(.board, .overview) .card-upper h4,
+.app-deck :is(.board, .overview) .card-upper h4 span {
+	margin: 0 !important;
+	padding: 0 !important;
+	font-size: 14px !important;
+	font-weight: 500 !important;
+	line-height: 1.45 !important;
+	color: var(--avuz-ink) !important;
+}
+
+/* Labels as small pills above the controls */
+.app-deck :is(.board, .overview) .card .labels {
+	gap: 4px !important;
+	margin: 8px 0 0 !important;
+	padding: 0 !important;
+}
+
+.app-deck :is(.board, .overview) .card .labels {
+	flex-wrap: wrap !important;
+}
+
+.app-deck :is(.board, .overview) .card .labels li {
+	margin: 0 !important;
+	padding: 0 8px !important;
+	border-radius: 99px !important;
+}
+
+.app-deck :is(.board, .overview) .card .labels li span {
+	padding: 0 !important;
+	font-size: 11px !important;
+	font-weight: 600 !important;
+	line-height: 20px !important;
+}
+
+/* Badges row */
+.app-deck :is(.board, .overview) .card-controls {
+	height: auto !important;
+	margin-top: 8px !important;
+	padding: 0 !important;
+	min-height: 28px;
+}
+
+.app-deck :is(.board, .overview) .card .badges,
+.app-deck :is(.board, .overview) .card .inline-badges {
+	flex-wrap: wrap;
+	height: auto !important;
+}
+
+.app-deck :is(.board, .overview) .card .icon-badge,
+.app-deck :is(.board, .overview) .card .due,
+.app-deck :is(.board, .overview) .card .badge-left > * {
+	font-size: 12px !important;
+	color: var(--avuz-muted) !important;
+}
+
+.app-deck :is(.board, .overview) .card .icon-badge {
+	gap: 3px;
+}
+
+.app-deck :is(.board, .overview) .card .icon-badge .material-design-icon svg {
+	width: 15px !important;
+	height: 15px !important;
+}
+
+.app-deck :is(.board, .overview) .card .inline-badges {
+	gap: 10px;
+}
+
+/* Card menu shows on hover/focus only */
+.app-deck :is(.board, .overview) .card .card-menu .button-vue--tertiary {
+	width: 28px !important;
+	height: 28px !important;
+	min-width: 28px !important;
+	min-height: 28px !important;
+	border-radius: 8px !important;
+	color: var(--avuz-muted) !important;
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+
+.app-deck :is(.board, .overview) .card:hover .card-menu .button-vue--tertiary,
+.app-deck :is(.board, .overview) .card:focus-within .card-menu .button-vue--tertiary,
+.app-deck :is(.board, .overview) .card .card-menu .button-vue--tertiary[aria-expanded="true"] {
+	opacity: 1;
+}
+
+@media (hover: none) {
+	.app-deck :is(.board, .overview) .card .card-menu .button-vue--tertiary {
+		opacity: 1;
+	}
+}
+
+/* Avatars */
+.app-deck :is(.board, .overview) .card .avatardiv {
+	box-shadow: 0 0 0 2px var(--color-main-background, #fff);
+}
+
+/* ------------------------------------------- "Adicionar cartão" (bottom) */
+button.avuz-stack-add {
+	display: flex !important;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	height: 36px !important;
+	min-height: 36px !important;
+	margin: 0 !important;
+	padding: 0 10px !important;
+	border: 0 !important;
+	border-radius: 10px !important;
+	background: transparent !important;
+	color: var(--avuz-muted) !important;
+	font-size: 13px !important;
+	font-weight: 500 !important;
+	text-align: start;
+	cursor: pointer;
+	transition: background-color 0.12s, color 0.12s;
+}
+
+button.avuz-stack-add::before {
+	content: "";
+	width: 16px;
+	height: 16px;
+	background: currentColor;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+button.avuz-stack-add:hover {
+	background: rgba(16, 20, 28, 0.06) !important;
+	color: var(--avuz-ink) !important;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Board filter popover: sections with small captions, labels / status / due */
+/* dates as toggle chips, people as rows with a round check                  */
+/* ------------------------------------------------------------------------- */
+.v-popper__inner .filter:has(> .filter--item) {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	box-sizing: border-box;
+	width: 320px;
+	max-height: min(72vh, 640px);
+	padding: 6px 16px 16px;
+	overflow-y: auto;
+}
+
+.v-popper__inner .filter:has(> .filter--item),
+.v-popper__inner .filter:has(> .filter--item) * {
+	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+.v-popper__inner .filter > h3 {
+	flex: 0 0 100%;
+	margin: 12px 0 2px !important;
+	padding: 12px 2px 0 !important;
+	border-top: 1px solid var(--color-border, #eceef1);
+	font-size: 11px !important;
+	font-weight: 650 !important;
+	line-height: 1.3 !important;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--color-text-maxcontrast, #868d97) !important;
+}
+
+.v-popper__inner .filter > h3:first-child {
+	margin-top: 4px !important;
+	padding-top: 6px !important;
+	border-top: 0;
+}
+
+.v-popper__inner .filter .filter--item {
+	position: relative;
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	margin: 0 !important;
+	padding: 0 !important;
+}
+
+/* Native inputs stay for accessibility, visually replaced */
+.v-popper__inner .filter .filter--item > input {
+	position: absolute !important;
+	inset: 0;
+	width: 1px !important;
+	height: 1px !important;
+	margin: 0 !important;
+	opacity: 0 !important;
+	pointer-events: none;
+}
+
+.v-popper__inner .filter .filter--item > label {
+	display: inline-flex !important;
+	align-items: center;
+	gap: 7px;
+	min-height: 30px;
+	margin: 0 !important;
+	padding: 0 12px !important;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 99px;
+	background: var(--color-main-background, #fff);
+	font-size: 13px !important;
+	font-weight: 500;
+	line-height: 1.2;
+	color: var(--color-main-text, #15171b);
+	cursor: pointer;
+	transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+	user-select: none;
+}
+
+.v-popper__inner .filter .filter--item > label::before {
+	display: none !important;
+}
+
+.v-popper__inner .filter .filter--item > label:hover {
+	border-color: var(--color-border-dark, #c4c9d1);
+	background: var(--color-background-hover, #f6f7f9);
+}
+
+.v-popper__inner .filter .filter--item > input:focus-visible + label {
+	outline: 2px solid rgba(16, 20, 28, 0.35);
+	outline-offset: 2px;
+}
+
+/* Selected chip: black with a check */
+.v-popper__inner .filter .filter--item > input:checked + label {
+	border-color: #15171b;
+	background: #15171b;
+	color: #fff;
+}
+
+.v-popper__inner .filter .filter--item > input:checked + label::after {
+	content: "";
+	order: -1;
+	width: 13px;
+	height: 13px;
+	background: currentColor;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Labels: chip with a colour dot (Deck's coloured block becomes the dot) */
+.v-popper__inner .filter .filter--item > label > .label {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 0 !important;
+	border-radius: 0 !important;
+	background: none !important;
+	color: inherit !important;
+	font-size: 13px !important;
+	font-weight: 500 !important;
+}
+
+.v-popper__inner .filter .filter--item > label > .label::before {
+	content: "";
+	flex: none;
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	background: var(--avuz-label-color, currentColor);
+}
+
+/* People (and "Não atribuído"): full-width rows with a round check */
+.v-popper__inner .filter .filter--item:has(> input.checkbox):not(:has(.label)) {
+	flex: 0 0 100%;
+}
+
+.v-popper__inner .filter .filter--item:has(> input.checkbox):not(:has(.label)) > label {
+	width: 100%;
+	min-height: 38px;
+	padding: 0 10px !important;
+	border-color: transparent;
+	border-radius: 10px;
+	background: none;
+}
+
+.v-popper__inner .filter .filter--item:has(> input.checkbox):not(:has(.label)) > label:hover {
+	background: var(--color-background-hover, #f6f7f9);
+}
+
+.v-popper__inner .filter .filter--item:has(> input.checkbox):not(:has(.label)) > input:checked + label {
+	border-color: transparent;
+	background: var(--color-background-hover, #f2f3f5);
+	color: var(--color-main-text, #15171b);
+	font-weight: 600;
+}
+
+.v-popper__inner .filter .filter--item:has(> input.checkbox):not(:has(.label)) > input:checked + label::after {
+	display: none;
+}
+
+/* the round check at the end of the row */
+.v-popper__inner .filter .filter--item:has(> input.checkbox):not(:has(.label)) > label {
+	position: relative;
+	padding-right: 38px !important;
+}
+
+.v-popper__inner .filter .filter--item:has(> input.checkbox):not(:has(.label)) > label::before {
+	content: "" !important;
+	position: absolute;
+	right: 10px;
+	top: 50%;
+	display: block !important;
+	width: 18px !important;
+	height: 18px !important;
+	margin: -9px 0 0 !important;
+	box-sizing: border-box;
+	border: 1.5px solid var(--color-border-dark, #c4c9d1) !important;
+	border-radius: 50% !important;
+	background: none !important;
+}
+
+.v-popper__inner .filter .filter--item:has(> input.checkbox):not(:has(.label)) > input:checked + label::before {
+	border-color: #15171b !important;
+	background: #15171b url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4L18 8'/%3E%3C/svg%3E") center / 12px no-repeat !important;
+}
+
+/* "Não atribuído": a dashed avatar so it lines up with the people */
+.v-popper__inner .filter .filter--item > #unassigned + label {
+	padding-left: 44px !important;
+}
+
+.v-popper__inner .filter .filter--item > #unassigned + label {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a3a9b3' stroke-width='1.4' stroke-dasharray='2.6 2.2'%3E%3Ccircle cx='12' cy='12' r='10.5'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: 10px center;
+	background-size: 24px;
+}
+
+/* "Limpar filtro" */
+.v-popper__inner .filter > button.button-vue {
+	flex: 0 0 100%;
+	height: 38px !important;
+	min-height: 38px !important;
+	margin: 14px 0 0 !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 10px !important;
+	background: var(--color-main-background, #fff) !important;
+	color: var(--color-main-text, #15171b) !important;
+	font-weight: 600 !important;
+}
+
+.v-popper__inner .filter > button.button-vue:not(:disabled):hover {
+	background: var(--color-background-hover, #f6f7f9) !important;
+}
+
+.v-popper__inner .filter > button.button-vue:disabled {
+	opacity: 0.45 !important;
+}
+
+
+/* ------------------------------------------------------------------------- */
+/* "Próximos cartões" (overview): due-date columns as panels like the lists   */
+/* ------------------------------------------------------------------------- */
+.app-deck .overview-wrapper {
+	min-height: 100%;
+	background: var(--avuz-board-bg);
+}
+
+.app-deck .overview-wrapper > .controls {
+	background: var(--color-main-background, #fff);
+}
+
+.app-deck .overview-wrapper .board-title .board-bullet.icon-calendar-dark {
+	width: 20px !important;
+	height: 20px !important;
+	background: var(--avuz-ink) !important;
+	box-shadow: none;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='2.6'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E") center / 20px no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='2.6'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E") center / 20px no-repeat;
+}
+
+.app-deck .overview-wrapper .board-title .button-vue--tertiary {
+	width: 32px !important;
+	height: 32px !important;
+	min-width: 32px !important;
+	min-height: 32px !important;
+	margin-inline-start: 4px;
+	border-radius: 9px !important;
+}
+
+.app-deck .overview-wrapper .board-title .button-vue--tertiary:hover {
+	background: rgba(16, 20, 28, 0.06) !important;
+}
+
+.app-deck .overview-wrapper .board-title .icon-add {
+	background: currentColor !important;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E") center / 18px no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E") center / 18px no-repeat;
+	color: var(--avuz-ink);
+}
+
+/* Deck's scoped styles are injected after ours, hence the !important */
+.app-deck .overview {
+	display: flex !important;
+	align-items: flex-start !important;
+	gap: 10px !important;
+	padding: 16px 18px 24px !important;
+	overflow-x: auto;
+}
+
+.app-deck .overview .dashboard-column {
+	display: flex !important;
+	flex-direction: column;
+	flex: 1 1 0 !important;
+	box-sizing: border-box;
+	min-width: 150px !important;
+	max-width: 340px;
+	max-height: 100%;
+	margin: 0 !important;
+	padding: 4px 6px 8px !important;
+	border-radius: 16px;
+	background: var(--avuz-list-bg);
+	--avuz-col: #9aa1ab;
+}
+
+.app-deck .overview .dashboard-column:nth-child(1) { --avuz-col: #e9322d; }
+.app-deck .overview .dashboard-column:nth-child(2) { --avuz-col: #f08c00; }
+.app-deck .overview .dashboard-column:nth-child(3) { --avuz-col: #e3b505; }
+.app-deck .overview .dashboard-column:nth-child(4) { --avuz-col: #31a86b; }
+.app-deck .overview .dashboard-column:nth-child(5) { --avuz-col: #7a818c; }
+.app-deck .overview .dashboard-column:nth-child(6) { --avuz-col: #b4b9c1; }
+
+.app-deck .overview .dashboard-column__header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: none;
+	height: auto !important;
+	min-height: 42px;
+	margin: 0 !important;
+	padding: 4px 6px 4px 10px !important;
+	background: none !important;
+}
+
+/* Deck uses ::before as a fade under its sticky header: reuse it as a dot */
+.app-deck .overview .dashboard-column__header::before {
+	content: "";
+	position: static !important;
+	flex: none;
+	width: 9px !important;
+	height: 9px !important;
+	border-radius: 50%;
+	background: var(--avuz-col) !important;
+	background-image: none !important;
+	transition: none;
+}
+
+.app-deck .overview .dashboard-column__header-title {
+	display: block !important;
+	flex: 1 1 auto;
+	min-width: 0;
+	height: auto !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	overflow: hidden;
+	white-space: normal !important;
+	line-height: 1.3 !important;
+	font-size: 13.5px !important;
+	font-weight: 650 !important;
+	color: var(--avuz-ink) !important;
+}
+
+.app-deck .overview .dashboard-column__header[data-avuz-count]::after {
+	content: attr(data-avuz-count);
+	min-width: 22px;
+	height: 20px;
+	padding: 0 7px;
+	box-sizing: border-box;
+	border-radius: 99px;
+	background: rgba(16, 20, 28, 0.07);
+	font-size: 11.5px;
+	font-weight: 600;
+	line-height: 20px;
+	text-align: center;
+	color: var(--avuz-muted);
+}
+
+.app-deck .overview .dashboard-column__list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-height: 0;
+	margin: 0 !important;
+	padding: 2px 2px 2px !important;
+	overflow-y: auto;
+}
+
+.app-deck .overview .dashboard-column__list:empty::before {
+	content: "Nenhum cartão";
+	display: block;
+	padding: 18px 10px;
+	border: 1px dashed rgba(16, 20, 28, 0.12);
+	border-radius: 12px;
+	font-size: 12.5px;
+	text-align: center;
+	color: var(--avuz-muted);
+}
+
+/* "Vencidos" with cards: red counter */
+.app-deck .overview .dashboard-column:nth-child(1) .dashboard-column__header:not([data-avuz-count="0"])::after {
+	background: rgba(233, 50, 45, 0.12);
+	color: #c0392f;
+}
+
+/* ------------------------------------------------------------------------- */
+/* "Todos os painéis": filter bar with chips + boards as a clean card table   */
+/* ------------------------------------------------------------------------- */
+.app-deck #app-content-vue:has(.board-list) {
+	background: var(--avuz-board-bg) !important;
+}
+
+.app-deck .board-filter-bar {
+	display: flex !important;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px !important;
+	padding: 16px 18px 6px !important;
+}
+
+.app-deck .board-filter-bar .v-select.select {
+	flex: 0 1 240px;
+	min-width: 180px !important;
+	margin: 0 !important;
+}
+
+.app-deck .board-filter-bar .vs__dropdown-toggle {
+	min-height: 38px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 10px !important;
+	background: var(--color-main-background, #fff) !important;
+	box-shadow: none !important;
+}
+
+.app-deck .board-filter-bar .v-select:hover .vs__dropdown-toggle,
+.app-deck .board-filter-bar .vs--open .vs__dropdown-toggle {
+	border-color: var(--color-border-dark, #c4c9d1) !important;
+}
+
+.app-deck .board-filter-bar .vs__search,
+.app-deck .board-filter-bar .vs__search::placeholder {
+	font-size: 13.5px !important;
+	color: var(--avuz-muted) !important;
+}
+
+.app-deck .board-filter-bar .vs__open-indicator {
+	color: var(--avuz-muted) !important;
+}
+
+.app-deck .board-filter-bar__due {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.app-deck .board-filter-bar__due .button-vue {
+	height: 34px !important;
+	min-height: 34px !important;
+	margin: 0 !important;
+	padding: 0 14px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 99px !important;
+	background: var(--color-main-background, #fff) !important;
+	color: var(--avuz-ink) !important;
+}
+
+.app-deck .board-filter-bar__due .button-vue .button-vue__text {
+	font-size: 13px !important;
+	font-weight: 500 !important;
+}
+
+.app-deck .board-filter-bar__due .button-vue:hover {
+	border-color: var(--color-border-dark, #c4c9d1) !important;
+	background: var(--color-background-hover, #f6f7f9) !important;
+}
+
+.app-deck .board-filter-bar__due .button-vue--vue-primary,
+.app-deck .board-filter-bar__due .button-vue[aria-pressed="true"] {
+	border-color: #15171b !important;
+	background: #15171b !important;
+	color: #fff !important;
+}
+
+/* "Limpar filtros" (shown when a filter is on) */
+.app-deck .board-filter-bar > .button-vue {
+	height: 34px !important;
+	min-height: 34px !important;
+	margin: 0 !important;
+	padding: 0 12px !important;
+	border-radius: 99px !important;
+	background: none !important;
+	color: var(--avuz-muted) !important;
+}
+
+.app-deck .board-filter-bar > .button-vue .button-vue__text {
+	font-size: 13px !important;
+	font-weight: 500 !important;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.app-deck .board-filter-bar > .button-vue:hover {
+	color: var(--avuz-ink) !important;
+}
+
+.app-deck .board-filter-bar__count {
+	margin: 0 0 0 auto !important;
+	padding: 0 4px;
+	font-size: 12.5px;
+	color: var(--avuz-muted) !important;
+}
+
+.app-deck .board-list {
+	margin: 10px 18px 24px !important;
+	overflow: hidden;
+	border: 1px solid var(--avuz-card-border);
+	border-radius: 14px;
+	background: var(--color-main-background, #fff);
+	box-shadow: 0 1px 2px rgba(16, 20, 28, 0.04);
+}
+
+.app-deck .board-list .board-list-row {
+	display: flex !important;
+	align-items: center;
+	min-height: 60px;
+	padding: 0 14px !important;
+	border-bottom: 1px solid rgba(16, 20, 28, 0.06) !important;
+	color: var(--avuz-ink) !important;
+	transition: background-color 0.12s;
+}
+
+.app-deck .board-list .board-item:last-child .board-list-row {
+	border-bottom: 0 !important;
+}
+
+.app-deck .board-list a.board-list-row:hover {
+	background: var(--avuz-board-bg) !important;
+}
+
+.app-deck .board-list .board-list-header-row {
+	min-height: 40px !important;
+	background: #fafbfc !important;
+}
+
+.app-deck .board-list .board-list-header-row > div {
+	font-size: 11px !important;
+	font-weight: 650 !important;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--avuz-muted) !important;
+}
+
+.app-deck .board-list .board-list-bullet-cell {
+	flex: 0 0 44px !important;
+	width: 44px !important;
+	padding: 0 !important;
+}
+
+.app-deck .board-list .board-list-bullet {
+	width: 22px !important;
+	height: 22px !important;
+	border-radius: 50% !important;
+	box-shadow: 0 0 0 4px rgba(16, 20, 28, 0.05);
+}
+
+.app-deck .board-list .board-list-header-row .board-list-bullet {
+	visibility: hidden;
+}
+
+.app-deck .board-list .board-list-title-cell {
+	font-size: 14.5px !important;
+	font-weight: 600 !important;
+	letter-spacing: -0.005em;
+}
+
+.app-deck .board-list .board-list-header-row .board-list-title-cell {
+	font-size: 11px !important;
+}
+
+.app-deck .board-list .board-list-avatars-cell {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+}
+
+.app-deck .board-list .board-list-avatar {
+	margin-inline-start: -8px !important;
+	border-radius: 50%;
+	box-shadow: 0 0 0 2px var(--color-main-background, #fff);
+}
+
+.app-deck .board-list a.board-list-row:hover .board-list-avatar {
+	box-shadow: 0 0 0 2px var(--avuz-board-bg);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Card progress bar (subtasks or checklist items), js/deck-board.js          */
+/* ------------------------------------------------------------------------- */
+.app-deck :is(.board, .overview) .card .avuz-progress {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 10px 0 2px;
+}
+
+.app-deck :is(.board, .overview) .card .avuz-progress__track {
+	position: relative;
+	flex: 1 1 auto;
+	height: 6px;
+	overflow: hidden;
+	border-radius: 99px;
+	background: rgba(16, 20, 28, 0.08);
+}
+
+.app-deck :is(.board, .overview) .card .avuz-progress__track i {
+	position: absolute;
+	inset: 0 auto 0 0;
+	border-radius: 99px;
+	background: #15171b;
+	transition: width 0.25s ease;
+}
+
+.app-deck :is(.board, .overview) .card .avuz-progress--done .avuz-progress__track i {
+	background: #31a86b;
+}
+
+.app-deck :is(.board, .overview) .card .avuz-progress__text {
+	flex: none;
+	font-size: 12px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--avuz-muted);
+}
+
+.app-deck :is(.board, .overview) .card .avuz-progress--done .avuz-progress__text {
+	color: #258a57;
+}
+
+/* the badge the numbers came from */
+.app-deck :is(.board, .overview) .card .icon-badge.avuz-progress-src {
+	display: none !important;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Action menus in Tarefas (board "⋯", list "⋯", card "⋯", …): NcActions     */
+/* popovers live in <body>, so they are scoped to pages that show Deck        */
+/* ------------------------------------------------------------------------- */
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .v-popper__inner {
+	padding: 6px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 14px !important;
+	background: var(--color-main-background, #fff) !important;
+	box-shadow: 0 18px 44px -14px rgba(16, 20, 28, 0.28), 0 2px 6px rgba(16, 20, 28, 0.05) !important;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .v-popper__arrow-container {
+	display: none !important;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper ul[role="menu"] {
+	min-width: 250px;
+	padding: 0 !important;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper,
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper * {
+	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper li.action {
+	margin: 0 !important;
+	padding: 0 !important;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper li.action.active {
+	background: none !important;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router, .action-checkbox, .action-radio) {
+	display: flex !important;
+	align-items: center;
+	gap: 10px;
+	box-sizing: border-box;
+	width: 100% !important;
+	min-height: 38px !important;
+	height: auto !important;
+	margin: 0 !important;
+	padding: 0 12px 0 10px !important;
+	border: 0 !important;
+	border-radius: 9px !important;
+	background: none !important;
+	color: var(--color-main-text, #15171b) !important;
+	font-size: 13.5px !important;
+	font-weight: 500 !important;
+	line-height: 1.3 !important;
+	opacity: 1 !important;
+	cursor: pointer;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router):hover,
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router):focus-visible {
+	background: var(--color-background-hover, #f4f5f7) !important;
+	outline: none !important;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router) > .material-design-icon,
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router) > [class*="icon-"] {
+	flex: none;
+	width: 20px !important;
+	height: 20px !important;
+	min-width: 20px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	color: #6b717c;
+	opacity: 1 !important;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router):hover > .material-design-icon {
+	color: var(--color-main-text, #15171b);
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__longtext-wrapper,
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__text,
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__longtext {
+	padding: 0 !important;
+	font-size: 13.5px !important;
+	font-weight: 500 !important;
+	line-height: 1.3 !important;
+	white-space: nowrap;
+}
+
+/* Destructive actions (Excluir …) in red, separated from the rest */
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper li.action:has(:is(.icon-delete, .delete-icon, .delete-outline-icon, .trash-can-outline-icon, .trash-can-icon)) {
+	margin-top: 4px !important;
+	padding-top: 4px !important;
+	border-top: 1px solid var(--color-border, #eceef1);
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper li.action:has(:is(.icon-delete, .delete-icon, .delete-outline-icon, .trash-can-outline-icon, .trash-can-icon)) :is(.action-button, .action-button > .material-design-icon, .action-button > .action-button__icon) {
+	color: #c0392f !important;
+}
+
+/* Deck's delete icon is a background image: repaint it as a thin trash can */
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__icon.icon-delete {
+	background: currentColor !important;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h16M10 11v6M14 11v6M5.5 7l1 12.5A1.6 1.6 0 0 0 8.1 21h7.8a1.6 1.6 0 0 0 1.6-1.5L18.5 7M9 7V4.6A.6.6 0 0 1 9.6 4h4.8a.6.6 0 0 1 .6.6V7'/%3E%3C/svg%3E") center / 18px no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h16M10 11v6M14 11v6M5.5 7l1 12.5A1.6 1.6 0 0 0 8.1 21h7.8a1.6 1.6 0 0 0 1.6-1.5L18.5 7M9 7V4.6A.6.6 0 0 1 9.6 4h4.8a.6.6 0 0 1 .6.6V7'/%3E%3C/svg%3E") center / 18px no-repeat;
+	opacity: 1 !important;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper li.action:has(:is(.icon-delete, .delete-icon, .delete-outline-icon, .trash-can-outline-icon, .trash-can-icon)) .action-button:hover {
+	background: rgba(192, 57, 47, 0.08) !important;
+}
+
+/* Separators and captions inside menus */
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-separator {
+	margin: 4px 6px !important;
+	border-color: var(--color-border, #eceef1) !important;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-caption {
+	padding: 8px 10px 4px !important;
+	font-size: 11px !important;
+	font-weight: 650 !important;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--color-text-maxcontrast, #868d97) !important;
+}
+
+/* Menu icons: NcActions centres the SVG in a 34px box; in our 20px slot it
+   has to be centred again or it gets clipped */
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router) > .material-design-icon {
+	display: flex !important;
+	align-items: center;
+	justify-content: center;
+	overflow: visible !important;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router) > .material-design-icon svg {
+	flex: none;
+	margin: 0 !important;
+}
+
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__longtext-wrapper,
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__longtext {
+	max-width: none !important;
+	white-space: nowrap !important;
+}
+
+/* Background-image icons (icon-checkmark, icon-external, icon-talk…) */
+body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__icon:not(.icon-delete) {
+	background-position: center !important;
+	background-size: 16px !important;
+	background-repeat: no-repeat !important;
+	opacity: 0.7 !important;
+}
+
+/* ------------------------------------------------------------------------- */
+/* "Configurações de Tarefas" dialog (js/deck-board.js adds .avuz-settings)   */
+/* ------------------------------------------------------------------------- */
+.app-settings.avuz-settings,
+.app-settings.avuz-settings *:not(kbd) {
+	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+.app-settings.avuz-settings .modal-container {
+	width: min(880px, calc(100vw - 32px)) !important;
+	height: min(640px, calc(100vh - 48px)) !important;
+	max-height: none !important;
+	border-radius: 18px !important;
+	box-shadow: 0 30px 80px -20px rgba(15, 18, 24, 0.45) !important;
+}
+
+.app-settings.avuz-settings .modal-container__content {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 0 !important;
+}
+
+.app-settings.avuz-settings .dialog__name {
+	flex: none;
+	margin: 0 !important;
+	padding: 20px 64px 16px 24px !important;
+	border-bottom: 1px solid var(--color-border, #eceef1);
+	font-size: 18px !important;
+	font-weight: 650 !important;
+	letter-spacing: -0.01em;
+	text-align: start !important;
+	color: #15171b;
+}
+
+.app-settings.avuz-settings .dialog,
+.app-settings.avuz-settings .dialog__wrapper {
+	flex: 1 1 auto;
+	min-height: 0;
+	height: auto !important;
+	margin: 0 !important;
+	padding: 0 !important;
+}
+
+.app-settings.avuz-settings .dialog__wrapper {
+	display: flex !important;
+}
+
+/* Left menu */
+.app-settings.avuz-settings .app-settings__navigation {
+	flex: 0 0 236px !important;
+	box-sizing: border-box;
+	min-width: 0 !important;
+	margin: 0 !important;
+	padding: 14px 12px !important;
+	border-right: 1px solid var(--color-border, #eceef1);
+	background: #fafbfc;
+}
+
+.app-settings.avuz-settings .navigation-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.app-settings.avuz-settings .navigation-list__link {
+	display: flex !important;
+	align-items: center;
+	gap: 10px;
+	min-height: 38px !important;
+	margin: 0 !important;
+	padding: 0 12px !important;
+	border-radius: 10px !important;
+	background: none !important;
+	color: #2b3141 !important;
+	font-size: 13.5px !important;
+	font-weight: 500 !important;
+	line-height: 1.25 !important;
+}
+
+.app-settings.avuz-settings .navigation-list__link:hover {
+	background: rgba(16, 20, 28, 0.05) !important;
+}
+
+.app-settings.avuz-settings .navigation-list__link--active,
+.app-settings.avuz-settings .navigation-list__link--active:hover {
+	background: #15171b !important;
+	color: #fff !important;
+	font-weight: 600 !important;
+}
+
+.app-settings.avuz-settings .navigation-list__link-text {
+	padding: 0 !important;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.app-settings.avuz-settings .navigation-list__link::before {
+	content: "";
+	flex: none;
+	width: 18px;
+	height: 18px;
+	background: currentColor;
+	opacity: 0.85;
+	-webkit-mask: var(--avuz-set-icon) center / contain no-repeat;
+	mask: var(--avuz-set-icon) center / contain no-repeat;
+}
+
+.app-settings.avuz-settings .navigation-list__link[data-avuz-key="appearance-settings"] {
+	--avuz-set-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='4.5' width='17' height='15' rx='2.6'/%3E%3Cpath d='M9 4.5v15M12.5 9h4.5M12.5 12.5h4.5'/%3E%3C/svg%3E");
+}
+
+.app-settings.avuz-settings .navigation-list__link[data-avuz-key="admin-settings"] {
+	--avuz-set-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5l7 2.6v5.4c0 4.3-2.9 7.6-7 9-4.1-1.4-7-4.7-7-9V6.1z'/%3E%3Cpath d='M9 12l2.2 2.2L15.5 10'/%3E%3C/svg%3E");
+}
+
+.app-settings.avuz-settings .navigation-list__link[data-avuz-key="keyboard-shortcuts"] {
+	--avuz-set-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='6' width='19' height='12' rx='2.4'/%3E%3Cpath d='M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M8 14h8'/%3E%3C/svg%3E");
+}
+
+/* Content: one section at a time */
+.app-settings.avuz-settings .app-settings__content {
+	flex: 1 1 auto;
+	min-width: 0;
+	height: auto !important;
+	margin: 0 !important;
+	padding: 22px 26px 24px !important;
+	overflow-y: auto;
+}
+
+.app-settings.avuz-settings .app-settings-section {
+	display: none !important;
+	margin: 0 !important;
+}
+
+.app-settings.avuz-settings .app-settings-section.avuz-settings__active {
+	display: block !important;
+}
+
+.app-settings.avuz-settings .app-settings-section__name {
+	margin: 0 !important;
+	padding: 0 !important;
+	font-size: 17px !important;
+	font-weight: 650 !important;
+	letter-spacing: -0.01em;
+	color: #15171b;
+}
+
+.app-settings.avuz-settings .app-settings-section__description {
+	margin: 4px 0 18px !important;
+	padding: 0 !important;
+	font-size: 13px !important;
+	color: var(--color-text-maxcontrast, #7a818c) !important;
+}
+
+/* Switch rows grouped in one card */
+.app-settings.avuz-settings .app-settings-section__content > [class*="_ncFormBox_"] {
+	overflow: hidden;
+	gap: 0 !important;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 14px;
+	background: var(--color-main-background, #fff);
+}
+
+.app-settings.avuz-settings [class*="_ncFormBox__item_"] {
+	min-height: 54px;
+	margin: 0 !important;
+	padding: 0 16px !important;
+	border: 0 !important;
+	border-bottom: 1px solid var(--color-border, #eceef1) !important;
+	border-radius: 0 !important;
+	background: none !important;
+}
+
+.app-settings.avuz-settings [class*="_ncFormBox__item_"]:last-child {
+	border-bottom: 0 !important;
+}
+
+.app-settings.avuz-settings [class*="_ncFormBox__item_"]:hover {
+	background: #fafbfc !important;
+}
+
+.app-settings.avuz-settings [class*="_ncFormBox__item_"] label {
+	font-size: 14px !important;
+	font-weight: 500 !important;
+	color: #15171b;
+}
+
+/* Admin: group select + hint */
+.app-settings.avuz-settings #settings-section_admin-settings .app-settings-section__content {
+	padding: 18px;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 14px;
+}
+
+.app-settings.avuz-settings #settings-section_admin-settings .select__label {
+	display: block;
+	margin-bottom: 6px;
+	font-size: 13px !important;
+	font-weight: 600 !important;
+	color: #2b3141;
+}
+
+.app-settings.avuz-settings #settings-section_admin-settings .v-select {
+	width: 100% !important;
+}
+
+.app-settings.avuz-settings #settings-section_admin-settings .vs__dropdown-toggle {
+	min-height: 42px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 10px !important;
+	box-shadow: none !important;
+}
+
+.app-settings.avuz-settings #settings-section_admin-settings .vs__dropdown-toggle:hover {
+	border-color: var(--color-border-dark, #c4c9d1) !important;
+}
+
+.app-settings.avuz-settings #settings-section_admin-settings .app-settings-section__content > p {
+	display: flex;
+	gap: 8px;
+	margin: 12px 0 0 !important;
+	padding: 10px 12px;
+	border-radius: 10px;
+	background: #f6f7f9;
+	font-size: 13px !important;
+	line-height: 1.5 !important;
+	color: #5b616b;
+}
+
+.app-settings.avuz-settings #settings-section_admin-settings .app-settings-section__content > p::before {
+	content: "";
+	flex: none;
+	width: 16px;
+	height: 16px;
+	margin-top: 2px;
+	background: currentColor;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5M12 7.6v.01'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5M12 7.6v.01'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Shortcuts: each group as a card with compact rows */
+.app-settings.avuz-settings [class*="_appSettingsSectionShortcuts_"] {
+	display: grid !important;
+	gap: 14px !important;
+}
+
+.app-settings.avuz-settings [class*="_hotkeyList_"]:not([class*="_hotkeyList__"]) {
+	margin: 0 !important;
+	padding: 4px 16px !important;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 14px;
+}
+
+.app-settings.avuz-settings [class*="_hotkeyList__heading_"] {
+	margin: 0 !important;
+	padding: 12px 0 6px !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	font-size: 11px !important;
+	font-weight: 650 !important;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--color-text-maxcontrast, #868d97) !important;
+}
+
+.app-settings.avuz-settings [class*="_hotkey_"]:is(li) {
+	min-height: 42px;
+	margin: 0 !important;
+	padding: 6px 0 !important;
+	border-bottom: 1px solid var(--color-border, #f0f1f3) !important;
+}
+
+.app-settings.avuz-settings [class*="_hotkey_"]:is(li):last-child {
+	border-bottom: 0 !important;
+}
+
+.app-settings.avuz-settings [class*="_hotkey__label_"] {
+	font-size: 13.5px !important;
+	color: #15171b;
+}
+
+.app-settings.avuz-settings kbd {
+	min-width: 26px !important;
+	height: 26px !important;
+	margin: 0 0 0 4px !important;
+	padding: 0 7px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-bottom-width: 2px !important;
+	border-radius: 7px !important;
+	background: #fafbfc !important;
+	box-shadow: none !important;
+	font: 600 13px/22px -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif !important;
+	color: #2b3141 !important;
+	text-align: center;
+}
+
+/* App version line */
+.app-settings.avuz-settings [class*="_appSettingsDialogVersion_"] {
+	margin-top: 18px !important;
+	font-size: 12px !important;
+	color: var(--color-text-maxcontrast, #a3a9b3) !important;
+}
+
+@media (max-width: 720px) {
+	.app-settings.avuz-settings .dialog__wrapper {
+		flex-direction: column;
+	}
+
+	.app-settings.avuz-settings .app-settings__navigation {
+		flex: none !important;
+		border-right: 0;
+		border-bottom: 1px solid var(--color-border, #eceef1);
+	}
+
+	.app-settings.avuz-settings .navigation-list {
+		flex-direction: row;
+		overflow-x: auto;
+	}
+}
+
+.app-settings.avuz-settings .modal-container,
+.app-settings.avuz-settings .dialog__wrapper,
+.app-settings.avuz-settings .dialog {
+	padding: 0 !important;
+}
+
+.app-settings.avuz-settings .app-settings__navigation {
+	border-bottom-left-radius: 18px;
+}
