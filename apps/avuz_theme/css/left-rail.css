@@ -109,6 +109,15 @@
 		height: 100% !important;
 	}
 
+	/* OnlyOffice's own tab (sameTab off) pins its iframe fixed at the viewport's left edge, sized for a 50px top bar; core's #content is fixed, so it anchors the frame */
+	body:is(#body-user, #body-settings) > #content.app-onlyoffice #app > iframe {
+		position: absolute !important;
+		inset: 0 !important;
+		width: 100% !important;
+		height: 100% !important;
+		margin: 0 !important;
+	}
+
 	#avuz-rail {
 		position: relative;
 		display: flex;
