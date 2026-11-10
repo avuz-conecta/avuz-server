@@ -58,7 +58,7 @@ Glyph per app id:
 |---|---|---|
 | dashboard | Painel | `space_dashboard` |
 | files | Drive | `folder` |
-| spreed | Talk | `chat_bubble` |
+| spreed | Talk | `forum` |
 | calendar | Calendário | `calendar_today` |
 | deck | Tarefas | `view_kanban` |
 | contacts | Contatos | `group` |
