@@ -35,7 +35,7 @@ THEME_APPS = REPO_ROOT / "themes/avuz/apps"
 GLYPH_BY_APP = {
     "dashboard": "space_dashboard",
     "files": "folder",
-    "spreed": "chat_bubble",
+    "spreed": "forum",
     "calendar": "calendar_today",
     "deck": "view_kanban",
     "contacts": "group",
@@ -78,8 +78,8 @@ ICON_FILES = [
     ("mail", "themes/avuz/apps/mail/img/mail.svg", LIGHT_FILL),
     ("mail", "themes/avuz/apps/mail/img/mail-dark.svg", DARK_FILL),
     ("settings", "themes/avuz/apps/settings/img/app.svg", LIGHT_FILL),
-    ("chat_bubble", "themes/avuz/apps/spreed/img/app.svg", LIGHT_FILL),
-    ("chat_bubble", "themes/avuz/apps/spreed/img/app-dark.svg", DARK_FILL),
+    ("forum", "themes/avuz/apps/spreed/img/app.svg", LIGHT_FILL),
+    ("forum", "themes/avuz/apps/spreed/img/app-dark.svg", DARK_FILL),
     ("mail", "apps/conectamail/img/mail.svg", LIGHT_FILL),
     # User menu (core NavigationManager: imagePath() of each entry)
     ("person", "themes/avuz/apps/settings/img/personal.svg", LIGHT_FILL),
