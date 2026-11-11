@@ -5,6 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
 
 const NEW_CARD_SCRIPT = readFileSync(fileURLToPath(new URL('../../js/deck-new-card.js', import.meta.url)), 'utf8');
+const NEW_CARD_STYLESHEET = readFileSync(fileURLToPath(new URL('../../css/deck-new-card.css', import.meta.url)), 'utf8');
+const PRESSED_STYLE_SELECTORS = [...NEW_CARD_STYLESHEET.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{[^{}]*\}/g)]
+	.flatMap((rule) => rule[1].split(','))
+	.map((selector) => selector.trim())
+	.filter((selector) => selector.includes('[aria-pressed="true"]') && !/\s/.test(selector));
+const looksPressed = (chip) => PRESSED_STYLE_SELECTORS.some((selector) => chip.matches(selector));
 const CREATED_CARD = { id: 42 };
 const SETTLE_ROUNDS = 20;
 
@@ -274,6 +280,25 @@ describe('Novo cartão', () => {
 
 			assert.deepEqual(page.actionsCalled('addCard'), []);
 			assert.match(alertText(page), /Fim/);
+		});
+	});
+
+	describe('chips selecionados', () => {
+		it('styles a chosen weekday as selected', () => {
+			const page = openNewCard({ fields: [] });
+			page.typeIn(page.form().elements.recurrence, 'weekly');
+
+			page.weekday('1').click();
+
+			assert.deepEqual([looksPressed(page.weekday('1')), looksPressed(page.weekday('2'))], [true, false]);
+		});
+
+		it('styles a chosen multi option as selected', () => {
+			const page = openNewCard({ fields: [FIELD.areas] });
+
+			page.option(FIELD.areas, 'b').click();
+
+			assert.deepEqual([looksPressed(page.option(FIELD.areas, 'b')), looksPressed(page.option(FIELD.areas, 'a'))], [true, false]);
 		});
 	});
 

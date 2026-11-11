@@ -356,6 +356,15 @@ button.avuz-nc__chip[hidden],
 	margin-top: 4px;
 }
 
+/* Chosen weekday / multi option: filled, like Deck's own recurrence and select chips */
+button.avuz-nc__weekday[aria-pressed="true"],
+button.avuz-nc__option[aria-pressed="true"] {
+	border-color: var(--color-primary-element, #15171b) !important;
+	background: var(--color-primary-element, #15171b) !important;
+	color: var(--color-primary-element-text, #fff) !important;
+	font-weight: 600 !important;
+}
+
 .avuz-nc__label i {
 	width: 10px;
 	height: 10px;
