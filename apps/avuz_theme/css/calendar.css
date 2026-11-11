@@ -1,0 +1,650 @@
+/**
+ * Calendar: modern layout, same language as Tarefas (css/deck-board.css):
+ * system font, small uppercase captions, black primary, thin outline icons,
+ * round calendar colour toggles (colour set by js/calendar.js), light grid,
+ * round "today" marker and events as soft pills.
+ */
+
+.app-calendar {
+	--avuz-ink: #15171b;
+	--avuz-muted: #7a818c;
+	--avuz-line: rgba(16, 20, 28, 0.07);
+	--avuz-soft: #f6f7f9;
+	--fc-border-color: var(--avuz-line);
+	--fc-today-bg-color: rgba(16, 20, 28, 0.025);
+	--fc-neutral-bg-color: var(--avuz-soft);
+	--fc-now-indicator-color: #e9322d;
+}
+
+.app-calendar,
+.app-calendar *:not(.material-design-icon, .material-design-icon *),
+body:has(.app-calendar) .action-item__popper,
+body:has(.app-calendar) .action-item__popper * {
+	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+/* ------------------------------------------------------------- left menu */
+.app-calendar .app-navigation-header {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 4px 4px 6px !important;
+}
+
+/* Month switcher: one segmented pill */
+.app-calendar .datepicker-button-section {
+	display: flex !important;
+	align-items: center;
+	gap: 0 !important;
+	padding: 3px;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 12px;
+	background: var(--color-main-background, #fff);
+}
+
+.app-calendar .datepicker-button-section .button-vue {
+	min-height: 34px !important;
+	height: 34px !important;
+	margin: 0 !important;
+	border: 0 !important;
+	border-radius: 9px !important;
+	background: none !important;
+	box-shadow: none !important;
+	color: var(--avuz-ink) !important;
+}
+
+.app-calendar .datepicker-button-section .button-vue:hover {
+	background: rgba(16, 20, 28, 0.06) !important;
+}
+
+.app-calendar .datepicker-button-section__left,
+.app-calendar .datepicker-button-section__right {
+	width: 34px !important;
+	min-width: 34px !important;
+}
+
+.app-calendar .datepicker-button-section__datepicker-label {
+	flex: 1 1 auto;
+}
+
+.app-calendar .datepicker-button-section__datepicker-label .button-vue__text {
+	font-size: 14px !important;
+	font-weight: 650 !important;
+}
+
+/* + Evento / Hoje / view switch */
+.app-calendar .new-event-today-view-section {
+	display: flex !important;
+	align-items: center;
+	gap: 6px !important;
+}
+
+.app-calendar .new-event-today-view-section .new-event {
+	flex: 1 1 auto;
+	height: 38px !important;
+	min-height: 38px !important;
+	border-radius: 10px !important;
+	background: var(--avuz-ink) !important;
+	color: #fff !important;
+}
+
+.app-calendar .new-event-today-view-section .new-event .button-vue__text,
+.app-calendar .new-event-today-view-section .today .button-vue__text {
+	font-size: 13.5px !important;
+	font-weight: 600 !important;
+}
+
+.app-calendar .new-event-today-view-section .today {
+	height: 38px !important;
+	min-height: 38px !important;
+	padding: 0 14px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 10px !important;
+	background: var(--color-main-background, #fff) !important;
+	color: var(--avuz-ink) !important;
+}
+
+.app-calendar .new-event-today-view-section .today:hover {
+	background: var(--avuz-soft) !important;
+}
+
+.app-calendar .new-event-today-view-section .action-item__menutoggle {
+	width: 38px !important;
+	height: 38px !important;
+	min-width: 38px !important;
+	min-height: 38px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 10px !important;
+	color: var(--avuz-ink) !important;
+}
+
+.app-calendar .new-event-today-view-section .action-item__menutoggle:hover {
+	background: var(--avuz-soft) !important;
+}
+
+/* Thin outline icons (masks over the Material icons) */
+.app-calendar :is(.datepicker-button-section, .new-event-today-view-section, .navigation-calendar-settings, .app-navigation-entry--pinned, .app-navigation-caption__actions, .app-navigation-entry__actions, .toggle-button, .app-navigation-toggle) .material-design-icon:is(.chevron-left-icon, .chevron-right-icon, .plus-icon, .view-module-icon, .view-week-icon, .view-day-icon, .view-agenda-icon, .view-list-icon, .pencil-outline-icon, .cog-icon, .cog-outline-icon, .delete-icon, .delete-outline-icon, .trash-can-outline-icon) {
+	display: block !important;
+	width: 18px !important;
+	height: 18px !important;
+	background: currentColor;
+	-webkit-mask: var(--avuz-ico) center / 18px no-repeat;
+	mask: var(--avuz-ico) center / 18px no-repeat;
+}
+
+.app-calendar :is(.datepicker-button-section, .new-event-today-view-section, .navigation-calendar-settings, .app-navigation-entry--pinned, .app-navigation-caption__actions, .app-navigation-entry__actions) .material-design-icon:is(.chevron-left-icon, .chevron-right-icon, .plus-icon, .view-module-icon, .view-week-icon, .view-day-icon, .view-agenda-icon, .view-list-icon, .pencil-outline-icon, .cog-icon, .cog-outline-icon, .delete-icon, .delete-outline-icon, .trash-can-outline-icon) svg {
+	display: none !important;
+}
+
+.app-calendar .material-design-icon.chevron-left-icon { --avuz-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 6l-6 6 6 6'/%3E%3C/svg%3E"); }
+.app-calendar .material-design-icon.chevron-right-icon { --avuz-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.5 6l6 6-6 6'/%3E%3C/svg%3E"); }
+.app-calendar .material-design-icon.plus-icon { --avuz-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E"); }
+.app-calendar .material-design-icon:is(.view-module-icon, .view-week-icon, .view-day-icon, .view-agenda-icon, .view-list-icon) { --avuz-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='3.5' width='7' height='7' rx='1.8'/%3E%3Crect x='13.5' y='3.5' width='7' height='7' rx='1.8'/%3E%3Crect x='3.5' y='13.5' width='7' height='7' rx='1.8'/%3E%3Crect x='13.5' y='13.5' width='7' height='7' rx='1.8'/%3E%3C/svg%3E"); }
+.app-calendar .material-design-icon.pencil-outline-icon { --avuz-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z'/%3E%3Cpath d='M13.5 6.5l4 4'/%3E%3C/svg%3E"); }
+.app-calendar .material-design-icon:is(.cog-icon, .cog-outline-icon) { --avuz-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'/%3E%3C/svg%3E"); }
+.app-calendar .material-design-icon:is(.delete-icon, .delete-outline-icon, .trash-can-outline-icon) { --avuz-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h16M10 11v6M14 11v6M5.5 7l1 12.5A1.6 1.6 0 0 0 8.1 21h7.8a1.6 1.6 0 0 0 1.6-1.5L18.5 7M9 7V4.6A.6.6 0 0 1 9.6 4h4.8a.6.6 0 0 1 .6.6V7'/%3E%3C/svg%3E"); }
+
+/* Section captions: small uppercase */
+.app-calendar .app-navigation-caption {
+	margin-top: 14px !important;
+	padding-inline: 12px 4px !important;
+}
+
+.app-calendar .app-navigation-caption__name {
+	font-size: 11px !important;
+	font-weight: 650 !important;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--avuz-muted) !important;
+}
+
+.app-calendar .app-navigation-caption .button-vue--tertiary {
+	width: 30px !important;
+	height: 30px !important;
+	min-width: 30px !important;
+	min-height: 30px !important;
+	border-radius: 8px !important;
+	color: var(--avuz-muted) !important;
+}
+
+.app-calendar .app-navigation-caption .button-vue--tertiary:hover {
+	background: rgba(16, 20, 28, 0.06) !important;
+	color: var(--avuz-ink) !important;
+}
+
+/* Entries */
+.app-calendar .app-navigation-entry {
+	min-height: 38px !important;
+	border-radius: 10px !important;
+}
+
+.app-calendar .app-navigation-entry:hover {
+	background: rgba(16, 20, 28, 0.05) !important;
+}
+
+.app-calendar .app-navigation-entry__name {
+	font-size: 13.5px !important;
+	font-weight: 500 !important;
+	color: #2b3141;
+}
+
+.app-calendar .app-navigation-entry-icon {
+	color: var(--avuz-muted);
+}
+
+.app-calendar .app-navigation-entry__actions {
+	color: var(--avuz-muted) !important;
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+
+.app-calendar .app-navigation-entry:hover .app-navigation-entry__actions,
+.app-calendar .app-navigation-entry__actions:focus-visible,
+.app-calendar .app-navigation-entry__actions[aria-expanded="true"] {
+	opacity: 1;
+}
+
+/* Calendar on/off: round colour toggle instead of a square checkbox */
+.app-calendar .draggable-calendar-list-item .app-navigation-entry-icon .material-design-icon {
+	position: relative;
+	display: block !important;
+	width: 18px !important;
+	height: 18px !important;
+	box-sizing: border-box;
+	border: 2px solid var(--avuz-cal-color, var(--avuz-muted));
+	border-radius: 50%;
+	background: transparent;
+}
+
+.app-calendar .draggable-calendar-list-item .app-navigation-entry-icon .material-design-icon svg {
+	display: none !important;
+}
+
+.app-calendar .draggable-calendar-list-item .app-navigation-entry-icon .checkbox-marked-icon {
+	background: var(--avuz-cal-color, var(--avuz-muted));
+}
+
+.app-calendar .draggable-calendar-list-item .app-navigation-entry-icon .checkbox-marked-icon::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: #fff;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6.5 12.5l3.6 3.6 7.4-7.6'/%3E%3C/svg%3E") center / 12px no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6.5 12.5l3.6 3.6 7.4-7.6'/%3E%3C/svg%3E") center / 12px no-repeat;
+}
+
+.app-calendar .draggable-calendar-list-item:has(.checkbox-blank-outline-icon) .app-navigation-entry__name {
+	color: var(--avuz-muted);
+}
+
+/* ------------------------------------------------------------- the grid */
+.app-calendar .calendar-wrapper {
+	background: var(--color-main-background, #fff);
+}
+
+.app-calendar .fc .fc-scrollgrid {
+	border: 0 !important;
+}
+
+.app-calendar .fc .fc-col-header-cell {
+	border-inline: 0 !important;
+}
+
+.app-calendar .fc .fc-col-header-cell-cushion {
+	display: block;
+	padding: 12px 6px 10px !important;
+	font-size: 11px !important;
+	font-weight: 650 !important;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--avuz-muted) !important;
+}
+
+/* week/day view header: weekday + date */
+.app-calendar .fc .fc-timegrid .fc-col-header-cell-cushion,
+.app-calendar .fc .fc-timeGridWeek-view .fc-col-header-cell-cushion {
+	text-transform: none;
+	letter-spacing: 0;
+	font-size: 12.5px !important;
+}
+
+.app-calendar .fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+	color: var(--avuz-ink) !important;
+}
+
+/* Month view days */
+.app-calendar .fc .fc-daygrid-day {
+	transition: background-color 0.12s;
+}
+
+.app-calendar .fc .fc-daygrid-day:hover {
+	background: rgba(16, 20, 28, 0.02);
+}
+
+.app-calendar .fc .fc-daygrid-day-top {
+	flex-direction: row !important;
+	justify-content: flex-start !important;
+	padding: 8px 8px 2px !important;
+}
+
+.app-calendar .fc .fc-daygrid-day-number {
+	display: inline-flex !important;
+	align-items: center;
+	justify-content: center;
+	min-width: 26px;
+	height: 26px;
+	padding: 0 6px !important;
+	box-sizing: border-box;
+	border-radius: 99px !important;
+	background: none !important;
+	font-size: 13px !important;
+	font-weight: 550 !important;
+	color: var(--avuz-ink) !important;
+}
+
+.app-calendar .fc .fc-day-today .fc-daygrid-day-number {
+	background: var(--avuz-ink) !important;
+	color: #fff !important;
+	font-weight: 650 !important;
+}
+
+.app-calendar .fc .fc-day-other {
+	background: #fbfbfc !important;
+}
+
+.app-calendar .fc .fc-day-other .fc-daygrid-day-number {
+	color: #b4b9c1 !important;
+	opacity: 1 !important;
+}
+
+.app-calendar .fc .fc-day-today {
+	background: var(--fc-today-bg-color) !important;
+}
+
+/* Events */
+.app-calendar .fc .fc-daygrid-event {
+	margin: 1px 6px 2px !important;
+	padding: 2px 6px !important;
+	border-radius: 7px !important;
+	font-size: 12.5px !important;
+	line-height: 1.35 !important;
+}
+
+.app-calendar .fc .fc-daygrid-dot-event:hover {
+	background: rgba(16, 20, 28, 0.05) !important;
+}
+
+.app-calendar .fc .fc-daygrid-event-dot {
+	border-width: 4px !important;
+	margin: 0 6px 0 0 !important;
+}
+
+.app-calendar .fc .fc-event-time {
+	flex: none;
+	margin-right: 4px !important;
+	font-weight: 500 !important;
+	font-variant-numeric: tabular-nums;
+	color: var(--avuz-muted) !important;
+}
+
+.app-calendar .fc .fc-event-title {
+	font-weight: 550 !important;
+	color: var(--avuz-ink);
+}
+
+/* Block events (all-day bars, week/day view) */
+.app-calendar .fc .fc-h-event,
+.app-calendar .fc .fc-v-event {
+	border: 0 !important;
+	border-radius: 8px !important;
+	box-shadow: inset 3px 0 0 rgba(0, 0, 0, 0.12);
+}
+
+.app-calendar .fc .fc-h-event .fc-event-title,
+.app-calendar .fc .fc-v-event .fc-event-title,
+.app-calendar .fc .fc-v-event .fc-event-time {
+	color: inherit !important;
+}
+
+.app-calendar .fc .fc-v-event .fc-event-main {
+	padding: 4px 6px !important;
+	font-size: 12px !important;
+}
+
+.app-calendar .fc .fc-daygrid-more-link {
+	margin: 0 8px !important;
+	font-size: 12px !important;
+	font-weight: 600 !important;
+	color: var(--avuz-muted) !important;
+}
+
+/* Week/day view: time labels */
+.app-calendar .fc .fc-timegrid-slot-label-cushion,
+.app-calendar .fc .fc-timegrid-axis-cushion {
+	font-size: 11px !important;
+	font-weight: 500 !important;
+	color: var(--avuz-muted) !important;
+}
+
+.app-calendar .fc .fc-timegrid-slot-minor {
+	border-top-style: dotted !important;
+}
+
+.app-calendar .fc .fc-timegrid-now-indicator-line {
+	border-width: 2px 0 0 !important;
+}
+
+/* Top-right "tarefas não agendadas" and left menu toggle */
+.app-calendar .calendar-wrapper .toggle-button,
+.app-calendar .app-navigation-toggle {
+	border-radius: 10px !important;
+	color: var(--avuz-ink) !important;
+}
+
+.app-calendar .calendar-wrapper .toggle-button:hover,
+.app-calendar .app-navigation-toggle:hover {
+	background: rgba(16, 20, 28, 0.06) !important;
+}
+
+
+/* Calendar paints "today" with the primary colours (now black) and other
+   months with a dark grey: lighter versions, with enough specificity */
+.app-calendar .fc .fc-daygrid-day.fc-day.fc-day-other,
+.app-calendar .fc .fc-daygrid-day.fc-day.fc-day-today.fc-day-other {
+	background-color: #fbfbfc !important;
+}
+
+.app-calendar .fc .fc-daygrid-day.fc-day.fc-day-today:not(.fc-day-other),
+.app-calendar .fc .fc-timeGridWeek-view .fc-timegrid-col.fc-day.fc-day-today,
+.app-calendar .fc .fc-timeGridDay-view .fc-timegrid-col.fc-day.fc-day-today,
+.app-calendar .fc .fc-timeGridWeek-view .fc-daygrid-day.fc-day.fc-day-today,
+.app-calendar .fc .fc-col-header-cell.fc-day.fc-day-today {
+	background-color: rgba(16, 20, 28, 0.025) !important;
+}
+
+.app-calendar .fc .fc-col-header-cell.fc-day.fc-day-today a.fc-col-header-cell-cushion {
+	display: inline-block;
+	margin: 6px 0;
+	padding: 5px 10px !important;
+	border-radius: 99px;
+	background: var(--avuz-ink) !important;
+	color: #fff !important;
+}
+
+.app-calendar .fc .fc-daygrid-day.fc-day.fc-day-today .fc-daygrid-day-top a.fc-daygrid-day-number {
+	background: var(--avuz-ink) !important;
+	color: #fff !important;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Top bar: the two toggles (menu, "Tarefas não agendadas") used to float over */
+/* the weekday captions; they now sit in a bar above the grid with the period */
+/* title (js/calendar.js adds .avuz-cal-title)                                */
+/* ------------------------------------------------------------------------- */
+.app-calendar .calendar-wrapper {
+	position: relative;
+	box-sizing: border-box;
+	padding-top: 56px !important;
+}
+
+.app-calendar .calendar-wrapper::before {
+	content: "";
+	position: absolute;
+	inset: 0 0 auto;
+	height: 56px;
+	border-bottom: 1px solid var(--avuz-line);
+	pointer-events: none;
+}
+
+.app-calendar .calendar-wrapper > .app-navigation-toggle-wrapper {
+	top: 11px !important;
+}
+
+.app-calendar .calendar-wrapper .toggle-button,
+.app-calendar .app-navigation-toggle {
+	width: 34px !important;
+	height: 34px !important;
+	min-width: 34px !important;
+	min-height: 34px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	background: var(--color-main-background, #fff) !important;
+	box-shadow: none !important;
+}
+
+.app-calendar .app-navigation-toggle-wrapper:has(.app-navigation-toggle) {
+	top: 11px !important;
+}
+
+.avuz-cal-title {
+	position: absolute;
+	top: 0;
+	left: 60px;
+	right: 60px;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	height: 56px;
+	overflow: hidden;
+	font-size: 18px;
+	font-weight: 650;
+	letter-spacing: -0.015em;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	color: var(--avuz-ink);
+	pointer-events: none;
+}
+
+.avuz-cal-title::first-letter {
+	text-transform: uppercase;
+}
+
+/* toggle icon: thin "list with check" */
+.app-calendar .calendar-wrapper .toggle-button .material-design-icon {
+	display: block !important;
+	width: 18px !important;
+	height: 18px !important;
+	background: currentColor;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h12M4 11h12M4 16h7M14.5 17l2.5 2.5 4-4.5'/%3E%3C/svg%3E") center / 18px no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h12M4 11h12M4 16h7M14.5 17l2.5 2.5 4-4.5'/%3E%3C/svg%3E") center / 18px no-repeat;
+}
+
+.app-calendar .calendar-wrapper .toggle-button .material-design-icon svg {
+	display: none !important;
+}
+
+/* ------------------------------------------------------------------------- */
+/* "Tarefas não agendadas" side panel                                        */
+/* ------------------------------------------------------------------------- */
+.app-calendar #app-sidebar-vue {
+	border-left: 1px solid var(--avuz-line) !important;
+	background: var(--color-main-background, #fff) !important;
+}
+
+.app-calendar #app-sidebar-vue .app-sidebar-header {
+	min-height: 56px;
+	border-bottom: 1px solid var(--avuz-line);
+}
+
+.app-calendar #app-sidebar-vue .app-sidebar-header__info {
+	padding: 0 !important;
+}
+
+.app-calendar #app-sidebar-vue .app-sidebar-header__mainname {
+	padding: 15px 56px 13px 18px !important;
+	font-size: 16px !important;
+	font-weight: 650 !important;
+	letter-spacing: -0.01em;
+	line-height: 1.6 !important;
+	color: var(--avuz-ink);
+}
+
+.app-calendar #app-sidebar-vue .app-sidebar__close {
+	top: 11px !important;
+	right: 10px !important;
+	width: 34px !important;
+	height: 34px !important;
+	min-width: 34px !important;
+	min-height: 34px !important;
+	border-radius: 10px !important;
+	color: var(--avuz-muted) !important;
+	opacity: 1 !important;
+}
+
+.app-calendar #app-sidebar-vue .app-sidebar__close:hover {
+	background: rgba(16, 20, 28, 0.06) !important;
+	color: var(--avuz-ink) !important;
+}
+
+.app-calendar #app-sidebar-vue .app-sidebar-tabs__content {
+	padding: 10px 10px 16px !important;
+}
+
+.app-calendar #app-sidebar-vue .unscheduled-tasks-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.app-calendar #app-sidebar-vue .unscheduled-tasks-list::before {
+	content: "Arraste uma tarefa para o calendário para agendá-la.";
+	display: block;
+	margin: 0 8px 8px;
+	font-size: 12.5px;
+	line-height: 1.45;
+	color: var(--avuz-muted);
+}
+
+.app-calendar #app-sidebar-vue .unscheduled-tasks-list .list-item__wrapper {
+	margin: 0 !important;
+	padding: 0 !important;
+	cursor: grab;
+}
+
+.app-calendar #app-sidebar-vue .unscheduled-tasks-list .list-item {
+	min-height: 40px;
+	padding: 0 10px !important;
+	border: 1px solid transparent;
+	border-radius: 10px !important;
+	background: none !important;
+	transition: background-color 0.12s, border-color 0.12s;
+}
+
+.app-calendar #app-sidebar-vue .unscheduled-tasks-list .list-item:hover {
+	border-color: var(--color-border, #e3e5e9);
+	background: var(--color-main-background, #fff) !important;
+	box-shadow: 0 6px 16px -10px rgba(16, 20, 28, 0.3);
+}
+
+.app-calendar #app-sidebar-vue .unscheduled-tasks-list .list-item__anchor {
+	gap: 10px;
+	align-items: center;
+	padding: 0 !important;
+}
+
+.app-calendar #app-sidebar-vue .unscheduled-tasks-list .icon-wrapper {
+	min-width: 10px !important;
+	min-height: 10px !important;
+	width: 10px !important;
+	height: 10px !important;
+}
+
+.app-calendar #app-sidebar-vue .unscheduled-tasks-list .list-item-content__name {
+	font-size: 13.5px !important;
+	font-weight: 500 !important;
+	color: var(--avuz-ink) !important;
+}
+
+/* Panel title bar exactly as tall as the calendar's top bar (56px + 1px
+   line), so both lines meet */
+.app-calendar #app-sidebar-vue .app-sidebar-header {
+	box-sizing: content-box !important;
+	height: 56px !important;
+	min-height: 56px !important;
+	max-height: 56px;
+	margin: 0 !important;
+	padding: 0 !important;
+	overflow: hidden;
+}
+
+.app-calendar #app-sidebar-vue .app-sidebar-header__info,
+.app-calendar #app-sidebar-vue .app-sidebar-header__desc,
+.app-calendar #app-sidebar-vue .app-sidebar-header__name-container,
+.app-calendar #app-sidebar-vue .app-sidebar-header__mainname-container {
+	height: 56px !important;
+	min-height: 0 !important;
+	margin: 0 !important;
+	padding-top: 0 !important;
+	padding-bottom: 0 !important;
+}
+
+.app-calendar #app-sidebar-vue .app-sidebar-header__desc {
+	display: flex !important;
+	align-items: center;
+	padding-inline: 18px 56px !important;
+}
+
+.app-calendar #app-sidebar-vue .app-sidebar-header__mainname {
+	margin: 0 !important;
+	padding: 0 !important;
+	line-height: 56px !important;
+}

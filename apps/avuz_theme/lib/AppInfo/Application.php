@@ -8,8 +8,10 @@ use OCA\AvuzTheme\Listener\AppointmentEmbedCspListener;
 use OCA\AvuzTheme\Listener\AppointmentEmbedStateListener;
 use OCA\AvuzTheme\Listener\AppointmentEmbedStyleListener;
 use OCA\AvuzTheme\Listener\BeforeTemplateRenderedListener;
+use OCA\AvuzTheme\Listener\IpAccessLoginListener;
 use OCA\AvuzTheme\Listener\LoginFlowTemplateRenderedListener;
 use OCA\AvuzTheme\Listener\UserCreatedListener;
+use OCA\AvuzTheme\Middleware\IpAccessMiddleware;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
@@ -17,6 +19,7 @@ use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\AppFramework\Http\Events\BeforeLoginTemplateRenderedEvent;
 use OCP\AppFramework\Http\Events\BeforeTemplateRenderedEvent;
 use OCP\Security\CSP\AddContentSecurityPolicyEvent;
+use OCP\User\Events\PostLoginEvent;
 use OCP\User\Events\UserCreatedEvent;
 use OCP\Util;
 
@@ -28,6 +31,11 @@ class Application extends App implements IBootstrap {
 	}
 
 	public function register(IRegistrationContext $context): void {
+		// Restrição de acesso por IP: non-admin accounts only from allowlisted
+		// IPs (login of any kind + every app request); admins from anywhere
+		$context->registerEventListener(PostLoginEvent::class, IpAccessLoginListener::class);
+		$context->registerMiddleware(IpAccessMiddleware::class, true);
+
 		$context->registerEventListener(
 			BeforeLoginTemplateRenderedEvent::class,
 			BeforeTemplateRenderedListener::class
@@ -95,6 +103,46 @@ class Application extends App implements IBootstrap {
 
 		// Add hover tooltip to read-only Deck stack titles
 		Util::addScript(self::APP_ID, 'deck-stack-title');
+
+		// Deck board details as a centered modal (closes on outside click)
+		Util::addStyle(self::APP_ID, 'deck-board-details');
+		Util::addScript(self::APP_ID, 'deck-board-details');
+
+		// Talk: modern chat layout ("Reunião" button, bubbles, composer)
+		Util::addStyle(self::APP_ID, 'talk');
+		Util::addScript(self::APP_ID, 'talk');
+
+		// Deck: "Novo cartão" dialog (title, list, description, labels, people, dates)
+		Util::addStyle(self::APP_ID, 'deck-new-card');
+		Util::addScript(self::APP_ID, 'deck-new-card');
+
+		// Deck: "Novo painel" dialog (colour, folder, lists, labels, sharing)
+		Util::addStyle(self::APP_ID, 'deck-new-board');
+		Util::addScript(self::APP_ID, 'deck-new-board');
+
+		// Deck: board header icons + "Nova lista" dialog (name + colour)
+		Util::addStyle(self::APP_ID, 'deck-board-actions');
+		Util::addScript(self::APP_ID, 'deck-new-stack');
+
+		// Deck: modern board layout (lists as panels, cards, counters)
+		Util::addStyle(self::APP_ID, 'deck-board');
+		Util::addScript(self::APP_ID, 'deck-board');
+
+		// Calendar: modern layout (same language as Tarefas)
+		Util::addStyle(self::APP_ID, 'calendar');
+		Util::addScript(self::APP_ID, 'calendar');
+
+		// Dashboard: modern layout (greeting + date, widget cards)
+		Util::addStyle(self::APP_ID, 'dashboard');
+		Util::addScript(self::APP_ID, 'dashboard');
+
+		// Deck: card description toolbar in the webmail editor style
+		Util::addStyle(self::APP_ID, 'deck-editor-toolbar');
+		Util::addScript(self::APP_ID, 'deck-editor-toolbar');
+
+		// Deck: paste, show and resize images in card descriptions
+		Util::addStyle(self::APP_ID, 'deck-description-images');
+		Util::addScript(self::APP_ID, 'deck-description-images');
 
 		// Gray out unbookable days on the appointment booking page
 		Util::addScript(self::APP_ID, 'booking-availability');

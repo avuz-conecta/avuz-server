@@ -1,0 +1,423 @@
+/**
+ * Deck (Tarefas): card description toolbar in the Avuz webmail editor style
+ * (webmail-avuz web/src/styles.css .rte-*). Markup from js/deck-editor-toolbar.js.
+ */
+
+/* Text's own menu bar is replaced by ours in card descriptions */
+.editor.avuz-rte-on > .text-menubar {
+	display: none !important;
+}
+
+.avuz-rte-toolbar {
+	position: sticky;
+	top: 0;
+	z-index: 20;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 1px;
+	padding: 5px 8px;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 10px 10px 0 0;
+	background: var(--color-background-hover, #f4f5f7);
+}
+
+.avuz-rte-btn {
+	position: relative;
+	display: inline-flex !important;
+	align-items: center;
+	justify-content: center;
+	gap: 1px;
+	min-width: 28px !important;
+	min-height: 30px !important;
+	height: 30px !important;
+	margin: 0 !important;
+	padding: 0 4px !important;
+	border: none !important;
+	border-radius: 6px !important;
+	background: none !important;
+	color: var(--color-main-text, #2b3141) !important;
+	cursor: pointer;
+}
+
+.avuz-rte-btn:hover:not(:disabled) {
+	background: var(--color-background-dark, #e9ebef) !important;
+}
+
+.avuz-rte-btn.active {
+	background: var(--color-primary-element-light, rgba(21, 23, 27, 0.1)) !important;
+	color: var(--color-primary-element, #15171b) !important;
+}
+
+.avuz-rte-btn:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+.avuz-rte-btn.with-chevron {
+	padding: 0 3px !important;
+}
+
+.avuz-rte-btn.with-chevron svg:last-child {
+	color: var(--color-text-maxcontrast, #868d97);
+}
+
+.avuz-rte-sep {
+	width: 1px;
+	height: 18px;
+	margin: 0 2px;
+	background: var(--color-border-dark, #d3d7dd);
+}
+
+select.avuz-rte-select {
+	height: 30px !important;
+	min-height: 30px !important;
+	width: 106px;
+	margin: 0 !important;
+	padding: 0 4px !important;
+	border: none !important;
+	border-radius: 6px !important;
+	background-color: transparent !important;
+	color: var(--color-main-text, #2b3141);
+	font-size: 13.5px;
+	cursor: pointer;
+}
+
+select.avuz-rte-select:hover {
+	background-color: var(--color-background-dark, #e9ebef) !important;
+}
+
+/* Popovers (callouts, link, emoji) */
+.avuz-rte-menu {
+	position: relative;
+	display: inline-flex;
+}
+
+.avuz-rte-pop {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 0;
+	z-index: 30;
+	display: flex;
+	flex-direction: column;
+	min-width: 170px;
+	padding: 5px;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 10px;
+	background: var(--color-main-background, #fff);
+	box-shadow: 0 12px 32px rgba(30, 41, 59, 0.14);
+}
+
+.avuz-rte-pop[hidden] {
+	display: none;
+}
+
+button.avuz-rte-item {
+	display: flex !important;
+	align-items: center;
+	gap: 9px;
+	width: 100%;
+	min-height: 32px !important;
+	margin: 0 !important;
+	padding: 0 10px !important;
+	border: none !important;
+	border-radius: 7px !important;
+	background: none !important;
+	color: var(--color-main-text, #2b3141) !important;
+	font-size: 13.5px;
+	font-weight: 400 !important;
+	text-align: start;
+	cursor: pointer;
+}
+
+button.avuz-rte-item:hover {
+	background: var(--color-background-hover, #f4f5f7) !important;
+}
+
+.avuz-rte-item .dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	flex: none;
+}
+
+.avuz-rte-callout-info .dot { background: #0f86b4; }
+.avuz-rte-callout-success .dot { background: #177d4e; }
+.avuz-rte-callout-warn .dot { background: #c98a00; }
+.avuz-rte-callout-error .dot { background: #c0392f; }
+
+/* Link: URL field + apply/remove */
+.avuz-rte-pop.avuz-rte-link {
+	flex-direction: row;
+	align-items: center;
+	gap: 6px;
+	width: 380px;
+	padding: 8px;
+}
+
+.avuz-rte-link input {
+	flex: 1;
+	min-width: 0;
+	height: 34px !important;
+	margin: 0 !important;
+}
+
+.avuz-rte-link button {
+	height: 34px !important;
+	min-height: 34px !important;
+	margin: 0 !important;
+	padding: 0 12px !important;
+	border-radius: 8px !important;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.avuz-rte-link .avuz-rte-apply {
+	border: none !important;
+	background: var(--color-primary-element, #15171b) !important;
+	color: #fff !important;
+}
+
+.avuz-rte-link .avuz-rte-remove {
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	background: var(--color-main-background, #fff) !important;
+	color: var(--color-main-text, #2b3141) !important;
+}
+
+/* Emoji grid */
+.avuz-rte-pop.avuz-rte-emoji {
+	display: grid;
+	grid-template-columns: repeat(8, 32px);
+	gap: 2px;
+	min-width: 0;
+	padding: 6px;
+}
+
+.avuz-rte-pop.avuz-rte-emoji[hidden] {
+	display: none;
+}
+
+.avuz-rte-emoji button {
+	width: 32px !important;
+	height: 32px !important;
+	min-height: 32px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: none !important;
+	border-radius: 6px !important;
+	background: none !important;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.avuz-rte-emoji button:hover {
+	background: var(--color-background-hover, #f4f5f7) !important;
+}
+
+/* Frame the text area under the bar, like the webmail compose box */
+.editor.avuz-rte-on .editor__content,
+.editor.avuz-rte-on > .content-wrapper,
+.editor.avuz-rte-on .text-editor__content-wrapper {
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-top: 0;
+	border-radius: 0 0 10px 10px;
+}
+
+/* The theme font (Questrial) has no bold/italic faces, so formatting was
+   barely visible: use the system font inside the description editor. */
+.editor.avuz-rte-on,
+.editor.avuz-rte-on .ProseMirror,
+.editor.avuz-rte-on .ProseMirror *,
+.avuz-rte-toolbar,
+.avuz-rte-toolbar * {
+	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+.editor.avuz-rte-on .ProseMirror code,
+.editor.avuz-rte-on .ProseMirror pre,
+.editor.avuz-rte-on .ProseMirror pre * {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Normal view: comfortable text, toolbar stays on top while scrolling        */
+/* ------------------------------------------------------------------------- */
+.editor.avuz-rte-on .ProseMirror {
+	padding: 14px 18px !important;
+	font-size: 15px;
+	line-height: 1.65;
+}
+
+.avuz-rte-spacer {
+	flex: 1;
+}
+
+/* The document header only exists in document mode */
+.avuz-doc-head {
+	display: none;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Document mode ("like Word"): full screen, ribbon, centred white page       */
+/* ------------------------------------------------------------------------- */
+
+/* The card modal animates with transform, which would trap position:fixed */
+.modal-container:has(.editor.avuz-doc-mode) {
+	transform: none !important;
+}
+
+/* The modal's own header ("Detalhes do cartão") sits above the content */
+.modal-mask:has(.editor.avuz-doc-mode) .modal-header {
+	display: none !important;
+}
+
+.editor.avuz-rte-on.avuz-doc-mode {
+	position: fixed !important;
+	inset: 0 !important;
+	z-index: 100000 !important;
+	display: flex !important;
+	flex-direction: column;
+	margin: 0 !important;
+	background: #eceef2;
+}
+
+body[data-themes*="dark"] .editor.avuz-rte-on.avuz-doc-mode {
+	background: #0b0d11;
+}
+
+html.avuz-doc-open,
+html.avuz-doc-open body {
+	overflow: hidden !important;
+}
+
+/* Header: card title + Concluir */
+.avuz-doc-mode .avuz-doc-head {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	flex: none;
+	padding: 12px 24px;
+	background: var(--color-main-background, #fff);
+	border-bottom: 1px solid var(--color-border, #e3e5e9);
+}
+
+.avuz-doc-meta {
+	flex: 1;
+	min-width: 0;
+}
+
+.avuz-doc-title {
+	overflow: hidden;
+	font-size: 16px;
+	font-weight: 650;
+	letter-spacing: -0.01em;
+	color: var(--color-main-text, #15171b);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.avuz-doc-sub {
+	margin-top: 1px;
+	font-size: 12.5px;
+	color: var(--color-text-maxcontrast, #868d97);
+}
+
+button.avuz-doc-done {
+	height: 38px !important;
+	min-height: 38px !important;
+	margin: 0 !important;
+	padding: 0 18px !important;
+	border: none !important;
+	border-radius: 9px !important;
+	background: #15171b !important;
+	color: #fff !important;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+button.avuz-doc-done:hover {
+	opacity: 0.88;
+}
+
+/* Toolbar becomes a centred ribbon */
+.avuz-doc-mode .avuz-rte-toolbar {
+	position: static;
+	flex: none;
+	justify-content: center;
+	padding: 6px 24px;
+	border: 0;
+	border-bottom: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 0;
+	background: var(--color-main-background, #fff);
+	box-shadow: 0 1px 3px rgba(16, 20, 28, 0.04);
+}
+
+.avuz-doc-mode .avuz-rte-spacer {
+	flex: none;
+	width: 12px;
+}
+
+/* Scrolling area with the page (Text makes it a grid whose row would clamp
+   the page to the screen height: a plain block scrolls the whole page) */
+.avuz-doc-mode .text-editor__content-wrapper,
+.avuz-doc-mode > .content-wrapper {
+	display: block !important;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto !important;
+	padding: 36px 24px 80px;
+	border: 0 !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+}
+
+.editor.avuz-rte-on.avuz-doc-mode .editor__content {
+	/* the scroller is a flex column: don't let the page shrink to the screen */
+	flex: none !important;
+	width: 100%;
+	max-width: 816px !important;
+	height: auto !important;
+	min-height: 100%;
+	box-sizing: border-box;
+	margin: 0 auto !important;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 4px !important;
+	background: var(--color-main-background, #fff) !important;
+	box-shadow: 0 1px 3px rgba(16, 20, 28, 0.08), 0 12px 40px -12px rgba(16, 20, 28, 0.18);
+}
+
+.editor.avuz-rte-on.avuz-doc-mode .ProseMirror {
+	min-height: 900px;
+	height: auto !important;
+	padding: 64px 76px 96px !important;
+	font-size: 16px !important;
+	line-height: 1.7 !important;
+}
+
+.editor.avuz-rte-on.avuz-doc-mode .ProseMirror h1 {
+	font-size: 28px !important;
+}
+
+.editor.avuz-rte-on.avuz-doc-mode .ProseMirror h2 {
+	font-size: 22px !important;
+}
+
+@media (max-width: 900px) {
+	.avuz-doc-mode .text-editor__content-wrapper,
+	.avuz-doc-mode > .content-wrapper {
+		padding: 12px 0 60px;
+	}
+
+	.editor.avuz-rte-on.avuz-doc-mode .ProseMirror {
+		min-height: 0;
+		padding: 24px 20px 60px !important;
+	}
+
+	.avuz-doc-mode .avuz-rte-toolbar {
+		justify-content: flex-start;
+		padding: 6px 10px;
+	}
+}

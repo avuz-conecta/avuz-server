@@ -1,0 +1,357 @@
+/**
+ * Deck (Tarefas): "Novo painel" dialog (js/deck-new-board.js).
+ * Shares the base look of the "Novo cartão" dialog (css/deck-new-card.css).
+ */
+
+.avuz-nb__titlerow {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.avuz-nb__titlerow textarea {
+	flex: 1;
+}
+
+.avuz-nb__dot {
+	flex: none;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: var(--c);
+	box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 18%, transparent);
+}
+
+/* Colour swatches */
+.avuz-nb__colors {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+button.avuz-nb__color,
+label.avuz-nb__color {
+	position: relative;
+	width: 26px !important;
+	height: 26px !important;
+	min-width: 26px !important;
+	min-height: 26px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 50% !important;
+	background: var(--c) !important;
+	cursor: pointer;
+	transition: transform 0.1s;
+}
+
+button.avuz-nb__color:hover,
+label.avuz-nb__color:hover {
+	transform: scale(1.1);
+}
+
+button.avuz-nb__color[aria-checked="true"],
+label.avuz-nb__color.on {
+	box-shadow: 0 0 0 2px var(--color-main-background, #fff), 0 0 0 4px var(--c, #15171b);
+}
+
+label.avuz-nb__color--custom {
+	background: conic-gradient(#e9322d, #f1db50, #31cc7c, #0082c9, #8e44ad, #e9322d) !important;
+	overflow: hidden;
+}
+
+label.avuz-nb__color--custom input {
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+
+/* Lists: same rows as subtasks, with a column marker instead of a checkbox */
+.avuz-nc .avuz-nb__lists li i.avuz-nb__grip {
+	width: 14px;
+	height: 14px;
+	border: 0;
+	border-radius: 3px;
+	background:
+		linear-gradient(var(--color-text-maxcontrast, #868d97) 0 0) 0 0 / 4px 100% no-repeat,
+		linear-gradient(var(--color-text-maxcontrast, #868d97) 0 0) 5px 0 / 4px 70% no-repeat,
+		linear-gradient(var(--color-text-maxcontrast, #868d97) 0 0) 10px 0 / 4px 45% no-repeat;
+	opacity: 0.7;
+}
+
+/* Labels: custom ones (removable) + "new label" row */
+.avuz-nb__custom {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	height: 32px;
+	padding: 0 4px 0 9px;
+	border: 1px solid var(--c);
+	border-radius: 99px;
+	background: color-mix(in srgb, var(--c) 16%, transparent);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.avuz-nb__custom i {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--c);
+}
+
+.avuz-nb__custom button {
+	width: 24px !important;
+	height: 24px !important;
+	min-height: 24px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 50% !important;
+	background: none !important;
+	color: var(--color-text-maxcontrast, #868d97) !important;
+	font-size: 16px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.avuz-nb__custom button:hover {
+	background: rgba(0, 0, 0, 0.06) !important;
+	color: #c0392f !important;
+}
+
+.avuz-nb__newlabel {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.avuz-nb__newlabel input[type="color"] {
+	flex: none;
+	width: 40px !important;
+	height: 40px !important;
+	min-height: 40px !important;
+	margin: 0 !important;
+	padding: 5px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 50% !important;
+	background: var(--color-main-background, #fff) !important;
+	cursor: pointer;
+	-webkit-appearance: none;
+	appearance: none;
+}
+
+/* Native swatch drawn as a round ball */
+.avuz-nb__newlabel input[type="color"]::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+
+.avuz-nb__newlabel input[type="color"]::-webkit-color-swatch {
+	border: 0;
+	border-radius: 50%;
+}
+
+.avuz-nb__newlabel input[type="color"]::-moz-color-swatch {
+	border: 0;
+	border-radius: 50%;
+}
+
+.avuz-nb__newlabel input[type="color"]:hover {
+	border-color: var(--color-border-dark, #c4c9d1) !important;
+}
+
+.avuz-nb__newlabel input.avuz-nc__filter {
+	flex: 1;
+	min-width: 0;
+}
+
+button.avuz-nb__add {
+	flex: none;
+	height: 40px !important;
+	min-height: 40px !important;
+	margin: 0 !important;
+	padding: 0 14px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 9px !important;
+	background: var(--color-main-background, #fff) !important;
+	color: var(--color-main-text, #15171b) !important;
+	font-size: 13.5px !important;
+	font-weight: 600 !important;
+	cursor: pointer;
+}
+
+button.avuz-nb__add:hover {
+	background: var(--color-background-hover, #f4f5f7) !important;
+}
+
+/* Sharing: search with results dropdown */
+.avuz-nb__search {
+	position: relative;
+}
+
+.avuz-nc .avuz-nb__search input.avuz-nc__filter {
+	padding-left: 36px !important;
+	background: var(--color-main-background, #fff) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23868d97' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='M16 16l4 4'/%3E%3C/svg%3E") no-repeat 12px center / 16px !important;
+}
+
+.avuz-nb__results {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 0;
+	right: 0;
+	z-index: 5;
+	max-height: 280px;
+	margin: 0;
+	padding: 5px;
+	overflow-y: auto;
+	list-style: none;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 10px;
+	background: var(--color-main-background, #fff);
+	box-shadow: 0 12px 32px rgba(30, 41, 59, 0.16);
+}
+
+.avuz-nb__results[hidden] {
+	display: none;
+}
+
+.avuz-nb__results li {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 40px;
+	padding: 0 10px;
+	border-radius: 7px;
+	font-size: 14px;
+	cursor: pointer;
+}
+
+.avuz-nb__results li.active {
+	background: var(--color-background-hover, #f4f5f7);
+}
+
+.avuz-nb__results li.head {
+	min-height: 28px;
+	font-size: 11.5px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: var(--color-text-maxcontrast, #868d97);
+	cursor: default;
+}
+
+.avuz-nb__results li.none {
+	color: var(--color-text-maxcontrast, #868d97);
+	cursor: default;
+}
+
+.avuz-nb__results li span {
+	flex: 1;
+	min-width: 0;
+}
+
+.avuz-nb__results em {
+	font-size: 12px;
+	font-style: normal;
+	color: var(--color-text-maxcontrast, #868d97);
+}
+
+.avuz-nb__results b,
+.avuz-nb__shares b {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: #15171b;
+	color: #fff;
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.avuz-nb__results small,
+.avuz-nb__shares small {
+	font-size: 11px;
+	color: var(--color-text-maxcontrast, #868d97);
+}
+
+/* People the board will be shared with + their permissions */
+.avuz-nb__shares {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.avuz-nb__shares:empty {
+	display: none;
+}
+
+.avuz-nb__shares li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 10px;
+	padding: 8px 6px 8px 10px;
+	border: 1px solid var(--color-border, #e3e5e9);
+	border-radius: 10px;
+}
+
+.avuz-nb__who {
+	flex: 1 1 120px;
+	min-width: 0;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.avuz-nb__perms {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+button.avuz-nb__perm {
+	height: 28px !important;
+	min-height: 28px !important;
+	margin: 0 !important;
+	padding: 0 10px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 99px !important;
+	background: var(--color-main-background, #fff) !important;
+	color: var(--color-text-maxcontrast, #6b717c) !important;
+	font-size: 12px !important;
+	font-weight: 500 !important;
+	cursor: pointer;
+}
+
+button.avuz-nb__perm[aria-pressed="true"] {
+	border-color: rgba(21, 23, 27, 0.45) !important;
+	background: rgba(21, 23, 27, 0.1) !important;
+	color: #15171b !important;
+	font-weight: 600 !important;
+}
+
+button.avuz-nb__remove {
+	width: 28px !important;
+	height: 28px !important;
+	min-height: 28px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 7px !important;
+	background: none !important;
+	color: var(--color-text-maxcontrast, #868d97) !important;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+button.avuz-nb__remove:hover {
+	background: var(--color-background-hover, #f4f5f7) !important;
+	color: #c0392f !important;
+}

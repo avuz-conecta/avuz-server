@@ -1,0 +1,1187 @@
+/**
+ * Talk — modern chat layout (reference print from the relaunch mockup)
+ *
+ * Scoped to Talk only (#content-vue.app-talk): every rule starts with
+ * .app-talk so no other app changes. js/talk.js adds the "Reunião" button
+ * and the "Conversas" caption.
+ *
+ * Sections: tokens & type · conversation list · header · messages ·
+ * composer · right sidebar (participants / shared items) · narrow screens.
+ */
+
+/* ========================================================================= */
+/* Tokens & typography                                                       */
+/* ========================================================================= */
+
+.app-talk {
+	--tk-surface: #ffffff;
+	--tk-surface2: #f4f5f7;
+	--tk-surface3: #e9ebef;
+	--tk-line: #e5e7eb;
+	--tk-line2: #f0f1f3;
+	--tk-ink: #15171b;
+	--tk-ink2: #4b5260;
+	--tk-ink3: #8a919c;
+	--tk-acc: #15171b;
+	--tk-acc-soft: rgba(21, 23, 27, 0.09);
+	--tk-acc-line: rgba(21, 23, 27, 0.26);
+	--tk-pri: #15171b;
+	--tk-pri-ink: #ffffff;
+	--tk-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+body[data-themes*="dark"] .app-talk {
+	--tk-surface: #101319;
+	--tk-surface2: #161a21;
+	--tk-surface3: #1d222b;
+	--tk-line: #1f242d;
+	--tk-line2: #181c23;
+	--tk-ink: #e7eaef;
+	--tk-ink2: #a3acba;
+	--tk-ink3: #6c7583;
+	--tk-acc: #e9ebef;
+	--tk-acc-soft: rgba(233, 235, 239, 0.14);
+	--tk-acc-line: rgba(233, 235, 239, 0.32);
+	--tk-pri: #e7eaef;
+	--tk-pri-ink: #101319;
+}
+
+/* Crisp system font for chat (the theme sets Questrial on * with !important) */
+.app-talk,
+.app-talk * {
+	font-family: var(--tk-font) !important;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+.app-talk {
+	color: var(--tk-ink);
+	background: var(--tk-surface) !important;
+}
+
+/* ========================================================================= */
+/* Conversation list (left column)                                           */
+/* ========================================================================= */
+
+.app-talk .app-navigation,
+.app-talk .app-navigation .app-navigation__content,
+.app-talk .app-navigation .app-navigation__list {
+	background: var(--tk-surface) !important;
+}
+
+.app-talk .app-navigation {
+	border-inline-end: 1px solid var(--tk-line) !important;
+}
+
+/* Top: [Reunião][search][+]; the search field + filter open below on demand */
+.app-talk .new-conversation {
+	display: grid !important;
+	grid-template-columns: 1fr auto auto;
+	grid-template-areas:
+		"meet lupa plus"
+		"search search filter";
+	gap: 10px 8px;
+	align-items: center;
+	padding: 16px 14px 6px !important;
+	border-bottom: none !important;
+}
+
+.app-talk .new-conversation .avuz-talk-meet {
+	grid-area: meet;
+}
+
+.app-talk .new-conversation > .actions {
+	grid-area: plus;
+	/* Talk positions it absolutely (left: -40px) next to the search */
+	position: static !important;
+	inset: auto !important;
+}
+
+.app-talk .new-conversation > .conversations-search {
+	grid-area: search;
+	min-width: 0;
+	width: 100% !important;
+	max-width: none !important;
+}
+
+.app-talk .new-conversation > .conversations-search .input-field {
+	width: 100% !important;
+	max-width: none !important;
+	margin: 0 !important;
+}
+
+/* Closed: hide the field and the filter (the row collapses) */
+.app-talk .new-conversation:not(.avuz-search-open) > .conversations-search,
+.app-talk .new-conversation:not(.avuz-search-open) > .filters {
+	display: none !important;
+}
+
+.app-talk .new-conversation:not(.avuz-search-open) {
+	grid-template-areas: "meet lupa plus";
+}
+
+/* Magnifier button (added by talk.js), same tile as "+" */
+.app-talk button.avuz-talk-search-toggle {
+	grid-area: lupa;
+	display: grid;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	min-height: 40px;
+	margin: 0;
+	padding: 0;
+	border: 1px solid var(--tk-line);
+	border-radius: 10px;
+	background: var(--tk-surface) !important;
+	color: var(--tk-ink2);
+	cursor: pointer;
+}
+
+.app-talk button.avuz-talk-search-toggle:hover {
+	background: var(--tk-surface2) !important;
+}
+
+.app-talk .avuz-search-open button.avuz-talk-search-toggle {
+	border-color: var(--tk-acc-line);
+	background: var(--tk-acc-soft) !important;
+	color: var(--tk-acc);
+}
+
+.app-talk .avuz-talk-search-toggle__icon {
+	display: block;
+	width: 18px;
+	height: 18px;
+	background: currentColor;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='m20 20-4.2-4.2'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='m20 20-4.2-4.2'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.app-talk .new-conversation > .filters {
+	grid-area: filter;
+	/* absolutely positioned by Talk, like the new-conversation button */
+	position: static !important;
+	inset: auto !important;
+}
+
+/* "Reunião": dark primary button (added by talk.js) */
+.app-talk button.avuz-talk-meet {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	height: 40px;
+	min-height: 40px;
+	margin: 0;
+	padding: 0 14px;
+	border: 0;
+	border-radius: 10px;
+	background: var(--tk-pri) !important;
+	color: var(--tk-pri-ink) !important;
+	font-size: 14px;
+	font-weight: 600;
+	letter-spacing: -0.005em;
+	cursor: pointer;
+	transition: opacity 0.12s ease;
+}
+
+.app-talk button.avuz-talk-meet:hover {
+	opacity: 0.88;
+}
+
+.app-talk .avuz-talk-meet__icon,
+.app-talk .new-conversation > .actions .button-vue__icon .material-design-icon {
+	display: inline-block;
+	width: 18px;
+	height: 18px;
+	background: currentColor;
+	-webkit-mask: var(--tk-icon) center / contain no-repeat;
+	mask: var(--tk-icon) center / contain no-repeat;
+}
+
+.app-talk .avuz-talk-meet__icon {
+	--tk-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='6.5' width='12' height='11' rx='2'/%3E%3Cpath d='m15 11 5.5-3v8L15 13z'/%3E%3C/svg%3E");
+}
+
+/* New conversation: outlined square with a plain "+" */
+.app-talk .new-conversation > .actions .button-vue {
+	width: 40px !important;
+	height: 40px !important;
+	min-width: 40px !important;
+	border: 1px solid var(--tk-line) !important;
+	border-radius: 10px !important;
+	background: var(--tk-surface) !important;
+	color: var(--tk-ink2) !important;
+}
+
+.app-talk .new-conversation > .actions .button-vue:hover {
+	background: var(--tk-surface2) !important;
+}
+
+.app-talk .new-conversation > .actions .button-vue__icon .material-design-icon {
+	--tk-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+}
+
+.app-talk .new-conversation > .actions .button-vue__icon .material-design-icon svg {
+	visibility: hidden;
+}
+
+/* Search fields (list + participants): soft grey pill, quiet focus ring */
+.app-talk .conversations-search .input-field__input,
+.app-talk .search-form .input-field__input {
+	height: 40px !important;
+	min-height: 40px !important;
+	border: 1px solid transparent !important;
+	border-radius: 10px !important;
+	background: var(--tk-surface2) !important;
+	font-size: 14px !important;
+	color: var(--tk-ink) !important;
+	box-shadow: none !important;
+}
+
+/* Talk's own ring is .input-field__input[data-v]:focus-within:not([disabled])
+   (0,4,0) !important: the body prefix wins */
+body .app-talk .conversations-search .input-field__input:focus,
+body .app-talk .conversations-search .input-field__input:focus-within:not([disabled]),
+body .app-talk .search-form .input-field__input:focus,
+body .app-talk .search-form .input-field__input:focus-within:not([disabled]) {
+	outline: none !important;
+	border-color: var(--tk-acc-line) !important;
+	background: var(--tk-surface) !important;
+	box-shadow: 0 0 0 3px var(--tk-acc-soft) !important;
+}
+
+.app-talk .conversations-search .input-field__main-wrapper,
+.app-talk .search-form .input-field__main-wrapper {
+	height: 40px !important;
+}
+
+.app-talk .conversations-search .input-field__icon,
+.app-talk .search-form .input-field__icon {
+	color: var(--tk-ink3) !important;
+}
+
+.app-talk .new-conversation > .filters .button-vue {
+	color: var(--tk-ink3) !important;
+	border-radius: 10px !important;
+}
+
+/* Início / Fios */
+.app-talk .app-navigation-entry {
+	min-height: 38px !important;
+	border-radius: 10px !important;
+}
+
+.app-talk .app-navigation-entry .app-navigation-entry-link {
+	font-size: 14px !important;
+	color: var(--tk-ink2) !important;
+}
+
+.app-talk .app-navigation-entry .app-navigation-entry-icon {
+	color: var(--tk-ink3) !important;
+}
+
+.app-talk .app-navigation-entry:hover:not(.active) {
+	background: var(--tk-surface2) !important;
+}
+
+body .app-talk .app-navigation-entry.app-navigation-entry--legacy.active,
+body .app-talk .app-navigation-entry.active {
+	background-color: var(--tk-acc-soft) !important;
+}
+
+body .app-talk .app-navigation-entry.active .app-navigation-entry-link,
+body .app-talk .app-navigation-entry.active .app-navigation-entry-icon,
+body .app-talk .app-navigation-entry.active .app-navigation-entry__name {
+	color: var(--tk-ink) !important;
+	font-weight: 600;
+}
+
+/* While searching Talk shows its own result groups: drop our caption */
+.app-talk .app-navigation:has(.avuz-search-open .conversations-search input:not(:placeholder-shown)) .avuz-talk-caption {
+	display: none;
+}
+
+/* Section caption added by talk.js */
+.app-talk .avuz-talk-caption {
+	padding: 16px 16px 6px;
+	font-size: 11px !important;
+	font-weight: 650;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--tk-ink3);
+	list-style: none;
+}
+
+/* Conversation items */
+.app-talk .conversation .list-item {
+	min-height: 64px;
+	padding: 10px 12px !important;
+	border-radius: 12px !important;
+	align-items: center;
+	gap: 2px;
+}
+
+.app-talk .conversation:not(.list-item__wrapper--active) .list-item:hover {
+	background: var(--tk-surface2) !important;
+}
+
+/* Talk's legacy mode paints the active one solid primary with white text */
+body .app-talk .conversation.list-item__wrapper--active .list-item {
+	background: var(--tk-acc-soft) !important;
+}
+
+body .app-talk .conversation.list-item__wrapper--active .list-item *:not(.counter-bubble__counter) {
+	color: var(--tk-ink) !important;
+}
+
+body .app-talk .conversation.list-item__wrapper--active .list-item-content__subname,
+body .app-talk .conversation.list-item__wrapper--active .list-item-content__subname * {
+	color: var(--tk-ink3) !important;
+}
+
+.app-talk .conversation .conversation-icon,
+.app-talk .conversation .conversation-icon .avatardiv {
+	width: 40px !important;
+	height: 40px !important;
+}
+
+.app-talk .conversation .list-item-content__name {
+	font-size: 14.5px !important;
+	font-weight: 600 !important;
+	letter-spacing: -0.005em;
+	color: var(--tk-ink) !important;
+}
+
+.app-talk .conversation .list-item-content__subname,
+.app-talk .conversation .conversation__subname {
+	margin-top: 1px;
+	font-size: 13px !important;
+	color: var(--tk-ink3) !important;
+}
+
+.app-talk .conversation .list-item-details__details,
+.app-talk .conversation .list-item-content__details {
+	font-size: 12px !important;
+	color: var(--tk-ink3) !important;
+}
+
+/* Unread counters: accent pills */
+.app-talk .conversation .counter-bubble__counter {
+	min-width: 22px;
+	height: 22px;
+	padding: 0 7px !important;
+	border-radius: 99px !important;
+	background: var(--tk-acc) !important;
+	color: #fff !important;
+	font-size: 12px !important;
+	font-weight: 700 !important;
+}
+
+.app-talk .conversation .counter-bubble__counter--outlined {
+	background: transparent !important;
+	border: 1px solid var(--tk-acc) !important;
+	color: var(--tk-acc) !important;
+}
+
+/* App settings button at the bottom (bold 15px by default) */
+.app-talk .left-sidebar__settings-button-container .button-vue,
+.app-talk .left-sidebar__settings-button-container .button-vue * {
+	font-size: 13.5px !important;
+	font-weight: 500 !important;
+	color: var(--tk-ink2) !important;
+}
+
+.app-talk .left-sidebar__settings-button-container {
+	border-top: 1px solid var(--tk-line2);
+	padding-top: 6px;
+}
+
+/* App settings link at the bottom */
+.app-talk .app-navigation .app-navigation-entry__settings,
+.app-talk .app-navigation .app-navigation-entry__settings *,
+.app-talk .app-navigation .settings-button,
+.app-talk .app-navigation .settings-button * {
+	font-size: 13.5px !important;
+	font-weight: 500 !important;
+	color: var(--tk-ink2) !important;
+}
+
+/* ========================================================================= */
+/* Conversation header                                                       */
+/* ========================================================================= */
+
+.app-talk .top-bar {
+	min-height: 68px !important;
+	padding-inline: 20px 20px !important;
+	gap: 8px;
+	border-bottom: 1px solid var(--tk-line) !important;
+	background: var(--tk-surface) !important;
+}
+
+.app-talk .top-bar .conversation-icon,
+.app-talk .top-bar .conversation-icon .avatardiv {
+	width: 42px !important;
+	height: 42px !important;
+}
+
+.app-talk .top-bar .conversation-header {
+	margin-inline-start: 4px;
+}
+
+.app-talk .top-bar .conversation-header__text .title {
+	font-size: 16px !important;
+	font-weight: 650 !important;
+	letter-spacing: -0.01em;
+	color: var(--tk-ink) !important;
+}
+
+.app-talk .top-bar .conversation-header__text .description {
+	margin-top: 1px;
+	font-size: 13px !important;
+	color: var(--tk-ink3) !important;
+}
+
+/* Outlined action buttons (calendar, call); ghost "more" */
+.app-talk .top-bar .join-call,
+.app-talk .top-bar .upcoming-meeting,
+.app-talk .top-bar .top-bar__wrapper > .v-popper > .button-vue,
+.app-talk .top-bar .top-bar__wrapper > div > .v-popper > .button-vue {
+	height: 40px !important;
+	min-height: 40px !important;
+	border: 1px solid var(--tk-line) !important;
+	border-radius: 10px !important;
+	background: var(--tk-surface) !important;
+	color: var(--tk-ink) !important;
+	font-size: 14px !important;
+	font-weight: 550 !important;
+}
+
+.app-talk .top-bar .join-call {
+	padding-inline: 14px 16px !important;
+}
+
+.app-talk .top-bar .upcoming-meeting,
+.app-talk .top-bar .top-bar__wrapper > .v-popper > .button-vue {
+	width: 40px !important;
+	min-width: 40px !important;
+}
+
+.app-talk .top-bar .join-call:hover,
+.app-talk .top-bar .upcoming-meeting:hover,
+.app-talk .top-bar .top-bar__wrapper > .v-popper > .button-vue:hover {
+	background: var(--tk-surface2) !important;
+}
+
+.app-talk .top-bar .top-bar-menu .button-vue {
+	width: 40px !important;
+	height: 40px !important;
+	border-radius: 10px !important;
+	color: var(--tk-ink2) !important;
+}
+
+/* Sidebar closed: Nextcloud shows the "open sidebar" toggle absolutely at the
+   content's top-right corner (top/right 8px). Reserve its room in the header
+   and centre it on the 68px bar, styled like the other header buttons. */
+.app-talk:has(> .app-sidebar__toggle) .top-bar {
+	padding-inline-end: 72px !important;
+}
+
+body .app-talk > .app-sidebar__toggle.button-vue {
+	top: 14px !important;
+	right: 20px !important;
+	inset-inline-end: 20px !important;
+	width: 40px !important;
+	height: 40px !important;
+	min-width: 40px !important;
+	border: 1px solid var(--tk-line) !important;
+	border-radius: 10px !important;
+	background: var(--tk-surface) !important;
+	color: var(--tk-ink2) !important;
+}
+
+body .app-talk > .app-sidebar__toggle.button-vue:hover {
+	background: var(--tk-surface2) !important;
+}
+
+/* A call is running: keep it noticeable */
+.app-talk .top-bar .join-call.button-vue--success,
+.app-talk .top-bar .join-call[class*="success"] {
+	background: #177d4e !important;
+	border-color: #177d4e !important;
+	color: #fff !important;
+}
+
+/* ========================================================================= */
+/* Messages                                                                  */
+/* ========================================================================= */
+
+.app-talk .messages-list {
+	background: var(--tk-surface);
+	padding-inline: 12px;
+}
+
+/* Day separator. Talk keeps it sticky at the top while scrolling, so it is
+   a pill with its own background (hairlines would cross the bubbles). */
+.app-talk .messages-date .messages-date__text,
+.app-talk .messages-date > span {
+	padding: 4px 12px !important;
+	border: 1px solid var(--tk-line) !important;
+	border-radius: 99px !important;
+	background: var(--tk-surface) !important;
+	box-shadow: 0 1px 2px rgba(16, 20, 28, 0.04) !important;
+	font-size: 12px !important;
+	font-weight: 550 !important;
+	color: var(--tk-ink3) !important;
+}
+
+/* "Mensagens não lidas" marker in the accent colour */
+.app-talk .message-unread-marker__wrapper::before,
+.app-talk .message-unread-marker__wrapper::after,
+.app-talk .message-unread-marker::before,
+.app-talk .message-unread-marker::after {
+	background: var(--tk-acc-line) !important;
+	border-color: var(--tk-acc-line) !important;
+}
+
+.app-talk .message-unread-marker__text {
+	font-size: 12px !important;
+	font-weight: 650 !important;
+	color: var(--tk-acc) !important;
+}
+
+/* System messages: quiet centred text */
+.app-talk .wrapper--system .message-body.system {
+	display: flex;
+	justify-content: center;
+	padding-block: 2px !important;
+	background: transparent !important;
+}
+
+.app-talk .wrapper--system .message-main__text {
+	font-size: 12.5px !important;
+	color: var(--tk-ink3) !important;
+	text-align: center;
+}
+
+/* Mentions / user & group chips: soft instead of solid primary */
+.app-talk .mention-chip,
+.app-talk .nc-chip.mention-chip {
+	background: var(--tk-surface3) !important;
+	color: var(--tk-ink2) !important;
+	border: 0 !important;
+}
+
+.app-talk .mention-chip.nc-chip--primary {
+	background: var(--tk-acc-soft) !important;
+	color: var(--tk-acc) !important;
+}
+
+.app-talk .mention-chip .nc-chip__text {
+	font-weight: 600 !important;
+	color: inherit !important;
+}
+
+.app-talk .mention-chip .icon-group-forced-white {
+	filter: invert(0.45);
+}
+
+/* Author name and avatars */
+.app-talk .messages__author {
+	margin-bottom: 4px;
+	font-size: 13px !important;
+	font-weight: 600 !important;
+	color: var(--tk-ink2) !important;
+	padding-inline-start: 4px;
+}
+
+.app-talk .messages__avatar .avatardiv,
+.app-talk .messages__avatar {
+	width: 36px !important;
+	height: 36px !important;
+}
+
+/* Bubbles */
+.app-talk .message--sided .message-body {
+	padding: 10px 14px !important;
+	font-size: 14.5px;
+	line-height: 1.55;
+	color: var(--tk-ink);
+}
+
+.app-talk .message--sided.incoming .message-body {
+	background: var(--tk-surface2) !important;
+	border: 1px solid var(--tk-line2);
+	border-radius: 16px !important;
+}
+
+.app-talk .message--sided.outgoing .message-body {
+	background: var(--tk-acc-soft) !important;
+	border: 1px solid var(--tk-acc-line);
+	border-radius: 16px !important;
+	color: var(--tk-ink) !important;
+}
+
+/* Tail corner on the first bubble of a group */
+.app-talk .messages-bubble > .message--sided.incoming:first-child .message-body {
+	border-top-left-radius: 6px !important;
+}
+
+.app-talk .messages-bubble > .message--sided.outgoing:first-child .message-body {
+	border-top-right-radius: 6px !important;
+}
+
+.app-talk .messages-bubble > .message--sided + .message--sided {
+	margin-top: 4px;
+}
+
+.app-talk .message--sided .message-main__text strong,
+.app-talk .message--sided .message-main__text b {
+	color: var(--tk-ink);
+	font-weight: 650;
+}
+
+.app-talk .message--sided .message-main__info .date,
+.app-talk .message--sided .message-status {
+	font-size: 11.5px !important;
+	color: var(--tk-ink3) !important;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Shared files as compact cards */
+.app-talk .message .file-preview {
+	display: flex !important;
+	flex-direction: row !important;
+	align-items: center;
+	gap: 12px;
+	min-width: 280px;
+	max-width: 420px;
+	padding: 10px 14px !important;
+	border: 1px solid var(--tk-line) !important;
+	border-radius: 12px !important;
+	background: var(--tk-surface) !important;
+}
+
+.app-talk .message .file-preview .image-container {
+	flex: none;
+	width: 40px !important;
+	height: 40px !important;
+	min-height: 0 !important;
+}
+
+.app-talk .message .file-preview .image-container img,
+.app-talk .message .file-preview .image-container img.file-preview__image.preview-medium,
+.app-talk .message .file-preview .file-preview__image {
+	min-height: 0 !important;
+	width: 40px !important;
+	height: 40px !important;
+	max-height: 40px !important;
+	object-fit: contain;
+	border-radius: 8px;
+}
+
+.app-talk .message .file-preview .name-container {
+	padding: 0 !important;
+	font-size: 14px !important;
+	font-weight: 600 !important;
+	color: var(--tk-ink) !important;
+	text-align: start !important;
+}
+
+/* The file card already frames itself: no bubble around it */
+.app-talk .message--sided .message-body:has(.file-preview) {
+	padding: 4px !important;
+	background: transparent !important;
+	border-color: transparent !important;
+}
+
+/* ========================================================================= */
+/* Composer                                                                  */
+/* ========================================================================= */
+
+/* Full-width bar with a hairline on top (instead of the inset line) */
+.app-talk .chatView > .wrapper:has(> .new-message-form) {
+	padding: 0 !important;
+	border-top: 1px solid var(--tk-line);
+	background: var(--tk-surface);
+}
+
+.app-talk .new-message-form {
+	align-items: center !important;
+	gap: 6px;
+	max-width: none !important;
+	margin: 0 !important;
+	padding: 14px 20px 16px !important;
+	border-top: 0 !important;
+}
+
+.app-talk .new-message-form__input {
+	flex: 1 1 auto !important;
+	min-width: 160px !important;
+}
+
+.app-talk .new-message-form .rich-contenteditable__input {
+	min-height: 46px !important;
+	padding: 12px 16px 12px 46px !important;
+	border: 1px solid transparent !important;
+	border-radius: 12px !important;
+	background: var(--tk-surface2) !important;
+	font-size: 14.5px !important;
+	line-height: 1.45 !important;
+	color: var(--tk-ink) !important;
+	box-shadow: none !important;
+}
+
+.app-talk .new-message-form .rich-contenteditable__input:focus,
+.app-talk .new-message-form .rich-contenteditable__input:focus-visible {
+	border-color: var(--tk-acc-line) !important;
+	background: var(--tk-surface) !important;
+	box-shadow: 0 0 0 3px var(--tk-acc-soft) !important;
+}
+
+.app-talk .new-message-form .rich-contenteditable__input[data-placeholder]::before,
+.app-talk .new-message-form .rich-contenteditable__input--empty::before {
+	color: var(--tk-ink3) !important;
+}
+
+/* Centre the emoji button on the field. Talk also sets bottom: 2px, which
+   squeezes the box to 22px so the 30px button overflowed downwards. */
+.app-talk .new-message-form__emoji-picker {
+	top: 50% !important;
+	bottom: auto !important;
+	height: auto !important;
+	display: flex;
+	align-items: center;
+	transform: translateY(-50%);
+	color: var(--tk-ink3);
+}
+
+.app-talk .new-message-form__emoji-picker .button-vue {
+	color: var(--tk-ink3) !important;
+}
+
+/* Icon buttons around the field: uniform 40px ghost squares */
+.app-talk .new-message-form__attachments .button-vue,
+.app-talk .new-message-form > .action-item .button-vue,
+.app-talk .new-message-form .audio-recorder .button-vue {
+	width: 40px !important;
+	height: 40px !important;
+	min-width: 40px !important;
+	border-radius: 10px !important;
+	color: var(--tk-ink3) !important;
+}
+
+.app-talk .new-message-form__attachments .button-vue:hover,
+.app-talk .new-message-form > .action-item .button-vue:hover,
+.app-talk .new-message-form .audio-recorder .button-vue:hover {
+	background: var(--tk-surface2) !important;
+	color: var(--tk-ink) !important;
+}
+
+/* Send button (appears once there is text): dark "Enviar" pill.
+   It is an icon-only NcButton, which pins its width to --button-size. */
+.app-talk .new-message-form > button.button-vue,
+.app-talk .new-message-form > button.button-vue.button-vue--icon-only {
+	--button-size: 44px;
+	min-width: max-content !important;
+	max-width: none !important;
+	flex: none !important;
+	width: auto !important;
+	height: 44px !important;
+	min-height: 44px !important;
+	padding: 0 16px 0 12px !important;
+	border-radius: 10px !important;
+	background: var(--tk-pri) !important;
+	color: var(--tk-pri-ink) !important;
+}
+
+.app-talk .new-message-form > button.button-vue .button-vue__wrapper {
+	display: inline-flex !important;
+	align-items: center;
+	width: auto !important;
+}
+
+.app-talk .new-message-form > button.button-vue .button-vue__wrapper::after {
+	content: "Enviar";
+	margin-inline-start: 6px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.app-talk .new-message-form > button.button-vue:hover {
+	opacity: 0.88;
+}
+
+/* ========================================================================= */
+/* Right sidebar (participants / shared items)                               */
+/* ========================================================================= */
+
+.app-talk .app-sidebar {
+	border-inline-start: 1px solid var(--tk-line) !important;
+	background: var(--tk-surface) !important;
+}
+
+.app-talk .app-sidebar-header .content__name {
+	font-size: 16px !important;
+	font-weight: 650 !important;
+	letter-spacing: -0.01em;
+	color: var(--tk-ink) !important;
+}
+
+.app-talk .app-sidebar-header .content--compact {
+	padding-inline: 20px 8px !important;
+}
+
+/* Tabs: icon + label in a row, underline on the active one (Helpdesk tabs) */
+.app-talk .app-sidebar-tabs__nav {
+	gap: 4px;
+	justify-content: flex-start !important;
+	padding-inline: 16px !important;
+	border-bottom: 1px solid var(--tk-line) !important;
+}
+
+.app-talk .app-sidebar-tabs__nav > .button-vue,
+.app-talk .app-sidebar-tabs__nav > [class*="_sidebarTabsButton_"] {
+	flex: 0 0 auto !important;
+	height: 44px !important;
+	padding: 0 8px !important;
+	margin: 0 6px -1px 0 !important;
+	border: 0 !important;
+	border-bottom: 2px solid transparent !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	color: var(--tk-ink3) !important;
+}
+
+.app-talk .app-sidebar-tabs__nav > [class*="_sidebarTabsButton_selected_"],
+.app-talk .app-sidebar-tabs__nav > .button-vue[aria-selected="true"] {
+	border-bottom-color: var(--tk-acc) !important;
+	color: var(--tk-ink) !important;
+}
+
+.app-talk .app-sidebar-tabs__nav > .button-vue .button-vue__wrapper,
+.app-talk .app-sidebar-tabs__nav > [class*="_sidebarTabsButton_"] {
+	display: inline-flex !important;
+	flex-direction: row !important;
+	align-items: center !important;
+	gap: 7px;
+}
+
+.app-talk .app-sidebar-tabs__nav [class*="_sidebarTabsButton__name_"] {
+	margin: 0 !important;
+	padding: 0 !important;
+	line-height: 1.2 !important;
+	font-size: 13.5px !important;
+	font-weight: 600 !important;
+	color: inherit !important;
+}
+
+.app-talk .app-sidebar-tabs__nav [class*="_sidebarTabsButton__icon_"] {
+	display: inline-flex;
+	color: inherit !important;
+}
+
+.app-talk .app-sidebar-tabs__content {
+	padding-top: 8px;
+}
+
+.app-talk .app-sidebar .search-form {
+	padding: 6px 12px 4px !important;
+}
+
+/* Participant rows */
+.app-talk .app-sidebar .participant .list-item {
+	min-height: 52px;
+	padding: 8px 10px !important;
+	border-radius: 10px !important;
+}
+
+.app-talk .app-sidebar .participant .list-item:hover {
+	background: var(--tk-surface2) !important;
+}
+
+.app-talk .app-sidebar .participant .avatar-wrapper,
+.app-talk .app-sidebar .participant .avatardiv {
+	width: 36px !important;
+	height: 36px !important;
+}
+
+.app-talk .app-sidebar .participant .list-item-content__name {
+	font-size: 14px !important;
+	font-weight: 550 !important;
+	color: var(--tk-ink) !important;
+}
+
+.app-talk .app-sidebar .participant .list-item-content__subname {
+	font-size: 13px !important;
+	color: var(--tk-ink3) !important;
+	font-weight: 400 !important;
+}
+
+/* "(moderador)" and similar suffixes inside the name */
+.app-talk .app-sidebar .participant .list-item-content__name [class*="moderator"],
+.app-talk .app-sidebar .participant .list-item-content__name .participant-row__moderator-indicator {
+	font-weight: 400 !important;
+	color: var(--tk-ink3) !important;
+}
+
+/* Admin-only "Configuração do Talk incompleta" card: calmer */
+.app-talk .app-sidebar .internal-warning {
+	margin: 4px 16px 0 !important;
+	border-radius: 10px !important;
+	font-size: 12.5px !important;
+}
+
+/* ========================================================================= */
+/* Home (Início): minimal dashboard                                          */
+/* ========================================================================= */
+
+.app-talk .talk-dashboard-wrapper {
+	max-width: 1080px;
+	margin: 0 auto !important;
+	padding: 36px 32px 40px !important;
+	box-sizing: border-box;
+}
+
+/* Greeting + one quiet line under it (aligned with the buttons; Talk
+   indents it 38px for the menu toggle, which sits above it here) */
+.app-talk .talk-dashboard__header {
+	margin: 0 !important;
+	padding: 0 !important;
+	font-size: 26px !important;
+	font-weight: 650 !important;
+	letter-spacing: -0.02em;
+	line-height: 1.25 !important;
+	color: var(--tk-ink) !important;
+}
+
+.app-talk .talk-dashboard__header::after {
+	content: "Converse com a equipe, faça reuniões e acompanhe o que precisa da sua atenção.";
+	display: block;
+	margin-top: 6px;
+	font-size: 14px;
+	font-weight: 400;
+	letter-spacing: 0;
+	color: var(--tk-ink3);
+}
+
+/* Actions: dark primary + outlined secondaries */
+.app-talk .talk-dashboard__actions {
+	flex-wrap: wrap;
+	gap: 10px !important;
+	margin-top: 22px;
+	padding: 0 !important;
+}
+
+.app-talk .talk-dashboard__actions .button-vue {
+	height: 42px !important;
+	min-height: 42px !important;
+	padding: 0 16px 0 12px !important;
+	border-radius: 10px !important;
+	font-size: 14px !important;
+	font-weight: 550 !important;
+}
+
+.app-talk .talk-dashboard__actions .button-vue--primary {
+	background: var(--tk-pri) !important;
+	border: 1px solid var(--tk-pri) !important;
+	color: var(--tk-pri-ink) !important;
+}
+
+.app-talk .talk-dashboard__actions .button-vue--primary:hover {
+	opacity: 0.88;
+}
+
+.app-talk .talk-dashboard__actions .button-vue--secondary {
+	background: var(--tk-surface) !important;
+	border: 1px solid var(--tk-line) !important;
+	color: var(--tk-ink) !important;
+}
+
+.app-talk .talk-dashboard__actions .button-vue--secondary:hover {
+	background: var(--tk-surface2) !important;
+}
+
+.app-talk .talk-dashboard__actions .button-vue--secondary .button-vue__icon {
+	color: var(--tk-ink3) !important;
+}
+
+/* Cards in one row (the two chat cards join the event card's grid) */
+.app-talk .talk-dashboard__items {
+	display: grid !important;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 16px !important;
+	margin-top: 32px !important;
+	align-items: stretch;
+	/* Talk lets this area grow to the bottom of the screen */
+	height: auto !important;
+	min-height: 0 !important;
+	flex: none !important;
+	align-content: start;
+	grid-auto-rows: auto;
+}
+
+.app-talk .talk-dashboard__items .dashboard-section__content {
+	height: auto !important;
+	min-height: 0 !important;
+}
+
+.app-talk .talk-dashboard__chats {
+	display: contents !important;
+}
+
+/* Talk gives these fixed heights: size to content instead */
+.app-talk .talk-dashboard__items > .event-section,
+.app-talk .talk-dashboard__unread-mentions,
+.app-talk .talk-dashboard__upcoming-reminders {
+	height: auto !important;
+	min-height: 0 !important;
+	max-height: none !important;
+	margin: 0 !important;
+}
+
+/* With upcoming meetings the event card lists them: give it the full row */
+.app-talk .talk-dashboard__items > .event-section:not(:has(.event-section--empty)) {
+	grid-column: 1 / -1;
+}
+
+.app-talk .talk-dashboard__items .dashboard-section {
+	position: relative;
+	height: 100% !important;
+	min-height: 0 !important;
+	max-height: none !important;
+	margin: 0 !important;
+	padding: 20px !important;
+	border: 1px solid var(--tk-line) !important;
+	border-radius: 14px !important;
+	background: var(--tk-surface) !important;
+	box-shadow: none !important;
+	box-sizing: border-box;
+}
+
+/* No big grey illustration panel */
+.app-talk .talk-dashboard__items .dashboard-section__bar,
+.app-talk .talk-dashboard__items .image-container {
+	display: none !important;
+}
+
+.app-talk .talk-dashboard__items .dashboard-section__content {
+	padding: 0 !important;
+	gap: 6px;
+}
+
+/* Small icon tile on top of each card */
+.app-talk .talk-dashboard__items .dashboard-section__content::before {
+	content: "";
+	display: block;
+	flex: none;
+	width: 40px;
+	height: 40px;
+	margin-bottom: 8px;
+	border-radius: 10px;
+	background:
+		var(--tk-icon) center / 20px no-repeat,
+		var(--tk-acc-soft);
+	-webkit-mask: none;
+}
+
+.app-talk .event-section .dashboard-section__content::before {
+	--tk-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f86b4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='2'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E");
+}
+
+.app-talk .talk-dashboard__unread-mentions .dashboard-section__content::before {
+	--tk-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f86b4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.9 7.9'/%3E%3C/svg%3E");
+}
+
+.app-talk .talk-dashboard__upcoming-reminders .dashboard-section__content::before {
+	--tk-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f86b4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='13' r='7.5'/%3E%3Cpath d='M12 9.5V13l2.5 1.5M5 4 2.5 6.5M19 4l2.5 2.5'/%3E%3C/svg%3E");
+}
+
+.app-talk .talk-dashboard__items .dashboard-section__title {
+	margin: 0 !important;
+	font-size: 15.5px !important;
+	font-weight: 650 !important;
+	letter-spacing: -0.01em;
+	color: var(--tk-ink) !important;
+}
+
+.app-talk .talk-dashboard__items .dashboard-section__subtitle {
+	font-size: 13.5px !important;
+	font-weight: 550 !important;
+	color: var(--tk-ink2) !important;
+}
+
+.app-talk .talk-dashboard__items .dashboard-section__description {
+	font-size: 13.5px !important;
+	line-height: 1.55 !important;
+	color: var(--tk-ink3) !important;
+}
+
+.app-talk .talk-dashboard__items .dashboard-section__action {
+	padding: 6px 0 0 !important;
+	margin-top: auto;
+}
+
+.app-talk .talk-dashboard__items .dashboard-section__action .button-vue {
+	height: 36px !important;
+	min-height: 36px !important;
+	padding: 0 14px 0 10px !important;
+	border: 1px solid var(--tk-line) !important;
+	border-radius: 9px !important;
+	background: var(--tk-surface) !important;
+	color: var(--tk-ink) !important;
+	font-size: 13.5px !important;
+	font-weight: 550 !important;
+}
+
+.app-talk .talk-dashboard__items .dashboard-section__action .button-vue:hover {
+	background: var(--tk-surface2) !important;
+}
+
+/* ========================================================================= */
+/* Medium screens: the participants panel leaves the chat column narrow      */
+/* ========================================================================= */
+
+@media (max-width: 1280px) {
+	/* Call button becomes icon-only so the conversation title keeps room */
+	.app-talk .top-bar .join-call {
+		width: 40px !important;
+		min-width: 40px !important;
+		padding: 0 !important;
+	}
+
+	.app-talk .top-bar .join-call .button-vue__text {
+		display: none !important;
+	}
+
+	.app-talk .top-bar .conversation-header {
+		min-width: 120px;
+	}
+
+	.app-talk .new-message-form {
+		padding-inline: 12px !important;
+	}
+}
+
+/* ========================================================================= */
+/* Narrow screens                                                            */
+/* ========================================================================= */
+
+@media (max-width: 700px) {
+	.app-talk .new-message-form > button.button-vue .button-vue__wrapper::after {
+		content: none;
+	}
+
+	.app-talk .new-message-form > button.button-vue {
+		padding: 0 !important;
+		min-width: 44px !important;
+		justify-content: center;
+	}
+
+	.app-talk .new-message-form {
+		padding: 10px 10px 12px !important;
+	}
+
+	.app-talk .top-bar {
+		padding-inline: 8px !important;
+	}
+}

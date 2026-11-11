@@ -11,6 +11,9 @@
     <namespace>AvuzTheme</namespace>
     <category>customization</category>
     <bugs>https://github.com/avuz-conecta/avuz-server/issues</bugs>
+    <settings>
+        <admin>OCA\AvuzTheme\Settings\IpAccessAdmin</admin>
+    </settings>
     <dependencies>
         <nextcloud min-version="28" max-version="35"/>
     </dependencies>

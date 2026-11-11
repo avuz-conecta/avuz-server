@@ -1,0 +1,68 @@
+/**
+ * Deck (Tarefas): resizable images in card descriptions
+ *
+ * js/deck-description-images.js stores the width in the image URL and adds a
+ * corner handle; these rules draw it (shown on hover, like Docs/Word).
+ */
+
+.image__view .media.avuz-resizable {
+	position: relative !important;
+	display: inline-flex !important;
+	width: auto !important;
+	max-width: 100%;
+	vertical-align: top;
+}
+
+.media.avuz-resizable img.image__main {
+	height: auto;
+	max-width: 100%;
+}
+
+.image__view .media .avuz-resize-handle {
+	position: absolute !important;
+	inset: auto 6px 6px auto !important;
+	width: 16px !important;
+	height: 16px !important;
+	min-width: 0 !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	border-radius: 4px;
+	background: #15171b;
+	box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(20, 25, 40, 0.25);
+	cursor: nwse-resize;
+	opacity: 0;
+	transition: opacity 0.12s ease;
+	touch-action: none;
+	z-index: 2;
+}
+
+.image__view .media.avuz-resizable:hover .avuz-resize-handle,
+.image__view .media.avuz-resizing .avuz-resize-handle {
+	opacity: 1;
+}
+
+/* Outline while hovering/resizing so the image bounds are clear */
+.media.avuz-resizable:hover img.image__main,
+.media.avuz-resizing img.image__main {
+	outline: 2px solid rgba(21, 23, 27, 0.45);
+	outline-offset: 2px;
+}
+
+/* Live width badge while dragging */
+.media.avuz-resizing::after {
+	content: attr(data-avuz-width);
+	position: absolute;
+	inset-block-start: 8px;
+	inset-inline-end: 8px;
+	padding: 3px 8px;
+	border-radius: 6px;
+	background: #2b3141;
+	color: #fff;
+	font-size: 12px;
+	font-weight: 600;
+	pointer-events: none;
+}
+
+.media.avuz-resizing {
+	user-select: none;
+}

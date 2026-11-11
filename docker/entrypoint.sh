@@ -2,7 +2,7 @@
 set -e
 
 # Version stamp — bump this to force re-configuration on next restart
-AVUZ_CONFIG_VERSION="33.0.0-24"
+AVUZ_CONFIG_VERSION="33.0.0-26"
 CONFIG_STAMP_FILE="/var/www/html/data/.avuz_configured"
 UPGRADE_STATE_FILE="/var/www/html/data/.upgrade_pre_enabled_apps"
 AVUZ_KNOWN_APPS="/var/www/html/data/.avuz_known_apps"
@@ -461,7 +461,7 @@ apply_avuz_settings() {
     echo "Configuring theming..."
     php occ theming:config name "Avuz Conecta"
     php occ theming:config url "https://$NEXTCLOUD_TRUSTED_DOMAIN"
-    php occ theming:config primary_color "#1c7fa0"
+    php occ theming:config primary_color "#15171b"
     php occ theming:config background_color "#d2e314"
     # Force empty slogan — upstream default is "A safe home for all your data"
     # (or its NC-l10n pt_BR rendering "Um lar seguro para todos os seus dados"),
@@ -538,6 +538,28 @@ apply_avuz_settings() {
     # Disable AI summary until M2 (LLM provider not deployed yet).
     # Transcription still runs if a Speech-to-Text provider is registered.
     php occ config:app:set spreed call_recording_summary --value="no"
+
+    # Contacts defaults — the dav app seeds a "Leon Green" example contact into
+    # every new user's address book (ExampleContactService). Turn it off, then
+    # purge copies already seeded. Matches the stock example card only (name +
+    # its example.com email) and deletes through CardDavBackend so sync tokens
+    # update and clients drop it too. Idempotent — later runs find 0 cards.
+    php occ config:app:set dav enableDefaultContact --value="false" --type=boolean
+    php -r '
+        require "/var/www/html/lib/base.php";
+        $db = \OC::$server->get(\OCP\IDBConnection::class);
+        $cardDav = \OC::$server->get(\OCA\DAV\CardDAV\CardDavBackend::class);
+        $qb = $db->getQueryBuilder();
+        $qb->select("addressbookid", "uri")
+           ->from("cards")
+           ->where($qb->expr()->like("carddata", $qb->createNamedParameter("%FN:Leon Green%")))
+           ->andWhere($qb->expr()->like("carddata", $qb->createNamedParameter("%:leon@example.com%")));
+        $rows = $qb->executeQuery()->fetchAll();
+        foreach ($rows as $row) {
+            $cardDav->deleteCard((int)$row["addressbookid"], $row["uri"]);
+        }
+        echo "[contacts] removed " . count($rows) . " example contact(s)\n";
+    ' || echo "✗ example contact cleanup failed (check NC bootstrap)"
 
     # ── Talk recording backend ──
     # Gated on TALK_RECORDING_URL + TALK_RECORDING_SECRET.

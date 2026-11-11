@@ -1,0 +1,169 @@
+From a4e5d37472b5d5089e422e6bc33a5e578e71ac51 Mon Sep 17 00:00:00 2001
+From: Patrick Rezende <tricio777@gmail.com>
+Date: Wed, 11 Nov 2026 09:12:54 -0300
+Subject: [PATCH] fix(call): drop the alone-in-call waiting loop, keep speaker
+ test sound
+
+The waiting tone (LibremPhoneCall) looped every 15 s while you were alone
+in a call; clients found it annoying. Joining an empty call now plays the
+normal join chime, and becoming alone plays only the leave chime. The
+`wait` audio object is kept, so "Test speakers" still plays it.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/utils/__tests__/sounds.spec.js | 63 ++++++++++++++++++++++++++++++
+ src/utils/sounds.js                | 47 +++-------------------
+ 2 files changed, 69 insertions(+), 41 deletions(-)
+ create mode 100644 src/utils/__tests__/sounds.spec.js
+
+diff --git a/src/utils/__tests__/sounds.spec.js b/src/utils/__tests__/sounds.spec.js
+new file mode 100644
+index 0000000..d72c531
+--- /dev/null
++++ b/src/utils/__tests__/sounds.spec.js
+@@ -0,0 +1,63 @@
++/**
++ * SPDX-FileCopyrightText: 2026 Avuz
++ * SPDX-License-Identifier: AGPL-3.0-or-later
++ */
++
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
++
++const soundsStore = vi.hoisted(() => ({
++	shouldPlaySounds: true,
++	playAudio: null,
++	pauseAudio: null,
++}))
++
++vi.mock('../../stores/sounds.js', () => ({
++	useSoundsStore: () => soundsStore,
++}))
++
++const { Sounds } = await import('../sounds.js')
++
++const ONE_MINUTE_MS = 60000
++
++const playedSounds = () => soundsStore.playAudio.mock.calls.map(([name]) => name)
++
++describe('Sounds', () => {
++	beforeEach(() => {
++		vi.useFakeTimers()
++		soundsStore.shouldPlaySounds = true
++		soundsStore.playAudio = vi.fn()
++		soundsStore.pauseAudio = vi.fn()
++		Sounds.isInCall = false
++		Sounds.lastPlayedJoin = 0
++		Sounds.lastPlayedLeave = 0
++	})
++
++	afterEach(() => {
++		vi.useRealTimers()
++	})
++
++	it('plays the join chime once when joining an empty call', async () => {
++		await Sounds.playJoin(true, true)
++		vi.advanceTimersByTime(ONE_MINUTE_MS)
++
++		expect(playedSounds()).toEqual(['join'])
++	})
++
++	it('plays only the leave chime when the last participant leaves', async () => {
++		Sounds.isInCall = true
++
++		await Sounds.playLeave(false, true)
++		vi.advanceTimersByTime(ONE_MINUTE_MS)
++
++		expect(playedSounds()).toEqual(['leave'])
++	})
++
++	it('plays nothing when sounds are off', async () => {
++		soundsStore.shouldPlaySounds = false
++
++		await Sounds.playJoin(true, true)
++		vi.advanceTimersByTime(ONE_MINUTE_MS)
++
++		expect(playedSounds()).toEqual([])
++	})
++})
+diff --git a/src/utils/sounds.js b/src/utils/sounds.js
+index c4165f3..3998662 100644
+--- a/src/utils/sounds.js
++++ b/src/utils/sounds.js
+@@ -14,43 +14,16 @@ export const Sounds = {
+ 	isInCall: false,
+ 	lastPlayedJoin: 0,
+ 	lastPlayedLeave: 0,
+-	playedWaiting: 0,
+-	backgroundInterval: null,
+ 
+ 	_stopWaiting() {
+ 		console.debug('Stop waiting sound')
+ 		soundsStore.pauseAudio('wait')
+-		clearInterval(this.backgroundInterval)
+ 	},
+ 
+-	async playWaiting() {
+-		if (!soundsStore.shouldPlaySounds) {
+-			return
+-		}
+-
+-		console.debug('Playing waiting sound')
+-		soundsStore.playAudio('wait')
+-
+-		this.playedWaiting = 0
+-		this.backgroundInterval = setInterval(() => {
+-			if (!soundsStore.shouldPlaySounds) {
+-				this._stopWaiting()
+-				return
+-			}
+-
+-			if (this.playedWaiting >= 3) {
+-				// Played 3 times, so we stop now.
+-				this._stopWaiting()
+-				return
+-			}
+-
+-			console.debug('Playing waiting sound')
+-			soundsStore.playAudio('wait')
+-			this.playedWaiting++
+-		}, 15000)
+-	},
+-
+-	async playJoin(force, playWaitingSound) {
++	// Avuz: Talk's "alone in the call" waiting loop is gone (clients found it
++	// annoying); joining an empty call plays the normal join chime instead.
++	// The `wait` audio object stays: "Test speakers" still plays it.
++	async playJoin(force, _playWaitingSound) {
+ 		this._stopWaiting()
+ 
+ 		if (!soundsStore.shouldPlaySounds) {
+@@ -78,14 +51,10 @@ export const Sounds = {
+ 			console.debug('Playing join sound')
+ 		}
+ 
+-		if (playWaitingSound) {
+-			await this.playWaiting()
+-		} else {
+-			soundsStore.playAudio('join')
+-		}
++		soundsStore.playAudio('join')
+ 	},
+ 
+-	async playLeave(force, playWaitingSound) {
++	async playLeave(force, _playWaitingSound) {
+ 		this._stopWaiting()
+ 
+ 		if (!soundsStore.shouldPlaySounds) {
+@@ -113,9 +82,5 @@ export const Sounds = {
+ 		this.lastPlayedLeave = currentTime
+ 
+ 		soundsStore.playAudio('leave')
+-
+-		if (playWaitingSound) {
+-			this.playWaiting()
+-		}
+ 	},
+ }
+-- 
+2.50.1 (Apple Git-155)
+

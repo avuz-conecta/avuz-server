@@ -1,0 +1,234 @@
+/**
+ * Dashboard ("Painel inicial"): same language as Tarefas/Calendar —
+ * system font, big greeting with today's date (js/dashboard.js), status
+ * buttons as pills, widgets as light cards with a small header, quiet empty
+ * states, hover rows and a pill "Personalizar".
+ */
+
+#app-dashboard,
+#app-dashboard *:not(.material-design-icon, .material-design-icon *) {
+	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+body#body-user:has(#app-dashboard) #content.app-dashboard {
+	background: #f6f7f9 !important;
+}
+
+#app-dashboard {
+	--avuz-ink: #15171b;
+	--avuz-muted: #7a818c;
+	padding-top: 36px !important;
+}
+
+/* Greeting + date */
+#app-dashboard > h2 {
+	margin: 0 0 4px !important;
+	padding: 0 !important;
+	font-size: 30px !important;
+	font-weight: 700 !important;
+	letter-spacing: -0.025em;
+	line-height: 1.2 !important;
+	color: var(--avuz-ink) !important;
+}
+
+#app-dashboard > .avuz-dash-date {
+	margin: 0 0 18px;
+	font-size: 14px;
+	text-align: center;
+	color: var(--avuz-muted);
+}
+
+#app-dashboard > .avuz-dash-date::first-letter {
+	text-transform: uppercase;
+}
+
+/* Status / weather buttons as pills */
+#app-dashboard .statuses {
+	gap: 8px;
+	margin-bottom: 30px !important;
+}
+
+#app-dashboard .statuses li {
+	margin: 0 !important;
+}
+
+#app-dashboard .statuses .button-vue {
+	height: 36px !important;
+	min-height: 36px !important;
+	padding: 0 14px 0 10px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	border-radius: 99px !important;
+	background: var(--color-main-background, #fff) !important;
+	box-shadow: 0 1px 2px rgba(16, 20, 28, 0.04);
+	color: var(--avuz-ink) !important;
+}
+
+#app-dashboard .statuses .button-vue:hover {
+	border-color: var(--color-border-dark, #c4c9d1) !important;
+}
+
+#app-dashboard .statuses .button-vue__text {
+	font-size: 13px !important;
+	font-weight: 550 !important;
+}
+
+/* Widgets */
+#app-dashboard .panels {
+	gap: 16px !important;
+	padding: 0 24px !important;
+}
+
+#app-dashboard .panel {
+	box-sizing: border-box;
+	margin: 0 !important;
+	padding: 0 !important;
+	overflow: hidden;
+	border: 1px solid rgba(16, 20, 28, 0.07) !important;
+	border-radius: 18px !important;
+	background: var(--color-main-background, #fff) !important;
+	box-shadow: 0 1px 2px rgba(16, 20, 28, 0.04) !important;
+	backdrop-filter: none !important;
+	transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+#app-dashboard .panel:hover {
+	border-color: rgba(16, 20, 28, 0.12) !important;
+	box-shadow: 0 10px 28px -14px rgba(16, 20, 28, 0.22) !important;
+}
+
+#app-dashboard .panel--header {
+	padding: 16px 18px 12px !important;
+	border-bottom: 1px solid rgba(16, 20, 28, 0.06);
+}
+
+#app-dashboard .panel--header h2 {
+	display: flex !important;
+	align-items: center;
+	gap: 10px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	font-size: 15px !important;
+	font-weight: 650 !important;
+	letter-spacing: -0.01em;
+	line-height: 1.3 !important;
+	color: var(--avuz-ink) !important;
+}
+
+#app-dashboard .panel--header h2 img,
+#app-dashboard .panel--header h2 span[class*="icon"] {
+	flex: none;
+	box-sizing: border-box;
+	width: 32px !important;
+	height: 32px !important;
+	margin: 0 !important;
+	padding: 7px;
+	border-radius: 10px;
+	background-color: #f2f3f5;
+	opacity: 0.85;
+	object-fit: contain;
+}
+
+/* Class icons (Tarefas widgets) are a background image: one, centered, inside the padding */
+#app-dashboard .panel--header h2 span[class*="icon"] {
+	background-repeat: no-repeat !important;
+	background-position: center !important;
+	background-size: 18px 18px !important;
+}
+
+#app-dashboard .panel--content {
+	margin: 0 !important;
+	padding: 8px 8px 12px !important;
+}
+
+/* Empty states: small and quiet */
+#app-dashboard .empty-content {
+	margin: 8px 10px 10px !important;
+	padding: 18px 12px !important;
+	border: 1px dashed rgba(16, 20, 28, 0.12);
+	border-radius: 12px;
+}
+
+#app-dashboard .empty-content.half-screen {
+	margin-top: 8px !important;
+}
+
+#app-dashboard .empty-content__icon {
+	width: 34px !important;
+	height: 34px !important;
+	min-height: 0 !important;
+	margin: 0 auto 6px !important;
+	border-radius: 50%;
+	background: #eef7f2;
+	color: #258a57;
+	opacity: 1 !important;
+}
+
+#app-dashboard .empty-content__icon svg {
+	width: 18px !important;
+	height: 18px !important;
+}
+
+#app-dashboard .empty-content__description {
+	margin: 0 !important;
+	font-size: 13px !important;
+	color: var(--avuz-muted) !important;
+}
+
+/* Rows */
+#app-dashboard .item-list__entry {
+	display: flex !important;
+	align-items: center;
+	gap: 10px;
+	margin: 0 !important;
+	padding: 8px 10px !important;
+	border-radius: 12px !important;
+	transition: background-color 0.12s;
+}
+
+#app-dashboard a.item-list__entry:hover,
+#app-dashboard .item-list__entry:hover {
+	background: #f6f7f9 !important;
+}
+
+#app-dashboard .item-list__entry .avatardiv {
+	flex: none;
+}
+
+#app-dashboard .item__details h3 {
+	margin: 0 !important;
+	font-size: 13.5px !important;
+	font-weight: 600 !important;
+	color: var(--avuz-ink) !important;
+}
+
+#app-dashboard .item__details .message,
+#app-dashboard .item__details p,
+#app-dashboard .item__details span {
+	font-size: 12.5px !important;
+	color: var(--avuz-muted) !important;
+}
+
+#app-dashboard .item-list__entry .item-icon {
+	opacity: 0.7;
+}
+
+/* "Personalizar" */
+#app-dashboard .edit-panels,
+#app-dashboard > .button-vue,
+#app-dashboard > div > .button-vue {
+	border-radius: 99px !important;
+}
+
+#app-dashboard .button-vue:has(.pencil-icon),
+#app-dashboard .edit-panels {
+	height: 38px !important;
+	min-height: 38px !important;
+	margin-top: 22px !important;
+	padding: 0 16px 0 12px !important;
+	border: 1px solid var(--color-border, #e3e5e9) !important;
+	background: var(--color-main-background, #fff) !important;
+	box-shadow: 0 1px 2px rgba(16, 20, 28, 0.04);
+	color: var(--avuz-ink) !important;
+	font-size: 13px !important;
+	font-weight: 600 !important;
+}

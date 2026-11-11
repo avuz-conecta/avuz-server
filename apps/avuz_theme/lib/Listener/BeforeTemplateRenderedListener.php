@@ -26,5 +26,8 @@ class BeforeTemplateRenderedListener implements IEventListener {
 
 		// Open the "Esqueceu a senha?" view on login#lostpassword
 		Util::addScript('avuz_theme', 'login-lost-password');
+
+		// Explains a login refused by the IP restriction (Service/IpAccess)
+		Util::addScript('avuz_theme', 'ip-access-login');
 	}
 }

@@ -550,6 +550,172 @@
       "description": "Default app menu order: Painel (start page), Drive, Mail, Talk, Tarefas, Calendário, then the rest. AVUZ_APP_ORDER gives files/conectamail/mail/spreed/deck/calendar orders -9…-5, applied in add() after the user's own apporder and before each app's declared order.",
       "risk": "low",
       "notes": "Two-line patch in NavigationManager::add() plus the constant. Re-apply on upgrade if upstream reworks add(); the PHPUnit case testAvuzDefaultAppOrder covers it."
+    },
+    {
+      "id": "talk-modern-layout",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/css/talk.css",
+        "apps/avuz_theme/js/talk.js",
+        "apps/avuz_theme/lib/AppInfo/Application.php"
+      ],
+      "description": "Talk in a modern chat layout, scoped to #content-vue.app-talk (system font instead of Questrial inside Talk only): dark 'Reunião' button (instant meeting, like Talk's 'Iniciar reunião agora', opens #direct-call) + outlined new-conversation button, 'Conversas' caption, soft active item and unread pills, outlined call buttons, rounded bubbles, date/system pills, compact file cards, large composer with dark 'Enviar' button (icon-only below 700px).",
+      "risk": "low",
+      "notes": "Selectors target Talk 23 class names (new-conversation, conversations-search, conversation.list-item__wrapper--active, top-bar, join-call, message--sided incoming/outgoing, messages-bubble, messages-date__text, wrapper--system, file-preview, new-message-form). Talk positions .actions/.filters absolutely; the grid resets that. Recheck after Talk upgrades."
+    },
+    {
+      "id": "talk-no-waiting-sound",
+      "type": "overlay",
+      "paths": [
+        "docker/overlays/spreed/js/",
+        "docker/overlays/spreed/no-waiting-sound.patch"
+      ],
+      "description": "Removes Talk's alone-in-call waiting loop (LibremPhoneCall, repeated every 15 s while nobody else is in the call). Joining an empty call plays the normal join chime; becoming alone plays only the leave chime. The 'wait' audio object and file are kept, so 'Testar alto-falantes' still plays sound.",
+      "risk": "low",
+      "notes": "Source patch to src/utils/sounds.js, applied on top of webrtc-stagger.patch in the spreed overlay build (spreed-fork branch avuz/no-waiting-sound). Rebuild the overlay on every spreed upgrade: see docker/overlays/spreed/js/README.md. Clients complained about the tone (Patrick, 2026-11-11)."
+    },
+    {
+      "id": "deck-description-toolbar",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/js/deck-editor-toolbar.js",
+        "apps/avuz_theme/css/deck-editor-toolbar.css",
+        "apps/avuz_theme/lib/AppInfo/Application.php"
+      ],
+      "description": "Card description editor (Nextcloud Text, Markdown) gets a toolbar in the Avuz webmail editor style with every Markdown feature one click away: undo/redo, paragraph style (H1-H4), bold/italic/underline/strike/code, bullet/ordered/task lists + indent, quote, code block, callouts, details, table, horizontal rule, link, attachment (Deck picker), emoji. Replaces Text's own menu bar in card descriptions only; system font inside the editor (Questrial has no bold/italic). A full-screen button opens a Word-like document mode: header with card title + Concluir, ribbon toolbar, centred white page (816px) over grey; Esc or Concluir leaves it.",
+      "risk": "low",
+      "notes": "Buttons call the Tiptap editor via the ProseMirror DOM node's .editor (toggleHeading, toggleCallout, toggleDetails, insertTable, setHorizontalRule, setLink...). Storage stays Markdown. Fonts/sizes/colours/alignment intentionally absent (not representable in Markdown). Detects Deck's Description component like deck-description-images.js. Document mode: the .editor goes position:fixed (the card modal's transform is reset and its header hidden while open) and Text's grid content wrapper becomes a block scroller."
+    },
+    {
+      "id": "deck-new-card-dialog",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/js/deck-new-card.js",
+        "apps/avuz_theme/css/deck-new-card.css",
+        "apps/avuz_theme/lib/AppInfo/Application.php"
+      ],
+      "description": "The '+' (Adicionar cartão) on a list header opens a centred 'Novo cartão' dialog instead of the tiny inline title field: title, list, start/due dates, description (the same rich editor as inside a card: Nextcloud Text via OCA.Text.createEditor plus our webmail-style toolbar, which finds a stand-in description object on the [data-avuz-rte-host] element; Markdown saved with the card; textarea fallback), subtasks (saved in a 'Subtarefas' group), attachments (picker, drag and drop or paste; uploaded as type file), label chips, assignee chips (users/groups/teams). Ctrl+Enter creates, Esc/outside click closes.",
+      "risk": "low",
+      "notes": "Intercepts clicks on .stack__header [data-cy=\"action:add-card\"] (capture phase); falls back to Deck's inline field if the Vuex store/stack component is not found. Creates through Deck's store (addCard: create endpoint accepts description, duedate, startdate, labels, users), then GET /apps/deck/cards/{id} + commit updateCard so labels/assignees render immediately."
+    },
+    {
+      "id": "deck-new-board-dialog",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/js/deck-new-board.js",
+        "apps/avuz_theme/css/deck-new-board.css",
+        "apps/avuz_theme/lib/AppInfo/Application.php"
+      ],
+      "description": "Tarefas: 'Adicionar painel' opens a centred 'Novo painel' dialog (same look as 'Novo cartão'): title, colour, folder, initial lists (A fazer / Em andamento / Concluído pre-filled), Deck's default labels (can be switched off) plus new labels, and sharing with users/groups/teams with Editar/Compartilhar/Gerenciar/Só cartões atribuídos permissions.",
+      "risk": "low",
+      "notes": "Uses POST /boards (or the createBoardInFolder store action), DELETE+POST /labels, POST /stacks, POST /boards/{id}/acl, then commits addBoard and routes to the board. Default labels are matched by colour (BoardService::create). Only the navigation 'Adicionar painel' is intercepted, not the one inside folders."
+    },
+    {
+      "id": "black-primary-colour",
+      "type": "config",
+      "paths": [
+        "docker/entrypoint.sh",
+        "apps/avuz_theme/css"
+      ],
+      "description": "Primary colour changed from blue #1c7fa0 to near-black #15171b (theming:config primary_color, config 33.0.0-26): primary buttons and selected navigation items in every app are black with white text, like Talk's 'Reunião' button. Hard-coded blue accents in avuz_theme CSS (#0f86b4, rgba(15,134,180,…), app menu active state, Talk accent) were neutralised to the same black.",
+      "risk": "low",
+      "notes": "The info-callout dot in the Deck editor stays blue on purpose (semantic colour). Users' own calendar colours are not touched."
+    },
+    {
+      "id": "ip-access-restriction",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/lib/Service/IpAccess.php",
+        "apps/avuz_theme/lib/Listener/IpAccessLoginListener.php",
+        "apps/avuz_theme/lib/Middleware/IpAccessMiddleware.php",
+        "apps/avuz_theme/lib/Middleware/IpAccessDeniedException.php",
+        "apps/avuz_theme/lib/Controller/IpAccessController.php",
+        "apps/avuz_theme/lib/Settings/IpAccessAdmin.php",
+        "apps/avuz_theme/templates/admin-ip-access.php",
+        "apps/avuz_theme/appinfo/routes.php",
+        "apps/avuz_theme/appinfo/info.xml",
+        "apps/avuz_theme/js/ip-access-admin.js",
+        "apps/avuz_theme/css/ip-access-admin.css",
+        "apps/avuz_theme/js/ip-access-login.js",
+        "apps/avuz_theme/lib/Listener/BeforeTemplateRenderedListener.php",
+        "apps/avuz_theme/lib/AppInfo/Application.php"
+      ],
+      "description": "Restrição de acesso por IP (like Avuz Helpdesk): Administração › Segurança has an on/off switch, an allowlist of IPs/CIDR ranges with descriptions, 'Seu IP atual' and 'Adicionar meu IP'. When on, non-admin accounts can only use Avuz Conecta from an allowed IP; members of the admin group are never blocked. Enforced on every kind of login (PostLoginEvent: browser form → back to the login page with an explanation; WebDAV/CalDAV/CardDAV → 401; OCS/app passwords → login aborted) and on already-open sessions (global middleware: pages log out and go to the login page, API calls get 403).",
+      "risk": "medium",
+      "notes": "Config in app config avuz_theme/ip_access_enabled (bool) and ip_access_rules (JSON). The client IP is IRequest::getRemoteAddress(): behind a reverse proxy the proxy must be in trusted_proxies (entrypoint TRUSTED_PROXIES), otherwise every user appears with the proxy's IP. New routes are cached in Redis: after deploying, clear the distributed cache or bump the app version (occ upgrade works again since the shipped bruteforcesettings/notifications/text/files_downloadlimit were synced to their NC 33.0.8 versions, see entry shipped-apps-nc33)."
+    },
+    {
+      "id": "dashboard-modern-layout",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/css/dashboard.css",
+        "apps/avuz_theme/js/dashboard.js",
+        "apps/avuz_theme/lib/AppInfo/Application.php"
+      ],
+      "description": "Dashboard (Painel inicial) in the Tarefas/Calendar language: system font, bold greeting with today's date underneath (js/dashboard.js), status/weather buttons as pills, widgets as light cards with a header bar (icon in a soft square, 15px title), quiet dashed empty states with a small green check, hover rows, 'Personalizar' as a pill.",
+      "risk": "low",
+      "notes": "Scoped to #app-dashboard. Widget header icons are the apps' own images, shown smaller on a soft square."
+    },
+    {
+      "id": "calendar-modern-layout",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/css/calendar.css",
+        "apps/avuz_theme/js/calendar.js",
+        "apps/avuz_theme/css/deck-board.css",
+        "apps/avuz_theme/lib/AppInfo/Application.php"
+      ],
+      "description": "Calendar restyled in the Tarefas language: system font, month switcher as one segmented pill, black '+ Evento', outlined 'Hoje' and view switch, thin outline icons (chevrons, plus, views, pencil, cog, trash), small uppercase section captions, round calendar colour toggles instead of square checkboxes, light grid with uppercase weekday captions, day numbers top-left with a black round 'today' marker, light other-month/today backgrounds, events as soft pills. The Tarefas action-menu style also applies to Calendar menus. A top bar above the grid holds the two toggles (menu, 'Tarefas não agendadas'), which used to float over the weekday captions, plus the period title (copied from the date picker label by js/calendar.js); the 'Tarefas não agendadas' side panel is restyled (title bar, hint, rows with hover card).",
+      "risk": "low",
+      "notes": "Calendar paints today/other-month cells with primary/background-dark using !important, so the overrides use higher specificity. js/calendar.js copies each calendar's colour from the checkbox SVG fill into --avuz-cal-color."
+    },
+    {
+      "id": "deck-modern-board",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/css/deck-board.css",
+        "apps/avuz_theme/js/deck-board.js",
+        "apps/avuz_theme/lib/AppInfo/Application.php"
+      ],
+      "description": "Tarefas board restyle: soft grey canvas, lists as 292px rounded panels (list colour as a dot + top stripe and a light tint instead of a filled header), card counter next to the list title, thin header icons, white cards with subtle border and hover lift, pill labels, card menu on hover, system font, and an 'Adicionar cardão' button at the bottom of each list (opens the 'Novo cartão' dialog). Same look for 'Próximos cartões' (due-date columns as panels with a coloured dot, counter and 'Nenhum cartão' placeholder; all six fit side by side) and 'Todos os painéis' (rounded selects, due filters as chips, boards in a card-style table with overlapping avatars). Cards with subtasks (or description checklist items) show a progress bar with 'done/total' (green when complete) instead of the small badge. Action menus (board, list and card '⋯') restyled while Tarefas is open: rounded panel with soft shadow, 38px rows, system font, muted icons (re-centred, including background-image ones), 'Excluir …' in red below a separator. 'Configurações de Tarefas' dialog redesigned: left menu with icons works as tabs (one section at a time, 'Administração' as short label), section descriptions, switches grouped in a card, admin group select with an info hint, shortcuts as cards with keycaps. The board filter popover is restyled too: small section captions, labels/status/due dates as toggle chips (black with a check when on), people as rows with a round check.",
+      "risk": "low",
+      "notes": "Overrides Deck scoped styles (stack-draggable-wrapper flex basis, .stack--colored header background, card focus border). js/deck-board.js keeps data-avuz-count and the bottom button in sync via a MutationObserver."
+    },
+    {
+      "id": "deck-board-actions-new-list",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/css/deck-board-actions.css",
+        "apps/avuz_theme/js/deck-new-stack.js",
+        "apps/avuz_theme/lib/AppInfo/Application.php"
+      ],
+      "description": "Tarefas board header: Adicionar lista / Filtro / Modos de visualização / Detalhes redrawn as thin outline icons (36px rounded buttons, accent dot when a filter is active). 'Adicionar lista' opens a centred 'Nova lista' dialog with name, colour (none, palette or custom) and a preview. The same dialog edits a list ('Editar lista'): opened by clicking the list title or the pencil shown on hover, instead of Deck's cramped inline field. Long list names wrap to two lines.",
+      "risk": "low",
+      "notes": "Icons are CSS masks over .board-actions .button-vue__icon > span (stock SVG hidden). The list is created with POST /stacks, coloured with PUT /stacks/{id}/color and committed with the addStack mutation."
+    },
+    {
+      "id": "deck-board-details-modal",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/css/deck-board-details.css",
+        "apps/avuz_theme/js/deck-board-details.js",
+        "apps/avuz_theme/lib/AppInfo/Application.php"
+      ],
+      "description": "Tarefas: (1) board details (Compartilhando, Etiquetas, Campos, Modelos, Itens excluídos, Atividade) open as a centred modal instead of the narrow right sidebar, with Helpdesk-style tabs (outline icons + 14px labels, underline on active); outside click closes it. (2) Card modal tabs (Detalhes, Subtarefas, Tempo, Anexos, Comentários, Atividade) as a minimal segmented control with thin-stroke icons. (3) Card 'Detalhes' tab reorganised: compact title/meta, properties as framed fields: Etiquetas | Responsáveis on one row, then the two dates as compact boxes next to Recorrência / Marcar como concluído, Recorrência/Marcar como concluído as small pills, 'Descrição' as a small caption; one column under 760px.",
+      "risk": "low",
+      "notes": "Board sidebar is matched with .app-deck #app-sidebar-vue:has(#tab-sharing); card modal tabs with .modal-container #app-sidebar-vue:has(#tab-button-details). Stock tab icons are hidden and repainted via CSS masks (data-URI SVGs per #tab-button-*)."
+    },
+    {
+      "id": "deck-description-images",
+      "type": "app",
+      "paths": [
+        "apps/avuz_theme/js/deck-description-images.js",
+        "apps/avuz_theme/css/deck-description-images.css",
+        "apps/avuz_theme/lib/AppInfo/Application.php"
+      ],
+      "description": "Tarefas card descriptions: paste screenshots (uploaded as card attachments and inserted at the cursor), show images (Text has no AttachmentResolver without a file, so image nodes spun forever) and resize them with a corner handle (width stored as an avuzw URL query parameter).",
+      "risk": "medium",
+      "notes": "Relies on Deck's Description component (addAttachment/editor/card via __vue__) and Text's ImageView internals (loadPreview, attachment, src). Recheck after Deck/Text upgrades."
     }
   ]
 }
