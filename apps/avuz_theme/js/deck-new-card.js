@@ -5,14 +5,17 @@
  * the list; labels, people and dates could only be set afterwards, inside the
  * card. This intercepts that button and opens a centred dialog to create the
  * card with everything at once: title, list, description, subtasks,
- * attachments, labels, assignees, start and due dates.
+ * attachments, labels, assignees, start and due dates, recurrence and the
+ * board's custom fields ("Campos complementares", required ones enforced).
  *
  * Uses Deck's own Vuex store, so the card appears on the board right away:
  * addCard (the create endpoint accepts description, dates, labels and users
  * in one call), then the full card is fetched and committed with updateCard
  * so its labels and assignees show without a reload. Subtasks go into a
  * "Subtarefas" group (createSubtaskGroup/createSubtask) and files are uploaded
- * with createAttachment (type "file", like Deck's Anexos tab).
+ * with createAttachment (type "file", like Deck's Anexos tab); custom fields
+ * and recurrence go through setCustomFieldValue / updateCardRecurrence. Once
+ * the card exists, a failing step is reported but never offers a re-create.
  * css/deck-new-card.css styles the dialog.
  */
 (function () {
@@ -108,7 +111,53 @@
 		return raw === "" ? null : raw;
 	}
 
-	const customFieldFocusTarget = (field, form) => form.elements[customFieldName(field)] || form.querySelector(`.avuz-nc__option[data-field="${field.id}"]`);
+	// Recorrência: same intervals and weekday values as Deck's RecurrenceSelector
+	const RECURRENCE_INTERVALS = [["", "Nenhuma"], ["daily", "Diária"], ["weekly", "Semanal"], ["monthly", "Mensal"]];
+	const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+	const localDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+	const recurrenceMarkup = () => `
+		<div class="avuz-nc__field avuz-nc__recurrence">
+			<span id="avuz-nc-recurrence">Recorrência</span>
+			<div class="avuz-nc__recurrence-row">
+				<select name="recurrence" aria-labelledby="avuz-nc-recurrence">${RECURRENCE_INTERVALS.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select>
+				<label class="avuz-nc__recurrence-date" hidden><span>Início</span><input type="date" name="recurrenceStart" value="${localDate(new Date())}"></label>
+				<label class="avuz-nc__recurrence-date" hidden><span>Fim</span><input type="date" name="recurrenceEnd"></label>
+			</div>
+			<div class="avuz-nc__chips avuz-nc__weekdays" role="group" aria-label="Dias da semana" hidden>
+				${WEEKDAY_LABELS.map((label, day) => `<button type="button" class="avuz-nc__chip avuz-nc__weekday" data-day="${day}" aria-pressed="false">${label}</button>`).join("")}
+			</div>
+		</div>`;
+
+	// The recurrence to save, or null for "Nenhuma"
+	function recurrenceValue(form) {
+		const interval = form.elements.recurrence.value;
+		if (!interval) {
+			return null;
+		}
+		const weekdays = [...form.querySelectorAll('.avuz-nc__weekday[aria-pressed="true"]')].map((chip) => chip.dataset.day).sort();
+		return {
+			interval,
+			weekdays: interval === "weekly" && weekdays.length ? weekdays.join(",") : null,
+			start: form.elements.recurrenceStart.value || null,
+			end: form.elements.recurrenceEnd.value || null,
+		};
+	}
+
+	function recurrenceProblem(recurrence) {
+		if (!recurrence) {
+			return null;
+		}
+		if (!recurrence.start) {
+			return "Informe o Início da recorrência.";
+		}
+		if (recurrence.end && recurrence.end < recurrence.start) {
+			return "O Fim da recorrência é antes do Início.";
+		}
+		return null;
+	}
+
+	const customFieldFocusTarget =(field, form) => form.elements[customFieldName(field)] || form.querySelector(`.avuz-nc__option[data-field="${field.id}"]`);
 
 	function openDialog(store, stack) {
 		const board = store.state.currentBoard || store.getters.currentBoard;
@@ -144,6 +193,7 @@
 							<input type="datetime-local" name="due">
 						</label>
 					</div>
+					${recurrenceMarkup()}
 					<div class="avuz-nc__field">
 						<span>Descrição</span>
 						<div class="avuz-nc__editor" data-avuz-rte-host>
@@ -376,6 +426,14 @@
 			}, true);
 		}
 
+		form.elements.recurrence.addEventListener("change", () => {
+			const interval = form.elements.recurrence.value;
+			form.querySelectorAll(".avuz-nc__recurrence-date").forEach((label) => {
+				label.hidden = !interval;
+			});
+			form.querySelector(".avuz-nc__weekdays").hidden = interval !== "weekly";
+		});
+
 		form.querySelectorAll(".avuz-nc__chip").forEach((chip) => {
 			chip.addEventListener("click", () => {
 				chip.setAttribute("aria-pressed", String(chip.getAttribute("aria-pressed") !== "true"));
@@ -410,6 +468,14 @@
 			if (start && due && new Date(start) > new Date(due)) {
 				error.textContent = "A data de início é depois do vencimento.";
 				error.hidden = false;
+				return;
+			}
+			const recurrence = recurrenceValue(form);
+			const recurrenceError = recurrenceProblem(recurrence);
+			if (recurrenceError) {
+				error.textContent = recurrenceError;
+				error.hidden = false;
+				form.elements.recurrenceStart.focus();
 				return;
 			}
 			const create = form.querySelector(".avuz-nc__create");
@@ -474,12 +540,27 @@
 					}
 				}
 
-				// The create response has no labels/assignees yet: refresh the card
-				const full = await fetch(OC.generateUrl(`/apps/deck/cards/${card.id}`), {
-					headers: { requesttoken: OC.requestToken, Accept: "application/json" },
-				}).then((r) => (r.ok ? r.json() : null));
-				if (full) {
-					store.commit("updateCard", full);
+				if (recurrence) {
+					try {
+						await store.dispatch("updateCardRecurrence", { card, ...recurrence });
+					} catch (err) {
+						console.error("[avuz] save recurrence failed", err);
+						failed.push("recorrência");
+					}
+				}
+
+				// The create response has no labels/assignees yet: refresh the card.
+				// The card already exists, so a failed refresh only waits for the
+				// next board load; it must not offer to create the card again.
+				try {
+					const response = await fetch(OC.generateUrl(`/apps/deck/cards/${card.id}`), {
+						headers: { requesttoken: OC.requestToken, Accept: "application/json" },
+					});
+					if (response.ok) {
+						store.commit("updateCard", await response.json());
+					}
+				} catch (err) {
+					console.error("[avuz] refresh created card failed", err);
 				}
 				close();
 				if (failed.length) {

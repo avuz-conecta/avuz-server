@@ -84,10 +84,18 @@ function openNewCard({ fields = BOARD_FIELDS, actions = {}, fetchCard } = {}) {
 	// Payloads are built inside the page's realm: compare them as plain data
 	const actionsCalled = (name) => dispatched.filter((call) => call.name === name).map((call) => JSON.parse(JSON.stringify(call.payload)));
 
-	return { window, document, form, control, option, typeIn, submit, actionsCalled, toasts };
+	const weekday = (day) => form().querySelector(`.avuz-nc__weekday[data-day="${day}"]`);
+	const dialogOpen = () => document.querySelector('.avuz-nc-overlay') !== null;
+
+	return { window, document, form, control, option, weekday, typeIn, submit, actionsCalled, toasts, dialogOpen };
 }
 
 const fieldLabels = (page) => [...page.document.querySelectorAll('.avuz-nc__custom-label')].map((label) => label.textContent.replace(/\s+/g, ' ').trim());
+
+const localToday = () => {
+	const now = new Date();
+	return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
 
 const alertText = (page) => page.document.querySelector('[role="alert"]:not([hidden])')?.textContent ?? '';
 
@@ -200,6 +208,131 @@ describe('Novo cartão', () => {
 					assert.deepEqual(await savedMoney(typed), expected);
 				});
 			}
+		});
+	});
+
+	describe('Recorrência', () => {
+		it('sets a weekly recurrence with the chosen weekdays', async () => {
+			const page = openNewCard({ fields: [] });
+			page.typeIn(page.form().elements.recurrence, 'weekly');
+			page.weekday('1').click();
+			page.weekday('3').click();
+			page.typeIn(page.form().elements.recurrenceStart, '2026-11-11');
+
+			await page.submit();
+
+			assert.deepEqual(page.actionsCalled('updateCardRecurrence'), [
+				{ card: CREATED_CARD, interval: 'weekly', weekdays: '1,3', start: '2026-11-11', end: null },
+			]);
+		});
+
+		it('sends a monthly recurrence with its end date and no weekdays', async () => {
+			const page = openNewCard({ fields: [] });
+			page.typeIn(page.form().elements.recurrence, 'monthly');
+			page.typeIn(page.form().elements.recurrenceStart, '2026-11-11');
+			page.typeIn(page.form().elements.recurrenceEnd, '2027-03-31');
+
+			await page.submit();
+
+			assert.deepEqual(page.actionsCalled('updateCardRecurrence'), [
+				{ card: CREATED_CARD, interval: 'monthly', weekdays: null, start: '2026-11-11', end: '2027-03-31' },
+			]);
+		});
+
+		it('defaults the start to today and hides weekdays for Mensal', () => {
+			const page = openNewCard({ fields: [] });
+
+			page.typeIn(page.form().elements.recurrence, 'monthly');
+
+			assert.equal(page.form().elements.recurrenceStart.value, localToday());
+			assert.equal(page.weekday('1').closest('[hidden]') !== null, true);
+		});
+
+		it('shows the weekdays for Semanal', () => {
+			const page = openNewCard({ fields: [] });
+
+			page.typeIn(page.form().elements.recurrence, 'weekly');
+
+			assert.equal(page.weekday('1').closest('[hidden]'), null);
+		});
+
+		it('sends no recurrence by default', async () => {
+			const page = openNewCard({ fields: [] });
+
+			await page.submit();
+
+			assert.deepEqual(page.actionsCalled('updateCardRecurrence'), []);
+		});
+
+		it('blocks an end date before the start', async () => {
+			const page = openNewCard({ fields: [] });
+			page.typeIn(page.form().elements.recurrence, 'daily');
+			page.typeIn(page.form().elements.recurrenceStart, '2026-11-20');
+			page.typeIn(page.form().elements.recurrenceEnd, '2026-11-10');
+
+			await page.submit();
+
+			assert.deepEqual(page.actionsCalled('addCard'), []);
+			assert.match(alertText(page), /Fim/);
+		});
+	});
+
+	describe('depois de criar', () => {
+		it('keeps the card when a custom field fails to save', async () => {
+			const page = openNewCard({
+				fields: [FIELD.contract],
+				actions: { setCustomFieldValue: async () => { throw new Error('invalid value for field type'); } },
+			});
+			page.typeIn(page.control(FIELD.contract), 'C-77');
+
+			await page.submit();
+
+			assert.equal(page.actionsCalled('addCard').length, 1);
+			assert.equal(page.dialogOpen(), false);
+			assert.equal(page.toasts.length, 1);
+			assert.equal(page.toasts[0].options?.type, 'error');
+			assert.match(page.toasts[0].message, /Contrato/);
+		});
+
+		it('keeps the card when the recurrence fails to save', async () => {
+			const page = openNewCard({
+				fields: [],
+				actions: { updateCardRecurrence: async () => { throw new Error('invalid recurrence interval'); } },
+			});
+			page.typeIn(page.form().elements.recurrence, 'daily');
+
+			await page.submit();
+
+			assert.equal(page.actionsCalled('addCard').length, 1);
+			assert.equal(page.dialogOpen(), false);
+			assert.match(page.toasts[0].message, /recorrência/);
+		});
+
+		it('keeps the card when the refresh fetch fails', async () => {
+			const page = openNewCard({
+				fields: [],
+				fetchCard: async () => { throw new TypeError('Failed to fetch'); },
+			});
+
+			await page.submit();
+
+			assert.equal(page.actionsCalled('addCard').length, 1);
+			assert.equal(page.dialogOpen(), false);
+			assert.equal(page.toasts.length, 1);
+			assert.notEqual(page.toasts[0].options?.type, 'error');
+		});
+
+		it('offers a retry when creating the card itself fails', async () => {
+			const page = openNewCard({
+				fields: [],
+				actions: { addCard: async () => { throw new Error('offline'); } },
+			});
+
+			await page.submit();
+
+			assert.equal(page.dialogOpen(), true);
+			assert.match(alertText(page), /Não foi possível criar o cartão/);
+			assert.equal(page.form().querySelector('.avuz-nc__create').disabled, false);
 		});
 	});
 });
