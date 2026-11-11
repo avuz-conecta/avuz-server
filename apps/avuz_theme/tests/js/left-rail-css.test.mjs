@@ -90,6 +90,21 @@ describe('left rail stylesheet', () => {
 		});
 	});
 
+	describe('OnlyOffice editor in its own tab', () => {
+		const editorFrameRule = () => topLevelBlocks(topLevelBlocks(STYLESHEET).find((block) => block.prelude === RAIL_MEDIA).body)
+			.find((block) => block.prelude.endsWith('> #content.app-onlyoffice #app > iframe'));
+
+		it('fills the content box beside the rail instead of the viewport under a 50px top bar', () => {
+			const declarations = editorFrameRule().body.replace(/\s+/g, ' ');
+
+			assert.match(declarations, /position: absolute !important;/);
+			assert.match(declarations, /inset: 0 !important;/);
+			assert.match(declarations, /width: 100% !important;/);
+			assert.match(declarations, /height: 100% !important;/);
+			assert.match(declarations, /margin: 0 !important;/);
+		});
+	});
+
 	it('keeps a hidden "Mais aplicativos" list hidden despite its flex layout', () => {
 		const railRules = topLevelBlocks(STYLESHEET).find((block) => block.prelude === RAIL_MEDIA).body;
 
