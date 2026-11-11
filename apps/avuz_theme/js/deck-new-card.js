@@ -78,11 +78,15 @@
 		return Number.isNaN(amount) ? null : String(amount);
 	}
 
+	// Deck stores dates as YYYY-MM-DD; a 5+ digit year is a typo, not a date
+	const MAX_DATE = "9999-12-31";
+	const isPlainDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+
 	const CUSTOM_FIELD_CONTROLS = {
 		text: (name, required) => `<input type="text" name="${name}" autocomplete="off"${required}>`,
 		number: (name, required) => `<input type="number" step="any" name="${name}"${required}>`,
 		money: (name, required) => `<span class="avuz-nc__money"><span aria-hidden="true">R$</span><input type="text" inputmode="decimal" name="${name}" autocomplete="off"${required}></span>`,
-		date: (name, required) => `<input type="date" name="${name}"${required}>`,
+		date: (name, required) => `<input type="date" name="${name}" max="${MAX_DATE}"${required}>`,
 		dropdown: (name, required, field) => `<select name="${name}"${required}><option value=""></option>${(field.options || []).map((option) => `<option value="${esc(option.id)}">${esc(option.label)}</option>`).join("")}</select>`,
 	};
 
@@ -121,8 +125,8 @@
 			<span id="avuz-nc-recurrence">Recorrência</span>
 			<div class="avuz-nc__recurrence-row">
 				<select name="recurrence" aria-labelledby="avuz-nc-recurrence">${RECURRENCE_INTERVALS.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select>
-				<label class="avuz-nc__recurrence-date" hidden><span>Início</span><input type="date" name="recurrenceStart" value="${localDate(new Date())}"></label>
-				<label class="avuz-nc__recurrence-date" hidden><span>Fim</span><input type="date" name="recurrenceEnd"></label>
+				<label class="avuz-nc__recurrence-date" hidden><span>Início</span><input type="date" name="recurrenceStart" max="${MAX_DATE}" value="${localDate(new Date())}"></label>
+				<label class="avuz-nc__recurrence-date" hidden><span>Fim</span><input type="date" name="recurrenceEnd" max="${MAX_DATE}"></label>
 			</div>
 			<div class="avuz-nc__chips avuz-nc__weekdays" role="group" aria-label="Dias da semana" hidden>
 				${WEEKDAY_LABELS.map((label, day) => `<button type="button" class="avuz-nc__chip avuz-nc__weekday" data-day="${day}" aria-pressed="false">${label}</button>`).join("")}
@@ -151,13 +155,29 @@
 		if (!recurrence.start) {
 			return "Informe o Início da recorrência.";
 		}
+		if (!isPlainDate(recurrence.start) || (recurrence.end && !isPlainDate(recurrence.end))) {
+			return "Data inválida na recorrência.";
+		}
 		if (recurrence.end && recurrence.end < recurrence.start) {
 			return "O Fim da recorrência é antes do Início.";
 		}
 		return null;
 	}
 
-	const customFieldFocusTarget =(field, form) => form.elements[customFieldName(field)] || form.querySelector(`.avuz-nc__option[data-field="${field.id}"]`);
+	// Typed but not readable: the browser could not parse it (badInput), or a
+	// date outside Deck's YYYY-MM-DD. Reading it would silently save nothing.
+	function isUnreadable(field, form) {
+		const control = form.elements[customFieldName(field)];
+		if (!control) {
+			return false;
+		}
+		if (control.validity?.badInput) {
+			return true;
+		}
+		return field.type === "date" && control.value !== "" && !isPlainDate(control.value);
+	}
+
+	const customFieldFocusTarget = (field, form) => form.elements[customFieldName(field)] || form.querySelector(`.avuz-nc__option[data-field="${field.id}"]`);
 
 	function openDialog(store, stack) {
 		const board = store.state.currentBoard || store.getters.currentBoard;
@@ -449,10 +469,21 @@
 
 		form.addEventListener("submit", async (e) => {
 			e.preventDefault();
+			const create = form.querySelector(".avuz-nc__create");
+			if (create.disabled) {
+				return; // Ctrl+Enter again while the card is being created
+			}
 			const name = title.value.trim();
 			if (!name) {
 				title.focus();
 				title.classList.add("invalid");
+				return;
+			}
+			const unreadable = customFields.filter((field) => isUnreadable(field, form));
+			if (unreadable.length) {
+				error.textContent = `Valor inválido em: ${unreadable.map((field) => field.title).join(", ")}.`;
+				error.hidden = false;
+				customFieldFocusTarget(unreadable[0], form)?.focus();
 				return;
 			}
 			const customValues = customFields.map((field) => ({ field, value: customFieldValue(field, form) }));
@@ -478,7 +509,6 @@
 				form.elements.recurrenceStart.focus();
 				return;
 			}
-			const create = form.querySelector(".avuz-nc__create");
 			create.disabled = true;
 			create.textContent = "Criando…";
 			error.hidden = true;

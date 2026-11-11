@@ -335,4 +335,50 @@ describe('Novo cartão', () => {
 			assert.equal(page.form().querySelector('.avuz-nc__create').disabled, false);
 		});
 	});
+
+	describe('valores que o navegador não consegue ler', () => {
+		it('ignores a second Ctrl+Enter while the card is being created', async () => {
+			const page = openNewCard({ fields: [] });
+			page.typeIn(page.form().querySelector('.avuz-nc__title'), 'Revisar contrato');
+
+			page.form().requestSubmit();
+			page.form().requestSubmit();
+			await new Promise((resolve) => page.window.setTimeout(resolve, 50));
+
+			assert.equal(page.actionsCalled('addCard').length, 1);
+		});
+
+		it('blocks a number field the browser cannot read and names it', async () => {
+			const page = openNewCard({ fields: [FIELD.hours] });
+			Object.defineProperty(page.control(FIELD.hours), 'validity', { value: { badInput: true } });
+
+			await page.submit();
+
+			assert.deepEqual(page.actionsCalled('addCard'), []);
+			assert.match(alertText(page), /Valor inválido em: Horas/);
+			assert.equal(page.document.activeElement, page.control(FIELD.hours));
+		});
+
+		it('blocks a custom date with a five-digit year', async () => {
+			const page = openNewCard({ fields: [FIELD.delivery] });
+			page.typeIn(page.control(FIELD.delivery), '10000-01-01');
+
+			await page.submit();
+
+			assert.deepEqual(page.actionsCalled('addCard'), []);
+			assert.match(alertText(page), /Valor inválido em: Entrega/);
+		});
+
+		it('blocks a recurrence end with a five-digit year', async () => {
+			const page = openNewCard({ fields: [] });
+			page.typeIn(page.form().elements.recurrence, 'daily');
+			page.typeIn(page.form().elements.recurrenceStart, '2026-11-11');
+			page.typeIn(page.form().elements.recurrenceEnd, '10000-01-01');
+
+			await page.submit();
+
+			assert.deepEqual(page.actionsCalled('addCard'), []);
+			assert.match(alertText(page), /Data inválida na recorrência/);
+		});
+	});
 });
