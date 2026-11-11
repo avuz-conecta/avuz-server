@@ -121,6 +121,8 @@ textarea.avuz-nc__title.invalid {
 
 .avuz-nc select:not(.avuz-rte-select),
 .avuz-nc input[type="datetime-local"],
+.avuz-nc .avuz-nc__custom input,
+.avuz-nc .avuz-nc__recurrence input[type="date"],
 .avuz-nc textarea:not(.avuz-nc__title),
 .avuz-nc input.avuz-nc__filter {
 	width: 100% !important;
@@ -433,7 +435,49 @@ button.avuz-nc__create:disabled {
 	from { opacity: 0; transform: translateY(8px) scale(0.98); }
 }
 
+/* Campos complementares (board custom fields) */
+.avuz-nc__custom-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px 12px;
+}
+
+.avuz-nc__custom {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	margin: 0;
+}
+
+.avuz-nc__custom-label {
+	font-size: 13px;
+	color: var(--color-main-text, #15171b);
+}
+
+.avuz-nc__required {
+	margin-inline-start: 4px;
+	font-size: 11.5px;
+	font-weight: 600;
+	color: var(--color-error-text, #c4001a);
+}
+
+.avuz-nc__money {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.avuz-nc__money > span {
+	font-size: 13px;
+	color: var(--color-text-maxcontrast, #6b717c);
+}
+
 @media (max-width: 640px) {
+	.avuz-nc__custom-grid {
+		grid-template-columns: 1fr;
+	}
+
 	.avuz-nc-overlay {
 		padding: 0;
 	}

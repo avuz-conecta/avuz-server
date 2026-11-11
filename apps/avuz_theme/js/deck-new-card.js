@@ -58,6 +58,58 @@
 	// "2026-10-20T14:30" (datetime-local) -> ISO for Deck, or null
 	const toIso = (value) => (value ? new Date(value).toISOString() : null);
 
+	// Board custom fields ("Campos complementares"). Checkbox fields stay out,
+	// as in Deck's own CustomFieldsSection.
+	const HIDDEN_FIELD_TYPES = ["checkbox"];
+	const visibleCustomFields = (store) => (store.getters.currentBoardCustomFields || []).filter((field) => !HIDDEN_FIELD_TYPES.includes(field.type));
+	const customFieldName = (field) => `custom-${field.id}`;
+
+	// pt-BR amount ("1.234,56", "R$ 5,5") -> plain numeric string ("1234.56"),
+	// the same rule as Deck's CustomFieldInput; empty or invalid -> null
+	function parseMoney(text) {
+		const raw = String(text ?? "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+		if (raw === "" || raw === "-") {
+			return null;
+		}
+		const amount = Number.parseFloat(raw);
+		return Number.isNaN(amount) ? null : String(amount);
+	}
+
+	const CUSTOM_FIELD_CONTROLS = {
+		text: (name, required) => `<input type="text" name="${name}" autocomplete="off"${required}>`,
+		number: (name, required) => `<input type="number" step="any" name="${name}"${required}>`,
+		money: (name, required) => `<span class="avuz-nc__money"><span aria-hidden="true">R$</span><input type="text" inputmode="decimal" name="${name}" autocomplete="off"${required}></span>`,
+		date: (name, required) => `<input type="date" name="${name}"${required}>`,
+		dropdown: (name, required, field) => `<select name="${name}"${required}><option value=""></option>${(field.options || []).map((option) => `<option value="${esc(option.id)}">${esc(option.label)}</option>`).join("")}</select>`,
+	};
+
+	function customFieldMarkup(field) {
+		const label = `<span class="avuz-nc__custom-label">${esc(field.title)}${field.required ? ' <small class="avuz-nc__required">obrigatório</small>' : ""}</span>`;
+		if (field.type === "multi") {
+			const labelId = `avuz-nc-field-${field.id}`;
+			const options = (field.options || []).map((option) => `<button type="button" class="avuz-nc__chip avuz-nc__option" data-field="${field.id}" data-id="${esc(option.id)}" aria-pressed="false">${esc(option.label)}</button>`).join("");
+			return `<div class="avuz-nc__custom" role="group" aria-labelledby="${labelId}">${label.replace("<span ", `<span id="${labelId}" `)}<div class="avuz-nc__chips">${options}</div></div>`;
+		}
+		const control = CUSTOM_FIELD_CONTROLS[field.type] || CUSTOM_FIELD_CONTROLS.text;
+		return `<label class="avuz-nc__custom">${label}${control(customFieldName(field), field.required ? ' aria-required="true"' : "", field)}</label>`;
+	}
+
+	// The value to store for a field, as Deck's backend validates it; null = empty
+	function customFieldValue(field, form) {
+		if (field.type === "multi") {
+			const pressed = new Set([...form.querySelectorAll(`.avuz-nc__option[data-field="${field.id}"][aria-pressed="true"]`)].map((chip) => chip.dataset.id));
+			const ids = (field.options || []).map((option) => option.id).filter((id) => pressed.has(String(id)));
+			return ids.length ? JSON.stringify(ids) : null;
+		}
+		const raw = (form.elements[customFieldName(field)]?.value ?? "").trim();
+		if (field.type === "money") {
+			return parseMoney(raw);
+		}
+		return raw === "" ? null : raw;
+	}
+
+	const customFieldFocusTarget = (field, form) => form.elements[customFieldName(field)] || form.querySelector(`.avuz-nc__option[data-field="${field.id}"]`);
+
 	function openDialog(store, stack) {
 		const board = store.state.currentBoard || store.getters.currentBoard;
 		if (!board) {
@@ -66,6 +118,7 @@
 		const stacks = store.getters.stacksByBoard(board.id) || [];
 		const labels = store.getters.currentBoardLabels || [];
 		const people = store.getters.assignables || [];
+		const customFields = visibleCustomFields(store);
 
 		const overlay = document.createElement("div");
 		overlay.className = "avuz-nc-overlay";
@@ -123,7 +176,11 @@
 							${people.length ? people.map((u) => `<button type="button" class="avuz-nc__chip avuz-nc__person" data-id="${esc(u.uid)}" data-type="${u.type}" aria-pressed="false"><b>${esc(initials(u.displayname))}</b>${esc(u.displayname)}${u.type === 1 ? " <small>grupo</small>" : u.type === 7 ? " <small>equipe</small>" : ""}</button>`).join("") : '<em class="avuz-nc__none">Compartilhe o painel para atribuir pessoas.</em>'}
 						</div>
 					</div>
-					<p class="avuz-nc__error" hidden></p>
+					${customFields.length ? `<div class="avuz-nc__field avuz-nc__customs">
+						<span>Campos complementares</span>
+						<div class="avuz-nc__custom-grid">${customFields.map(customFieldMarkup).join("")}</div>
+					</div>` : ""}
+					<p class="avuz-nc__error" role="alert" hidden></p>
 				</div>
 				<footer class="avuz-nc__foot">
 					<span class="avuz-nc__hint">Ctrl+Enter para criar</span>
@@ -340,6 +397,14 @@
 				title.classList.add("invalid");
 				return;
 			}
+			const customValues = customFields.map((field) => ({ field, value: customFieldValue(field, form) }));
+			const missing = customValues.filter(({ field, value }) => field.required && value === null).map(({ field }) => field);
+			if (missing.length) {
+				error.textContent = `Preencha os campos obrigatórios: ${missing.map((field) => field.title).join(", ")}.`;
+				error.hidden = false;
+				customFieldFocusTarget(missing[0], form)?.focus();
+				return;
+			}
 			const start = form.elements.start.value;
 			const due = form.elements.due.value;
 			if (start && due && new Date(start) > new Date(due)) {
@@ -393,6 +458,19 @@
 					} catch (err) {
 						console.error("[avuz] upload failed", file.name, err);
 						failed.push(file.name);
+					}
+				}
+
+				for (const { field, value } of customValues) {
+					if (value === null) {
+						continue;
+					}
+					create.textContent = "Salvando campos…";
+					try {
+						await store.dispatch("setCustomFieldValue", { card, fieldId: field.id, value });
+					} catch (err) {
+						console.error("[avuz] save custom field failed", field.title, err);
+						failed.push(field.title);
 					}
 				}
 
