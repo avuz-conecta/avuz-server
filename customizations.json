@@ -564,15 +564,15 @@
       "notes": "Selectors target Talk 23 class names (new-conversation, conversations-search, conversation.list-item__wrapper--active, top-bar, join-call, message--sided incoming/outgoing, messages-bubble, messages-date__text, wrapper--system, file-preview, new-message-form). Talk positions .actions/.filters absolutely; the grid resets that. Recheck after Talk upgrades."
     },
     {
-      "id": "talk-silent-waiting-sound",
-      "type": "theme",
+      "id": "talk-no-waiting-sound",
+      "type": "overlay",
       "paths": [
-        "themes/avuz/apps/spreed/img/LibremPhoneCall.ogg",
-        "themes/avuz/apps/spreed/img/LibremPhoneCall.flac"
+        "docker/overlays/spreed/js/",
+        "docker/overlays/spreed/no-waiting-sound.patch"
       ],
-      "description": "Silences Talk's 'waiting' ringtone (phone ringing that repeats every 15 s while you are alone in a call) by overriding LibremPhoneCall.ogg/.flac with 1 s of silence. Join/leave beeps (join_call/leave_call) are untouched.",
+      "description": "Removes Talk's alone-in-call waiting loop (LibremPhoneCall, repeated every 15 s while nobody else is in the call). Joining an empty call plays the normal join chime; becoming alone plays only the leave chime. The 'wait' audio object and file are kept, so 'Testar alto-falantes' still plays sound.",
       "risk": "low",
-      "notes": "Served via nginx try_files /themes/avuz$uri. Side effect: 'Testar alto-falantes' in Talk's device settings plays this same file, so the speaker test is silent. Regenerate with: ffmpeg -f lavfi -i anullsrc=r=48000:cl=mono -t 1 -c:a libvorbis LibremPhoneCall.ogg (and -c:a flac for .flac)."
+      "notes": "Source patch to src/utils/sounds.js, applied on top of webrtc-stagger.patch in the spreed overlay build (spreed-fork branch avuz/no-waiting-sound). Rebuild the overlay on every spreed upgrade: see docker/overlays/spreed/js/README.md. Clients complained about the tone (Patrick, 2026-11-11)."
     },
     {
       "id": "deck-description-toolbar",
