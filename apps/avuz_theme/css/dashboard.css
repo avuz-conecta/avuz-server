@@ -123,9 +123,16 @@ body#body-user:has(#app-dashboard) #content.app-dashboard {
 	margin: 0 !important;
 	padding: 7px;
 	border-radius: 10px;
-	background: #f2f3f5;
+	background-color: #f2f3f5;
 	opacity: 0.85;
 	object-fit: contain;
+}
+
+/* Class icons (Tarefas widgets) are a background image: one, centered, inside the padding */
+#app-dashboard .panel--header h2 span[class*="icon"] {
+	background-repeat: no-repeat !important;
+	background-position: center !important;
+	background-size: 18px 18px !important;
 }
 
 #app-dashboard .panel--content {
