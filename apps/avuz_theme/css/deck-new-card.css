@@ -566,10 +566,76 @@ button.avuz-nc__create:disabled {
 	border-radius: 9px;
 }
 
-/* "Novo cartão" wider so the editor toolbar fits on one line; on narrower
-   screens the bar scrolls sideways instead of breaking into two rows */
-.avuz-nc:not(.avuz-nb, .avuz-ns) {
-	width: min(960px, 100%);
+/* "Novo cartão": two columns that fit the screen. The card itself (description,
+   subtasks, attachments) on the left, wide enough for the editor toolbar on one
+   line; its details (list, dates, recurrence, labels, people, custom fields) in a
+   side panel. Header and buttons stay put, each column scrolls on its own. */
+.avuz-nc.avuz-nc--card {
+	display: flex;
+	flex-direction: column;
+	width: min(1200px, 100%);
+	max-height: calc(100vh - 8vh - 16px);
+}
+
+.avuz-nc--card .avuz-nc__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.avuz-nc__columns {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 360px;
+	gap: 20px;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.avuz-nc--card .avuz-nc__main,
+.avuz-nc--card .avuz-nc__side {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.avuz-nc--card .avuz-nc__main {
+	padding-inline-end: 2px;
+}
+
+.avuz-nc--card .avuz-nc__side {
+	padding: 14px;
+	border-radius: 14px;
+	background: var(--color-background-hover, #f6f7f9);
+}
+
+.avuz-nc--card .avuz-nc__side .avuz-nc__row {
+	grid-template-columns: 1fr;
+}
+
+.avuz-nc--card .avuz-nc__side .avuz-nc__recurrence-row {
+	grid-template-columns: 1fr 1fr;
+}
+
+.avuz-nc--card .avuz-nc__side .avuz-nc__recurrence-row > select {
+	grid-column: 1 / -1;
+}
+
+/* Narrow screens: one column, the whole body scrolls */
+@media (max-width: 900px) {
+	.avuz-nc--card .avuz-nc__body {
+		overflow-y: auto;
+	}
+
+	.avuz-nc__columns {
+		grid-template-columns: 1fr;
+	}
+
+	.avuz-nc--card .avuz-nc__main,
+	.avuz-nc--card .avuz-nc__side {
+		overflow: visible;
+	}
 }
 
 .avuz-nc__editor--rich .avuz-rte-toolbar {
@@ -581,8 +647,8 @@ button.avuz-nc__create:disabled {
 }
 
 /* (scrolling would clip the link/emoji/callout pop-ups, so only when the
-   dialog is narrower than the bar) */
-@media (max-width: 1000px) {
+   main column is narrower than the bar) */
+@media (max-width: 1240px) {
 	.avuz-nc__editor--rich .avuz-rte-toolbar {
 		overflow-x: auto;
 		scrollbar-width: none;

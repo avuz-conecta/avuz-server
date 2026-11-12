@@ -192,64 +192,70 @@
 		const overlay = document.createElement("div");
 		overlay.className = "avuz-nc-overlay";
 		overlay.innerHTML = `
-			<form class="avuz-nc" role="dialog" aria-modal="true" aria-labelledby="avuz-nc-title" novalidate>
+			<form class="avuz-nc avuz-nc--card" role="dialog" aria-modal="true" aria-labelledby="avuz-nc-title" novalidate>
 				<header class="avuz-nc__head">
 					<h2 id="avuz-nc-title">Novo cartão</h2>
 					<button type="button" class="avuz-nc__x" aria-label="Fechar">×</button>
 				</header>
 				<div class="avuz-nc__body">
 					<textarea class="avuz-nc__title" name="title" rows="1" placeholder="Título do cartão" autocomplete="off" required></textarea>
-					<div class="avuz-nc__row">
-						<label class="avuz-nc__field">
-							<span>Lista</span>
-							<select name="stack">${stacks.map((s) => `<option value="${s.id}"${s.id === stack.id ? " selected" : ""}>${esc(s.title)}</option>`).join("")}</select>
-						</label>
-						<label class="avuz-nc__field">
-							<span>Início</span>
-							<input type="datetime-local" name="start">
-						</label>
-						<label class="avuz-nc__field">
-							<span>Vencimento</span>
-							<input type="datetime-local" name="due">
-						</label>
-					</div>
-					${recurrenceMarkup()}
-					<div class="avuz-nc__field">
-						<span>Descrição</span>
-						<div class="avuz-nc__editor" data-avuz-rte-host>
-						<textarea name="description" rows="6" placeholder="Detalhes, contexto, links… (aceita formatação Markdown: **negrito**, - listas, - [ ] tarefas)"></textarea>
+					<div class="avuz-nc__columns">
+						<div class="avuz-nc__main">
+							<div class="avuz-nc__field">
+								<span>Descrição</span>
+								<div class="avuz-nc__editor" data-avuz-rte-host>
+								<textarea name="description" rows="6" placeholder="Detalhes, contexto, links… (aceita formatação Markdown: **negrito**, - listas, - [ ] tarefas)"></textarea>
+								</div>
+							</div>
+							<div class="avuz-nc__field">
+								<span>Subtarefas</span>
+								<ul class="avuz-nc__subtasks"></ul>
+								<input class="avuz-nc__subtask-new" placeholder="Adicionar subtarefa e pressionar Enter" aria-label="Nova subtarefa" autocomplete="off">
+							</div>
+							<div class="avuz-nc__field">
+								<span>Anexos</span>
+								<label class="avuz-nc__drop">
+									<input type="file" multiple hidden>
+									<b>Escolher arquivos</b> ou arraste-os para cá
+								</label>
+								<ul class="avuz-nc__files"></ul>
+							</div>
 						</div>
+						<aside class="avuz-nc__side" aria-label="Detalhes do cartão">
+							<label class="avuz-nc__field">
+								<span>Lista</span>
+								<select name="stack">${stacks.map((s) => `<option value="${s.id}"${s.id === stack.id ? " selected" : ""}>${esc(s.title)}</option>`).join("")}</select>
+							</label>
+							<div class="avuz-nc__row avuz-nc__dates">
+								<label class="avuz-nc__field">
+									<span>Início</span>
+									<input type="datetime-local" name="start">
+								</label>
+								<label class="avuz-nc__field">
+									<span>Vencimento</span>
+									<input type="datetime-local" name="due">
+								</label>
+							</div>
+							${recurrenceMarkup()}
+							<div class="avuz-nc__field">
+								<span>Etiquetas</span>
+								<div class="avuz-nc__chips" data-kind="labels">
+									${labels.length ? labels.map((l) => `<button type="button" class="avuz-nc__chip avuz-nc__label" data-id="${l.id}" style="--c:#${esc(l.color)}" aria-pressed="false"><i></i>${esc(l.title)}</button>`).join("") : '<em class="avuz-nc__none">Este painel não tem etiquetas.</em>'}
+								</div>
+							</div>
+							<div class="avuz-nc__field">
+								<span>Responsáveis</span>
+								${people.length > 8 ? '<input class="avuz-nc__filter" placeholder="Filtrar pessoas…" aria-label="Filtrar pessoas">' : ""}
+								<div class="avuz-nc__chips" data-kind="people">
+									${people.length ? people.map((u) => `<button type="button" class="avuz-nc__chip avuz-nc__person" data-id="${esc(u.uid)}" data-type="${u.type}" aria-pressed="false"><b>${esc(initials(u.displayname))}</b>${esc(u.displayname)}${u.type === 1 ? " <small>grupo</small>" : u.type === 7 ? " <small>equipe</small>" : ""}</button>`).join("") : '<em class="avuz-nc__none">Compartilhe o painel para atribuir pessoas.</em>'}
+								</div>
+							</div>
+							${customFields.length ? `<div class="avuz-nc__field avuz-nc__customs">
+								<span>Campos complementares</span>
+								<div class="avuz-nc__custom-grid">${customFields.map(customFieldMarkup).join("")}</div>
+							</div>` : ""}
+						</aside>
 					</div>
-					<div class="avuz-nc__field">
-						<span>Subtarefas</span>
-						<ul class="avuz-nc__subtasks"></ul>
-						<input class="avuz-nc__subtask-new" placeholder="Adicionar subtarefa e pressionar Enter" aria-label="Nova subtarefa" autocomplete="off">
-					</div>
-					<div class="avuz-nc__field">
-						<span>Anexos</span>
-						<label class="avuz-nc__drop">
-							<input type="file" multiple hidden>
-							<b>Escolher arquivos</b> ou arraste-os para cá
-						</label>
-						<ul class="avuz-nc__files"></ul>
-					</div>
-					<div class="avuz-nc__field">
-						<span>Etiquetas</span>
-						<div class="avuz-nc__chips" data-kind="labels">
-							${labels.length ? labels.map((l) => `<button type="button" class="avuz-nc__chip avuz-nc__label" data-id="${l.id}" style="--c:#${esc(l.color)}" aria-pressed="false"><i></i>${esc(l.title)}</button>`).join("") : '<em class="avuz-nc__none">Este painel não tem etiquetas.</em>'}
-						</div>
-					</div>
-					<div class="avuz-nc__field">
-						<span>Responsáveis</span>
-						${people.length > 8 ? '<input class="avuz-nc__filter" placeholder="Filtrar pessoas…" aria-label="Filtrar pessoas">' : ""}
-						<div class="avuz-nc__chips" data-kind="people">
-							${people.length ? people.map((u) => `<button type="button" class="avuz-nc__chip avuz-nc__person" data-id="${esc(u.uid)}" data-type="${u.type}" aria-pressed="false"><b>${esc(initials(u.displayname))}</b>${esc(u.displayname)}${u.type === 1 ? " <small>grupo</small>" : u.type === 7 ? " <small>equipe</small>" : ""}</button>`).join("") : '<em class="avuz-nc__none">Compartilhe o painel para atribuir pessoas.</em>'}
-						</div>
-					</div>
-					${customFields.length ? `<div class="avuz-nc__field avuz-nc__customs">
-						<span>Campos complementares</span>
-						<div class="avuz-nc__custom-grid">${customFields.map(customFieldMarkup).join("")}</div>
-					</div>` : ""}
 					<p class="avuz-nc__error" role="alert" hidden></p>
 				</div>
 				<footer class="avuz-nc__foot">

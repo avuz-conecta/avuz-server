@@ -113,6 +113,43 @@ async function savedMoney(typed) {
 }
 
 describe('Novo cartão', () => {
+	describe('duas colunas', () => {
+		const page = openNewCard();
+		const main = () => page.form().querySelector('.avuz-nc__main');
+		const side = () => page.form().querySelector('aside.avuz-nc__side');
+		const STYLES = NEW_CARD_STYLESHEET.replace(/\/\*[\s\S]*?\*\//g, '');
+		const declarationsFor = (selector) => [...STYLES.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+			.filter((rule) => rule[1].split(',').some((part) => part.trim() === selector))
+			.map((rule) => rule[2].replace(/\s+/g, ' '))
+			.join(' ');
+
+		it('writes the card in the main column: description, subtasks and attachments', () => {
+			assert.ok(main().querySelector('[data-avuz-rte-host]'), 'description');
+			assert.ok(main().querySelector('.avuz-nc__subtask-new'), 'subtasks');
+			assert.ok(main().querySelector('.avuz-nc__drop'), 'attachments');
+		});
+
+		it('sets the details in a labelled side panel: list, dates, recurrence, labels, people and custom fields', () => {
+			assert.equal(side().getAttribute('aria-label'), 'Detalhes do cartão');
+			for (const name of ['stack', 'start', 'due', 'recurrence', `custom-${FIELD.contract.id}`]) {
+				assert.ok(side().querySelector(`[name="${name}"]`), name);
+			}
+			assert.ok(side().querySelector('[data-kind="labels"]'), 'labels');
+			assert.ok(side().querySelector('[data-kind="people"]'), 'people');
+		});
+
+		it('keeps the title above both columns', () => {
+			const title = page.form().querySelector('.avuz-nc__title');
+			assert.ok(!main().contains(title) && !side().contains(title));
+		});
+
+		it('fits the screen: the dialog never grows past it and each column scrolls on its own', () => {
+			assert.match(declarationsFor('.avuz-nc.avuz-nc--card'), /max-height: calc\(100vh - /);
+			assert.match(declarationsFor('.avuz-nc--card .avuz-nc__main'), /overflow-y: auto;/);
+			assert.match(declarationsFor('.avuz-nc--card .avuz-nc__side'), /overflow-y: auto;/);
+		});
+	});
+
 	describe('Campos complementares', () => {
 		it('lists the board fields in order, without checkbox fields', () => {
 			const page = openNewCard();
