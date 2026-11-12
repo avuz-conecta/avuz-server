@@ -49,6 +49,11 @@ describe('Tarefas: rolagem do quadro', () => {
 		assert.equal(parseFloat(cards.minHeight), 0);
 	});
 
+	it('draws a thin, quiet scrollbar on a list', () => {
+		assert.equal(cards.scrollbarWidth, 'thin');
+		assert.match(cards.scrollbarColor, /transparent/);
+	});
+
 	it('leaves the list header out of the scrolling area', () => {
 		assert.notEqual(listHeaderOn('stack').position, 'sticky');
 	});

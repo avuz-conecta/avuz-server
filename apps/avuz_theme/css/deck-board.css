@@ -248,10 +248,12 @@
 	--avuz-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
 }
 
-/* Cards area */
+/* Cards area: scrolls inside its list, with a thin scrollbar */
 .app-deck .board .stack .dnd-container {
 	min-height: 0;
 	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(21, 23, 27, 0.22) transparent;
 	margin: 0 !important;
 	padding: 2px 2px 0 !important;
 	gap: 0;
