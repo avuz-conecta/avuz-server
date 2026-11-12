@@ -339,6 +339,16 @@ body .app-talk .conversation.list-item__wrapper--active .list-item-content__subn
 	color: var(--tk-ink3) !important;
 }
 
+/* Talk gives the open conversation's menu a primary (solid dark) button, made
+   for its solid primary row; on our light row it stays a plain icon button */
+body .app-talk .conversation.list-item__wrapper--active .action-item__menutoggle.button-vue--primary {
+	background-color: transparent !important;
+}
+
+body .app-talk .conversation.list-item__wrapper--active .action-item__menutoggle.button-vue--primary:is(:hover, :focus-visible, [aria-expanded='true']) {
+	background-color: var(--tk-surface3) !important;
+}
+
 .app-talk .conversation .conversation-icon,
 .app-talk .conversation .conversation-icon .avatardiv {
 	width: 40px !important;
@@ -1135,6 +1145,16 @@ body .app-talk > .app-sidebar__toggle.button-vue:hover {
 
 .app-talk .talk-dashboard__items .dashboard-section__action .button-vue:hover {
 	background: var(--tk-surface2) !important;
+}
+
+/* ========================================================================= */
+/* Verificar dispositivos (camera off)                                      */
+/* ========================================================================= */
+
+/* Talk blurs the user's theme background behind the avatar (a stock cloud
+   photo by default); Avuz draws its own. The dialog mounts outside .app-talk. */
+.media-settings .background-preview::before {
+	background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), center / cover no-repeat url("../img/call-background.svg") !important;
 }
 
 /* ========================================================================= */

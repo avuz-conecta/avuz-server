@@ -63,12 +63,16 @@
 	flex: 0 0 292px !important;
 	width: 292px !important;
 	min-width: 0 !important;
+	max-height: 100%;
 	padding: 0 !important;
 }
 
 /* ---------------------------------------------------------------- lists */
+/* A list is at most as tall as the board and scrolls its own cards (Deck's
+   behaviour): the board never scrolls down, title and "Adicionar cartão" stay put */
 .app-deck .board .stack {
 	box-sizing: border-box;
+	max-height: 100%;
 	width: 100% !important;
 	padding: 4px 6px 8px !important;
 	border: 0 !important;
@@ -81,12 +85,7 @@
 	box-shadow: inset 0 3px 0 var(--stack-color);
 }
 
-/* top = minus the board's padding-top: a sticky header stops inside the board
-   padding, so it pins flush with the board's visible top edge instead */
 .app-deck .board .stack__header {
-	position: sticky;
-	top: -16px;
-	z-index: 2;
 	display: flex;
 	align-items: center;
 	gap: 2px;
@@ -99,8 +98,6 @@
 	color: var(--avuz-ink) !important;
 }
 
-/* The header stays pinned while the board scrolls: it paints its list's colour
-   so the cards passing under it stay hidden */
 .app-deck .board .stack--colored .stack__header {
 	background-color: color-mix(in srgb, var(--stack-color) 7%, var(--avuz-list-bg)) !important;
 }
@@ -253,6 +250,8 @@
 
 /* Cards area */
 .app-deck .board .stack .dnd-container {
+	min-height: 0;
+	overflow-y: auto;
 	margin: 0 !important;
 	padding: 2px 2px 0 !important;
 	gap: 0;

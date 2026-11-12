@@ -22,23 +22,43 @@ const listHeaderOn = (stackClass) => {
 	return window.getComputedStyle(window.document.querySelector('.stack__header'));
 };
 
-describe('Tarefas: cabeçalho da lista ao rolar o quadro', () => {
+const renderColumns = () => {
+	const { window } = new JSDOM(`<style>${BOARD_STYLESHEET}</style>
+		<div id="content" class="app-deck"><div class="board"><div class="smooth-dnd-container horizontal">
+			<div class="stack-draggable-wrapper smooth-dnd-draggable-wrapper">
+				<div class="stack">
+					<div class="stack__header"><h3 class="stack__title">Lista longa</h3></div>
+					<div class="dnd-container smooth-dnd-container vertical"><div class="smooth-dnd-draggable-wrapper"><div class="card">Cartão</div></div></div>
+				</div>
+			</div>
+		</div></div></div>`);
+	const style = (selector) => window.getComputedStyle(window.document.querySelector(selector));
+	return { column: style('.stack-draggable-wrapper'), list: style('.stack'), cards: style('.dnd-container') };
+};
+
+describe('Tarefas: rolagem do quadro', () => {
+	const { column, list, cards } = renderColumns();
+
+	it('keeps each list no taller than the board, so the board itself does not scroll down', () => {
+		assert.equal(column.maxHeight, '100%');
+		assert.equal(list.maxHeight, '100%');
+	});
+
+	it('scrolls the cards inside their own list, under a header that stays in place', () => {
+		assert.equal(cards.overflowY, 'auto');
+		assert.equal(parseFloat(cards.minHeight), 0);
+	});
+
+	it('leaves the list header out of the scrolling area', () => {
+		assert.notEqual(listHeaderOn('stack').position, 'sticky');
+	});
+});
+
+describe('Tarefas: cabeçalho da lista', () => {
 	describe('lista sem cor', () => {
 		const header = listHeaderOn('stack');
 
-		it('stays pinned at the top while cards scroll', () => {
-			assert.equal(header.position, 'sticky');
-		});
-
-		it('pins flush with the board top, so no card shows above it', () => {
-			const window = renderBoard('stack');
-			const boardPaddingTop = parseFloat(window.getComputedStyle(window.document.querySelector('.board')).paddingTop);
-			const headerTop = parseFloat(window.getComputedStyle(window.document.querySelector('.stack__header')).top);
-			assert.ok(boardPaddingTop > 0, 'board has a top padding');
-			assert.equal(headerTop, -boardPaddingTop);
-		});
-
-		it('hides the cards scrolling under it with the list colour', () => {
+		it('paints the list colour behind the title', () => {
 			assert.ok(!SEE_THROUGH.includes(header.backgroundColor), `header background is "${header.backgroundColor}"`);
 			assert.match(header.backgroundColor, /--avuz-list-bg/);
 		});
@@ -47,7 +67,7 @@ describe('Tarefas: cabeçalho da lista ao rolar o quadro', () => {
 	describe('lista colorida', () => {
 		const header = listHeaderOn('stack stack--colored');
 
-		it('hides the cards scrolling under it with the tinted list colour', () => {
+		it('paints the tinted list colour behind the title', () => {
 			assert.ok(!SEE_THROUGH.includes(header.backgroundColor), `header background is "${header.backgroundColor}"`);
 			assert.match(header.backgroundColor, /--stack-color/);
 		});

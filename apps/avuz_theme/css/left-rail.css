@@ -312,6 +312,13 @@
 		fill: transparent;
 	}
 
+	/* Calendar's new-event editor dims the page with a mask inside #content-vue,
+	   a fixed box and so its own stacking layer: the rail (z-index 2000) would
+	   paint over the mask, its white tiles lit. While it is open the rail goes under. */
+	body:is(#body-user, #body-settings):has(.app-calendar .simple-editor-anchor > .modal-mask) #header {
+		z-index: 0 !important;
+	}
+
 	/* Apps without a Material glyph show their own image, black like the header's: invert on dark */
 	body:is(#body-user, #body-settings):is([data-theme-dark], [data-theme-dark-highcontrast]):not([data-theme-light]) img.avuz-rail__icon {
 		filter: var(--background-invert-if-dark);
