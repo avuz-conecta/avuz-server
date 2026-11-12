@@ -1,9 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const STYLESHEET = readFileSync(fileURLToPath(new URL('../../css/left-rail.css', import.meta.url)), 'utf8');
+const STYLESHEET_DIRECTORY = new URL('../../css/', import.meta.url);
+const STYLESHEET = readFileSync(fileURLToPath(new URL('left-rail.css', STYLESHEET_DIRECTORY)), 'utf8');
 const RAIL_MEDIA = '@media (min-width: 1024px)';
 
 /** Top-level blocks of a stylesheet: { prelude, body } for each rule or at-rule. */
@@ -103,6 +104,17 @@ describe('left rail stylesheet', () => {
 			assert.match(declarations, /height: 100% !important;/);
 			assert.match(declarations, /margin: 0 !important;/);
 		});
+	});
+
+	it('is the only stylesheet that lays out the header and the page beside it on wide screens', () => {
+		const otherStylesheets = readdirSync(STYLESHEET_DIRECTORY).filter((file) => file.endsWith('.css') && file !== 'left-rail.css');
+		const wideScreenRailSelectors = otherStylesheets.flatMap((file) => topLevelBlocks(readFileSync(new URL(file, STYLESHEET_DIRECTORY), 'utf8'))
+			.filter((block) => /^@media\b.*min-width/.test(block.prelude))
+			.flatMap((block) => selectorsIn(block.body))
+			.filter((selector) => /#header|\.header-end|#content/.test(selector))
+			.map((selector) => `${file}: ${selector}`));
+
+		assert.deepEqual(wideScreenRailSelectors, []);
 	});
 
 	it('keeps a hidden "Mais aplicativos" list hidden despite its flex layout', () => {
