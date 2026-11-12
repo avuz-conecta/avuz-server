@@ -654,7 +654,7 @@ body:has(.app-calendar) .action-item__popper * {
    rail there is no top bar: the mask covers the whole screen and the editor
    sits in its centre, like any dialog (left-rail.css puts the rail under it). */
 @media (min-width: 1024px) {
-	.app-calendar .simple-editor-anchor > .modal-mask {
+	.app-calendar .simple-editor-anchor .modal-mask {
 		top: 0 !important;
 		height: 100% !important;
 	}
