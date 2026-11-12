@@ -30,7 +30,7 @@ const BOARD_FIELDS = Object.values(FIELD);
  * dialog opened from the list's "+" button. `actions` overrides Deck store
  * actions by name; every dispatch is recorded in `dispatched`.
  */
-function openNewCard({ fields = BOARD_FIELDS, actions = {}, fetchCard } = {}) {
+function openNewCard({ fields = BOARD_FIELDS, actions = {}, fetchCard, richEditor = false } = {}) {
 	const dom = new JSDOM(`<!doctype html><html><body id="body-user">
 		<div class="app-deck"><div class="stack__header"><span class="stack-host"><button data-cy="action:add-card">+</button></span></div></div>
 	</body></html>`, { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://conecta.example/apps/deck/board/1' });
@@ -64,6 +64,31 @@ function openNewCard({ fields = BOARD_FIELDS, actions = {}, fetchCard } = {}) {
 		Notification: { showTemporary: (message, options) => toasts.push({ message, options }) },
 	};
 	window.fetch = fetchCard ?? (async () => ({ ok: true, json: async () => CREATED_CARD }));
+	let blobCount = 0;
+	window.URL.createObjectURL = () => `blob:https://conecta.example/local-${++blobCount}`;
+	window.URL.revokeObjectURL = () => {};
+	/* Nextcloud Text's editor, reduced to what the dialog uses: markdown out, HTML in at the cursor */
+	const editor = { markdown: '', onUpdate: null };
+	editor.setMarkdown = (markdown) => {
+		editor.markdown = markdown;
+		editor.onUpdate?.({ markdown });
+	};
+	if (richEditor) {
+		window.OCA = {
+			Text: {
+				createEditor: async ({ onUpdate }) => {
+					editor.onUpdate = onUpdate;
+					return {
+						insertAtCursor: (html) => {
+							const image = html.match(/<img src="([^"]+)" alt="([^"]*)"/);
+							editor.setMarkdown(`${editor.markdown}${image ? `![${image[2]}](${image[1]})` : html}`);
+						},
+						destroy() {},
+					};
+				},
+			},
+		};
+	}
 
 	window.eval(NEW_CARD_SCRIPT);
 	document.querySelector('[data-cy="action:add-card"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true, button: 0 }));
@@ -93,7 +118,14 @@ function openNewCard({ fields = BOARD_FIELDS, actions = {}, fetchCard } = {}) {
 	const weekday = (day) => form().querySelector(`.avuz-nc__weekday[data-day="${day}"]`);
 	const dialogOpen = () => document.querySelector('.avuz-nc-overlay') !== null;
 
-	return { window, document, form, control, option, weekday, typeIn, submit, actionsCalled, toasts, dialogOpen };
+	const pasteImage = (name = 'image.png') => {
+		const file = new window.File(['png-bytes'], name, { type: 'image/png' });
+		const event = new window.Event('paste', { bubbles: true, cancelable: true });
+		event.clipboardData = { files: [file], items: [{ kind: 'file', type: 'image/png', getAsFile: () => file }], getData: () => '' };
+		form().querySelector('.avuz-nc__editor').dispatchEvent(event);
+	};
+
+	return { window, document, form, control, option, weekday, typeIn, submit, actionsCalled, toasts, dialogOpen, editor, pasteImage, settle };
 }
 
 const fieldLabels = (page) => [...page.document.querySelectorAll('.avuz-nc__custom-label')].map((label) => label.textContent.replace(/\s+/g, ' ').trim());
@@ -148,6 +180,51 @@ describe('Novo cartão', () => {
 			assert.match(declarationsFor('.avuz-nc.avuz-nc--card'), /max-height: calc\(100vh - /);
 			assert.match(declarationsFor('.avuz-nc--card .avuz-nc__main'), /overflow-y: auto;/);
 			assert.match(declarationsFor('.avuz-nc--card .avuz-nc__side'), /overflow-y: auto;/);
+		});
+	});
+
+	describe('imagem colada na descrição', () => {
+		const UPLOADED = { id: 7, cardId: CREATED_CARD.id, type: 'file', data: 'print.png', extendedData: { fileid: 99, hasPreview: true, mimetype: 'image/png', info: { filename: 'print', extension: 'png' } } };
+		const serverFor = (requests) => async (url, options = {}) => {
+			requests.push({ url: String(url), method: options.method ?? 'GET' });
+			const body = String(url).endsWith('/attachment') ? UPLOADED : CREATED_CARD;
+			return { ok: true, json: async () => body };
+		};
+
+		it('shows the pasted image in the text, not in the attachments list', async () => {
+			const page = openNewCard({ fields: [], richEditor: true });
+			await page.settle();
+			page.pasteImage();
+			assert.match(page.editor.markdown, /!\[[^\]]*\]\(blob:/);
+			assert.equal(page.form().querySelectorAll('.avuz-nc__files li').length, 0);
+		});
+
+		it('uploads the image to the new card and points the description at it', async () => {
+			const requests = [];
+			const page = openNewCard({ fields: [], richEditor: true, fetchCard: serverFor(requests) });
+			await page.settle();
+			page.pasteImage();
+			await page.submit();
+
+			assert.ok(requests.some((request) => request.method === 'POST' && request.url.endsWith(`/apps/deck/cards/${CREATED_CARD.id}/attachment`)), 'uploads to the card');
+			assert.doesNotMatch(page.actionsCalled('addCard')[0].description, /blob:/);
+			const saved = page.actionsCalled('updateCardDesc');
+			assert.equal(saved.length, 1);
+			assert.match(saved[0].description, /!\[[^\]]*\]\(\/core\/preview\?fileId=99&x=600&y=600&a=true\)/);
+			assert.doesNotMatch(saved[0].description, /blob:/);
+		});
+
+		it('does not upload an image removed from the text before creating', async () => {
+			const requests = [];
+			const page = openNewCard({ fields: [], richEditor: true, fetchCard: serverFor(requests) });
+			await page.settle();
+			page.pasteImage();
+			page.editor.setMarkdown('Só o texto');
+			await page.submit();
+
+			assert.ok(!requests.some((request) => request.url.endsWith('/attachment')));
+			assert.equal(page.actionsCalled('updateCardDesc').length, 0);
+			assert.equal(page.actionsCalled('addCard')[0].description, 'Só o texto');
 		});
 	});
 

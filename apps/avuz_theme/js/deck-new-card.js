@@ -63,6 +63,43 @@
 
 	// Board custom fields ("Campos complementares"). Checkbox fields stay out,
 	// as in Deck's own CustomFieldsSection.
+	// A pasted screenshot arrives as "image.png": give it a dated name
+	function namedPaste(file, index) {
+		if (file.name && file.name !== "image.png") {
+			return file;
+		}
+		const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+		const extension = (file.type.split("/")[1] || "png").replace("jpeg", "jpg");
+		return new File([file], `print-${stamp}${index ? "-" + index : ""}.${extension}`, { type: file.type });
+	}
+
+	// Same preview link Deck inserts for an image attachment (Description.attachmentPreview)
+	function attachmentPreviewUrl(attachment) {
+		return attachment.extendedData?.fileid
+			? OC.generateUrl(`/core/preview?fileId=${attachment.extendedData.fileid}&x=600&y=600&a=true`)
+			: OC.generateUrl(`/apps/deck/cards/${attachment.cardId}/attachment/${attachment.id}`);
+	}
+
+	async function uploadAttachment(cardId, file) {
+		const body = new FormData();
+		body.append("cardId", cardId);
+		body.append("type", "file");
+		body.append("file", file);
+		const response = await fetch(OC.generateUrl(`/apps/deck/cards/${cardId}/attachment`), {
+			method: "POST",
+			headers: { requesttoken: OC.requestToken },
+			body,
+		});
+		const data = await response.json().catch(() => ({}));
+		if (!response.ok) {
+			throw new Error(data.message || response.statusText);
+		}
+		return data;
+	}
+
+	const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const withoutImage = (markdown, url) => markdown.replace(new RegExp(`!\\[[^\\]]*\\]\\(${escapeRegExp(url)}\\)`, "g"), "");
+
 	const HIDDEN_FIELD_TYPES = ["checkbox"];
 	const visibleCustomFields = (store) => (store.getters.currentBoardCustomFields || []).filter((field) => !HIDDEN_FIELD_TYPES.includes(field.type));
 	const customFieldName = (field) => `custom-${field.id}`;
@@ -278,6 +315,7 @@
 		const error = form.querySelector(".avuz-nc__error");
 		const close = () => {
 			richEditor?.destroy();
+			inlineImages.forEach(({ url }) => URL.revokeObjectURL(url));
 			overlay.remove();
 			document.removeEventListener("keydown", onKey, true);
 		};
@@ -363,6 +401,7 @@
 
 		// Attachments: picker, drag and drop, or pasting files into the dialog
 		const files = [];
+		const inlineImages = [];
 		const fileList = form.querySelector(".avuz-nc__files");
 		const drop = form.querySelector(".avuz-nc__drop");
 		const picker = drop.querySelector("input");
@@ -406,8 +445,7 @@
 			const pasted = [...(e.clipboardData?.files || [])];
 			if (pasted.length) {
 				e.preventDefault();
-				addFiles(pasted.map((f, i) => (f.name && f.name !== "image.png") ? f
-					: new File([f], `print-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}${i ? "-" + i : ""}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`, { type: f.type })));
+				addFiles(pasted.map(namedPaste));
 			}
 		});
 
@@ -441,13 +479,22 @@
 				editorHost.append(mount);
 				editorHost.classList.add("avuz-nc__editor--rich");
 			}).catch((err) => console.error("[avuz] description editor unavailable", err));
-			// Pasted files go to the attachments list, not into the text
+			// A pasted image shows in the text at once (a local copy); "Criar
+			// cartão" uploads it to the new card and points the text at it, as
+			// pasting into a card's description does. Other files are attachments.
 			editorHost.addEventListener("paste", (e) => {
-				const pasted = [...(e.clipboardData?.files || [])];
-				if (pasted.length) {
-					e.preventDefault();
-					e.stopPropagation();
-					addFiles(pasted);
+				const pasted = [...(e.clipboardData?.files || [])].map(namedPaste);
+				if (!pasted.length) {
+					return;
+				}
+				e.preventDefault();
+				e.stopPropagation();
+				const images = richEditor ? pasted.filter((file) => file.type.startsWith("image/")) : [];
+				addFiles(pasted.filter((file) => !images.includes(file)));
+				for (const file of images) {
+					const url = URL.createObjectURL(file);
+					inlineImages.push({ url, file });
+					richEditor.insertAtCursor(`<img src="${url}" alt="${esc(file.name)}">`);
 				}
 			}, true);
 		}
@@ -525,7 +572,7 @@
 				stackId,
 				boardId: board.id,
 				type: "plain",
-				description: descriptionValue(),
+				description: inlineImages.reduce((markdown, { url }) => withoutImage(markdown, url), descriptionValue()),
 				duedate: toIso(due),
 				startdate: toIso(start),
 				labels: [...form.querySelectorAll('.avuz-nc__label[aria-pressed="true"]')].map((c) => Number(c.dataset.id)),
@@ -534,6 +581,30 @@
 			try {
 				const card = await store.dispatch("addCard", payload);
 				const failed = [];
+
+				const pastedImages = inlineImages.filter(({ url }) => descriptionValue().includes(url));
+				if (pastedImages.length) {
+					create.textContent = "Enviando imagens…";
+					let description = descriptionValue();
+					for (const { url, file } of pastedImages) {
+						try {
+							const attachment = await uploadAttachment(card.id, file);
+							store.commit("createAttachment", { cardId: card.id, attachment });
+							store.commit("cardIncreaseAttachmentCount", card.id);
+							description = description.split(url).join(attachmentPreviewUrl(attachment));
+						} catch (err) {
+							console.error("[avuz] pasted image upload failed", file.name, err);
+							failed.push(file.name);
+							description = withoutImage(description, url);
+						}
+					}
+					try {
+						await store.dispatch("updateCardDesc", { ...card, description });
+					} catch (err) {
+						console.error("[avuz] save description failed", err);
+						failed.push("descrição");
+					}
+				}
 
 				const subtasks = subtaskTitles();
 				if (subtasks.length) {
