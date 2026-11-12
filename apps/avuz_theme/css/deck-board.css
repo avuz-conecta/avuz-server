@@ -19,8 +19,8 @@
 .app-deck .board-wrapper *,
 .app-deck .overview-wrapper,
 .app-deck .overview-wrapper *,
-.app-deck #app-content-vue.avuz-content--board-list,
-.app-deck #app-content-vue.avuz-content--board-list *,
+.app-deck #app-content-vue[data-avuz-content="board-list"],
+.app-deck #app-content-vue[data-avuz-content="board-list"] *,
 .app-deck .controls,
 .app-deck .controls * {
 	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
@@ -438,7 +438,7 @@ button.avuz-stack-add:hover {
 /* Board filter popover: sections with small captions, labels / status / due */
 /* dates as toggle chips, people as rows with a round check                  */
 /* ------------------------------------------------------------------------- */
-.v-popper__inner .filter.avuz-filter--items {
+.v-popper__inner .filter[data-avuz-filter="items"] {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -450,8 +450,8 @@ button.avuz-stack-add:hover {
 	overflow-y: auto;
 }
 
-.v-popper__inner .filter.avuz-filter--items,
-.v-popper__inner .filter.avuz-filter--items * {
+.v-popper__inner .filter[data-avuz-filter="items"],
+.v-popper__inner .filter[data-avuz-filter="items"] * {
 	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
@@ -812,7 +812,7 @@ button.avuz-stack-add:hover {
 /* ------------------------------------------------------------------------- */
 /* "Todos os painéis": filter bar with chips + boards as a clean card table   */
 /* ------------------------------------------------------------------------- */
-.app-deck #app-content-vue.avuz-content--board-list {
+.app-deck #app-content-vue[data-avuz-content="board-list"] {
 	background: var(--avuz-board-bg) !important;
 }
 

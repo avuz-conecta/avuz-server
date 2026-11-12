@@ -25,14 +25,24 @@ describe('marcadores de app e de painel (js/app-scope.js)', () => {
 		const page = pageAt('/apps/deck/board/12', '<div class="modal-container"><aside id="app-sidebar-vue"></aside></div>');
 		page.document.getElementById('app-sidebar-vue').innerHTML = '<button id="tab-button-details"></button>';
 		await page.settle();
-		assert.ok(page.document.getElementById('app-sidebar-vue').classList.contains('avuz-sidebar--card'));
+		assert.equal(page.document.getElementById('app-sidebar-vue').dataset.avuzSidebar, 'card');
+	});
+
+	it('keeps the card panel marked when Vue rewrites its classes on a later render', async () => {
+		const page = pageAt('/apps/deck/board/12', '<div class="modal-container"><aside id="app-sidebar-vue" class="app-sidebar"></aside></div>');
+		const sidebar = page.document.getElementById('app-sidebar-vue');
+		sidebar.innerHTML = '<button id="tab-button-details"></button>';
+		await page.settle();
+		sidebar.className = 'app-sidebar app-sidebar--has-preview';
+		await page.settle();
+		assert.equal(sidebar.dataset.avuzSidebar, 'card');
 	});
 
 	it('marks the board panel and the page while it is open, and unmarks the page when it closes', async () => {
 		const page = pageAt('/apps/deck/board/12', '<div id="content-vue" class="app-deck"></div>');
 		page.document.getElementById('content-vue').innerHTML = '<aside id="app-sidebar-vue"><section id="tab-sharing"></section></aside>';
 		await page.settle();
-		assert.ok(page.document.getElementById('app-sidebar-vue').classList.contains('avuz-sidebar--board'));
+		assert.equal(page.document.getElementById('app-sidebar-vue').dataset.avuzSidebar, 'board');
 		assert.ok(page.document.documentElement.classList.contains('avuz-board-sidebar-open'));
 
 		page.document.getElementById('app-sidebar-vue').remove();
@@ -56,8 +66,8 @@ describe('marcadores de app e de painel (js/app-scope.js)', () => {
 		page.document.getElementById('app-content-vue').innerHTML = '<div class="board-list"></div>';
 		page.document.querySelector('.filter').innerHTML = '<div class="filter--item"></div>';
 		await page.settle();
-		assert.ok(page.document.getElementById('app-content-vue').classList.contains('avuz-content--board-list'));
-		assert.ok(page.document.querySelector('.filter').classList.contains('avuz-filter--items'));
+		assert.equal(page.document.getElementById('app-content-vue').dataset.avuzContent, 'board-list');
+		assert.equal(page.document.querySelector('.filter').dataset.avuzFilter, 'items');
 	});
 });
 

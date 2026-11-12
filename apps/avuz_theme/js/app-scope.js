@@ -7,11 +7,13 @@
  * scopes as plain selectors cost nothing:
  *
  * - html[data-avuz-app="deck"]: the open app, from the address
- * - #app-sidebar-vue.avuz-sidebar--card / --board: a Tarefas card or board panel
+ * - #app-sidebar-vue[data-avuz-sidebar="card" | "board"]: a Tarefas card or board panel
  * - html.avuz-board-sidebar-open: the board panel is open
  * - html.avuz-calendar-editor-open: Calendar's new-event editor (and its backdrop) is open
- * - #app-content-vue.avuz-content--board-list: "Todos os painéis"
- * - .filter.avuz-filter--items: the board filter popover
+ * - #app-content-vue[data-avuz-content="board-list"]: "Todos os painéis"
+ * - .filter[data-avuz-filter="items"]: the board filter popover
+ *
+ * Attributes, not classes: Vue rewrites the class of the elements it renders.
  */
 (function () {
 	"use strict";
@@ -22,29 +24,34 @@
 		document.documentElement.dataset.avuzApp = app;
 	}
 
-	// container, the class it gets, and what inside it earns the class
+	// container, the data attribute it gets (value by what is inside it)
 	const MARKERS = [
-		{ container: "#app-sidebar-vue", marker: "avuz-sidebar--card", inside: "#tab-button-details" },
-		{ container: "#app-sidebar-vue", marker: "avuz-sidebar--board", inside: "#tab-sharing" },
-		{ container: "#app-content-vue", marker: "avuz-content--board-list", inside: ".board-list" },
-		{ container: ".v-popper__inner .filter", marker: "avuz-filter--items", inside: ":scope > .filter--item" },
+		{ container: "#app-sidebar-vue", attribute: "avuzSidebar", values: [["card", "#tab-button-details"], ["board", "#tab-sharing"]] },
+		{ container: "#app-content-vue", attribute: "avuzContent", values: [["board-list", ".board-list"]] },
+		{ container: ".v-popper__inner .filter", attribute: "avuzFilter", values: [["items", ":scope > .filter--item"]] },
 	];
-	const WATCHED = [...new Set(MARKERS.map(({ inside }) => inside.replace(":scope > ", "")).concat(".modal-mask"))].join(", ");
+	const WATCHED = [...new Set(MARKERS.flatMap(({ values }) => values.map(([, inside]) => inside.replace(":scope > ", ""))).concat(".modal-mask"))].join(", ");
+	const MARKED = MARKERS.map(({ attribute }) => `[data-${attribute.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}]`).join(", ");
 
 	function refresh() {
-		for (const { container, marker, inside } of MARKERS) {
+		for (const { container, attribute, values } of MARKERS) {
 			document.querySelectorAll(container).forEach((element) => {
-				element.classList.toggle(marker, element.querySelector(inside) !== null);
+				const value = values.find(([, inside]) => element.querySelector(inside) !== null)?.[0];
+				if (value === undefined) {
+					delete element.dataset[attribute];
+					return;
+				}
+				element.dataset[attribute] = value;
 			});
 		}
-		document.documentElement.classList.toggle("avuz-board-sidebar-open", document.querySelector(".app-deck #app-sidebar-vue.avuz-sidebar--board") !== null);
+		document.documentElement.classList.toggle("avuz-board-sidebar-open", document.querySelector('.app-deck #app-sidebar-vue[data-avuz-sidebar="board"]') !== null);
 		document.documentElement.classList.toggle("avuz-calendar-editor-open", document.querySelector(".app-calendar .simple-editor-anchor .modal-mask") !== null);
 	}
 
 	// Only additions or removals that carry a watched element change a marker;
 	// everything else (cards, editor typing) is skipped without touching the page
 	const touchesWatched = (nodes) => Array.prototype.some.call(nodes, (node) => node.nodeType === 1
-		&& (node.matches(WATCHED) || node.querySelector(WATCHED) !== null || node.matches(MARKERS.map(({ marker }) => `.${marker}`).join(", "))));
+		&& (node.matches(WATCHED) || node.querySelector(WATCHED) !== null || node.matches(MARKED)));
 
 	new MutationObserver((records) => {
 		if (records.some((record) => touchesWatched(record.addedNodes) || touchesWatched(record.removedNodes))) {
