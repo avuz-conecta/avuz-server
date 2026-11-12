@@ -117,6 +117,30 @@ describe('left rail stylesheet', () => {
 		assert.deepEqual(wideScreenRailSelectors, []);
 	});
 
+	describe('pesquisa no aplicativo atual (Tarefas)', () => {
+		const railRules = () => topLevelBlocks(STYLESHEET).find((block) => block.prelude === RAIL_MEDIA).body;
+		const declarationsFor = (selectorPart) => topLevelBlocks(railRules())
+			.filter((block) => block.prelude.includes(selectorPart))
+			.map((block) => block.body.replace(/\s+/g, ' '))
+			.join(' ');
+
+		it('opens as a floating panel beside the rail, where the notifications panel opens', () => {
+			const panel = declarationsFor('.local-unified-search--open');
+			assert.match(panel, /position: fixed !important;/);
+			assert.match(panel, /left: calc\(var\(--avuz-rail-width\) \+ var\(--avuz-rail-gap\)\) !important;/);
+			assert.match(panel, /bottom: var\(--body-container-margin\) !important;/);
+			assert.match(panel, /box-shadow:/);
+		});
+
+		it('keeps the search icon in its place on the rail while the panel is open', () => {
+			assert.match(declarationsFor(':has(.local-unified-search--open) > .header-menu'), /display: flex !important;/);
+		});
+
+		it('puts "Pesquisar em qualquer lugar" on its own row instead of over the field', () => {
+			assert.match(declarationsFor('.local-unified-search__global-search'), /position: static !important;/);
+		});
+	});
+
 	it('keeps a hidden "Mais aplicativos" list hidden despite its flex layout', () => {
 		const railRules = topLevelBlocks(STYLESHEET).find((block) => block.prelude === RAIL_MEDIA).body;
 
