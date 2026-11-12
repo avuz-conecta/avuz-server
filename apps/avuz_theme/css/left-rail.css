@@ -356,8 +356,9 @@
 
 	/* Calendar's new-event editor dims the page with a mask inside #content-vue,
 	   a fixed box and so its own stacking layer: the rail (z-index 2000) would
-	   paint over the mask, its white tiles lit. While it is open the rail goes under. */
-	body:is(#body-user, #body-settings):has(.app-calendar .simple-editor-anchor .modal-mask) #header {
+	   paint over the mask, its white tiles lit. While it is open (marker from
+	   js/app-scope.js) the rail goes under. */
+	html.avuz-calendar-editor-open body:is(#body-user, #body-settings) #header {
 		z-index: 0 !important;
 	}
 

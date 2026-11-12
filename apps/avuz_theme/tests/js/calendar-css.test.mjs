@@ -9,8 +9,9 @@ const CALENDAR = readStylesheet('calendar.css');
 const RAIL = readStylesheet('left-rail.css');
 const RAIL_MEDIA = '@media (min-width: 1024px)';
 
-/* Calendar 6.2 with its new-event editor open, as rendered on staging (core 33.0.8) */
-const { window } = new JSDOM(`<body id="body-user">
+/* Calendar 6.2 with its new-event editor open, as rendered on staging (core 33.0.8);
+   js/app-scope.js marks the page while the editor is open */
+const { window } = new JSDOM(`<html class="avuz-calendar-editor-open"><body id="body-user">
 	<header id="header"><div class="header-start"></div><div class="header-end"></div></header>
 	<div id="content-vue" class="content app-calendar">
 		<div class="simple-editor-anchor"><div>

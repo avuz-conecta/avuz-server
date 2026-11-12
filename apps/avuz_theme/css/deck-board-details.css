@@ -13,11 +13,11 @@
 
 /* Lift Deck's content (a fixed stacking context) above the header, so the
    dimmed backdrop also covers the app menu sidebar while the modal is open. */
-body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
+html.avuz-board-sidebar-open body #content-vue {
 	z-index: 2050;
 }
 
-.app-deck #app-sidebar-vue:has(#tab-sharing) {
+.app-deck #app-sidebar-vue.avuz-sidebar--board {
 	position: fixed !important;
 	inset: 0 !important;
 	margin: auto !important;
@@ -38,16 +38,16 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 }
 
 /* No drag handle: the window has a fixed size */
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar__resize-handle,
-.app-deck #app-sidebar-vue:has(#tab-sharing) [class*="resize-handle"] {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar__resize-handle,
+.app-deck #app-sidebar-vue.avuz-sidebar--board [class*="resize-handle"] {
 	display: none !important;
 }
 
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-header {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-header {
 	padding-inline: 12px;
 }
 
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__content {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__content {
 	padding: 8px 32px 32px;
 }
 
@@ -56,14 +56,14 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 /* outline icon, muted when idle, primary with a 2px underline when active.
 /* Nextcloud's filled Material icons are hidden and repainted through a mask.
 /* ------------------------------------------------------------------------- */
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__nav {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__nav {
 	justify-content: flex-start;
 	gap: 4px;
 	padding-inline: 32px;
 	border-bottom: 1px solid #ebedf1;
 }
 
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab {
 	flex: 0 0 auto !important;
 	min-width: 0 !important;
 	height: auto !important;
@@ -75,15 +75,15 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	color: #99a0ad !important;
 }
 
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab:hover {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab:hover {
 	color: #2b3141 !important;
 }
 
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab[aria-selected="true"] {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab[aria-selected="true"] {
 	color: #15171b !important;
 }
 
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab .checkbox-content {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab .checkbox-content {
 	flex-direction: row !important;
 	align-items: center;
 	gap: 8px;
@@ -95,12 +95,12 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	color: inherit !important;
 }
 
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab[aria-selected="true"] .checkbox-content {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab[aria-selected="true"] .checkbox-content {
 	border-bottom-color: #15171b;
 }
 
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab .checkbox-content__text,
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab-caption {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab .checkbox-content__text,
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab-caption {
 	font-size: 14px !important;
 	font-weight: 500 !important;
 	color: inherit !important;
@@ -109,55 +109,55 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 }
 
 /* Nextcloud's own active-tab underline is replaced by the one above */
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab::after,
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab::before {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab::after,
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab::before {
 	display: none !important;
 }
 
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab .checkbox-content__icon,
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab .material-design-icon {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab .checkbox-content__icon,
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab .material-design-icon {
 	width: 20px !important;
 	height: 20px !important;
 	margin: 0 !important;
 }
 
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab .material-design-icon {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab .material-design-icon {
 	background-color: currentColor;
 	-webkit-mask: var(--avuz-tab-icon) center / 20px no-repeat;
 	mask: var(--avuz-tab-icon) center / 20px no-repeat;
 }
 
-.app-deck #app-sidebar-vue:has(#tab-sharing) .app-sidebar-tabs__tab .material-design-icon svg {
+.app-deck #app-sidebar-vue.avuz-sidebar--board .app-sidebar-tabs__tab .material-design-icon svg {
 	visibility: hidden;
 }
 
 /* Compartilhando */
-.app-deck #app-sidebar-vue:has(#tab-sharing) #tab-button-sharing {
+.app-deck #app-sidebar-vue.avuz-sidebar--board #tab-button-sharing {
 	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2218%22 cy=%225.5%22 r=%222.5%22/%3E%3Ccircle cx=%226%22 cy=%2212%22 r=%222.5%22/%3E%3Ccircle cx=%2218%22 cy=%2218.5%22 r=%222.5%22/%3E%3Cpath d=%22M8.2 10.8l7.6-4.1M8.2 13.2l7.6 4.1%22/%3E%3C/svg%3E");
 }
 
 /* Etiquetas — Helpdesk TagIcon */
-.app-deck #app-sidebar-vue:has(#tab-sharing) #tab-button-tags {
+.app-deck #app-sidebar-vue.avuz-sidebar--board #tab-button-tags {
 	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12.6 2.5H4.5a2 2 0 00-2 2v8.1a2 2 0 00.6 1.42l9 9a2 2 0 002.83 0l7.17-7.17a2 2 0 000-2.83l-9-9a2 2 0 00-1.4-.52z%22/%3E%3Ccircle cx=%227.7%22 cy=%227.7%22 r=%221.4%22/%3E%3C/svg%3E");
 }
 
 /* Campos */
-.app-deck #app-sidebar-vue:has(#tab-sharing) #tab-button-custom-fields {
+.app-deck #app-sidebar-vue.avuz-sidebar--board #tab-button-custom-fields {
 	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M9 6h11M9 12h11M9 18h11%22/%3E%3Cpath d=%22M4.5 6h.01M4.5 12h.01M4.5 18h.01%22/%3E%3C/svg%3E");
 }
 
 /* Modelos — Helpdesk FileIcon */
-.app-deck #app-sidebar-vue:has(#tab-sharing) #tab-button-templates {
+.app-deck #app-sidebar-vue.avuz-sidebar--board #tab-button-templates {
 	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M14 2.5H7a1.5 1.5 0 00-1.5 1.5v16A1.5 1.5 0 007 21.5h10a1.5 1.5 0 001.5-1.5V8z%22/%3E%3Cpath d=%22M14 2.5V8h4.5%22/%3E%3C/svg%3E");
 }
 
 /* Itens excluídos */
-.app-deck #app-sidebar-vue:has(#tab-sharing) #tab-button-deleted {
+.app-deck #app-sidebar-vue.avuz-sidebar--board #tab-button-deleted {
 	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 7h16M10 11v6M14 11v6%22/%3E%3Cpath d=%22M5.5 7l1 12.5A1.5 1.5 0 008 21h8a1.5 1.5 0 001.5-1.5L18.5 7%22/%3E%3Cpath d=%22M9 7V4.5A1.5 1.5 0 0110.5 3h3A1.5 1.5 0 0115 4.5V7%22/%3E%3C/svg%3E");
 }
 
 /* Atividade — same glyph as the Atividade app */
-.app-deck #app-sidebar-vue:has(#tab-sharing) #tab-button-activity {
+.app-deck #app-sidebar-vue.avuz-sidebar--board #tab-button-activity {
 	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 12h4l2.5-6 5 12 2.5-6h4%22/%3E%3C/svg%3E");
 }
 
@@ -176,7 +176,7 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 /* Card modal tabs: minimal segmented control with thin-stroke icons          */
 /* (Detalhes · Subtarefas · Tempo · Anexos · Comentários · Atividade)         */
 /* ========================================================================= */
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__nav {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__nav {
 	display: flex !important;
 	justify-content: stretch !important;
 	gap: 2px;
@@ -187,7 +187,7 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	background: var(--color-background-hover, #f4f5f7);
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab {
 	flex: 1 1 0 !important;
 	min-width: 0 !important;
 	height: auto !important;
@@ -200,17 +200,17 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab:hover {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab:hover {
 	color: var(--color-main-text, #15171b) !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab[aria-selected="true"] {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab[aria-selected="true"] {
 	background: var(--color-main-background, #fff) !important;
 	color: var(--color-main-text, #15171b) !important;
 	box-shadow: 0 1px 2px rgba(16, 20, 28, 0.08), 0 0 0 1px rgba(16, 20, 28, 0.04) !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab .checkbox-content {
 	flex-direction: row !important;
 	align-items: center;
 	justify-content: center;
@@ -224,8 +224,8 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 }
 
 /* Icon and label sit together in the middle of the segment */
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__wrapper,
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__text {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab .checkbox-content__wrapper,
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab .checkbox-content__text {
 	flex: 0 1 auto !important;
 	width: auto !important;
 	min-width: 0;
@@ -234,15 +234,15 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 }
 
 /* Nextcloud's own underline / checked background are replaced by the pill */
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab::after,
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab::before,
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content::after,
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content::before {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab::after,
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab::before,
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab .checkbox-content::after,
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab .checkbox-content::before {
 	display: none !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__text,
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab-caption {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab .checkbox-content__text,
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab-caption {
 	overflow: hidden !important;
 	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
 	font-size: 13px !important;
@@ -254,7 +254,7 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 }
 
 /* Icon: the stock (filled) glyph is hidden and a thin outline one painted */
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__icon {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab .checkbox-content__icon {
 	position: relative;
 	flex: none;
 	width: 17px !important;
@@ -262,11 +262,11 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	margin: 0 !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__icon > * {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab .checkbox-content__icon > * {
 	visibility: hidden;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__icon::after {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab .checkbox-content__icon::after {
 	content: "";
 	position: absolute;
 	inset: 0;
@@ -275,44 +275,44 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	mask: var(--avuz-tab-icon) center / 17px no-repeat;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab[aria-selected="true"] .checkbox-content__icon::after {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab[aria-selected="true"] .checkbox-content__icon::after {
 	background-color: var(--color-primary-element, #15171b);
 }
 
 /* Detalhes — document */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-button-details {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-button-details {
 	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%224.5%22 y=%223%22 width=%2215%22 height=%2218%22 rx=%222.5%22/%3E%3Cpath d=%22M8.5 8h7M8.5 12h7M8.5 16h4%22/%3E%3C/svg%3E");
 }
 
 /* Subtarefas — checklist */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-button-subtasks {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-button-subtasks {
 	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m3.5 6.5 1.8 1.8 3-3M3.5 14l1.8 1.8 3-3M12 7h8.5M12 14.5h8.5M12 20h5%22/%3E%3C/svg%3E");
 }
 
 /* Tempo — stopwatch */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-button-time {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-button-time {
 	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2213.5%22 r=%227.5%22/%3E%3Cpath d=%22M12 10v3.5l2.3 1.6M9.5 2.5h5M12 2.5V6M18.5 6.5l1.2-1.2%22/%3E%3C/svg%3E");
 }
 
 /* Anexos — paperclip */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-button-attachments {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-button-attachments {
 	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m20.5 11.6-8.3 8.3a5.2 5.2 0 0 1-7.4-7.4l8.6-8.6a3.5 3.5 0 0 1 5 5l-8.4 8.4a1.7 1.7 0 0 1-2.5-2.5l7.7-7.7%22/%3E%3C/svg%3E");
 }
 
 /* Comentários — chat bubble */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-button-comments {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-button-comments {
 	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M20.5 14.5a2 2 0 0 1-2 2H8.5l-5 4V5.5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z%22/%3E%3Cpath d=%22M8 8.5h8M8 12h5%22/%3E%3C/svg%3E");
 }
 
 /* Atividade — pulse */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-button-timeline {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-button-timeline {
 	--avuz-tab-icon: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 12h4l2.5-6.5 5 13 2.5-6.5h4%22/%3E%3C/svg%3E");
 }
 
 /* Narrow cards: icons only */
 @media (max-width: 760px) {
-	.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab .checkbox-content__text,
-	.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-tabs__tab-caption {
+	.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab .checkbox-content__text,
+	.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-tabs__tab-caption {
 		display: none !important;
 	}
 }
@@ -321,13 +321,13 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 /* Card modal: compact header and a two-column "properties" grid             */
 /* (Etiquetas | Responsáveis, Início | Vencimento), small pill actions       */
 /* ------------------------------------------------------------------------- */
-.modal-container #app-sidebar-vue:has(#tab-button-details),
-.modal-container #app-sidebar-vue:has(#tab-button-details) *:not(.material-design-icon, .material-design-icon *, .ProseMirror pre, .ProseMirror code) {
+.modal-container #app-sidebar-vue.avuz-sidebar--card,
+.modal-container #app-sidebar-vue.avuz-sidebar--card *:not(.material-design-icon, .material-design-icon *, .ProseMirror pre, .ProseMirror code) {
 	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
 /* Header: title + meta line */
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-header__mainname {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-header__mainname {
 	font-size: 20px !important;
 	font-weight: 650 !important;
 	line-height: 1.3 !important;
@@ -335,7 +335,7 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	color: #15171b;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-header__mainname-input {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-header__mainname-input {
 	height: 42px !important;
 	min-height: 42px !important;
 	padding: 0 12px !important;
@@ -346,7 +346,7 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	box-shadow: 0 0 0 3px rgba(16, 20, 28, 0.06) !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-header__subname {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-header__subname {
 	margin-top: 2px !important;
 	font-size: 12.5px !important;
 	color: var(--color-text-maxcontrast, #868d97) !important;
@@ -354,7 +354,7 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 
 /* Properties: row 1 Etiquetas | Responsáveis (half each); row 2 the two
    dates as compact boxes followed by Recorrência / Marcar como concluído */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details > div {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -362,31 +362,31 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	padding-top: 6px;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > .selector-wrapper {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details > div > .selector-wrapper {
 	flex: 1 1 calc(50% - 6px);
 	min-width: 260px;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > .card-date-selectors {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details > div > .card-date-selectors {
 	display: contents !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > .card-date-selectors > .selector-wrapper {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details > div > .card-date-selectors > .selector-wrapper {
 	flex: 0 1 236px;
 	min-width: 200px;
 	min-height: 38px !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > .card-done-row {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details > div > .card-done-row {
 	flex: 1 1 auto;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > :not(.selector-wrapper, .card-date-selectors, .card-done-row) {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details > div > :not(.selector-wrapper, .card-date-selectors, .card-done-row) {
 	flex: 1 1 100%;
 }
 
 /* Each property is a compact field box: icon + control */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper {
 	display: flex !important;
 	align-items: center;
 	gap: 4px;
@@ -400,16 +400,16 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	transition: border-color 0.12s, box-shadow 0.12s;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper:hover {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper:hover {
 	border-color: var(--color-border-dark, #c4c9d1);
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper:focus-within {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper:focus-within {
 	border-color: rgba(16, 20, 28, 0.4);
 	box-shadow: 0 0 0 3px rgba(16, 20, 28, 0.06);
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--icon {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper--icon {
 	display: flex;
 	flex: none;
 	align-items: center;
@@ -422,20 +422,20 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	color: var(--color-text-maxcontrast, #868d97);
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--icon svg {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper--icon svg {
 	width: 18px !important;
 	height: 18px !important;
 }
 
 /* Selects without their own frame (the box above is the frame) */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--selector {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper--selector {
 	flex: 1 1 auto;
 	min-width: 0 !important;
 	width: auto !important;
 	margin: 0 !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__dropdown-toggle {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper .vs__dropdown-toggle {
 	min-height: 38px !important;
 	padding: 2px 0 !important;
 	border: 0 !important;
@@ -444,18 +444,18 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	box-shadow: none !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__search,
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__search::placeholder {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper .vs__search,
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper .vs__search::placeholder {
 	font-size: 13.5px !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__search::placeholder,
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__open-indicator {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper .vs__search::placeholder,
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper .vs__open-indicator {
 	color: var(--color-text-maxcontrast, #868d97) !important;
 }
 
 /* Selected labels as small pills */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__selected {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper .vs__selected {
 	min-height: 24px !important;
 	margin: 2px 4px 2px 0 !important;
 	border-radius: 99px !important;
@@ -464,7 +464,7 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 }
 
 /* Dates: same box, placeholder + small "+" */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--content {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper--content {
 	display: flex;
 	flex: 1 1 auto;
 	align-items: center;
@@ -474,7 +474,7 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	margin: 0 !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--placeholder {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper--placeholder {
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -482,7 +482,7 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	color: var(--color-text-maxcontrast, #868d97) !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--content .button-vue--tertiary {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper--content .button-vue--tertiary {
 	width: 32px !important;
 	height: 32px !important;
 	min-width: 32px !important;
@@ -491,19 +491,19 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	color: var(--color-text-maxcontrast, #868d97) !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--content .button-vue--tertiary:hover {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper--content .button-vue--tertiary:hover {
 	background: rgba(16, 20, 28, 0.06) !important;
 	color: #15171b !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--content .material-design-icon svg {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper--content .material-design-icon svg {
 	width: 18px !important;
 	height: 18px !important;
 }
 
 /* Date pickers/values keep a compact height */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--content input,
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper--content .mx-input {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper--content input,
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper--content .mx-input {
 	min-width: 0;
 	height: 32px !important;
 	min-height: 32px !important;
@@ -514,7 +514,7 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 }
 
 /* Recorrência / Marcar como concluído: small pills */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-done-row {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .card-done-row {
 	display: flex !important;
 	flex-wrap: wrap;
 	align-items: center;
@@ -523,7 +523,7 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	padding: 0 !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-done-row .button-vue {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .card-done-row .button-vue {
 	height: 34px !important;
 	min-height: 34px !important;
 	margin: 0 !important;
@@ -534,32 +534,32 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	color: #15171b !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-done-row .button-vue:hover {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .card-done-row .button-vue:hover {
 	border-color: var(--color-border-dark, #c4c9d1) !important;
 	background: var(--color-background-hover, #f6f7f9) !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-done-row .button-vue .button-vue__text {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .card-done-row .button-vue .button-vue__text {
 	font-size: 13px !important;
 	font-weight: 500 !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-done-row .button-vue__icon {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .card-done-row .button-vue__icon {
 	width: 24px !important;
 	min-width: 24px !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-done-row .button-vue__icon svg {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .card-done-row .button-vue__icon svg {
 	width: 17px !important;
 	height: 17px !important;
 }
 
 /* Description caption like the other section captions */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details [data-test="description"] {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details [data-test="description"] {
 	margin-top: 10px;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details [data-test="description"] > h5 {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details [data-test="description"] > h5 {
 	margin: 0 0 8px !important;
 	padding: 0 2px !important;
 	border: 0 !important;
@@ -571,15 +571,15 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 }
 
 @media (max-width: 760px) {
-	.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > .selector-wrapper,
-	.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details > div > .card-date-selectors > .selector-wrapper {
+	.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details > div > .selector-wrapper,
+	.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details > div > .card-date-selectors > .selector-wrapper {
 		flex: 1 1 100%;
 	}
 }
 
 /* The title gets focused programmatically: no browser focus ring, a soft
    hover instead to hint it is editable */
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-header__mainname {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-header__mainname {
 	margin-inline-start: -6px !important;
 	padding: 2px 6px !important;
 	border-radius: 8px;
@@ -587,23 +587,23 @@ body:has(.app-deck #app-sidebar-vue #tab-sharing) #content-vue {
 	cursor: text;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) .app-sidebar-header__mainname:hover {
+.modal-container #app-sidebar-vue.avuz-sidebar--card .app-sidebar-header__mainname:hover {
 	background: var(--color-background-hover, #f4f5f7);
 }
 
 /* Open label/people dropdown: the field box stays as it is and the list opens
    as a floating panel aligned to the whole box (vue-select positions it
    against the select itself, which sits after the icon) */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper {
 	position: relative;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .v-select {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper .v-select {
 	position: static !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs--open .vs__dropdown-toggle,
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .selector-wrapper .vs__dropdown-toggle {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper .vs--open .vs__dropdown-toggle,
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .selector-wrapper .vs__dropdown-toggle {
 	border: 0 !important;
 	border-radius: 8px !important;
 	background: transparent !important;
@@ -673,19 +673,19 @@ body > .vs__dropdown-menu.avuz-card-dd .vs__dropdown-option [style*="background"
 }
 
 /* Date with a value: picker + "⋯" stay on one line inside the compact box */
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-date-selectors .selector-wrapper--content {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .card-date-selectors .selector-wrapper--content {
 	display: flex !important;
 	flex-wrap: nowrap !important;
 	align-items: center !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-date-selectors .native-datetime-picker {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .card-date-selectors .native-datetime-picker {
 	flex: 1 1 auto;
 	min-width: 0;
 	margin: 0 !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-date-selectors .native-datetime-picker--input {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .card-date-selectors .native-datetime-picker--input {
 	width: 100% !important;
 	min-width: 0 !important;
 	margin: 0 !important;
@@ -693,6 +693,6 @@ body > .vs__dropdown-menu.avuz-card-dd .vs__dropdown-option [style*="background"
 	color: var(--color-main-text, #15171b) !important;
 }
 
-.modal-container #app-sidebar-vue:has(#tab-button-details) #tab-details .card-date-selectors .selector-wrapper--content > .action-item {
+.modal-container #app-sidebar-vue.avuz-sidebar--card #tab-details .card-date-selectors .selector-wrapper--content > .action-item {
 	flex: none;
 }

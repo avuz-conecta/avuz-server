@@ -18,8 +18,8 @@
 
 .app-calendar,
 .app-calendar *:not(.material-design-icon, .material-design-icon *),
-body:has(.app-calendar) .action-item__popper,
-body:has(.app-calendar) .action-item__popper * {
+html[data-avuz-app="calendar"] body .action-item__popper,
+html[data-avuz-app="calendar"] body .action-item__popper * {
 	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
