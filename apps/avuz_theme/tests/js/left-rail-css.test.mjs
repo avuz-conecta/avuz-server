@@ -136,6 +136,14 @@ describe('left rail stylesheet', () => {
 			assert.match(declarationsFor(':has(.local-unified-search--open) > .header-menu'), /display: flex !important;/);
 		});
 
+		it('grows to fit both rows, so "Pesquisar em qualquer lugar" stays on screen', () => {
+			assert.match(declarationsFor('.local-unified-search.local-unified-search--open'), /height: auto !important;/);
+		});
+
+		it('shows the whole placeholder: the field keeps room only for its clear button', () => {
+			assert.match(declarationsFor('.local-unified-search--open .local-unified-search__input input'), /padding-inline-end: 36px !important;/);
+		});
+
 		it('puts "Pesquisar em qualquer lugar" on its own row instead of over the field', () => {
 			assert.match(declarationsFor('.local-unified-search__global-search'), /position: static !important;/);
 		});

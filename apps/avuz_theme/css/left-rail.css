@@ -116,6 +116,7 @@
 		gap: 4px;
 		box-sizing: border-box;
 		width: min(420px, calc(100vw - var(--avuz-rail-width) - 2 * var(--body-container-margin))) !important;
+		height: auto !important;
 		padding: 8px;
 		border-radius: var(--border-radius-large, 12px);
 		background: var(--color-main-background);
@@ -125,6 +126,11 @@
 	body:is(#body-user, #body-settings) #header .local-unified-search--open .local-unified-search__input {
 		width: 100% !important;
 		margin: 0 !important;
+	}
+
+	/* Core pads the field for the global-search button laid over it; that button now sits below */
+	body:is(#body-user, #body-settings) #header .local-unified-search--open .local-unified-search__input input {
+		padding-inline-end: 36px !important;
 	}
 
 	body:is(#body-user, #body-settings) #header .local-unified-search--open .local-unified-search__global-search {
