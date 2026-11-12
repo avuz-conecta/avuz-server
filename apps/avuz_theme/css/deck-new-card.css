@@ -567,13 +567,13 @@ button.avuz-nc__create:disabled {
 }
 
 /* "Novo cartão": two columns that fit the screen. The card itself (description,
-   subtasks, attachments) on the left, wide enough for the editor toolbar on one
-   line; its details (list, dates, recurrence, labels, people, custom fields) in a
+   subtasks, attachments, custom fields) on the left, wide enough for the editor
+   toolbar on one line; its details (list, dates, recurrence, labels, people) in a
    side panel. Header and buttons stay put, each column scrolls on its own. */
 .avuz-nc.avuz-nc--card {
 	display: flex;
 	flex-direction: column;
-	width: min(1200px, 100%);
+	width: min(1240px, 100%);
 	max-height: calc(100vh - 8vh - 16px);
 }
 
@@ -585,7 +585,7 @@ button.avuz-nc__create:disabled {
 
 .avuz-nc__columns {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 360px;
+	grid-template-columns: minmax(0, 1fr) 340px;
 	gap: 20px;
 	flex: 1 1 auto;
 	min-height: 0;
@@ -610,6 +610,10 @@ button.avuz-nc__create:disabled {
 	background: var(--color-background-hover, #f6f7f9);
 }
 
+.avuz-nc--card .avuz-nc__main .avuz-nc__custom-grid {
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
 .avuz-nc--card .avuz-nc__side .avuz-nc__row {
 	grid-template-columns: 1fr;
 }
@@ -629,7 +633,8 @@ button.avuz-nc__create:disabled {
 	}
 
 	.avuz-nc__columns {
-		grid-template-columns: 1fr;
+		flex: none;
+		grid-template-columns: minmax(0, 1fr);
 	}
 
 	.avuz-nc--card .avuz-nc__main,
@@ -648,7 +653,7 @@ button.avuz-nc__create:disabled {
 
 /* (scrolling would clip the link/emoji/callout pop-ups, so only when the
    main column is narrower than the bar) */
-@media (max-width: 1240px) {
+@media (max-width: 1280px) {
 	.avuz-nc__editor--rich .avuz-rte-toolbar {
 		overflow-x: auto;
 		scrollbar-width: none;

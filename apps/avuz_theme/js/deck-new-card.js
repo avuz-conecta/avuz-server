@@ -220,6 +220,10 @@
 								</label>
 								<ul class="avuz-nc__files"></ul>
 							</div>
+							${customFields.length ? `<div class="avuz-nc__field avuz-nc__customs">
+								<span>Campos complementares</span>
+								<div class="avuz-nc__custom-grid">${customFields.map(customFieldMarkup).join("")}</div>
+							</div>` : ""}
 						</div>
 						<aside class="avuz-nc__side" aria-label="Detalhes do cartão">
 							<label class="avuz-nc__field">
@@ -250,10 +254,6 @@
 									${people.length ? people.map((u) => `<button type="button" class="avuz-nc__chip avuz-nc__person" data-id="${esc(u.uid)}" data-type="${u.type}" aria-pressed="false"><b>${esc(initials(u.displayname))}</b>${esc(u.displayname)}${u.type === 1 ? " <small>grupo</small>" : u.type === 7 ? " <small>equipe</small>" : ""}</button>`).join("") : '<em class="avuz-nc__none">Compartilhe o painel para atribuir pessoas.</em>'}
 								</div>
 							</div>
-							${customFields.length ? `<div class="avuz-nc__field avuz-nc__customs">
-								<span>Campos complementares</span>
-								<div class="avuz-nc__custom-grid">${customFields.map(customFieldMarkup).join("")}</div>
-							</div>` : ""}
 						</aside>
 					</div>
 					<p class="avuz-nc__error" role="alert" hidden></p>

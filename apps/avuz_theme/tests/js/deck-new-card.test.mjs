@@ -123,15 +123,16 @@ describe('Novo cartão', () => {
 			.map((rule) => rule[2].replace(/\s+/g, ' '))
 			.join(' ');
 
-		it('writes the card in the main column: description, subtasks and attachments', () => {
+		it('writes the card in the main column: description, subtasks, attachments and custom fields', () => {
 			assert.ok(main().querySelector('[data-avuz-rte-host]'), 'description');
 			assert.ok(main().querySelector('.avuz-nc__subtask-new'), 'subtasks');
 			assert.ok(main().querySelector('.avuz-nc__drop'), 'attachments');
+			assert.ok(main().querySelector(`[name="custom-${FIELD.contract.id}"]`), 'custom fields');
 		});
 
-		it('sets the details in a labelled side panel: list, dates, recurrence, labels, people and custom fields', () => {
+		it('sets the details in a labelled side panel: list, dates, recurrence, labels and people', () => {
 			assert.equal(side().getAttribute('aria-label'), 'Detalhes do cartão');
-			for (const name of ['stack', 'start', 'due', 'recurrence', `custom-${FIELD.contract.id}`]) {
+			for (const name of ['stack', 'start', 'due', 'recurrence']) {
 				assert.ok(side().querySelector(`[name="${name}"]`), name);
 			}
 			assert.ok(side().querySelector('[data-kind="labels"]'), 'labels');
