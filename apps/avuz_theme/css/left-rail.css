@@ -96,6 +96,48 @@
 		max-height: calc(100vh - 2 * var(--body-container-margin)) !important;
 	}
 
+	/* "Pesquisar no aplicativo atual" (apps with in-app search, e.g. Tarefas):
+	   core swaps the search icon for an inline bar in the header row, which in
+	   the rail's foot ran over the page. It opens as a floating panel where the
+	   notifications panel opens, and the icon stays on the rail. */
+	body:is(#body-user, #body-settings) #header .unified-search-menu:has(.local-unified-search--open) > .header-menu {
+		display: flex !important;
+	}
+
+	body:is(#body-user, #body-settings) #header .local-unified-search.local-unified-search--open {
+		position: fixed !important;
+		top: auto !important;
+		right: auto !important;
+		left: calc(var(--avuz-rail-width) + var(--avuz-rail-gap)) !important;
+		bottom: var(--body-container-margin) !important;
+		z-index: 1;
+		flex-direction: column !important;
+		align-items: stretch !important;
+		gap: 4px;
+		box-sizing: border-box;
+		width: min(420px, calc(100vw - var(--avuz-rail-width) - 2 * var(--body-container-margin))) !important;
+		height: auto !important;
+		padding: 8px;
+		border-radius: var(--border-radius-large, 12px);
+		background: var(--color-main-background);
+		box-shadow: 0 1px 5px var(--color-box-shadow), 0 8px 24px rgba(0, 0, 0, 0.12);
+	}
+
+	body:is(#body-user, #body-settings) #header .local-unified-search--open .local-unified-search__input {
+		width: 100% !important;
+		margin: 0 !important;
+	}
+
+	/* Core pads the field for the global-search button laid over it; that button now sits below */
+	body:is(#body-user, #body-settings) #header .local-unified-search--open .local-unified-search__input input {
+		padding-inline-end: 36px !important;
+	}
+
+	body:is(#body-user, #body-settings) #header .local-unified-search--open .local-unified-search__global-search {
+		position: static !important;
+		align-self: flex-start;
+	}
+
 	body:is(#body-user, #body-settings) > :is(#content, #content-vue) {
 		margin: var(--body-container-margin) var(--body-container-margin) var(--body-container-margin) var(--avuz-rail-width) !important;
 		width: calc(100% - var(--avuz-rail-width) - var(--body-container-margin)) !important;
@@ -310,6 +352,14 @@
 
 	html.avuz-rail--material-foot body:is(#body-user, #body-settings) #header :is(#unified-search .icon-vue, #notifications .notifications-button__icon) svg path:not(.notification__dot) {
 		fill: transparent;
+	}
+
+	/* Calendar's new-event editor dims the page with a mask inside #content-vue,
+	   a fixed box and so its own stacking layer: the rail (z-index 2000) would
+	   paint over the mask, its white tiles lit. While it is open (marker from
+	   js/app-scope.js) the rail goes under. */
+	html.avuz-calendar-editor-open body:is(#body-user, #body-settings) #header {
+		z-index: 0 !important;
 	}
 
 	/* Apps without a Material glyph show their own image, black like the header's: invert on dark */

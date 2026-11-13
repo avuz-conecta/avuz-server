@@ -4,7 +4,7 @@
  */
 
 /* Dashboard page - solid gray background */
-body:has(.app-dashboard) {
+html[data-avuz-app="dashboard"] body {
     background: #f1f1f1 !important;
 }
 

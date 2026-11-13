@@ -132,11 +132,14 @@
 		if (!vm || vm.__avuzUnstuck || !vm.src) {
 			return;
 		}
-		if (!findDescription(figure)) {
+		const src = vm.src;
+		// "Novo cartão" (js/deck-new-card.js) shows a pasted image from a local
+		// copy until the card exists
+		const localPaste = src.startsWith("blob:") && figure.closest(".avuz-nc__editor");
+		if (!localPaste && !findDescription(figure)) {
 			return; // a file-backed Text editor elsewhere resolves its own images
 		}
-		const src = vm.src;
-		if (!src.startsWith("/") && !src.startsWith(window.location.origin)) {
+		if (!localPaste && !src.startsWith("/") && !src.startsWith(window.location.origin)) {
 			return; // only same-instance URLs, as inserted by Deck
 		}
 		vm.__avuzUnstuck = true;

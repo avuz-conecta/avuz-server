@@ -88,6 +88,9 @@ class Application extends App implements IBootstrap {
 		// Inject floating help + support widget CSS
 		Util::addStyle(self::APP_ID, 'help-widget');
 
+		// Page and panel markers the stylesheets scope by, instead of slow :has() rules
+		Util::addScript(self::APP_ID, 'app-scope');
+
 		// Material Symbols glyphs (window.AvuzIcons) for the left rail and the favicon; load before both
 		Util::addScript(self::APP_ID, 'material-icons');
 

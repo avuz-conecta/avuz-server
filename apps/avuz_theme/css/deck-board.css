@@ -19,8 +19,8 @@
 .app-deck .board-wrapper *,
 .app-deck .overview-wrapper,
 .app-deck .overview-wrapper *,
-.app-deck #app-content-vue:has(.board-list),
-.app-deck #app-content-vue:has(.board-list) *,
+.app-deck #app-content-vue[data-avuz-content="board-list"],
+.app-deck #app-content-vue[data-avuz-content="board-list"] *,
 .app-deck .controls,
 .app-deck .controls * {
 	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
@@ -63,12 +63,16 @@
 	flex: 0 0 292px !important;
 	width: 292px !important;
 	min-width: 0 !important;
+	max-height: 100%;
 	padding: 0 !important;
 }
 
 /* ---------------------------------------------------------------- lists */
+/* A list is at most as tall as the board and scrolls its own cards (Deck's
+   behaviour): the board never scrolls down, title and "Adicionar cartão" stay put */
 .app-deck .board .stack {
 	box-sizing: border-box;
+	max-height: 100%;
 	width: 100% !important;
 	padding: 4px 6px 8px !important;
 	border: 0 !important;
@@ -81,12 +85,7 @@
 	box-shadow: inset 0 3px 0 var(--stack-color);
 }
 
-/* top = minus the board's padding-top: a sticky header stops inside the board
-   padding, so it pins flush with the board's visible top edge instead */
 .app-deck .board .stack__header {
-	position: sticky;
-	top: -16px;
-	z-index: 2;
 	display: flex;
 	align-items: center;
 	gap: 2px;
@@ -99,8 +98,6 @@
 	color: var(--avuz-ink) !important;
 }
 
-/* The header stays pinned while the board scrolls: it paints its list's colour
-   so the cards passing under it stay hidden */
 .app-deck .board .stack--colored .stack__header {
 	background-color: color-mix(in srgb, var(--stack-color) 7%, var(--avuz-list-bg)) !important;
 }
@@ -251,8 +248,12 @@
 	--avuz-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
 }
 
-/* Cards area */
+/* Cards area: scrolls inside its list, with a thin scrollbar */
 .app-deck .board .stack .dnd-container {
+	min-height: 0;
+	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(21, 23, 27, 0.22) transparent;
 	margin: 0 !important;
 	padding: 2px 2px 0 !important;
 	gap: 0;
@@ -437,7 +438,7 @@ button.avuz-stack-add:hover {
 /* Board filter popover: sections with small captions, labels / status / due */
 /* dates as toggle chips, people as rows with a round check                  */
 /* ------------------------------------------------------------------------- */
-.v-popper__inner .filter:has(> .filter--item) {
+.v-popper__inner .filter[data-avuz-filter="items"] {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -449,8 +450,8 @@ button.avuz-stack-add:hover {
 	overflow-y: auto;
 }
 
-.v-popper__inner .filter:has(> .filter--item),
-.v-popper__inner .filter:has(> .filter--item) * {
+.v-popper__inner .filter[data-avuz-filter="items"],
+.v-popper__inner .filter[data-avuz-filter="items"] * {
 	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
@@ -811,7 +812,7 @@ button.avuz-stack-add:hover {
 /* ------------------------------------------------------------------------- */
 /* "Todos os painéis": filter bar with chips + boards as a clean card table   */
 /* ------------------------------------------------------------------------- */
-.app-deck #app-content-vue:has(.board-list) {
+.app-deck #app-content-vue[data-avuz-content="board-list"] {
 	background: var(--avuz-board-bg) !important;
 }
 
@@ -1050,7 +1051,7 @@ button.avuz-stack-add:hover {
 /* Action menus in Tarefas (board "⋯", list "⋯", card "⋯", …): NcActions     */
 /* popovers live in <body>, so they are scoped to pages that show Deck        */
 /* ------------------------------------------------------------------------- */
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .v-popper__inner {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper .v-popper__inner {
 	padding: 6px !important;
 	border: 1px solid var(--color-border, #e3e5e9) !important;
 	border-radius: 14px !important;
@@ -1058,30 +1059,30 @@ body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .v-popper__in
 	box-shadow: 0 18px 44px -14px rgba(16, 20, 28, 0.28), 0 2px 6px rgba(16, 20, 28, 0.05) !important;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .v-popper__arrow-container {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper .v-popper__arrow-container {
 	display: none !important;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper ul[role="menu"] {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper ul[role="menu"] {
 	min-width: 250px;
 	padding: 0 !important;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper,
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper * {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper,
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper * {
 	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper li.action {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper li.action {
 	margin: 0 !important;
 	padding: 0 !important;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper li.action.active {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper li.action.active {
 	background: none !important;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router, .action-checkbox, .action-radio) {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper :is(.action-button, .action-link, .action-router, .action-checkbox, .action-radio) {
 	display: flex !important;
 	align-items: center;
 	gap: 10px;
@@ -1102,14 +1103,14 @@ body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-b
 	cursor: pointer;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router):hover,
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router):focus-visible {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper :is(.action-button, .action-link, .action-router):hover,
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper :is(.action-button, .action-link, .action-router):focus-visible {
 	background: var(--color-background-hover, #f4f5f7) !important;
 	outline: none !important;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router) > .material-design-icon,
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router) > [class*="icon-"] {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper :is(.action-button, .action-link, .action-router) > .material-design-icon,
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper :is(.action-button, .action-link, .action-router) > [class*="icon-"] {
 	flex: none;
 	width: 20px !important;
 	height: 20px !important;
@@ -1120,13 +1121,13 @@ body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-b
 	opacity: 1 !important;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router):hover > .material-design-icon {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper :is(.action-button, .action-link, .action-router):hover > .material-design-icon {
 	color: var(--color-main-text, #15171b);
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__longtext-wrapper,
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__text,
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__longtext {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper .action-button__longtext-wrapper,
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper .action-button__text,
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper .action-button__longtext {
 	padding: 0 !important;
 	font-size: 13.5px !important;
 	font-weight: 500 !important;
@@ -1135,35 +1136,35 @@ body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-butto
 }
 
 /* Destructive actions (Excluir …) in red, separated from the rest */
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper li.action:has(:is(.icon-delete, .delete-icon, .delete-outline-icon, .trash-can-outline-icon, .trash-can-icon)) {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper li.action:has(:is(.icon-delete, .delete-icon, .delete-outline-icon, .trash-can-outline-icon, .trash-can-icon)) {
 	margin-top: 4px !important;
 	padding-top: 4px !important;
 	border-top: 1px solid var(--color-border, #eceef1);
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper li.action:has(:is(.icon-delete, .delete-icon, .delete-outline-icon, .trash-can-outline-icon, .trash-can-icon)) :is(.action-button, .action-button > .material-design-icon, .action-button > .action-button__icon) {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper li.action:has(:is(.icon-delete, .delete-icon, .delete-outline-icon, .trash-can-outline-icon, .trash-can-icon)) :is(.action-button, .action-button > .material-design-icon, .action-button > .action-button__icon) {
 	color: #c0392f !important;
 }
 
 /* Deck's delete icon is a background image: repaint it as a thin trash can */
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__icon.icon-delete {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper .action-button__icon.icon-delete {
 	background: currentColor !important;
 	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h16M10 11v6M14 11v6M5.5 7l1 12.5A1.6 1.6 0 0 0 8.1 21h7.8a1.6 1.6 0 0 0 1.6-1.5L18.5 7M9 7V4.6A.6.6 0 0 1 9.6 4h4.8a.6.6 0 0 1 .6.6V7'/%3E%3C/svg%3E") center / 18px no-repeat;
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h16M10 11v6M14 11v6M5.5 7l1 12.5A1.6 1.6 0 0 0 8.1 21h7.8a1.6 1.6 0 0 0 1.6-1.5L18.5 7M9 7V4.6A.6.6 0 0 1 9.6 4h4.8a.6.6 0 0 1 .6.6V7'/%3E%3C/svg%3E") center / 18px no-repeat;
 	opacity: 1 !important;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper li.action:has(:is(.icon-delete, .delete-icon, .delete-outline-icon, .trash-can-outline-icon, .trash-can-icon)) .action-button:hover {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper li.action:has(:is(.icon-delete, .delete-icon, .delete-outline-icon, .trash-can-outline-icon, .trash-can-icon)) .action-button:hover {
 	background: rgba(192, 57, 47, 0.08) !important;
 }
 
 /* Separators and captions inside menus */
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-separator {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper .action-separator {
 	margin: 4px 6px !important;
 	border-color: var(--color-border, #eceef1) !important;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-caption {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper .action-caption {
 	padding: 8px 10px 4px !important;
 	font-size: 11px !important;
 	font-weight: 650 !important;
@@ -1174,26 +1175,26 @@ body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-capti
 
 /* Menu icons: NcActions centres the SVG in a 34px box; in our 20px slot it
    has to be centred again or it gets clipped */
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router) > .material-design-icon {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper :is(.action-button, .action-link, .action-router) > .material-design-icon {
 	display: flex !important;
 	align-items: center;
 	justify-content: center;
 	overflow: visible !important;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper :is(.action-button, .action-link, .action-router) > .material-design-icon svg {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper :is(.action-button, .action-link, .action-router) > .material-design-icon svg {
 	flex: none;
 	margin: 0 !important;
 }
 
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__longtext-wrapper,
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__longtext {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper .action-button__longtext-wrapper,
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper .action-button__longtext {
 	max-width: none !important;
 	white-space: nowrap !important;
 }
 
 /* Background-image icons (icon-checkmark, icon-external, icon-talk…) */
-body:is(:has(.app-deck), :has(.app-calendar)) .action-item__popper .action-button__icon:not(.icon-delete) {
+html:is([data-avuz-app="deck"], [data-avuz-app="calendar"]) body .action-item__popper .action-button__icon:not(.icon-delete) {
 	background-position: center !important;
 	background-size: 16px !important;
 	background-repeat: no-repeat !important;

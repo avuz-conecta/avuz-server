@@ -18,8 +18,8 @@
 
 .app-calendar,
 .app-calendar *:not(.material-design-icon, .material-design-icon *),
-body:has(.app-calendar) .action-item__popper,
-body:has(.app-calendar) .action-item__popper * {
+html[data-avuz-app="calendar"] body .action-item__popper,
+html[data-avuz-app="calendar"] body .action-item__popper * {
 	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
@@ -647,4 +647,22 @@ body:has(.app-calendar) .action-item__popper * {
 	margin: 0 !important;
 	padding: 0 !important;
 	line-height: 56px !important;
+}
+
+/* New event (simple editor): Calendar dims the page under a 50px top bar
+   (mask top: 50px) and centres the editor on the calendar grid. Beside the
+   rail there is no top bar: the mask covers the whole screen and the editor
+   sits in its centre, like any dialog (left-rail.css puts the rail under it). */
+@media (min-width: 1024px) {
+	.app-calendar .simple-editor-anchor .modal-mask {
+		top: 0 !important;
+		height: 100% !important;
+	}
+
+	.app-calendar .simple-editor-anchor .event-popover {
+		top: 50% !important;
+		left: 50% !important;
+		transform: translate(-50%, -50%);
+		max-height: 90vh !important;
+	}
 }
