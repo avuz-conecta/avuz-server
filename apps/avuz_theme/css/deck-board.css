@@ -259,6 +259,26 @@
 	gap: 0;
 }
 
+/* While a card is dragged (smooth-dnd marks the body), a list's drop area
+   reaches up under its title: an empty list's area is otherwise a 2px strip
+   below it, and a card dropped on a title goes to the top of that list.
+   smooth-dnd finds the list from the element under the pointer, so the title
+   lets the pointer through to the drop area under it, and stays painted on
+   top (it has the list's own background), so a scrolled list's cards never
+   show over it. Nothing moves: the reach is padded back. The list still grows
+   under the card hovering it (Deck's own stretcher). */
+body.smooth-dnd-no-user-select .app-deck .board .stack__header {
+	position: relative;
+	z-index: 1;
+	pointer-events: none;
+}
+
+body.smooth-dnd-no-user-select .app-deck .board .stack .dnd-container {
+	/* reach 46px = list padding-top 4px + title 42px; padding = reach + the usual 2px */
+	margin-top: -46px !important;
+	padding-top: 48px !important;
+}
+
 .app-deck .board .stack .dnd-container > .smooth-dnd-draggable-wrapper {
 	padding: 0 0 8px !important;
 }

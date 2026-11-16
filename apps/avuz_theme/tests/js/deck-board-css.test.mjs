@@ -22,8 +22,8 @@ const listHeaderOn = (stackClass) => {
 	return window.getComputedStyle(window.document.querySelector('.stack__header'));
 };
 
-const renderColumns = () => {
-	const { window } = new JSDOM(`<style>${BOARD_STYLESHEET}</style>
+const renderColumns = (bodyClass = '') => {
+	const { window } = new JSDOM(`<style>${BOARD_STYLESHEET}</style><body class="${bodyClass}">
 		<div id="content" class="app-deck"><div class="board"><div class="smooth-dnd-container horizontal">
 			<div class="stack-draggable-wrapper smooth-dnd-draggable-wrapper">
 				<div class="stack">
@@ -33,7 +33,7 @@ const renderColumns = () => {
 			</div>
 		</div></div></div>`);
 	const style = (selector) => window.getComputedStyle(window.document.querySelector(selector));
-	return { column: style('.stack-draggable-wrapper'), list: style('.stack'), cards: style('.dnd-container') };
+	return { column: style('.stack-draggable-wrapper'), list: style('.stack'), header: style('.stack__header'), cards: style('.dnd-container') };
 };
 
 describe('Tarefas: rolagem do quadro', () => {
@@ -52,6 +52,33 @@ describe('Tarefas: rolagem do quadro', () => {
 	it('draws a thin, quiet scrollbar on a list', () => {
 		assert.equal(cards.scrollbarWidth, 'thin');
 		assert.match(cards.scrollbarColor, /transparent/);
+	});
+
+	describe('arrastando um cartão (smooth-dnd marca o body)', () => {
+		const dragging = renderColumns('smooth-dnd-no-user-select smooth-dnd-disable-touch-action');
+		const reach = (cards) => -parseFloat(cards.marginTop);
+
+		it('lets a card drop on a list title: the drop area reaches up over the title', () => {
+			assert.ok(reach(dragging.cards) >= 42, `drop area reaches ${reach(dragging.cards)}px above the cards`);
+		});
+
+		it('moves nothing on screen: the reach is padded back', () => {
+			assert.equal(parseFloat(dragging.cards.paddingTop) - reach(dragging.cards), parseFloat(cards.paddingTop));
+		});
+
+		it('lets the pointer through the title to the drop area, with the title still painted on top', () => {
+			assert.equal(dragging.header.pointerEvents, 'none');
+			assert.equal(dragging.header.position, 'relative');
+			assert.ok(Number(dragging.header.zIndex) > 0);
+		});
+
+		it('does not stretch lists to the board height', () => {
+			assert.notEqual(dragging.column.alignSelf, 'stretch');
+		});
+
+		it('leaves the drop area as it is when nothing is dragged', () => {
+			assert.equal(parseFloat(cards.marginTop || '0'), 0);
+		});
 	});
 
 	it('leaves the list header out of the scrolling area', () => {
