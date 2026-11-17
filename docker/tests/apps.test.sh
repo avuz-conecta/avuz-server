@@ -622,6 +622,23 @@ assert_eq "returns 0 when the seeder fails" \
 assert_eq "runs a bounded occ call under timeout when the image has it" \
     "timeout 60 php occ assinaturas:webhook:ensure" \
     "$(timeout() { echo "timeout $*"; }; _avuz_occ_bounded 60 assinaturas:webhook:ensure)"
+# ── activity/notification e-mails off (Deck #530) ──
+digest_out="$(AVUZ_OCC_DRYRUN=1 avuz_disable_digest_emails)"
+assert_eq "turns off activity e-mails at app level" "yes" \
+    "$(printf '%s\n' "$digest_out" | grep -qxF 'OCC config:app:set activity enable_email --value=no' && echo yes || echo no)"
+assert_eq "sets the notification e-mail default to never" "yes" \
+    "$(printf '%s\n' "$digest_out" | grep -qxF 'OCC config:app:set notifications setting_batchtime --value=0' && echo yes || echo no)"
+assert_eq "resets every user's notification e-mail frequency" "yes" \
+    "$(printf '%s\n' "$digest_out" | grep -qxF 'PHPRESET notification-emails' && echo yes || echo no)"
+assert_eq "opt-out env keeps the e-mails" \
+    "→ Activity/notification e-mails kept (AVUZ_DIGEST_EMAILS=1) — skipping" \
+    "$(AVUZ_DIGEST_EMAILS=1 avuz_disable_digest_emails)"
+assert_eq "reports how many users were reset" \
+    "Activity/notification e-mails off; users: reset 7" \
+    "$(_avuz_occ() { :; }; php() { echo "reset 7"; }; avuz_disable_digest_emails)"
+assert_eq "keeps booting when the reset fails" "0" \
+    "$(_avuz_occ() { return 1; }; php() { echo "failed: boom"; return 1; }; avuz_disable_digest_emails >/dev/null; echo "$?")"
+
 assert_eq "runs a bounded occ call plainly when the image lacks timeout" \
     "php occ assinaturas:webhook:ensure" \
     "$(PATH=/nonexistent; php() { echo "php $*"; }; _avuz_occ_bounded 60 assinaturas:webhook:ensure)"
