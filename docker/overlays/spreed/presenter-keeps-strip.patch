@@ -1,0 +1,202 @@
+From b8c7b43403a42f752464e874d9f029dc453ceccc Mon Sep 17 00:00:00 2001
+From: Patrick Rezende <tricio777@gmail.com>
+Date: Thu, 19 Nov 2026 15:51:42 -0300
+Subject: [PATCH] feat(call): presenter keeps the participant strip open (Avuz
+ Deck #503)
+
+Starting your own screen share closed the participant strip, so the
+presenter saw only their screen and their own bubble. A local share now
+opens the strip; a remote share keeps it closed for viewers. The store
+remembers the layout from before the presentation and the layout it
+started with, and restores the former on stop only when the user kept
+the latter (closing and reopening the strip no longer loses it).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/components/CallView/CallView.vue  |  3 +-
+ src/stores/__tests__/callView.spec.js | 65 +++++++++++++++++++++++++++
+ src/stores/callView.ts                | 40 ++++++++++++++---
+ 3 files changed, 100 insertions(+), 8 deletions(-)
+
+diff --git a/src/components/CallView/CallView.vue b/src/components/CallView/CallView.vue
+index 0c75e30..77d1d6b 100644
+--- a/src/components/CallView/CallView.vue
++++ b/src/components/CallView/CallView.vue
+@@ -494,7 +494,8 @@ export default {
+ 		showLocalScreen(showLocalScreen) {
+ 			// Everytime the local screen is shared, switch to promoted view
+ 			if (showLocalScreen) {
+-				this.callViewStore.startPresentation(this.token)
++				// AVUZ-PRESENTER-STRIP (Deck #503)
++				this.callViewStore.startPresentation(this.token, { isLocal: true })
+ 			} else if (this.callParticipantModelsWithScreen.length === 0 && !this.selectedVideoPeerId) {
+ 				// last screen share stopped and no selected video, restoring previous state
+ 				this.callViewStore.stopPresentation(this.token)
+diff --git a/src/stores/__tests__/callView.spec.js b/src/stores/__tests__/callView.spec.js
+index 0b38232..0a5e290 100644
+--- a/src/stores/__tests__/callView.spec.js
++++ b/src/stores/__tests__/callView.spec.js
+@@ -221,6 +221,71 @@ describe('callViewStore', () => {
+ 			expect(callViewStore.lastIsGrid).toBeFalsy()
+ 			expect(callViewStore.lastIsStripeOpen).toBeTruthy()
+ 		})
++
++		// AVUZ-PRESENTER-STRIP (Deck #503)
++		describe('local presentation', () => {
++			it('opens the strip when the local user starts presenting', () => {
++				callViewStore.setCallViewMode({ token: TOKEN, isGrid: true, isStripeOpen: true })
++				callViewStore.startPresentation(TOKEN, { isLocal: true })
++				expect(callViewStore.isGrid).toBe(false)
++				expect(callViewStore.isStripeOpen).toBe(true)
++			})
++
++			it('keeps the strip closed for a remote presentation', () => {
++				callViewStore.setCallViewMode({ token: TOKEN, isGrid: true, isStripeOpen: true })
++				callViewStore.startPresentation(TOKEN)
++				expect(callViewStore.isStripeOpen).toBe(false)
++			})
++
++			it.each([
++				[true, true],
++				[false, false],
++				[false, true],
++			])('restores grid=%s strip=%s after an untouched local presentation', (isGrid, isStripeOpen) => {
++				callViewStore.setCallViewMode({ token: TOKEN, isGrid, isStripeOpen })
++				callViewStore.startPresentation(TOKEN, { isLocal: true })
++				callViewStore.stopPresentation(TOKEN)
++				expect(callViewStore.isGrid).toBe(isGrid)
++				expect(callViewStore.isStripeOpen).toBe(isStripeOpen)
++			})
++
++			it('opens the strip when the local share starts during a remote presentation', () => {
++				callViewStore.setCallViewMode({ token: TOKEN, isGrid: true, isStripeOpen: true })
++				callViewStore.startPresentation(TOKEN)
++				callViewStore.startPresentation(TOKEN, { isLocal: true })
++				expect(callViewStore.isStripeOpen).toBe(true)
++				callViewStore.stopPresentation(TOKEN)
++				expect(callViewStore.isGrid).toBe(true)
++				expect(callViewStore.isStripeOpen).toBe(true)
++			})
++
++			it('restores the pre-share layout after the strip is closed and reopened during the share', () => {
++				callViewStore.setCallViewMode({ token: TOKEN, isGrid: true, isStripeOpen: true })
++				callViewStore.startPresentation(TOKEN, { isLocal: true })
++				callViewStore.setCallViewMode({ token: TOKEN, isStripeOpen: false, clearLast: false })
++				callViewStore.setCallViewMode({ token: TOKEN, isStripeOpen: true, clearLast: false })
++				callViewStore.stopPresentation(TOKEN)
++				expect(callViewStore.isGrid).toBe(true)
++				expect(callViewStore.isStripeOpen).toBe(true)
++			})
++
++			it('keeps a strip the presenter closed after the share ends', () => {
++				callViewStore.setCallViewMode({ token: TOKEN, isGrid: true, isStripeOpen: true })
++				callViewStore.startPresentation(TOKEN, { isLocal: true })
++				callViewStore.setCallViewMode({ token: TOKEN, isStripeOpen: false, clearLast: false })
++				callViewStore.stopPresentation(TOKEN)
++				expect(callViewStore.isGrid).toBe(false)
++				expect(callViewStore.isStripeOpen).toBe(false)
++			})
++
++			it('keeps grid view the presenter picked during the share', () => {
++				callViewStore.setCallViewMode({ token: TOKEN, isGrid: false, isStripeOpen: false })
++				callViewStore.startPresentation(TOKEN, { isLocal: true })
++				callViewStore.setCallViewMode({ token: TOKEN, isGrid: true })
++				callViewStore.stopPresentation(TOKEN)
++				expect(callViewStore.isGrid).toBe(true)
++			})
++		})
+ 	})
+ 
+ 	describe('other actions', () => {
+diff --git a/src/stores/callView.ts b/src/stores/callView.ts
+index ca70864..90ba08b 100644
+--- a/src/stores/callView.ts
++++ b/src/stores/callView.ts
+@@ -14,6 +14,12 @@ import {
+ 	setLiveTranscriptionTargetLanguage,
+ } from '../services/liveTranscriptionService.ts'
+ 
++// AVUZ-PRESENTER-STRIP (Deck #503)
++type CallViewMode = {
++	isGrid: boolean
++	isStripeOpen: boolean
++}
++
+ type State = {
+ 	forceCallView: boolean
+ 	isViewerOverlay: boolean
+@@ -23,6 +29,8 @@ type State = {
+ 	lastIsGrid: boolean | null
+ 	lastIsStripeOpen: boolean | null
+ 	presentationStarted: boolean
++	modeBeforePresentation: CallViewMode | null
++	presentationStartMode: CallViewMode | null
+ 	selectedVideoPeerId: string | null
+ 	callEndedTimeout: ReturnType<typeof setTimeout> | undefined
+ 	isLiveTranscriptionEnabled: boolean
+@@ -46,6 +54,8 @@ export const useCallViewStore = defineStore('callView', {
+ 		lastIsGrid: null,
+ 		lastIsStripeOpen: null,
+ 		presentationStarted: false,
++		modeBeforePresentation: null,
++		presentationStartMode: null,
+ 		selectedVideoPeerId: null,
+ 		callEndedTimeout: undefined,
+ 		isLiveTranscriptionEnabled: false,
+@@ -129,19 +139,30 @@ export const useCallViewStore = defineStore('callView', {
+ 		/**
+ 		 * Starts presentation mode.
+ 		 *
+-		 * Switches off grid mode and closes the stripe.
++		 * Switches off grid mode. Closes the stripe for a remote presentation and
++		 * keeps it open for the local presenter, so they still see the others.
+ 		 * Remembers the call view state for after the end of the presentation.
+ 		 *
+ 		 * @param token current conversation token.
++		 * @param options the wrapping object;
++		 * @param options.isLocal true when the local user starts sharing their screen.
+ 		 */
+-		startPresentation(token: string) {
+-			// don't start twice, this would prevent multiple screen shares to clear the last call view state
++		startPresentation(token: string, { isLocal = false }: { isLocal?: boolean } = {}) {
++			// AVUZ-PRESENTER-STRIP (Deck #503): the local presenter keeps the strip open
+ 			if (this.presentationStarted) {
++				// don't start twice, this would prevent multiple screen shares to clear the last call view state
++				if (!isLocal) {
++					return
++				}
++				this.isStripeOpen = true
++				this.presentationStartMode = { isGrid: this.isGrid, isStripeOpen: true }
+ 				return
+ 			}
+ 			this.presentationStarted = true
++			this.modeBeforePresentation = { isGrid: this.isGrid, isStripeOpen: this.isStripeOpen }
+ 
+-			this.setCallViewMode({ token, isGrid: false, isStripeOpen: false, clearLast: false })
++			this.setCallViewMode({ token, isGrid: false, isStripeOpen: isLocal, clearLast: false })
++			this.presentationStartMode = { isGrid: false, isStripeOpen: isLocal }
+ 		},
+ 
+ 		/**
+@@ -158,10 +179,15 @@ export const useCallViewStore = defineStore('callView', {
+ 			}
+ 			this.presentationStarted = false
+ 
+-			if (!this.isGrid && !this.isStripeOpen) {
+-				// User didn't pick grid view during presentation, restore previous state
+-				this.setCallViewMode({ token, isGrid: this.lastIsGrid, isStripeOpen: this.lastIsStripeOpen, clearLast: false })
++			// AVUZ-PRESENTER-STRIP (Deck #503): restore only when the user kept the layout the presentation started with
++			const isStartLayout = this.presentationStartMode !== null
++				&& this.isGrid === this.presentationStartMode.isGrid
++				&& this.isStripeOpen === this.presentationStartMode.isStripeOpen
++			if (isStartLayout && this.modeBeforePresentation !== null) {
++				this.setCallViewMode({ token, ...this.modeBeforePresentation, clearLast: false })
+ 			}
++			this.modeBeforePresentation = null
++			this.presentationStartMode = null
+ 		},
+ 
+ 		/**
+-- 
+2.50.1 (Apple Git-155)
+
