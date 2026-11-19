@@ -1026,6 +1026,11 @@ fi
 # AVUZ_SEED_EXTERNAL_ICONS=0. See docker/lib-apps.sh.
 avuz_seed_external_icons
 
+# Activity and notification e-mails off (Deck #530), every boot so a user who
+# opted back in is reset on the next roll. AVUZ_DIGEST_EMAILS=1 keeps them.
+# See docker/lib-apps.sh.
+avuz_disable_digest_emails
+
 # notify_push binary permissions
 chmod +x /var/www/html/apps/notify_push/bin/x86_64/notify_push 2>/dev/null || true
 chmod +x /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push 2>/dev/null || true
