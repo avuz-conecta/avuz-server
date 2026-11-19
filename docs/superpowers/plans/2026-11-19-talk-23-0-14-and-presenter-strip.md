@@ -1,4 +1,4 @@
-# Talk Presenter Keeps the Strip Implementation Plan
+# Talk 23.0.14 + Presenter Keeps the Strip Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,11 +8,11 @@
 
 **Tech Stack:** Talk (spreed) v23.0.6 source, Vue 2 + Pinia, TypeScript store, vitest, rspack build (node ^24, npm ^11).
 
-**Spec:** `docs/superpowers/specs/2026-11-19-talk-presenter-keeps-strip-design.md`
+**Spec:** `docs/superpowers/specs/2026-11-19-talk-presenter-keeps-strip-design.md` and `docs/superpowers/specs/2026-11-19-talk-23-0-14-alignment-design.md`
 
 ## Global Constraints
 
-- Base: spreed tag `v23.0.6` (the version the current overlay bundle was built from), with `docker/overlays/spreed/webrtc-stagger.patch` and `docker/overlays/spreed/no-waiting-sound.patch` applied first. Do not change the base version in this plan.
+- Base: spreed tag `v23.0.14` for both the server code (release tarball, sha256 `b21f29678f086eb6a3eb4e6dd36f176fe2c397e2cf2ce0bdcae415a0bce8a5c7`) and the bundle source, with `webrtc-stagger.patch` and `no-waiting-sound.patch` applied first (both apply cleanly on v23.0.14).
 - Viewers of a remote share: unchanged behavior (`isGrid: false`, `isStripeOpen: false`).
 - Every existing test in `src/stores/__tests__/callView.spec.js` keeps passing unchanged.
 - Overlay ships the full bundle: all `js/*.js` except `vision_wasm*` and no `.map`; `css/*.css`.
@@ -28,10 +28,24 @@
 
 ---
 
+### Task 0: Server code to 23.0.14
+
+**Files:**
+- Replace: `apps/spreed/` (gitignored) with the extracted 23.0.14 tarball
+- Modify: `docker/overlays/spreed/lib/Capabilities.php` (23.0.14 file + `'recording-chunked-v1',` in the same features list as before)
+- Modify: `docker/overlays/spreed/lib/Controller/RecordingController.php` (our 23.0.1 diff re-applied on the 23.0.14 file; keep the `AVUZ-CHUNKED-UPLOAD-V2` line)
+- Modify: `Dockerfile` (guard `ARG AVUZ_SPREED_VERSION=23.0.14`, fail if `apps/spreed/appinfo/info.xml` differs, before the overlay copy)
+- Modify: `scripts/verify-mediapipe.sh` (23.0.14 hashes)
+
+- [ ] **Step 1:** `diff -u` our overlay files against their v23.0.1 originals, apply that diff to the v23.0.14 originals (`patch`), resolve conflicts by hand; no route or method name may collide with upstream's 23.0.7+ recording endpoints.
+- [ ] **Step 2:** `php -l` both files; `php docker/overlays/spreed/tests/chunked-upload-test.php` passes; `php` a small script that `require`s nothing but greps that every `use` in the overlay files resolves to a class present in the 23.0.14 tree.
+- [ ] **Step 3:** swap `apps/spreed` for the tarball (keep a copy of the old dir in the scratchpad), run `sh scripts/verify-mediapipe.sh apps/spreed/js` after updating the hashes: PASS.
+- [ ] **Step 4:** commit `fix(spreed): server code to Talk 23.0.14, patches rebased`.
+
 ### Task 1: Store + CallView source patch
 
 **Files:**
-- Work tree: `<scratch>/spreed-src` (clone of `nextcloud/spreed` at `v23.0.6`; the scratchpad already has one)
+- Work tree: `<scratch>/spreed-src` (clone of `nextcloud/spreed` at `v23.0.14`)
 - Modify: `src/stores/callView.ts` (state, `startPresentation`, `stopPresentation`)
 - Modify: `src/components/CallView/CallView.vue` (watcher `showLocalScreen`)
 - Test: `src/stores/__tests__/callView.spec.js`
@@ -45,7 +59,7 @@
 - [ ] **Step 1: Prepare the source tree**
 
 ```bash
-cd <scratch>/spreed-src && git switch -c avuz-presenter-strip v23.0.6
+cd <scratch>/spreed-src && git switch -c avuz-presenter-strip v23.0.14
 git am <avuz-server>/docker/overlays/spreed/webrtc-stagger.patch <avuz-server>/docker/overlays/spreed/no-waiting-sound.patch
 npm ci
 npx vitest run src/stores/__tests__/callView.spec.js
@@ -174,6 +188,7 @@ If the stagger grep name changed with the rebuild, find the 200 ms constant in t
 ### Task 3: Ship to HML and check in real browsers
 
 - [ ] **Step 1: Build `:staging-1`** — `KEEP_DOCKER=1 ./scripts/build-push.sh latest staging 1` from this worktree. Expected: `✓ Built and pushed` and a new digest.
+- [ ] **Step 1b: Golden checkout** — replace `~/work/avuz/avuz-server/apps/spreed` with the 23.0.14 tarball (deploy.sh and future builds run from there).
 - [ ] **Step 2: Deploy** — from the golden checkout: `./scripts/deploy.sh -y avuz-conecta`; confirm the container `.Image` changed and it is healthy.
 - [ ] **Step 3: Browser check** on HML (verify-avuz-conecta skill, Playwright with fake media), a call with 3 participants (presenter + 2):
   - presenter starts a screen share → strip visible with the 2 others, screen on stage, own bubble shown;
@@ -181,4 +196,5 @@ If the stagger grep name changed with the rebuild, find the 200 ms constant in t
   - presenter closes the strip → stays closed; reopens → open;
   - presenter stops → pre-share layout back (test once from speaker view, once from grid).
   Save one screenshot of the presenter view.
+  Also: boot log shows the spreed reconcile and `occ config:app:get spreed installed_version` = 23.0.14; virtual background works; a recording over 100 MB lands in the owner's Drive.
 - [ ] **Step 4: Report** — results + screenshot to Patrick; PR into `avuz-customization` only on his word.
