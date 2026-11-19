@@ -19,7 +19,9 @@ server code in `apps/spreed`, which is the official
    `src/components/CallView/CallView.vue`, Deck #503): when **you** share your
    screen, the participant strip stays open so you see the others; viewers keep
    the strip closed. Stopping restores the pre-share layout when you kept the
-   layout the share started with. Spec:
+   layout the share started with; modes the app picks (following a video,
+   switching screens) are part of the share, and ending your share during
+   someone else's gives you the viewer layout back. Spec:
    `docs/superpowers/specs/2026-11-19-talk-presenter-keeps-strip-design.md`.
 
 Until 2026-11-19 this bundle was built from v23.0.6 over 23.0.1 server code;
