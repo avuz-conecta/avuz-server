@@ -355,7 +355,7 @@ html[data-avuz-app="calendar"] body .action-item__popper * {
 /* Block events (all-day bars, week/day view) */
 .app-calendar .fc .fc-h-event,
 .app-calendar .fc .fc-v-event {
-	border: 0 !important;
+	border-width: 0 !important;
 	border-radius: 8px !important;
 	box-shadow: inset 3px 0 0 rgba(0, 0, 0, 0.12);
 }
@@ -364,6 +364,22 @@ html[data-avuz-app="calendar"] body .action-item__popper * {
 .app-calendar .fc .fc-v-event .fc-event-title,
 .app-calendar .fc .fc-v-event .fc-event-time {
 	color: inherit !important;
+}
+
+/* Invites not yet answered (and declined ones): Calendar paints them white,
+   outlined in the calendar colour (inline border-color), with dark text */
+.app-calendar .fc :is(.fc-h-event, .fc-v-event):is(.fc-event-nc-needs-action, .fc-event-nc-declined, .fc-event-nc-all-declined) {
+	border-width: 2px !important;
+	border-style: solid !important;
+	box-shadow: none;
+}
+
+.app-calendar .fc :is(.fc-h-event, .fc-v-event):is(.fc-event-nc-needs-action, .fc-event-nc-declined, .fc-event-nc-all-declined) :is(.fc-event-main, .fc-event-title, .fc-event-time) {
+	color: var(--avuz-ink) !important;
+}
+
+.app-calendar .fc :is(.fc-event-nc-needs-action, .fc-event-nc-declined, .fc-event-nc-all-declined) .fc-daygrid-event-dot {
+	border-width: 2px !important;
 }
 
 .app-calendar .fc .fc-v-event .fc-event-main {
