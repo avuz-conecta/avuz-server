@@ -55,3 +55,49 @@ describe('Agenda: novo evento (editor simples) ao lado da barra lateral', () => 
 		assert.match(railDeclarationsFor(RAIL, element('#header')), /z-index: 0 !important;/);
 	});
 });
+
+/** Declarations of every calendar.css rule whose selector matches `target`, in source order. */
+function calendarDeclarationsFor(target) {
+	return [...CALENDAR.matchAll(/([^{}@]+)\{([^{}]*)\}/g)]
+		.filter((rule) => rule[1].split(/,(?![^(]*\))/).some((selector) => {
+			try {
+				return target.matches(selector.trim());
+			} catch {
+				return false;
+			}
+		}))
+		.map((rule) => rule[2].replace(/\s+/g, ' '))
+		.join(' ');
+}
+
+/* Week view event as Calendar 6.2 renders an invite awaiting an answer:
+   inline calendar colour on the border, white fill, light text from a dark calendar */
+const invite = new JSDOM(`<div class="app-calendar"><div class="fc">
+	<a class="fc-event fc-v-event fc-event-nc-needs-action" style="border-color: #3b7ea1; background: #fff">
+		<div class="fc-event-main" style="color: #fff">
+			<div class="fc-event-time">10:00 - 11:00</div>
+			<div class="fc-event-title">teste</div>
+		</div>
+	</a>
+	<a class="fc-event fc-daygrid-dot-event fc-event-nc-needs-action"><div class="fc-daygrid-event-dot"></div></a>
+</div></div>`).window.document;
+
+describe('Agenda: convite ainda sem resposta', () => {
+	it('keeps the calendar-colour outline Calendar draws around the white event', () => {
+		const declarations = calendarDeclarationsFor(invite.querySelector('.fc-v-event'));
+		assert.doesNotMatch(declarations, /border: 0/);
+		assert.match(declarations, /border-width: 2px !important; border-style: solid !important;/);
+	});
+
+	it('writes title and time in dark ink, whatever the calendar colour', () => {
+		for (const selector of ['.fc-event-title', '.fc-event-time']) {
+			const declarations = calendarDeclarationsFor(invite.querySelector(selector));
+			assert.match(declarations.split('color: inherit !important;').at(-1), /color: var\(--avuz-ink\) !important;/);
+		}
+	});
+
+	it('draws the month-view dot as a hollow ring', () => {
+		const declarations = calendarDeclarationsFor(invite.querySelector('.fc-daygrid-event-dot'));
+		assert.match(declarations.split('border-width: 4px !important;').at(-1), /border-width: 2px !important;/);
+	});
+});
