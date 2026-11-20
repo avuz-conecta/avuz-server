@@ -457,7 +457,7 @@
         "docker/overlays/forms/js/",
         "docker/overlays/forms/css/",
         "docker/overlays/forms/conditional-questions.patch",
-        "docker/overlays/forms/tests/jumps.test.mjs",
+        "docker/overlays/forms/scripts/phpunit.sh",
         "themes/avuz/apps/forms/l10n/pt_BR.json",
         "docker/entrypoint.sh",
         "Dockerfile"

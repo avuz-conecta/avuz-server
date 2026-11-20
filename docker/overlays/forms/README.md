@@ -61,9 +61,11 @@ the stored grid JSON as a string → 400); not ported: `withOfferedValues`
   files (`forms-main.mjs`, `forms-submit.mjs`, `forms-settings.mjs`,
   `forms-emptyContent.mjs`) keep their names.
 - `css/` — the build's CSS (only `forms-style.css` differs from the release).
-- `tests/jumps.test.mjs` — the front-end path test. It imports
-  `../../src/utils/Jumps.ts` and reads `../fixtures/jump-paths.json`, so it
-  runs from the port tree, not from here (see Rebuild).
+- `scripts/phpunit.sh` — runs the Forms PHPUnit suite in a throwaway
+  nextcloud:33.0.8 container against the port tree. Paths are overridable:
+  `FORMS_PORT_TREE`, `FORMS_PORT_SERVER_TESTS`.
+- The front-end path test (`tests/javascript/jumps.test.mjs`) lives in the
+  port tree and in `conditional-questions.patch`; it runs from the port tree.
 
 ## How it's applied
 - Dockerfile: `ARG AVUZ_FORMS_OVERLAY_VERSION=5.3.5`, **fails the build** if
@@ -72,7 +74,9 @@ the stored grid JSON as a string → 400); not ported: `withOfferedValues`
 - Entrypoint: `forms` in `AVUZ_OWNED_APPS` (never store-updated; a
   `custom_apps/forms` shadow copy is quarantined at boot); sentinel
   `AVUZ-FORMS-CONDITIONAL-V1` in `lib/Service/SubmissionService.php`
-  (`verify_avuz_patches`, refuses to boot without it);
+  plus `removed-jumps` in `js/SetWindowTitle-uChAMhrz.chunk.mjs` and the Submit chunk name in
+  `js/forms-submit.mjs` (update both on every rebuild)
+  (`verify_avuz_patches`, refuses to boot without them);
   `reapply_avuz_forms_overlay` after core upgrades.
 - pt_BR strings for the new UI: `themes/avuz/apps/forms/l10n/pt_BR.json`
   (merged by `merge-l10n.sh` at build).
@@ -99,7 +103,7 @@ git am /path/to/docker/overlays/forms/conditional-questions.patch
 #     (on a new version expect conflicts: redo the port, see the spec)
 #  2. tests
 npm run test:jumps            # node --experimental-transform-types (Constants.ts enums); 30 pass
-~/work/avuz/forms-port-test.sh  # PHPUnit in a throwaway nextcloud:33.0.8; 498 tests, 4 skipped
+/path/to/docker/overlays/forms/scripts/phpunit.sh  # PHPUnit in a throwaway nextcloud:33.0.8; 498 tests, 4 skipped
 #  3. patched build
 npm run build
 ```
@@ -110,7 +114,6 @@ rm -rf "$O/js" "$O/css" "$O/lib" && mkdir -p "$O/js" "$O/css"
 for f in $(git diff --name-only v<NEW_VERSION>..HEAD -- lib); do mkdir -p "$O/$(dirname "$f")"; cp "$f" "$O/$f"; done
 for f in js/*; do case "$f" in *.map) ;; *) cp "$f" "$O/js/";; esac; done
 cp css/*.css "$O/css/"
-cp tests/javascript/jumps.test.mjs "$O/tests/"
 git format-patch --stdout v<NEW_VERSION>..HEAD > "$O/conditional-questions.patch"
 ```
 and update `AVUZ_FORMS_OVERLAY_VERSION` in the Dockerfile,
