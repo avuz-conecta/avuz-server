@@ -25,10 +25,16 @@ COPY . /var/www/html/
 # `occ app:update --all` from replacing it. Submodules must be initialized in the
 # working tree before build (see CLAUDE.md).
 
-# Apply Avuz spreed overlay (chunked recording upload patches).
+# Apply Avuz spreed overlay (chunked recording upload, rebuilt Talk bundle).
 # Each file under docker/overlays/spreed/ is a full replacement for the same
 # relative path under apps/spreed/. Net-new files are added by the same cp -R.
-RUN cp -R /var/www/html/docker/overlays/spreed/. /var/www/html/apps/spreed/
+# The overlay is built for one exact spreed release (server code = release
+# tarball, bundle = same tag + our patches), so any other apps/spreed fails the
+# build. Rebuild recipe: docker/overlays/spreed/js/README.md.
+ARG AVUZ_SPREED_VERSION=23.0.14
+RUN grep -q "<version>${AVUZ_SPREED_VERSION}</version>" /var/www/html/apps/spreed/appinfo/info.xml \
+    || { echo "apps/spreed is not ${AVUZ_SPREED_VERSION} — replace it with spreed-v${AVUZ_SPREED_VERSION}.tar.gz (see docker/overlays/spreed/js/README.md)"; exit 1; } \
+    && cp -R /var/www/html/docker/overlays/spreed/. /var/www/html/apps/spreed/
 
 # Apply Avuz calendar overlay (event color picker in the new-event popover, PHP
 # fixes under lib/). The js/ files are a rebuilt bundle and the lib/ files are

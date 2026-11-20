@@ -34,8 +34,11 @@ Nextcloud deployment with custom branding ("Avuz Conecta") running in Docker. Mu
 - Menu link colors: `#00679e` (normal), `#2bb5e3` (active)
 - SVG icon styling: filled glyphs, currentColor
 
+### Talk (spreed) version
+- Pinned at **23.0.14**: `apps/spreed` = official `spreed-v23.0.14.tar.gz` (gitignored; the golden checkout must hold the same), and the browser bundle in `docker/overlays/spreed/js` is rebuilt from the same tag with three patches (offer stagger, no waiting sound, presenter keeps the strip = Deck #503). The Dockerfile fails the build on any other `apps/spreed`. Upgrade recipe: `docker/overlays/spreed/js/README.md`.
+
 ### Talk recording chunked upload
-- spreed patched via overlay (`docker/overlays/spreed/lib/...`) applied during Docker build. Sentinel `AVUZ-CHUNKED-UPLOAD-V1` lives in the overlay's `RecordingController.php`; entrypoint verifies the running container's spreed has it.
+- spreed patched via overlay (`docker/overlays/spreed/lib/...`) applied during Docker build. Sentinel `AVUZ-CHUNKED-UPLOAD-V2` lives in the overlay's `RecordingController.php`; entrypoint verifies the running container's spreed has it. Upstream has its own chunked upload since 23.0.7 (`recording-chunked-upload`); our bot still uses ours (`recording-chunked-v1`).
 - Bot fork lives in the **separate repo** `github.com/avuz-conecta/talk-recording`; image `registry.avuz.app/admin/talk-recording` referenced from `portainer-recording-stack.yml`.
 - Lets recordings >100MB survive Cloudflare's 100MB body cap. See `docs/superpowers/plans/2026-05-21-talk-recording-chunked-upload.md`.
 
