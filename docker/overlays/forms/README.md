@@ -76,9 +76,11 @@ the stored grid JSON as a string → 400); not ported: `withOfferedValues`
   `reapply_avuz_forms_overlay` after core upgrades.
 - pt_BR strings for the new UI: `themes/avuz/apps/forms/l10n/pt_BR.json`
   (merged by `merge-l10n.sh` at build).
-- Browsers: bump `AVUZ_CONFIG_VERSION` with every overlay change; the deploy's
-  theming cachebuster bump gives the entry files a new `?v=`. Chunks are
-  content-hashed and need no cache-bust.
+- Browsers: `scripts/deploy.sh` bumps the theming cachebuster after each
+  redeploy, which gives the entry files a new `?v=`. Chunks are
+  content-hashed and need no cache-bust. No `AVUZ_CONFIG_VERSION` bump: the
+  overlay is baked into the image and the sentinel runs on every boot, and a
+  bump would rerun the configuration on every tenant's first boot.
 - Rollback: roll forward, never down. An image without this overlay rejects
   `goTo` / `next` in `extraSettings`, so forms with jumps could not be edited
   and skipped required questions would block submits again.
@@ -112,7 +114,7 @@ cp tests/javascript/jumps.test.mjs "$O/tests/"
 git format-patch --stdout v<NEW_VERSION>..HEAD > "$O/conditional-questions.patch"
 ```
 and update `AVUZ_FORMS_OVERLAY_VERSION` in the Dockerfile,
-`AVUZ_CONFIG_VERSION`, `customizations.json` and this README.
+`customizations.json` and this README.
 
 ## Verify
 ```bash
