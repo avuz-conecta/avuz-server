@@ -25,6 +25,20 @@ conditional questions). Work in progress: this README grows with each task.
   clock pin: all 63 `js/` files and `css/` are byte-identical to the shipped
   `apps/forms/js` and `css`.
 
+## Upstream fixes ported with it
+Server parts of fixes split out of #3833 (merged on upstream `main`, not in
+5.3.5), ported because #3833's code or tests rely on them:
+- #3870 `isShownToRespondents` (questions the submit view hides are never
+  required and do not decide the path); its linear-scale boolean check is not
+  ported.
+- #3913 the title regex of `isShownToRespondents`.
+- #3904 `isListOfValues` (an answer must be a list; `[]` counts as no answer).
+- #3916 `isOtherAnswer` (with "Other" allowed, other values must still be
+  option ids).
+- #3903 only its `normalizeNumericOptionId` line (option ids in canonical
+  notation only, so the path and the stored answer agree).
+- #3884 only "export keeps option ids" (import needs them to map `goTo`).
+
 ## Files here
 (filled in by later tasks)
 
