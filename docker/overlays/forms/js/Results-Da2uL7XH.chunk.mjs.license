@@ -1,0 +1,12 @@
+SPDX-License-Identifier: AGPL-3.0-or-later
+SPDX-License-Identifier: Apache-2.0
+SPDX-FileCopyrightText: @material-symbols/svg-400 developers
+SPDX-FileCopyrightText: forms developers
+
+This file is generated from multiple sources. Included packages:
+- @material-symbols/svg-400
+	- version: 0.45.8
+	- license: Apache-2.0
+- forms
+	- version: 5.3.5
+	- license: AGPL-3.0-or-later

@@ -1,0 +1,21 @@
+SPDX-License-Identifier: AGPL-3.0-or-later
+SPDX-License-Identifier: Apache-2.0
+SPDX-License-Identifier: MIT
+SPDX-FileCopyrightText: @material-symbols/svg-400 developers
+SPDX-FileCopyrightText: Nextcloud GmbH and Nextcloud contributors
+SPDX-FileCopyrightText: forms developers
+SPDX-FileCopyrightText: yangpanteng
+
+This file is generated from multiple sources. Included packages:
+- @material-symbols/svg-400
+	- version: 0.45.8
+	- license: Apache-2.0
+- @nextcloud/vue
+	- version: 9.9.0
+	- license: AGPL-3.0-or-later
+- forms
+	- version: 5.3.5
+	- license: AGPL-3.0-or-later
+- vue-draggable-plus
+	- version: 0.6.1
+	- license: MIT

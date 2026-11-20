@@ -1,0 +1,22 @@
+/**
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+/* Padding for Auto-Scroll if a required question is not filled.
+ * 60px matches around the height of two lines of question-text
+ */
+html {
+	scroll-padding-top: calc(var(--header-height) + 60px);
+}
+
+.icon-forms {
+	background-image: url(../img/forms-dark.svg);
+	filter: var(--background-invert-if-dark);
+}
+
+.icon-forms-white,
+.icon-forms.icon-white {
+	background-image: url(../img/forms.svg);
+	filter: var(--background-invert-if-dark);
+}

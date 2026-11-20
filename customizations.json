@@ -445,6 +445,28 @@
       "notes": "Dockerfile fails the build unless apps/contacts is 8.4.1 (AVUZ_CONTACTS_OVERLAY_VERSION); copies js/ AND css/ (contacts builds CSS to files). Sentinel 'AVUZ-WHATSAPP-PHONE-V1' in the content-hashed js/style-XRJXNnxt.chunk.mjs plus a wiring check in js/contacts-main.mjs; contacts is in AVUZ_OWNED_APPS; reapply_avuz_contacts_overlay after core upgrades. Rebuild needs the build clock pinned to the tag date (shift-build-date.cjs): docker/overlays/contacts/README.md."
     },
     {
+      "id": "forms-conditional-questions",
+      "type": "overlay",
+      "paths": [
+        "docker/overlays/forms/lib/Constants.php",
+        "docker/overlays/forms/lib/Controller/ApiController.php",
+        "docker/overlays/forms/lib/FormsMigrator.php",
+        "docker/overlays/forms/lib/ResponseDefinitions.php",
+        "docker/overlays/forms/lib/Service/FormsService.php",
+        "docker/overlays/forms/lib/Service/SubmissionService.php",
+        "docker/overlays/forms/js/",
+        "docker/overlays/forms/css/",
+        "docker/overlays/forms/conditional-questions.patch",
+        "docker/overlays/forms/tests/jumps.test.mjs",
+        "themes/avuz/apps/forms/l10n/pt_BR.json",
+        "docker/entrypoint.sh",
+        "Dockerfile"
+      ],
+      "description": "Deck #448: port of upstream nextcloud/forms PR #3833 (conditional questions, head 9999a7f4478d) onto Forms 5.3.5. Single choice/dropdown options jump to a later question or the end (extraSettings goTo), other types get one next target; respondents see and must answer only the questions on their path; editing a submission drops now-skipped answers. Upstream storage format, so the overlay is dropped at Forms 5.5.",
+      "risk": "medium",
+      "notes": "Dockerfile fails the build unless apps/forms is 5.3.5 (AVUZ_FORMS_OVERLAY_VERSION); copies js/, css/ and lib/. Sentinel 'AVUZ-FORMS-CONDITIONAL-V1' in lib/Service/SubmissionService.php; forms is in AVUZ_OWNED_APPS; reapply_avuz_forms_overlay after core upgrades. Roll forward only. Rebuild and ported prerequisite fixes: docker/overlays/forms/README.md."
+    },
+    {
       "id": "password-confirmation-field",
       "type": "core",
       "paths": [

@@ -1,7 +1,7 @@
 From 3d9b139039ad7d74ecd97914cf2eb6a388354193 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 14:17:14 -0300
-Subject: [PATCH 1/4] chore: ignore PHPUnit cache
+Subject: [PATCH 1/5] chore: ignore PHPUnit cache
 
 ---
  .gitignore | 2 ++
@@ -24,7 +24,7 @@ index 5cdce03..7904f79 100644
 From d165a2a7712995b7d2db6d13e9992b40681d0d45 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 14:33:32 -0300
-Subject: [PATCH 2/4] feat: conditional questions server side (port of
+Subject: [PATCH 2/5] feat: conditional questions server side (port of
  nextcloud/forms#3833)
 
 Port of the server side of nextcloud/forms#3833 at head
@@ -2577,7 +2577,7 @@ index 0000000..a624dd2
 From 5fde9498b2ab924c031d96b71630882c4462d403 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 14:49:45 -0300
-Subject: [PATCH 3/4] feat: conditional questions submit view
+Subject: [PATCH 3/5] feat: conditional questions submit view
 
 Port of the respondent side of nextcloud/forms#3833 at head
 9999a7f4478d4f3d88bd3c209a0c8a9cc0172b57 onto Forms v5.3.5 (Options API,
@@ -3789,7 +3789,7 @@ index 0000000..e7e4ac9
 From d43ef1ff185855b28ab90b82a0ecbf2f005dd6c8 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 15:13:48 -0300
-Subject: [PATCH 4/4] feat: conditional questions editor
+Subject: [PATCH 4/5] feat: conditional questions editor
 
 Port of the editor part of nextcloud/forms#3833 (head 9999a7f4) to the
 5.3.5 options API:
@@ -5692,6 +5692,34 @@ index 6a6a2e1..f1a2f37 100644
  				emit('forms:last-updated:set', this.form.id)
  			} catch (error) {
  				logger.error('Error while saving form', { error })
+-- 
+2.50.1 (Apple Git-155)
+
+
+From 320dd6413f67cc69108a3ab3caacbf0a7d82199b Mon Sep 17 00:00:00 2001
+From: Patrick Rezende <tricio777@gmail.com>
+Date: Fri, 20 Nov 2026 15:20:55 -0300
+Subject: [PATCH 5/5] chore: AVUZ-FORMS-CONDITIONAL-V1 sentinel for the image
+ boot check
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ lib/Service/SubmissionService.php | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/lib/Service/SubmissionService.php b/lib/Service/SubmissionService.php
+index 36bb1bd..7407df9 100644
+--- a/lib/Service/SubmissionService.php
++++ b/lib/Service/SubmissionService.php
+@@ -672,6 +672,8 @@ class SubmissionService {
+ 		}
+ 	}
+ 
++	// AVUZ-FORMS-CONDITIONAL-V1 — do not remove; entrypoint integrity check matches this string
++
+ 	/**
+ 	 * The questions on the path of the respondent: from the first question, each question leads to the target of its
+ 	 * answer in `goTo`, else to its `next` target, else to the following question, until the end of the form.
 -- 
 2.50.1 (Apple Git-155)
 

@@ -82,6 +82,10 @@ Nextcloud deployment with custom branding ("Avuz Conecta") running in Docker. Mu
 - Contacts 8.4.1 overlay (`docker/overlays/contacts/`, sentinel `AVUZ-WHATSAPP-PHONE-V1`): in view mode a WhatsApp button next to each phone number opens `wa.me/<digits>` (bare 10/11 digits get `55`; none for <8 digits, Fax/Pager/Car, or edit mode). Ships `js/` and `css/`; the Dockerfile fails on any other contacts version. pt_BR label in `themes/avuz/apps/contacts/l10n/pt_BR.json`.
 - Rebuild needs the build clock pinned to the release date (`shift-build-date.cjs`), or the bundle won't match upstream. See `docker/overlays/contacts/README.md`.
 
+### Formulários conditional questions (Deck #448)
+- Forms 5.3.5 overlay (`docker/overlays/forms/`, sentinel `AVUZ-FORMS-CONDITIONAL-V1` in `lib/Service/SubmissionService.php`): port of upstream nextcloud/forms PR #3833 at `9999a7f4478d`. A single choice/dropdown answer jumps to a later question or the end (`goTo`), other types get one `next`; respondents see and must answer only the questions on their path. Upstream's stored format, so drop the overlay at Forms 5.5. Ships `lib/`, `js/`, `css/`; the Dockerfile fails on any other forms version; `forms` is in `AVUZ_OWNED_APPS`. Roll forward only: an image without it rejects `goTo`/`next`.
+- Source of truth `conditional-questions.patch` (port tree `~/work/avuz/forms-port`, branch `avuz-conditional`); rebuild, tests and ported upstream fixes: `docker/overlays/forms/README.md`. pt_BR strings in `themes/avuz/apps/forms/l10n/pt_BR.json`.
+
 ## Important Configs
 
 ### Nginx (`docker/nginx.conf`)
