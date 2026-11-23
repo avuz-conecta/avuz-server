@@ -30,6 +30,12 @@ Nextcloud deployment with custom branding ("Avuz Conecta") running in Docker. Mu
 - Left rail draws known apps inline from `AvuzIcons` (20px, filled for the open app), and External sites sites whose icon is in the library (`AvuzIcons.external`, file name → glyph); other apps and uploaded icons show their own image. A redirect External sites site (not embedded) opens in a new tab, its name saying "(abre em nova aba)". Search and notifications at the rail foot are masked Material glyphs; user menu icons are drawn at 20px (`css/icons.css`). The favicon (`js/favicon.js`) uses the same glyphs.
 - Theme SVGs have no `?v=` and are cached 6 months (browser + Cloudflare): purge `/themes/avuz/apps/*` in Cloudflare after changing one. After adding a new override file on a running instance, clear the `imagePath-` distributed cache (or the old path sticks).
 
+### E-mail logo per client (Deck #516)
+- Administração › Personalização › "Logo dos e-mails" (`lib/Settings/EmailLogoAdmin.php`, `js/email-logo-admin.js`): an uploaded PNG/JPEG (1 MB, 2000 px max) replaces the Avuz logo at the top of all that tenant's e-mails, fitted to 140 × 56; removing it goes back to `img/logo-email.png`. Stored in avuz_theme's app data (S3-safe) re-encoded as PNG; public at `/apps/avuz_theme/email-logo?v=<version>` (1 day cache). `Mail/EMailTemplate::addHeader()` reads it through `Service/EmailLogo`. Login and screens keep the Avuz branding.
+
+### E-mail links open ConectaMail (Deck #573)
+- For users whose ConectaMail is the webmail and who have a mailbox, `conectamail/js/mailto-links.js` (loaded by `MailtoLinksListener` on every logged-in page) turns a plain click on any `mailto:` link into a new tab at `/apps/conectamail/compose?to=…`, which signs in to the webmail (SSO `return=`) and opens its compose window. Roundcube tenants and users without a mailbox keep the browser's mailto.
+
 ### CSS Customizations (`apps/avuz_theme/css/icons.css`)
 - Menu link colors: `#00679e` (normal), `#2bb5e3` (active)
 - SVG icon styling: filled glyphs, currentColor

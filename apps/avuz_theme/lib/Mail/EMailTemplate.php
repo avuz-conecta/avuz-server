@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace OCA\AvuzTheme\Mail;
 
 use OC\Mail\EMailTemplate as BaseEMailTemplate;
+use OCA\AvuzTheme\Service\EmailLogo;
+use OCP\Server;
 
 /**
  * E-mail template with a compact header: the Avuz Conecta logo centered on
@@ -68,18 +70,37 @@ EOF;
 		}
 		$this->headerAdded = true;
 
-		$logoUrl = file_exists(self::EMAIL_LOGO_FILE)
-			? $this->urlGenerator->getAbsoluteURL('/' . self::EMAIL_LOGO)
-			: $this->urlGenerator->getAbsoluteURL($this->themingDefaults->getLogo(false));
-
+		$logo = $this->tenantLogo() ?? $this->avuzLogo();
 		$this->htmlBody .= sprintf(
 			self::COMPACT_HEADER,
-			htmlspecialchars($logoUrl),
+			htmlspecialchars($logo['url']),
 			htmlspecialchars($this->themingDefaults->getName()),
-			self::EMAIL_LOGO_WIDTH,
-			self::EMAIL_LOGO_HEIGHT,
-			self::EMAIL_LOGO_WIDTH,
-			self::EMAIL_LOGO_WIDTH,
+			$logo['width'],
+			$logo['height'],
+			$logo['width'],
+			$logo['width'],
 		);
+	}
+
+	/**
+	 * The client's logo (Administração › Personalização › Logo dos e-mails, Deck #516).
+	 * Core builds this template with a fixed constructor, so the service is looked up here.
+	 *
+	 * @return array{url: string, width: int, height: int}|null
+	 */
+	protected function tenantLogo(): ?array {
+		try {
+			return Server::get(EmailLogo::class)->current();
+		} catch (\Throwable) {
+			return null;
+		}
+	}
+
+	/** @return array{url: string, width: int, height: int} */
+	private function avuzLogo(): array {
+		$url = file_exists(self::EMAIL_LOGO_FILE)
+			? $this->urlGenerator->getAbsoluteURL('/' . self::EMAIL_LOGO)
+			: $this->urlGenerator->getAbsoluteURL($this->themingDefaults->getLogo(false));
+		return ['url' => $url, 'width' => self::EMAIL_LOGO_WIDTH, 'height' => self::EMAIL_LOGO_HEIGHT];
 	}
 }

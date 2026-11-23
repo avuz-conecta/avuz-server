@@ -164,6 +164,57 @@ class EMailTemplateTest extends TestCase {
 		$this->assertLessThan(strpos($html, '</head>'), strpos($html, '<!--[if mso]>'));
 	}
 
+	/**
+	 * A template whose tenant (Administração › Personalização › Logo dos e-mails)
+	 * uploaded a logo; core builds the real one with a fixed constructor.
+	 *
+	 * @param array{url: string, width: int, height: int}|null $tenantLogo
+	 */
+	private function templateWithTenantLogo(?array $tenantLogo): EMailTemplate {
+		$defaults = $this->createStub(Defaults::class);
+		$defaults->method('getName')->willReturn('Avuz Conecta');
+		$defaults->method('getLogo')->willReturn('/core/img/logo/logo.svg');
+		$urlGenerator = $this->createStub(IURLGenerator::class);
+		$urlGenerator->method('getAbsoluteURL')->willReturnCallback(
+			static fn (string $path): string => self::BASE_URL . $path,
+		);
+		return new class($tenantLogo, $defaults, $urlGenerator, $this->createStub(IFactory::class)) extends EMailTemplate {
+			public function __construct(private ?array $tenantLogo, Defaults $defaults, IURLGenerator $urlGenerator, IFactory $l10nFactory) {
+				parent::__construct($defaults, $urlGenerator, $l10nFactory, null, null, 'test.mail', []);
+			}
+
+			protected function tenantLogo(): ?array {
+				return $this->tenantLogo;
+			}
+		};
+	}
+
+	public function testAddHeaderShowsTheClientLogoAtItsFittedSize(): void {
+		$template = $this->templateWithTenantLogo(['url' => 'https://ramires.example/index.php/apps/avuz_theme/email-logo?v=abc', 'width' => 120, 'height' => 40]);
+		$template->addHeader();
+		$header = $this->headerPart($template->renderHtml());
+
+		$this->assertStringContainsString('src="https://ramires.example/index.php/apps/avuz_theme/email-logo?v=abc"', $header);
+		$this->assertStringContainsString('width="120"', $header);
+		$this->assertStringContainsString('height="40"', $header);
+		$this->assertStringContainsString('width:120px;max-width:120px;height:auto', $header);
+		$this->assertStringNotContainsString('logo-email.png', $header);
+	}
+
+	public function testAddHeaderEscapesTheClientLogoAddress(): void {
+		$template = $this->templateWithTenantLogo(['url' => 'https://ramires.example/logo?v=1&x="><script>', 'width' => 100, 'height' => 30]);
+		$template->addHeader();
+
+		$this->assertStringNotContainsString('"><script>', $template->renderHtml());
+	}
+
+	public function testAddHeaderKeepsTheAvuzLogoWithoutAClientLogo(): void {
+		$template = $this->templateWithTenantLogo(null);
+		$template->addHeader();
+
+		$this->assertStringContainsString('src="' . self::LOGO_URL . '"', $template->renderHtml());
+	}
+
 	public function testHeaderHeightIsHalfTheLogoPixelHeight(): void {
 		$expectedHeight = (int)round(getimagesize(self::LOGO_PATH)[1] / 2);
 
