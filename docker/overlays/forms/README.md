@@ -74,7 +74,7 @@ the stored grid JSON as a string → 400); not ported: `withOfferedValues`
 - Entrypoint: `forms` in `AVUZ_OWNED_APPS` (never store-updated; a
   `custom_apps/forms` shadow copy is quarantined at boot); sentinel
   `AVUZ-FORMS-CONDITIONAL-V1` in `lib/Service/SubmissionService.php`
-  plus `removed-jumps` in `js/SetWindowTitle-uChAMhrz.chunk.mjs` and the Submit chunk name in
+  plus `removed-jumps` in `js/SetWindowTitle-RE0wjF3i.chunk.mjs` and the Submit chunk name in
   `js/forms-submit.mjs` (update both on every rebuild)
   (`verify_avuz_patches`, refuses to boot without them);
   `reapply_avuz_forms_overlay` after core upgrades.
