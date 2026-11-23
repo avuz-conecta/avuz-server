@@ -5,7 +5,7 @@
     <name>Avuz Theme</name>
     <summary>Custom Avuz branding and login layout</summary>
     <description><![CDATA[Provides custom company branding with split-screen login layout featuring network diagram on the left and login form on the right.]]></description>
-    <version>1.0.12</version>
+    <version>1.0.13</version>
     <licence>agpl</licence>
     <author mail="your-email@avuz.com">Avuz Team</author>
     <namespace>AvuzTheme</namespace>
@@ -13,6 +13,7 @@
     <bugs>https://github.com/avuz-conecta/avuz-server/issues</bugs>
     <settings>
         <admin>OCA\AvuzTheme\Settings\IpAccessAdmin</admin>
+        <admin>OCA\AvuzTheme\Settings\EmailLogoAdmin</admin>
     </settings>
     <dependencies>
         <nextcloud min-version="28" max-version="35"/>
