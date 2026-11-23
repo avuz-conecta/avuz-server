@@ -11,6 +11,7 @@ use OCA\AvuzTheme\Listener\BeforeTemplateRenderedListener;
 use OCA\AvuzTheme\Listener\IpAccessLoginListener;
 use OCA\AvuzTheme\Listener\LoginFlowTemplateRenderedListener;
 use OCA\AvuzTheme\Listener\UserCreatedListener;
+use OCA\AvuzTheme\Listener\ViaCepCspListener;
 use OCA\AvuzTheme\Middleware\IpAccessMiddleware;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
@@ -61,6 +62,12 @@ class Application extends App implements IBootstrap {
 		$context->registerEventListener(
 			BeforeTemplateRenderedEvent::class,
 			AppointmentEmbedStateListener::class
+		);
+
+		// Formulários address block: the browser looks up the CEP on ViaCEP
+		$context->registerEventListener(
+			AddContentSecurityPolicyEvent::class,
+			ViaCepCspListener::class
 		);
 		// Render the booking page as a clean widget when embedded with ?embed=1
 		$context->registerEventListener(
