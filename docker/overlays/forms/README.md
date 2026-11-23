@@ -63,8 +63,8 @@ the stored grid JSON as a string → 400); not ported: `withOfferedValues`
 
 ## Files here
 - `conditional-questions.patch` — `git format-patch --stdout v5.3.5..avuz-conditional`
-  of the port tree (6 commits: the #448 port, its sentinel and two fixes, then
-  the #449 address block). Source of truth.
+  of the port tree (7 commits: the #448 port, its sentinel and two fixes, then
+  the #449 address block and its fix round). Source of truth.
 - `lib/` — full-file replacements of the PHP files the patch changes
   (`Constants.php`, `Controller/ApiController.php`, `FormsMigrator.php`,
   `ResponseDefinitions.php`, `Service/FormsService.php`,
@@ -119,7 +119,7 @@ git am /path/to/docker/overlays/forms/conditional-questions.patch
 #     (on a new version expect conflicts: redo the port, see the spec)
 #  2. tests
 npm run test:jumps            # node --experimental-transform-types (Constants.ts enums); 30 pass
-npm run test:address          # address block + ViaCEP mapping; 33 pass
+npm run test:address          # address block + ViaCEP mapping; 35 pass
 /path/to/docker/overlays/forms/scripts/phpunit.sh  # PHPUnit in a throwaway nextcloud:33.0.8; 498 tests, 4 skipped
 #  3. patched build
 npm run build

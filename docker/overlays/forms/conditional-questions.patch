@@ -1,7 +1,7 @@
 From 3d9b139039ad7d74ecd97914cf2eb6a388354193 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 14:17:14 -0300
-Subject: [PATCH 1/8] chore: ignore PHPUnit cache
+Subject: [PATCH 1/9] chore: ignore PHPUnit cache
 
 ---
  .gitignore | 2 ++
@@ -24,7 +24,7 @@ index 5cdce03..7904f79 100644
 From d165a2a7712995b7d2db6d13e9992b40681d0d45 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 14:33:32 -0300
-Subject: [PATCH 2/8] feat: conditional questions server side (port of
+Subject: [PATCH 2/9] feat: conditional questions server side (port of
  nextcloud/forms#3833)
 
 Port of the server side of nextcloud/forms#3833 at head
@@ -2577,7 +2577,7 @@ index 0000000..a624dd2
 From 5fde9498b2ab924c031d96b71630882c4462d403 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 14:49:45 -0300
-Subject: [PATCH 3/8] feat: conditional questions submit view
+Subject: [PATCH 3/9] feat: conditional questions submit view
 
 Port of the respondent side of nextcloud/forms#3833 at head
 9999a7f4478d4f3d88bd3c209a0c8a9cc0172b57 onto Forms v5.3.5 (Options API,
@@ -3789,7 +3789,7 @@ index 0000000..e7e4ac9
 From d43ef1ff185855b28ab90b82a0ecbf2f005dd6c8 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 15:13:48 -0300
-Subject: [PATCH 4/8] feat: conditional questions editor
+Subject: [PATCH 4/9] feat: conditional questions editor
 
 Port of the editor part of nextcloud/forms#3833 (head 9999a7f4) to the
 5.3.5 options API:
@@ -5699,7 +5699,7 @@ index 6a6a2e1..f1a2f37 100644
 From 320dd6413f67cc69108a3ab3caacbf0a7d82199b Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 15:20:55 -0300
-Subject: [PATCH 5/8] chore: AVUZ-FORMS-CONDITIONAL-V1 sentinel for the image
+Subject: [PATCH 5/9] chore: AVUZ-FORMS-CONDITIONAL-V1 sentinel for the image
  boot check
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -5727,7 +5727,7 @@ index 36bb1bd..7407df9 100644
 From 9f1c9adf2db76f308ca51b3f00e52d2ef33cd157 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Mon, 23 Nov 2026 09:58:19 -0300
-Subject: [PATCH 6/8] fix: align the jump select with its answer field
+Subject: [PATCH 6/9] fix: align the jump select with its answer field
 
 The "Go to" label sits above the select, so centering the row put the
 select box lower than the answer field. Align the row by the bottom edge.
@@ -5758,7 +5758,7 @@ index d727d39..7d63710 100644
 From f949fb3ab50577618355f23b1203abdd3c526b3c Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Mon, 23 Nov 2026 10:44:30 -0300
-Subject: [PATCH 7/8] fix: jump select as tall as the answer field
+Subject: [PATCH 7/9] fix: jump select as tall as the answer field
 
 The select box was 2px taller than the answer input (inner row plus
 padding and border) and had a 4px bottom margin against the input's 3px,
@@ -5821,7 +5821,7 @@ index d845971..b2c3e2e 100644
 From eff148da893d1530848eac9b9ecd991c6476ef99 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Mon, 23 Nov 2026 17:15:58 -0300
-Subject: [PATCH 8/8] feat: address block with CEP auto-fill (Deck #449)
+Subject: [PATCH 8/9] feat: address block with CEP auto-fill (Deck #449)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -6973,6 +6973,257 @@ index 0000000..fd8f258
 +		await assert.rejects(fetchViaCepAddress('01310100', fetchStub))
 +	})
 +})
+-- 
+2.50.1 (Apple Git-155)
+
+
+From 5def9c7536e5ffcc80fd6e91693d755975e4fa9d Mon Sep 17 00:00:00 2001
+From: Patrick Rezende <tricio777@gmail.com>
+Date: Mon, 23 Nov 2026 17:36:03 -0300
+Subject: [PATCH 9/9] fix: address block failures and stale auto-fill (Deck
+ #449)
+
+- Editor: each block question is shown as soon as it is created, then
+  configured. A failed settings or options request no longer leaves a
+  hidden, unconfigured question that only appears on reload.
+- Answer page: after a network error or timeout the same CEP is looked up
+  again when retyped.
+- A UF no Estado option matches now empties an Estado that was filled for
+  an earlier CEP; a state the respondent chose stays.
+- Questions the auto-fill changes are validated again when they show an
+  error, so a "required" note goes away once they are filled.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/utils/AddressBlock.ts               | 12 ++++----
+ src/views/Create.vue                    | 41 ++++++++++++++++++++-----
+ src/views/Submit.vue                    | 19 ++++++++++++
+ tests/javascript/address-block.test.mjs | 39 +++++++++++++++++++++++
+ 4 files changed, 97 insertions(+), 14 deletions(-)
+
+diff --git a/src/utils/AddressBlock.ts b/src/utils/AddressBlock.ts
+index 8b9091a..9cf8de5 100644
+--- a/src/utils/AddressBlock.ts
++++ b/src/utils/AddressBlock.ts
+@@ -194,7 +194,7 @@ function isSameAnswer(answer: unknown, other: unknown): boolean {
+ }
+ 
+ /**
+- * The answer to a question of the block for the address, `null` to leave the question alone
++ * The answer to a question of the block for the address: `[]` empties it, `null` leaves the question alone
+  *
+  * @param address the address ViaCEP returned
+  * @param question the question of the block
+@@ -205,11 +205,11 @@ function getAddressAnswer(
+ ): string[] | null {
+ 	if (question.name === ESTADO_QUESTION_NAME) {
+ 		const uf = address.uf?.trim() ?? ''
+-		if (uf === '') {
+-			return []
+-		}
+-		const option = question.options?.find(({ text }) => text.endsWith(`(${uf})`))
+-		return option ? [String(option.id)] : null
++		const option =
++			uf === ''
++				? undefined
++				: question.options?.find(({ text }) => text.endsWith(`(${uf})`))
++		return option ? [String(option.id)] : []
+ 	}
+ 	const field = VIACEP_FIELD_BY_NAME[question.name ?? '']
+ 	if (!field) {
+diff --git a/src/views/Create.vue b/src/views/Create.vue
+index 6bab329..4184b81 100644
+--- a/src/views/Create.vue
++++ b/src/views/Create.vue
+@@ -772,7 +772,7 @@ export default {
+ 				for (const [offset, addressQuestion] of getAddressQuestions(
+ 					translate,
+ 				).entries()) {
+-					const question = await this.createAddressQuestion(
++					const question = await this.postAddressQuestion(
+ 						addressQuestion,
+ 						position === null ? null : position + offset,
+ 					)
+@@ -780,7 +780,9 @@ export default {
+ 						return
+ 					}
+ 					cepQuestion ??= question
++					// Shown before it is configured, so a failed configuration leaves no hidden question behind
+ 					this.insertQuestion(question, { answers: [] })
++					await this.configureAddressQuestion(question, addressQuestion)
+ 				}
+ 				this.$nextTick(() => {
+ 					this.questionRefsMap[cepQuestion.id]?.focus()
+@@ -797,21 +799,21 @@ export default {
+ 		},
+ 
+ 		/**
+-		 * Create a question of the address block with its settings and options
++		 * Create a question of the address block, not configured yet
+ 		 *
+ 		 * @param {object} addressQuestion the question, see getAddressQuestions()
++		 * @param {string} addressQuestion.type the question type
++		 * @param {string} addressQuestion.text the question text
+ 		 * @param {number|null} position the position of the question before it
+ 		 * @return {Promise<object>} the created question
+ 		 */
+-		async createAddressQuestion(addressQuestion, position) {
+-			const { name, type, text, isRequired, extraSettings, options } =
+-				addressQuestion
++		async postAddressQuestion({ type, text }, position) {
+ 			const body = { type, text, subtype: null }
+ 			if (position !== null) {
+ 				// position: question before it + 2 (0-based index: +1, next position: +1)
+ 				body.position = position + 2
+ 			}
+-			const question = OcsResponse2Data(
++			return OcsResponse2Data(
+ 				await queueQuestionRequest(
+ 					this.form.questions.map(({ id }) => id),
+ 					() =>
+@@ -826,6 +828,16 @@ export default {
+ 						),
+ 				),
+ 			)
++		},
++
++		/**
++		 * Save the settings and options of a created question of the address block, and show each once saved
++		 *
++		 * @param {object} question the created question
++		 * @param {object} addressQuestion the question, see getAddressQuestions()
++		 */
++		async configureAddressQuestion(question, addressQuestion) {
++			const { name, isRequired, extraSettings, options } = addressQuestion
+ 			const questionUrl = generateOcsUrl(
+ 				'apps/forms/api/v3/forms/{id}/questions/{questionId}',
+ 				{ id: question.formId, questionId: question.id },
+@@ -838,8 +850,9 @@ export default {
+ 			await queueQuestionRequest([question.id], () =>
+ 				axios.patch(questionUrl, { keyValuePairs: settings }),
+ 			)
++			this.updateShownQuestion(question.id, settings)
+ 			if (!options) {
+-				return { ...question, ...settings }
++				return
+ 			}
+ 			const createdOptions = OcsResponse2Data(
+ 				await queueQuestionRequest([question.id], () =>
+@@ -849,7 +862,19 @@ export default {
+ 					}),
+ 				),
+ 			)
+-			return { ...question, ...settings, options: createdOptions }
++			this.updateShownQuestion(question.id, { options: createdOptions })
++		},
++
++		/**
++		 * Change properties of a question of the shown form; nothing for a question of another form
++		 *
++		 * @param {number} questionId the id of the question
++		 * @param {object} changes the changed properties
++		 */
++		updateShownQuestion(questionId, changes) {
++			this.form.questions = this.form.questions.map((question) =>
++				question.id === questionId ? { ...question, ...changes } : question,
++			)
+ 		},
+ 
+ 		/**
+diff --git a/src/views/Submit.vue b/src/views/Submit.vue
+index 79ca259..c3e0611 100644
+--- a/src/views/Submit.vue
++++ b/src/views/Submit.vue
+@@ -969,6 +969,9 @@ export default {
+ 				address = await fetchViaCepAddress(cep)
+ 			} catch (error) {
+ 				logger.debug('Could not look up the CEP', { error })
++				if (this.cepLookups[question.id] === cep) {
++					delete this.cepLookups[question.id]
++				}
+ 				return
+ 			}
+ 			if (
+@@ -994,6 +997,7 @@ export default {
+ 						filledAnswers[blockQuestion.id]
+ 					this.onUpdate(blockQuestion, filledAnswers[blockQuestion.id])
+ 				})
++			this.revalidateShownErrors(Object.keys(filledAnswers).map(Number))
+ 
+ 			if (address === null) {
+ 				const message = t('forms', 'CEP not found. Fill in the address.')
+@@ -1006,6 +1010,21 @@ export default {
+ 			}
+ 		},
+ 
++		/**
++		 * Validate again the questions that show an error, once their new answers are rendered
++		 *
++		 * @param {number[]} questionIds the ids of the questions
++		 */
++		async revalidateShownErrors(questionIds) {
++			await this.$nextTick()
++			;(this.$refs.questions ?? [])
++				.filter(
++					(component) =>
++						questionIds.includes(component.id) && component.hasError,
++				)
++				.forEach((component) => component.validate())
++		},
++
+ 		/**
+ 		 * Show a message under a CEP question
+ 		 *
+diff --git a/tests/javascript/address-block.test.mjs b/tests/javascript/address-block.test.mjs
+index fd8f258..f021d2b 100644
+--- a/tests/javascript/address-block.test.mjs
++++ b/tests/javascript/address-block.test.mjs
+@@ -312,6 +312,45 @@ describe('addressAnswers', () => {
+ 		})
+ 	})
+ 
++	it('empties a state it filled before when no option matches the new UF', () => {
++		const autoFilled = {
++			11: ['Rua A'],
++			14: ['Centro'],
++			15: ['81'],
++			16: ['Rio de Janeiro'],
++		}
++		assert.deepEqual(
++			addressAnswers(
++				{ ...PAULISTA, uf: 'MG' },
++				block,
++				{ ...autoFilled },
++				autoFilled,
++			),
++			{
++				11: ['Avenida Paulista'],
++				14: ['Bela Vista'],
++				15: [],
++				16: ['São Paulo'],
++			},
++		)
++	})
++
++	it('keeps a state the respondent chose when no option matches the new UF', () => {
++		assert.deepEqual(
++			addressAnswers(
++				{ ...PAULISTA, uf: 'MG' },
++				block,
++				{ 15: ['83'] },
++				{ 15: ['81'] },
++			),
++			{
++				11: ['Avenida Paulista'],
++				14: ['Bela Vista'],
++				16: ['São Paulo'],
++			},
++		)
++	})
++
+ 	it('leaves the second block untouched', () => {
+ 		const form = [...addressBlock(10), ...addressBlock(20)]
+ 		const filled = addressAnswers(PAULISTA, getAddressBlock(form, 10), {}, {})
 -- 
 2.50.1 (Apple Git-155)
 

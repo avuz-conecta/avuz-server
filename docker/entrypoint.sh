@@ -159,7 +159,7 @@ verify_avuz_patches() {
         "style-XRJXNnxt.chunk.mjs|contacts|js/contacts-main.mjs|contacts overlay missing — contacts-main.mjs does not load the patched chunk (WhatsApp button lost); redeploy or rerun reapply_avuz_contacts_overlay"
         "AVUZ-FORMS-CONDITIONAL-V1|forms|lib/Service/SubmissionService.php|forms overlay missing — conditional questions lost (skipped required questions would block submits); redeploy or rerun reapply_avuz_forms_overlay"
         "removed-jumps|forms|js/SetWindowTitle-BM9d6PYL.chunk.mjs|forms overlay missing — the patched question-path script is gone, respondents would see every question; redeploy or rerun reapply_avuz_forms_overlay"
-        "Submit-BGQcY9RN.chunk.mjs|forms|js/forms-submit.mjs|forms overlay missing — forms-submit.mjs does not load the patched Submit chunk (conditional questions lost); redeploy or rerun reapply_avuz_forms_overlay"
+        "Submit-FAn4qQ0O.chunk.mjs|forms|js/forms-submit.mjs|forms overlay missing — forms-submit.mjs does not load the patched Submit chunk (conditional questions lost); redeploy or rerun reapply_avuz_forms_overlay"
         "AVUZ-DECK-CLONE-ORDER-V1|deck|lib/Service/BoardService.php|deck fork missing — board-copy column/card shift fix lost; check the apps/deck submodule shipped and no store copy in custom_apps outranks it"
         "AVUZ-BOARD-TAGS-V1|deck|lib/Controller/BoardTagController.php|deck fork missing — board tags and overview filters lost; check the apps/deck submodule shipped at 1.17.1 and no store copy in custom_apps outranks it"
     )
