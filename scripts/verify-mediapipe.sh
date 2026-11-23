@@ -25,11 +25,12 @@ DIR="${1:-/var/www/html/apps/spreed/js}"
 echo "Verifying MediaPipe vendored files in $DIR ..."
 cd "$DIR"
 
+# Pinned set: spreed v23.0.14 release tarball (glue + wasm from the same release).
 if sha256sum -c <<'EOF'
-c449032ffe44333db7e22a7e8535661989fc61431e1e56b30dfa9c0aa1df61b7  vision_wasm_internal.js
-cb3ec20026a9aecc2a81a93c25630ceb5389297ddb7a5f0bd61dd09cde606b9b  vision_wasm_internal.wasm
-d420051f74b83b9a429fe54f33a0f684ae1c42d9a0cff39330930f8409b3e3bf  vision_wasm_nosimd_internal.js
-924274fcd5ac8985f6570a8573e7971b7bd2d580ba1b8f3beb0ba8f95db6347c  vision_wasm_nosimd_internal.wasm
+b63d073deba0fc1185f6cf6f4ef8093de65dd3da98df6de95f25599ce7428a21  vision_wasm_internal.js
+6a5c64584c2ab61c763b6e204afbdbc7ce1caf7f5216187322bca8df94f646bc  vision_wasm_internal.wasm
+296201eae94710e78e15211402c5b2756ef7aa7195bac2034e3827ef326d0955  vision_wasm_nosimd_internal.js
+8a3092d34c79d3f57e6ba8592105e8a90f6b07c27891ffecd14cca428bfd3e31  vision_wasm_nosimd_internal.wasm
 191ac9529ae506ee0beefa6b2c945a172dab9d07d1e802a290a4e4038226658b  selfie_segmenter.tflite
 EOF
 then
