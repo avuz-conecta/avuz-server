@@ -1,4 +1,4 @@
-# forms overlay — conditional questions (Deck #448)
+# forms overlay — conditional questions (Deck #448) + address block (Deck #449)
 
 ## What
 Patched build of Nextcloud Forms **v5.3.5** for Avuz Conecta: port of upstream
@@ -20,6 +20,20 @@ answer"), which is not in any release (milestone 5.5). Design:
 - Forms without jumps behave as in 5.3.5, with one exception: editing a
   submission whose chosen option was renamed now opens the "form has changed"
   dialog (5.3.5 dropped the answer silently).
+
+Address block (Deck #449, design
+`docs/superpowers/specs/2026-11-23-forms-address-block-design.md`):
+- Editor: the add and insert question menus get "Bloco de endereço", which
+  adds 7 configured questions (technical names `cep`, `logradouro`, `numero`,
+  `complemento`, `bairro`, `estado`, `municipio`; CEP regex; Estado = the 27
+  states). Only upstream features are stored: these forms keep working
+  without the overlay, only the menu entry and the auto-fill go away.
+- Answer page: a `cep` answer with 8 digits is looked up on
+  `https://viacep.com.br/ws/<cep>/json/` (browser `fetch`, 5 s timeout, no
+  credentials) and fills Logradouro, Bairro, Município and Estado of its
+  block (the questions up to the next `cep`), only where empty or still
+  holding the earlier auto-fill. Needs the avuz_theme CSP listener
+  (`ViaCepCspListener`); without it the lookup is blocked and silently skipped.
 
 ## Base
 - Forms tag `v5.3.5` (commit `9b2fb46e338fa162611d492eca55d521b1a50048`, dated
@@ -49,7 +63,8 @@ the stored grid JSON as a string → 400); not ported: `withOfferedValues`
 
 ## Files here
 - `conditional-questions.patch` — `git format-patch --stdout v5.3.5..avuz-conditional`
-  of the port tree (5 commits; the last adds the sentinel). Source of truth.
+  of the port tree (7 commits: the #448 port, its sentinel and two fixes, then
+  the #449 address block and its fix round). Source of truth.
 - `lib/` — full-file replacements of the PHP files the patch changes
   (`Constants.php`, `Controller/ApiController.php`, `FormsMigrator.php`,
   `ResponseDefinitions.php`, `Service/FormsService.php`,
@@ -64,8 +79,9 @@ the stored grid JSON as a string → 400); not ported: `withOfferedValues`
 - `scripts/phpunit.sh` — runs the Forms PHPUnit suite in a throwaway
   nextcloud:33.0.8 container against the port tree. Paths are overridable:
   `FORMS_PORT_TREE`, `FORMS_PORT_SERVER_TESTS`.
-- The front-end path test (`tests/javascript/jumps.test.mjs`) lives in the
-  port tree and in `conditional-questions.patch`; it runs from the port tree.
+- The front-end tests (`tests/javascript/jumps.test.mjs`,
+  `tests/javascript/address-block.test.mjs`) live in the port tree and in
+  `conditional-questions.patch`; they run from the port tree.
 
 ## How it's applied
 - Dockerfile: `ARG AVUZ_FORMS_OVERLAY_VERSION=5.3.5`, **fails the build** if
@@ -74,7 +90,7 @@ the stored grid JSON as a string → 400); not ported: `withOfferedValues`
 - Entrypoint: `forms` in `AVUZ_OWNED_APPS` (never store-updated; a
   `custom_apps/forms` shadow copy is quarantined at boot); sentinel
   `AVUZ-FORMS-CONDITIONAL-V1` in `lib/Service/SubmissionService.php`
-  plus `removed-jumps` in `js/SetWindowTitle-CNzGfRM6.chunk.mjs` and the Submit chunk name in
+  plus `removed-jumps` in `js/SetWindowTitle-BM9d6PYL.chunk.mjs` and the Submit chunk name in
   `js/forms-submit.mjs` (update both on every rebuild)
   (`verify_avuz_patches`, refuses to boot without them);
   `reapply_avuz_forms_overlay` after core upgrades.
@@ -103,6 +119,7 @@ git am /path/to/docker/overlays/forms/conditional-questions.patch
 #     (on a new version expect conflicts: redo the port, see the spec)
 #  2. tests
 npm run test:jumps            # node --experimental-transform-types (Constants.ts enums); 30 pass
+npm run test:address          # address block + ViaCEP mapping; 35 pass
 /path/to/docker/overlays/forms/scripts/phpunit.sh  # PHPUnit in a throwaway nextcloud:33.0.8; 498 tests, 4 skipped
 #  3. patched build
 npm run build
