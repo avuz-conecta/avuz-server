@@ -611,3 +611,29 @@ avuz_seed_external_icons() {
     echo "External sites icon library: $outcome"
     return 0
 }
+
+# Activity and notification e-mails off on every boot (Deck #530): the bell and
+# push already deliver both, and each e-mail is a paid ZeptoMail send. Activity
+# goes off at app level (users lose the e-mail column too). Notifications get
+# the admin default "never" and every user is reset to never (see
+# docker/notifications-email-off.php); a user who opts back in keeps it until
+# the next boot. Calendar invites, shares, password resets and welcome e-mails
+# are untouched. Opt out per stack with AVUZ_DIGEST_EMAILS=1. Non-fatal.
+avuz_disable_digest_emails() {
+    if [ "${AVUZ_DIGEST_EMAILS:-0}" = "1" ]; then
+        echo "→ Activity/notification e-mails kept (AVUZ_DIGEST_EMAILS=1) — skipping"
+        return 0
+    fi
+    _avuz_occ config:app:set activity enable_email --value=no \
+        || echo "✗ Could not turn off activity e-mails"
+    _avuz_occ config:app:set notifications setting_batchtime --value=0 \
+        || echo "✗ Could not set the notification e-mail default to never"
+    if [ -n "${AVUZ_OCC_DRYRUN:-}" ]; then
+        echo "PHPRESET notification-emails"
+        return 0
+    fi
+    local outcome
+    outcome="$(php /var/www/html/docker/notifications-email-off.php)" || true
+    echo "Activity/notification e-mails off; users: $outcome"
+    return 0
+}
