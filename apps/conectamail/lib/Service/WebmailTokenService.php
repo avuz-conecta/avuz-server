@@ -141,6 +141,23 @@ class WebmailTokenService
     }
 
     /**
+     * A new webmail message to the recipients, signed in like the embedded page.
+     * The webmail's SSO entry sends the browser on to `return` (same origin only).
+     *
+     * @param string $recipients valid addresses, comma-separated (see ComposeRecipients)
+     */
+    public function buildComposeUrl(string $userId, string $recipients): string
+    {
+        $composePath = '/?' . http_build_query(['view' => 'compose', 'mode' => 'new', 'to' => $recipients], '', '&', PHP_QUERY_RFC3986);
+        $token = $this->buildToken($userId);
+        if ($token === null) {
+            return $this->baseUrl() . $composePath;
+        }
+
+        return $this->baseUrl() . '/api/auth/sso?' . http_build_query(['token' => $token, 'return' => $composePath], '', '&', PHP_QUERY_RFC3986);
+    }
+
+    /**
      * @return array{encrypted: string, source: string}|null
      */
     private function storedMailPassword(string $userId): ?array

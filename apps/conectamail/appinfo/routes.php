@@ -8,5 +8,6 @@ return ['routes' => [
     ['name' => 'mailbox_password#remove', 'url' => '/api/mailbox-password', 'verb' => 'DELETE'],
     ['name' => 'calendar_api#import', 'url' => '/api/calendar/events', 'verb' => 'POST'],
     ['name' => 'webmail_page#index', 'url' => '/webmail', 'verb' => 'GET'],
+    ['name' => 'compose#compose', 'url' => '/compose', 'verb' => 'GET'],
     ['name' => 'sso#webmail', 'url' => '/sso/webmail', 'verb' => 'GET'],
 ]];

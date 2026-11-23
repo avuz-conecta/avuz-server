@@ -3,12 +3,14 @@
 namespace OCA\Roundcube\AppInfo;
 
 use OCA\Roundcube\Listener\BeforeUserLoggedOutListener;
+use OCA\Roundcube\Listener\MailtoLinksListener;
 use OCA\Roundcube\Listener\UserLoggedInListener;
 use OCA\Roundcube\Listener\UserLoggedOutListener;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
+use OCP\AppFramework\Http\Events\BeforeTemplateRenderedEvent;
 use OCP\User\Events\BeforeUserLoggedOutEvent;
 use OCP\User\Events\UserLoggedInEvent;
 use OCP\User\Events\UserLoggedOutEvent;
@@ -27,6 +29,7 @@ class Application extends App implements IBootstrap
         $context->registerEventListener(UserLoggedInEvent::class, UserLoggedInListener::class);
         $context->registerEventListener(UserLoggedOutEvent::class, UserLoggedOutListener::class);
         $context->registerEventListener(BeforeUserLoggedOutEvent::class, BeforeUserLoggedOutListener::class);
+        $context->registerEventListener(BeforeTemplateRenderedEvent::class, MailtoLinksListener::class);
     }
 
     public function boot(IBootContext $context): void {}
