@@ -1,0 +1,7 @@
+SPDX-License-Identifier: AGPL-3.0-or-later
+SPDX-FileCopyrightText: forms developers
+
+This file is generated from multiple sources. Included packages:
+- forms
+	- version: 5.3.5
+	- license: AGPL-3.0-or-later

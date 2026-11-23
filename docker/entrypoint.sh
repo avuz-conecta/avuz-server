@@ -89,6 +89,7 @@ AVUZ_OWNED_APPS=(
     "contacts"
     "deck"
     "files_downloadlimit"
+    "forms"
     "integration_openai"
     "assinaturas"
 )
@@ -156,6 +157,9 @@ verify_avuz_patches() {
         "AVUZ-BOOKING-MAIL-FROM-V1|calendar|lib/Service/Appointments/MailService.php|calendar overlay missing — demo-page booking e-mails go out from the default sender; redeploy or rerun reapply_avuz_calendar_overlay"
         "AVUZ-WHATSAPP-PHONE-V1|contacts|js/style-XRJXNnxt.chunk.mjs|contacts overlay missing — WhatsApp button next to phone numbers lost; redeploy or rerun reapply_avuz_contacts_overlay"
         "style-XRJXNnxt.chunk.mjs|contacts|js/contacts-main.mjs|contacts overlay missing — contacts-main.mjs does not load the patched chunk (WhatsApp button lost); redeploy or rerun reapply_avuz_contacts_overlay"
+        "AVUZ-FORMS-CONDITIONAL-V1|forms|lib/Service/SubmissionService.php|forms overlay missing — conditional questions lost (skipped required questions would block submits); redeploy or rerun reapply_avuz_forms_overlay"
+        "removed-jumps|forms|js/SetWindowTitle-uChAMhrz.chunk.mjs|forms overlay missing — the patched question-path script is gone, respondents would see every question; redeploy or rerun reapply_avuz_forms_overlay"
+        "Submit-Cp0HKqjp.chunk.mjs|forms|js/forms-submit.mjs|forms overlay missing — forms-submit.mjs does not load the patched Submit chunk (conditional questions lost); redeploy or rerun reapply_avuz_forms_overlay"
         "AVUZ-DECK-CLONE-ORDER-V1|deck|lib/Service/BoardService.php|deck fork missing — board-copy column/card shift fix lost; check the apps/deck submodule shipped and no store copy in custom_apps outranks it"
         "AVUZ-BOARD-TAGS-V1|deck|lib/Controller/BoardTagController.php|deck fork missing — board tags and overview filters lost; check the apps/deck submodule shipped at 1.17.1 and no store copy in custom_apps outranks it"
     )
@@ -232,6 +236,22 @@ reapply_avuz_contacts_overlay() {
         cp -R "$overlay/css/." /var/www/html/apps/contacts/css/
         chown -R www-data:www-data /var/www/html/apps/contacts
         echo "✓ Avuz contacts overlay reapplied"
+    else
+        echo "✗ Avuz overlay missing at $overlay — image may be corrupted"
+    fi
+}
+
+# Reapply the forms overlay onto /var/www/html/apps/forms/. The overlay is a
+# rebuilt 5.3.5 bundle plus full-file PHP replacements under lib/ (conditional
+# questions, Deck #448); an upgrade that re-extracts forms wipes it.
+reapply_avuz_forms_overlay() {
+    local overlay="/var/www/html/docker/overlays/forms"
+    if [ -d "$overlay" ]; then
+        cp -R "$overlay/js/." /var/www/html/apps/forms/js/
+        cp -R "$overlay/css/." /var/www/html/apps/forms/css/
+        cp -R "$overlay/lib/." /var/www/html/apps/forms/lib/
+        chown -R www-data:www-data /var/www/html/apps/forms
+        echo "✓ Avuz forms overlay reapplied"
     else
         echo "✗ Avuz overlay missing at $overlay — image may be corrupted"
     fi
@@ -890,6 +910,7 @@ else
         reapply_avuz_spreed_overlay
         reapply_avuz_calendar_overlay
         reapply_avuz_contacts_overlay
+        reapply_avuz_forms_overlay
         reapply_avuz_files_downloadlimit_overlay
         # deck is a submodule now (apps/deck, branch avuz) — its patches are real
         # commits, not an overlay, so there is nothing to reapply after an upgrade.

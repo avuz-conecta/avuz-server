@@ -1,0 +1,1011 @@
+<?php
+
+/**
+ * SPDX-FileCopyrightText: 2021 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+namespace OCA\Forms\Service;
+
+use DateTime;
+use DateTimeZone;
+use OCA\Forms\Constants;
+use OCA\Forms\Db\Answer;
+use OCA\Forms\Db\AnswerMapper;
+use OCA\Forms\Db\Form;
+use OCA\Forms\Db\Option;
+use OCA\Forms\Db\OptionMapper;
+use OCA\Forms\Db\Question;
+use OCA\Forms\Db\QuestionMapper;
+use OCA\Forms\Db\SubmissionMapper;
+use OCA\Forms\Db\UploadedFileMapper;
+use OCA\Forms\ResponseDefinitions;
+use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\AppFramework\OCS\OCSException;
+use OCP\Files\File;
+use OCP\Files\IRootFolder;
+use OCP\Files\NotPermittedException;
+use OCP\IConfig;
+use OCP\IL10N;
+use OCP\ITempManager;
+use OCP\IURLGenerator;
+use OCP\IUser;
+use OCP\IUserManager;
+use OCP\IUserSession;
+use OCP\Mail\IEmailValidator;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Writer\Csv;
+use Psr\Log\LoggerInterface;
+
+/**
+ * @psalm-import-type FormsSubmission from ResponseDefinitions
+ * @psalm-import-type FormsAnswer from ResponseDefinitions
+ */
+class SubmissionService {
+	private readonly ?IUser $currentUser;
+
+	public function __construct(
+		private readonly QuestionMapper $questionMapper,
+		private readonly SubmissionMapper $submissionMapper,
+		private readonly AnswerMapper $answerMapper,
+		private readonly UploadedFileMapper $uploadedFileMapper,
+		private readonly IRootFolder $rootFolder,
+		private readonly IConfig $config,
+		private readonly IL10N $l10n,
+		private readonly LoggerInterface $logger,
+		private readonly IUserManager $userManager,
+		IUserSession $userSession,
+		private readonly ITempManager $tempManager,
+		private readonly FormsService $formsService,
+		private readonly IUrlGenerator $urlGenerator,
+		private readonly OptionMapper $optionMapper,
+		private readonly IEmailValidator $emailValidator,
+	) {
+		$this->currentUser = $userSession->getUser();
+	}
+
+	/**
+	 * Get all the answers of a given submission
+	 *
+	 * @param int $submissionId the submission id
+	 * @return list<FormsAnswer>
+	 */
+	private function getAnswers(int $submissionId): array {
+		$answerList = [];
+		try {
+			$answerEntities = $this->answerMapper->findBySubmission($submissionId);
+			foreach ($answerEntities as $answerEntity) {
+				$answerList[] = $answerEntity->read();
+			}
+		} catch (DoesNotExistException) {
+			//Just ignore, if no Data. Returns empty Answers-Array
+		} finally {
+			return $answerList;
+		}
+	}
+
+	/**
+	 * Get all submissions of a form
+	 *
+	 * @param int $formId the form id
+	 * @param string|null $userId optional user id to filter submissions
+	 * @param string|null $query optional search query to filter submissions
+	 * @param int|null $limit the maximum number of submissions to return
+	 * @param int $offset the number of submissions to skip
+	 * @return list<array{
+	 *     id: int,
+	 *     formId: int,
+	 *     userId: string,
+	 *     timestamp: int,
+	 *     answers: list<FormsAnswer>,
+	 * }>
+	 */
+	public function getSubmissions(int $formId, ?string $userId = null, ?string $query = null, ?int $limit = null, int $offset = 0): array {
+		$submissionList = [];
+		try {
+			$submissionEntities = $this->submissionMapper->findByForm($formId, $userId, $query, $limit, $offset);
+
+			foreach ($submissionEntities as $submissionEntity) {
+				$submission = $submissionEntity->read();
+				$submission['answers'] = $this->getAnswers($submission['id']);
+				$submissionList[] = $submission;
+			}
+		} catch (DoesNotExistException) {
+			// Just ignore, if no Data. Returns empty Submissions-Array
+		} finally {
+			return $submissionList;
+		}
+	}
+
+	/**
+	 * Load specific submission
+	 *
+	 * @param integer $submissionId id of the submission
+	 * @return array{
+	 *     id: int,
+	 *     formId: int,
+	 *     userId: string,
+	 *     timestamp: int,
+	 *     answers: list<FormsAnswer>,
+	 * }
+	 */
+	public function getSubmission(int $submissionId): ?array {
+		try {
+			$submissionEntity = $this->submissionMapper->findById($submissionId);
+			$submission = $submissionEntity->read();
+			$submission['answers'] = $this->getAnswers($submission['id']);
+			return $submission;
+		} catch (DoesNotExistException) {
+			return null;
+		}
+	}
+
+	/**
+	 * Export Submissions to Cloud-Filesystem
+	 *
+	 * @param Form $form the form
+	 * @param string $path The Cloud-Path to export to
+	 * @param string $fileFormat Format to export to
+	 * @param string $ownerId of the form creator
+	 * @return File The written file
+	 * @throws NotPermittedException
+	 */
+	public function writeFileToCloud(Form $form, string $path, string $fileFormat, ?string $ownerId = null): File {
+		if (!isset(Constants::SUPPORTED_EXPORT_FORMATS[$fileFormat])) {
+			throw new \InvalidArgumentException('Invalid file format');
+		}
+
+		$this->logger->debug('Export submissions for form: {hash} to Cloud at: /{path} in format {fileFormat}', [
+			'hash' => $form->getHash(),
+			'path' => $path,
+			'fileFormat' => $fileFormat,
+		]);
+
+		$fileName = $this->formsService->getFileName($form, $fileFormat);
+
+		/** @var \OCP\Files\Folder|File $node */
+		if ($ownerId) {
+			$node = $this->rootFolder->getUserFolder($ownerId)->get($path);
+		} else {
+			$node = $this->rootFolder->getUserFolder($this->currentUser->getUID())->get($path);
+		}
+
+		// If chosen path is a file with expected extension - overwrite it and use parent folder otherwise.
+		if ($node instanceof File) {
+			if ($node->getExtension() === $fileFormat) {
+				$fileName = $node->getName();
+			}
+			/** @var \OCP\Files\Folder $node */
+			$node = $node->getParent();
+		}
+
+		// Check if file exists, create otherwise.
+		try {
+			/** @var File $file */
+			$file = $node->get($fileName);
+		} catch (\OCP\Files\NotFoundException $e) {
+			$node->newFile($fileName);
+			/** @var File $file */
+			$file = $node->get($fileName);
+		}
+
+		// Get Data
+		$submissionsData = $this->getSubmissionsData($form, $fileFormat, $file);
+
+		// Write the data to file
+		try {
+			$file->putContent($submissionsData);
+		} catch (NotPermittedException $e) {
+			$this->logger->warning('Failed to export Submissions: Not allowed to write to file');
+			throw new OCSException('Not allowed to write to file.', previous: $e);
+		}
+
+		return $file;
+	}
+
+	/**
+	 * Create/update file from Submissions to form
+	 *
+	 * @param Form $form Form to export
+	 * @param string $fileFormat Format to export to
+	 * @param File|null $file File with already exported submissions to append to
+	 * @return string File content
+	 */
+	public function getSubmissionsData(Form $form, string $fileFormat, ?File $file = null): string {
+		if (!isset(Constants::SUPPORTED_EXPORT_FORMATS[$fileFormat])) {
+			throw new \InvalidArgumentException('Invalid file format');
+		}
+
+		try {
+			$submissionEntities = $this->submissionMapper->findByForm($form->getId());
+		} catch (DoesNotExistException) {
+			// Just ignore, if no Data. Returns empty Submissions-Array
+		}
+
+		// Oldest first
+		$submissionEntities = array_reverse($submissionEntities);
+
+		$questions = $this->questionMapper->findByForm($form->getId());
+		$defaultTimeZone = $this->config->getSystemValueString('default_timezone', 'UTC');
+
+		if (!$this->currentUser) {
+			$userTimezone = $this->config->getUserValue($form->getOwnerId(), 'core', 'timezone', $defaultTimeZone);
+		} else {
+			$userTimezone = $this->config->getUserValue($this->currentUser->getUID(), 'core', 'timezone', $defaultTimeZone);
+		}
+
+		// Process initial header
+		$header = [];
+		$header[] = $this->l10n->t('User ID');
+		$header[] = $this->l10n->t('User display name');
+		$header[] = $this->l10n->t('Timestamp');
+		/** @var array<int, Question> $questionPerQuestionId */
+		$questionPerQuestionId = [];
+		/** @var array<int, array<int, string>> $gridRowsPerQuestionId */
+		$gridRowsPerQuestionId = [];
+		/** @var array<int, array<int, string>> $gridColumnsPerQuestionId */
+		$gridColumnsPerQuestionId = [];
+		/** @var array<int, list<int>> $rankingOptionsPerQuestionId */
+		$rankingOptionsPerQuestionId = [];
+
+		$optionPerOptionId = [];
+		foreach ($questions as $question) {
+			if ($question->getType() === Constants::ANSWER_TYPE_GRID) {
+				$gridCellType = $question->getExtraSettings()['questionType'];
+				$options = $this->optionMapper->findByQuestion($question->getId());
+
+				foreach ($options as $option) {
+					$optionPerOptionId[$option->getId()] = $option;
+					if ($option->getOptionType() === Option::OPTION_TYPE_ROW) {
+						$gridRowsPerQuestionId[$question->getId()][] = $option->getId();
+					}
+					if ($option->getOptionType() === Option::OPTION_TYPE_COLUMN) {
+						$gridColumnsPerQuestionId[$question->getId()][] = $option->getId();
+					}
+				}
+
+				foreach ($gridRowsPerQuestionId[$question->getId()] as $rowId) {
+					if ($gridCellType === Constants::ANSWER_GRID_TYPE_CHECKBOX || $gridCellType === Constants::ANSWER_GRID_TYPE_RADIO) {
+						$header[] = $question->getText() . ' (' . $optionPerOptionId[$rowId]->getText() . ')';
+					}
+
+					if ($gridCellType === Constants::ANSWER_GRID_TYPE_NUMBER) {
+						foreach ($gridColumnsPerQuestionId[$question->getId()] as $columnId) {
+							$header[] = $question->getText() . ' (' . $optionPerOptionId[$rowId]->getText() . ' - ' . $optionPerOptionId[$columnId]->getText() . ')';
+						}
+					}
+				}
+			} elseif ($question->getType() === Constants::ANSWER_TYPE_RANKING) {
+				$options = $this->optionMapper->findByQuestion($question->getId());
+				foreach ($options as $option) {
+					$optionPerOptionId[$option->getId()] = $option;
+					$rankingOptionsPerQuestionId[$question->getId()][] = $option->getId();
+				}
+				foreach ($rankingOptionsPerQuestionId[$question->getId()] as $optionId) {
+					$header[] = $question->getText() . ' (' . $optionPerOptionId[$optionId]->getText() . ')';
+				}
+			} else {
+				$header[] = $question->getText();
+			}
+
+			$questionPerQuestionId[$question->getId()] = $question;
+		}
+
+		// Init dataset
+		$data = [];
+
+		// Process each answers
+		foreach ($submissionEntities as $submission) {
+			$row = [];
+
+			// User
+			$user = $this->userManager->get($submission->getUserId());
+			if ($user === null) {
+				// Give empty userId
+				$row[] = '';
+				// TRANSLATORS Shown on export if no Display-Name is available.
+				$row[] = $this->l10n->t('Anonymous user');
+			} else {
+				$row[] = $user->getUID();
+				$row[] = $user->getDisplayName();
+			}
+
+			// Date
+			$row[] = date_format(date_timestamp_set(new DateTime(), $submission->getTimestamp())->setTimezone(new DateTimeZone($userTimezone)), 'c');
+
+			// Answers, make sure we keep the question order
+			$answers = array_reduce($this->answerMapper->findBySubmission($submission->getId()),
+				function (array $carry, Answer $answer) use ($questionPerQuestionId, $gridRowsPerQuestionId, $gridColumnsPerQuestionId, $rankingOptionsPerQuestionId, $optionPerOptionId) {
+					$questionId = $answer->getQuestionId();
+					$questionType = isset($questionPerQuestionId[$questionId]) ? $questionPerQuestionId[$questionId]->getType() : null;
+
+					if ($questionType === Constants::ANSWER_TYPE_FILE) {
+						if (array_key_exists($questionId, $carry)) {
+							$carry[$questionId]['label'] .= "; \n" . $answer->getText();
+						} else {
+							$carry[$questionId] = [
+								'label' => $answer->getText(),
+								'url' => $this->urlGenerator->linkToRouteAbsolute('files.View.showFile', ['fileid' => $answer->getFileId()])
+							];
+						}
+					} elseif ($questionType === Constants::ANSWER_TYPE_GRID) {
+						$gridCellType = isset($questionPerQuestionId[$questionId]) ? $questionPerQuestionId[$questionId]->getExtraSettings()['questionType'] : null;
+						$answerText = json_decode($answer->getText(), true);
+						$columns = [];
+						foreach ($gridRowsPerQuestionId[$questionId] as $row) {
+							if (empty($answerText[$row])) {
+								$columns[] = '';
+								continue;
+							}
+
+							if ($gridCellType === Constants::ANSWER_GRID_TYPE_RADIO) {
+								$columns[] = $optionPerOptionId[$answerText[$row]]->getText();
+							} elseif ($gridCellType === Constants::ANSWER_GRID_TYPE_CHECKBOX) {
+								$columns[] = implode('; ', array_map(fn ($optionId) => $optionPerOptionId[$optionId]->getText(), $answerText[$row]));
+							} elseif ($gridCellType === Constants::ANSWER_GRID_TYPE_NUMBER) {
+								// For number grids, we need to create a header for each cell in the grid
+								foreach ($gridColumnsPerQuestionId[$questionId] as $column) {
+									if (empty($answerText[$row][$column])) {
+										$columns[] = '';
+										continue;
+									}
+
+									$columns[] = $answerText[$row][$column];
+								}
+							}
+						}
+						$carry[$questionId] = ['columns' => $columns];
+					} elseif ($questionType === Constants::ANSWER_TYPE_RANKING) {
+						$rankedIds = json_decode($answer->getText(), true);
+						$columns = [];
+						foreach ($rankingOptionsPerQuestionId[$questionId] as $optionId) {
+							$position = array_search($optionId, $rankedIds);
+							$columns[] = $position !== false ? $position + 1 : '';
+						}
+						$carry[$questionId] = ['columns' => $columns];
+					} else {
+						if (array_key_exists($questionId, $carry)) {
+							$carry[$questionId] .= '; ' . $answer->getText();
+						} else {
+							$carry[$questionId] = $answer->getText();
+						}
+					}
+
+					return $carry;
+				}, []);
+
+			foreach ($questions as $question) {
+				$row[] = $answers[$question->getId()] ?? null;
+			}
+
+			$data[] = $row;
+		}
+
+		return $this->exportData($header, $data, $fileFormat, $file);
+	}
+
+	/**
+	 * @param array<int, string> $header
+	 * @param list<non-empty-list<array{columns?: list<mixed|string>, label?: string, url?: string}|mixed|null|string>> $data
+	 */
+	private function exportData(array $header, array $data, string $fileFormat, ?File $file = null): string {
+		$content = null;
+		if ($file) {
+			try {
+				$content = $file->getContent();
+			} catch (\Exception $e) {
+				$this->logger->warning('Failed to read existing linked file content: {msg}', ['msg' => $e->getMessage()]);
+			}
+		}
+
+		// Ignore whitespace-only files (e.g. S3 single-space placeholder).
+		if ($content !== null && trim($content) !== '') {
+			$existentFile = $this->tempManager->getTemporaryFile($fileFormat);
+			file_put_contents($existentFile, $content);
+			$spreadsheet = IOFactory::load($existentFile);
+		} else {
+			$spreadsheet = new Spreadsheet();
+		}
+
+		$activeWorksheet = $spreadsheet->getSheet(0);
+		foreach ($header as $columnIndex => $value) {
+			$activeWorksheet->setCellValue([$columnIndex + 1, 1], $value);
+		}
+		foreach ($data as $rowIndex => $rowData) {
+			$column = 1;
+			foreach ($rowData as $value) {
+				$row = $rowIndex + 2;
+
+				if (is_array($value) && isset($value['label'])) { // file question type
+					$activeWorksheet->getCell([$column, $row])
+						->setValueExplicit($value['label'])
+						->getHyperlink()
+						->setUrl($value['url']);
+
+					$activeWorksheet->getStyle([$column, $row])
+						->getAlignment()
+						->setWrapText(true);
+				} elseif (is_array($value) && isset($value['columns'])) { // grid question type
+					foreach ($value['columns'] as $nestedValue) {
+						$this->setCellValue($activeWorksheet, $column, $row, $nestedValue, $fileFormat);
+						$column++;
+					}
+					continue; // no need to increment the column one more time
+				} else {
+					$this->setCellValue($activeWorksheet, $column, $row, $value, $fileFormat);
+				}
+
+				$column++;
+			}
+		}
+
+		$exportedFile = $this->tempManager->getTemporaryFile($fileFormat);
+		$writer = IOFactory::createWriter($spreadsheet, ucfirst($fileFormat));
+		if ($writer instanceof Csv) {
+			$writer->setUseBOM(true);
+		}
+		$writer->save($exportedFile);
+
+		return file_get_contents($exportedFile);
+	}
+
+	/**
+	 * Escape a value for writing it to a CSV file.
+	 * This is needed to ensure the CSV, when loaded into an spreadsheet application, does not execute potential formulas.
+	 */
+	private function escapeCSV(string $value): string {
+		$BAD_CHARACTERS = ['=', '+', '-', '@', "\t", "\r"];
+		if (strlen($value) > 0 && in_array(mb_str_split($value)[0], $BAD_CHARACTERS)) {
+			// Escape the value by adding a leading single quote
+			return "'$value";
+		}
+		return $value;
+	}
+
+	/**
+	 * Whether the submit view shows the question to respondents: it needs a title, choice, dropdown and ranking questions need options, and grid questions need rows and columns
+	 *
+	 * @param array $question the question with its options
+	 */
+	private static function isShownToRespondents(array $question): bool {
+		if (preg_match('/^[\t\n\x0B\f\r\p{Z}\x{FEFF}]*$/u', (string)($question['text'] ?? '')) === 1) {
+			return false;
+		}
+
+		$optionTypes = array_map(static fn (mixed $option): mixed => is_array($option) ? ($option['optionType'] ?? null) : null, $question['options'] ?? []);
+		return match ($question['type'] ?? null) {
+			Constants::ANSWER_TYPE_MULTIPLE, Constants::ANSWER_TYPE_MULTIPLEUNIQUE, Constants::ANSWER_TYPE_DROPDOWN, Constants::ANSWER_TYPE_RANKING => $optionTypes !== [],
+			Constants::ANSWER_TYPE_GRID => in_array(Option::OPTION_TYPE_ROW, $optionTypes, true) && in_array(Option::OPTION_TYPE_COLUMN, $optionTypes, true),
+			default => true,
+		};
+	}
+
+	/**
+	 * Whether the values of an answer hold anything: a non-empty text, an uploaded file with its token, or a grid row with a value
+	 *
+	 * @param array $values the values of the answer
+	 */
+	private static function hasValues(array $values): bool {
+		return array_filter($values, static function (mixed $value): bool {
+			if (is_array($value)) {
+				if (isset($value['uploadedFileId'])) {
+					return !empty($value['uploadedFileId']) && !empty($value['uploadToken']);
+				}
+
+				return !empty(array_filter($value, static fn ($subValue): bool => is_array($subValue) ? !empty(array_filter($subValue)) : $subValue !== ''));
+			}
+
+			return is_scalar($value) && (string)$value !== '';
+		}) !== [];
+	}
+
+	/**
+	 * Validate all answers against the questions
+	 * Required questions the submit view does not show to respondents need no answer
+	 * Only the questions on the path of the respondent are checked, answers to skipped questions are ignored
+	 *
+	 * @param array $questions Array of the questions of the form
+	 * @param array $answers Array of the submitted answers
+	 * @param string $formOwnerId Owner of the form
+	 * @param int $formId Id of the form being submitted
+	 * @throw \InvalidArgumentException if validation failed
+	 */
+	public function validateSubmission(array $questions, array $answers, string $formOwnerId, int $formId): void {
+		$visibleQuestions = self::getQuestionsOnPath($questions, $answers);
+
+		// Check by questions
+		foreach ($visibleQuestions as $question) {
+			$questionId = $question['id'];
+			$questionAnswered = array_key_exists($questionId, $answers) && $answers[$questionId] !== [];
+
+			if ($questionAnswered && !self::isListOfValues($question['type'], $answers[$questionId])) {
+				throw new \InvalidArgumentException(sprintf('Invalid answer for question "%s".', $question['text']));
+			}
+
+			// Check if all required questions have an answer
+			if (!empty($question['isRequired'])
+				&& self::isShownToRespondents($question)
+				&& (!$questionAnswered
+				|| !self::hasValues($answers[$questionId])
+				|| (!empty($question['extraSettings']['allowOtherAnswer']) && !array_filter($answers[$questionId], fn ($value) => $value !== Constants::QUESTION_EXTRASETTINGS_OTHER_PREFIX)))
+			) {
+				throw new \InvalidArgumentException(sprintf('Question "%s" is required.', $question['text']));
+			}
+
+			// Perform further checks only for answered questions
+			if (!$questionAnswered) {
+				continue;
+			}
+
+			// Check number of answers for multiple answers
+			$answersCount = count($answers[$questionId]);
+			if ($question['type'] === Constants::ANSWER_TYPE_MULTIPLE) {
+				$minOptions = $question['extraSettings']['optionsLimitMin'] ?? -1;
+				$maxOptions = $question['extraSettings']['optionsLimitMax'] ?? -1;
+				// If number of answers is limited check the limits
+				if (($minOptions > 0 && $answersCount < $minOptions)
+					&& ($maxOptions > 0 && $answersCount > $maxOptions)) {
+					throw new \InvalidArgumentException(sprintf('Question "%s" requires between %d and %d answers.', $question['text'], $minOptions, $maxOptions));
+				} elseif ($minOptions > 0 && $answersCount < $minOptions) {
+					throw new \InvalidArgumentException(sprintf('Question "%s" requires at least %d answers.', $question['text'], $minOptions));
+				} elseif ($maxOptions > 0 && $answersCount > $maxOptions) {
+					throw new \InvalidArgumentException(sprintf('Question "%s" requires at most %d answers.', $question['text'], $maxOptions));
+				}
+			} elseif ($answersCount != 2 && $question['type'] === Constants::ANSWER_TYPE_DATE && isset($question['extraSettings']['dateRange'])) {
+				// Check if date range questions have exactly two answers
+				throw new \InvalidArgumentException(sprintf('Question "%s" can only have two answers.', $question['text']));
+			} elseif ($answersCount != 2 && $question['type'] === Constants::ANSWER_TYPE_TIME && isset($question['extraSettings']['timeRange'])) {
+				// Check if date range questions have exactly two answers
+				throw new \InvalidArgumentException(sprintf('Question "%s" can only have two answers.', $question['text']));
+			} elseif ($answersCount > 1
+						&& $question['type'] !== Constants::ANSWER_TYPE_FILE
+						&& $question['type'] !== Constants::ANSWER_TYPE_GRID
+						&& $question['type'] !== Constants::ANSWER_TYPE_RANKING
+						&& !($question['type'] === Constants::ANSWER_TYPE_DATE && isset($question['extraSettings']['dateRange'])
+						|| $question['type'] === Constants::ANSWER_TYPE_TIME && isset($question['extraSettings']['timeRange']))) {
+				// Check if non-multiple questions have not more than one answer
+				throw new \InvalidArgumentException(sprintf('Question "%s" can only have one answer.', $question['text']));
+			}
+
+			/*
+			 * Validate answers for date/time questions
+			 * If a date range is specified, validate all answers in the range
+			 * Otherwise, validate the single answer for the date/time question
+			 */
+			if (in_array($question['type'], Constants::ANSWER_TYPES_DATETIME)) {
+				$this->validateDateTime($answers[$questionId], Constants::ANSWER_PHPDATETIME_FORMAT[$question['type']], $question['text'] ?? null, $question['extraSettings'] ?? null);
+			}
+
+			// Check if all answers are within the possible options
+			if (in_array($question['type'], Constants::ANSWER_TYPES_PREDEFINED)) {
+				// Normalize option IDs once for consistent comparison (DB may return ints, request may send strings)
+				$optionIds = $this->normalizeOptionIds($question['options'] ?? []);
+
+				foreach ($answers[$questionId] as $answer) {
+					// Handle linear scale questions
+					if ($question['type'] === Constants::ANSWER_TYPE_LINEARSCALE) {
+						$optionsLowest = $question['extraSettings']['optionsLowest'] ?? 1;
+						$optionsHighest = $question['extraSettings']['optionsHighest'] ?? 5;
+						if (!ctype_digit((string)$answer) || intval($answer) < $optionsLowest || intval($answer) > $optionsHighest) {
+							throw new \InvalidArgumentException(sprintf('The answer for question "%s" must be an integer between %d and %d.', $question['text'], $optionsLowest, $optionsHighest));
+						}
+					}
+					// Check if all grid rows, columns and values match the configured grid subtype
+					elseif ($question['type'] === Constants::ANSWER_TYPE_GRID) {
+						$this->validateGridQuestion($question, $answers[$questionId]);
+					} elseif ($answer === Constants::QUESTION_EXTRASETTINGS_OTHER_PREFIX && self::isOtherAnswer($question, $answer)) {
+						throw new \InvalidArgumentException(sprintf('The answer "Other" for question "%s" needs a text.', $question['text']));
+					}
+					// Search corresponding option, return false if non-existent
+					elseif (!self::isOtherAnswer($question, $answer)) {
+						$answerId = $this->normalizeNumericOptionId($answer);
+						if ($answerId === null || !in_array($answerId, $optionIds, true)) {
+							throw new \InvalidArgumentException(sprintf('Answer "%s" for question "%s" is not a valid option.', is_scalar($answer) ? (string)$answer : gettype($answer), $question['text']));
+						}
+					}
+				}
+			}
+
+			// Handle custom validation of short answers
+			if ($question['type'] === Constants::ANSWER_TYPE_SHORT && !$this->validateShortQuestion($question, $answers[$questionId][0])) {
+				throw new \InvalidArgumentException(sprintf('Invalid input for question "%s".', $question['text']));
+			}
+
+			// Handle ranking questions: answers must be a permutation of all option IDs
+			if ($question['type'] === Constants::ANSWER_TYPE_RANKING) {
+				$optionIds = array_map(intval(...), array_column($question['options'] ?? [], 'id'));
+				$rankedIds = array_map(intval(...), $answers[$questionId]);
+
+				sort($optionIds);
+				sort($rankedIds);
+
+				if ($rankedIds !== $optionIds) {
+					throw new \InvalidArgumentException(sprintf('Ranking for question "%s" must include all options exactly once.', $question['text']));
+				}
+			}
+
+			// Handle color questions
+			if (
+				$question['type'] === Constants::ANSWER_TYPE_COLOR
+				&& $answers[$questionId][0] !== ''
+				&& !preg_match('/^#[a-f0-9]{6}$/i', (string)$answers[$questionId][0])
+			) {
+				throw new \InvalidArgumentException(sprintf('Invalid color string for question "%s".', $question['text']));
+			}
+
+			// Handle file questions
+			if ($question['type'] === Constants::ANSWER_TYPE_FILE) {
+				$maxAllowedFilesCount = $question['extraSettings']['maxAllowedFilesCount'] ?? 0;
+				if ($maxAllowedFilesCount > 0 && count($answers[$questionId]) > $maxAllowedFilesCount) {
+					throw new \InvalidArgumentException(sprintf('Too many files uploaded for question "%s". Maximum allowed: %d', $question['text'], $maxAllowedFilesCount));
+				}
+
+				foreach ($answers[$questionId] as $answer) {
+					try {
+						$uploadedFile = $this->uploadedFileMapper->getForSubmission(
+							(int)$answer['uploadedFileId'],
+							$formId,
+							$questionId,
+							$answer['uploadToken'] ?? '',
+						);
+					} catch (DoesNotExistException) {
+						throw new \InvalidArgumentException(sprintf('File "%s" for question "%s" not exists anymore. Please delete and re-upload the file.', $answer['fileName'] ?? $answer['uploadedFileId'], $question['text']));
+					}
+
+					$nodes = $this->rootFolder->getUserFolder($formOwnerId)->getById($uploadedFile->getFileId());
+					if (empty($nodes)) {
+						throw new \InvalidArgumentException(sprintf('File "%s" for question "%s" not exists anymore. Please delete and re-upload the file.', $answer['fileName'] ?? $answer['uploadedFileId'], $question['text']));
+					}
+				}
+			}
+		}
+
+		// Check for excess answers
+		foreach ($answers as $id => $answerArray) {
+			// Search corresponding question, return false if not found
+			if (!in_array($id, array_column($questions, 'id'), true)) {
+				throw new \InvalidArgumentException(sprintf('Answer for non-existent question with ID %s.', $id));
+			}
+		}
+	}
+
+	// AVUZ-FORMS-CONDITIONAL-V1 — do not remove; entrypoint integrity check matches this string
+
+	/**
+	 * The questions on the path of the respondent: from the first question, each question leads to the target of its
+	 * answer in `goTo`, else to its `next` target, else to the following question, until the end of the form.
+	 * A target that is not a later question of the form counts as the following question.
+	 * The path ends at a question that has no answer yet and a jump per answer past the following question.
+	 *
+	 * @param array $questions the questions of the form in their order
+	 * @param array $answers the answers by question id
+	 * @return list<array> the questions on the path, in their order
+	 */
+	public static function getVisibleQuestions(array $questions, array $answers): array {
+		$questions = array_values($questions);
+		$positions = array_flip(array_column($questions, 'id'));
+		$visibleQuestions = [];
+
+		$position = 0;
+		while ($position < count($questions)) {
+			$question = $questions[$position];
+			$visibleQuestions[] = $question;
+
+			$answer = $answers[$question['id']] ?? [];
+			if (self::awaitsAnswer($question, $answer, $position, $positions, count($questions))) {
+				break;
+			}
+			$target = self::getJumpTarget($question, $answer);
+			if ($target === Constants::JUMP_TARGET_SUBMIT) {
+				break;
+			}
+			$targetPosition = is_int($target) && isset($positions[$target]) ? $positions[$target] : null;
+			$position = $targetPosition !== null && $targetPosition > $position ? $targetPosition : $position + 1;
+		}
+
+		return $visibleQuestions;
+	}
+
+	/**
+	 * The answers to the questions on the path of the respondent
+	 *
+	 * @param array $questions the questions of the form in their order
+	 * @param array $answers the answers by question id
+	 * @return array the answers by question id, without the answers to skipped questions
+	 */
+	public static function getAnswersOnPath(array $questions, array $answers): array {
+		return array_intersect_key($answers, array_flip(array_column(self::getQuestionsOnPath($questions, $answers), 'id')));
+	}
+
+	/**
+	 * The questions on the path of the respondent, see getVisibleQuestions(), where questions the submit view does not show neither decide nor end the path with their jumps per answer
+	 *
+	 * @param array $questions the questions of the form in their order
+	 * @param array $answers the answers by question id
+	 * @return list<array> the questions on the path, in their order
+	 */
+	private static function getQuestionsOnPath(array $questions, array $answers): array {
+		foreach ($questions as $key => $question) {
+			if (!self::isShownToRespondents($question)) {
+				unset($questions[$key]['extraSettings']['goTo']);
+			}
+		}
+		return self::getVisibleQuestions($questions, $answers);
+	}
+
+	/**
+	 * Whether the path waits for the answer to a question: the question has a jump per answer past the following question and no answer yet.
+	 * A jump of the answer "Other" only counts while the question allows the answer "Other".
+	 *
+	 * @param array $question the question
+	 * @param mixed $answer the values of the answer to the question
+	 * @param int $position the position of the question
+	 * @param array<int, int> $positions the positions by question id
+	 * @param int $count the number of questions
+	 */
+	private static function awaitsAnswer(array $question, mixed $answer, int $position, array $positions, int $count): bool {
+		$goTo = $question['extraSettings']['goTo'] ?? null;
+		if (!is_array($goTo) || !isset(FormsService::getAllowedExtraSettings((string)($question['type'] ?? ''))['goTo'])) {
+			return false;
+		}
+		$jumpsPastFollowingQuestion = false;
+		foreach ($goTo as $jump) {
+			if (is_array($jump) && ($jump['other'] ?? false) === true && empty($question['extraSettings']['allowOtherAnswer'])) {
+				continue;
+			}
+			$target = is_array($jump) ? ($jump['target'] ?? null) : null;
+			if ($target === Constants::JUMP_TARGET_SUBMIT) {
+				$targetPosition = $count;
+			} elseif (is_int($target) && isset($positions[$target])) {
+				$targetPosition = $positions[$target];
+			} else {
+				continue;
+			}
+			if ($targetPosition > $position + 1) {
+				$jumpsPastFollowingQuestion = true;
+				break;
+			}
+		}
+		if (!$jumpsPastFollowingQuestion) {
+			return false;
+		}
+		$value = is_array($answer) && array_is_list($answer) ? ($answer[0] ?? null) : null;
+		return !(is_int($value) || is_float($value) || is_string($value)) || (string)$value === '';
+	}
+
+	/**
+	 * The jump target of a question for its answer: the target of the `goTo` entry matching the first value of the answer, else `next` on question types with `next`
+	 *
+	 * @param array $question the question
+	 * @param mixed $answer the values of the answer to the question
+	 * @return string|int|null the target, `null` for the following question
+	 */
+	private static function getJumpTarget(array $question, mixed $answer): string|int|null {
+		$extraSettings = $question['extraSettings'] ?? [];
+		$value = is_array($answer) && array_is_list($answer) ? ($answer[0] ?? null) : null;
+
+		if (is_int($value) || is_float($value) || is_string($value)) {
+			foreach (is_array($extraSettings['goTo'] ?? null) ? $extraSettings['goTo'] : [] as $jump) {
+				if ((isset($jump['optionId']) && (string)$jump['optionId'] === (string)$value)
+					|| (($jump['other'] ?? false) === true && self::isOtherAnswer($question, $value))) {
+					$target = $jump['target'] ?? null;
+					return is_int($target) || is_string($target) ? $target : null;
+				}
+			}
+		}
+
+		$next = isset(FormsService::getAllowedExtraSettings((string)($question['type'] ?? ''))['next']) ? ($extraSettings['next'] ?? null) : null;
+		return is_int($next) || is_string($next) ? $next : null;
+	}
+
+	/**
+	 * Validate correct date/time formats
+	 * @param array $answers Array with date from answer
+	 * @param string $format String with the format to validate
+	 * @param string|null $text String with the title of the question
+	 * @param array|null $extraSettings Array with extra settings for validation
+	 */
+	private function validateDateTime(array $answers, string $format, ?string $text = null, ?array $extraSettings = null): void {
+		$previousDate = null;
+
+		foreach ($answers as $dateStr) {
+			$d = DateTime::createFromFormat($format, $dateStr);
+			if (!$d || $d->format($format) !== $dateStr) {
+				throw new \InvalidArgumentException(sprintf('Invalid date/time format for question "%s".', $text));
+			}
+
+			if ($previousDate !== null && $d < $previousDate) {
+				throw new \InvalidArgumentException(sprintf('Date/time values for question "%s" must be in ascending order.', $text));
+			}
+			$previousDate = $d;
+
+			if ($extraSettings) {
+				if ((isset($extraSettings['dateMin']) && $d < (new DateTime())->setTimestamp($extraSettings['dateMin']))
+					|| (isset($extraSettings['dateMax']) && $d > (new DateTime())->setTimestamp($extraSettings['dateMax']))
+					|| (isset($extraSettings['timeMin']) && $d < DateTime::createFromFormat($format, $extraSettings['timeMin']))
+					|| (isset($extraSettings['timeMax']) && $d > DateTime::createFromFormat($format, $extraSettings['timeMax']))
+				) {
+					throw new \InvalidArgumentException(sprintf('Date/time is not in the allowed range for question "%s".', $text));
+				}
+			}
+		}
+	}
+
+	/**
+	 * Validate short question answers if special validation types are set
+	 */
+	private function validateShortQuestion(array $question, string $data): bool {
+		if (!isset($question['extraSettings']) || !isset($question['extraSettings']['validationType'])) {
+			// No type defined, so fallback to 'text' => no special handling
+			return true;
+		}
+
+		switch ($question['extraSettings']['validationType']) {
+			case 'email':
+				return $this->emailValidator->isValid($data);
+			case 'number':
+				return is_numeric($data);
+			case 'phone':
+				// some special characters are used (depending on the locale)
+				$sanitized = str_replace([' ', '(', ')', '.', '/', '-', 'x'], '', $data);
+				// allow leading + for international numbers
+				if (str_starts_with($sanitized, '+')) {
+					$sanitized = substr($sanitized, 1);
+				}
+				return preg_match('/^[0-9]{3,}$/', $sanitized) === 1;
+			case 'regex':
+				// empty regex matches everything
+				if (!isset($question['extraSettings']['validationRegex'])) {
+					return true;
+				}
+				return preg_match($question['extraSettings']['validationRegex'], $data) === 1;
+			default:
+				$this->logger->error('Invalid input type for question detected, please report this issue!', ['validationType' => $question['extraSettings']['validationType']]);
+				// The result is just a non-validated text on the results, but not a fully declined submission. So no need to throw but simply return false here.
+				return false;
+		}
+	}
+
+	private function validateGridQuestion(array $question, array $answers): void {
+		$rowIds = $this->normalizeOptionIds($question['options'] ?? [], Option::OPTION_TYPE_ROW);
+		$columnIds = $this->normalizeOptionIds($question['options'] ?? [], Option::OPTION_TYPE_COLUMN);
+		$gridType = $question['extraSettings']['questionType'] ?? null;
+
+		foreach ($answers as $rowId => $rowAnswer) {
+			$normalizedRowId = $this->normalizeNumericOptionId($rowId);
+			if ($normalizedRowId === null || !in_array($normalizedRowId, $rowIds, true)) {
+				throw new \InvalidArgumentException(sprintf('Row "%s" for question "%s" is not a valid option.', $rowId, $question['text']));
+			}
+
+			if ($gridType === Constants::ANSWER_GRID_TYPE_RADIO) {
+				$selectedColumnIds = [$rowAnswer];
+			} elseif ($gridType === Constants::ANSWER_GRID_TYPE_CHECKBOX) {
+				$selectedColumnIds = is_array($rowAnswer) ? $rowAnswer : [];
+				if (!is_array($rowAnswer)) {
+					throw new \InvalidArgumentException(sprintf('Invalid answer for question "%s".', $question['text']));
+				}
+			} elseif ($gridType === Constants::ANSWER_GRID_TYPE_NUMBER) {
+				if (!is_array($rowAnswer)) {
+					throw new \InvalidArgumentException(sprintf('Invalid answer for question "%s".', $question['text']));
+				}
+
+				foreach ($rowAnswer as $columnId => $value) {
+					$normalizedColumnId = $this->normalizeNumericOptionId($columnId);
+					if ($normalizedColumnId === null || !in_array($normalizedColumnId, $columnIds, true)) {
+						throw new \InvalidArgumentException(sprintf('Column "%s" for question "%s" is not a valid option.', $columnId, $question['text']));
+					}
+					if ($value !== '' && !is_numeric($value)) {
+						throw new \InvalidArgumentException(sprintf('Answer "%s" for question "%s" must be a number.', is_scalar($value) ? (string)$value : gettype($value), $question['text']));
+					}
+				}
+				continue;
+			} else {
+				throw new \InvalidArgumentException(sprintf('Invalid grid type for question "%s".', $question['text']));
+			}
+
+			foreach ($selectedColumnIds as $columnId) {
+				if ((!is_int($columnId) && (!is_string($columnId) || !ctype_digit($columnId))) || !in_array((int)$columnId, $columnIds, true)) {
+					throw new \InvalidArgumentException(sprintf('Column "%s" for question "%s" is not a valid option.', is_scalar($columnId) ? (string)$columnId : gettype($columnId), $question['text']));
+				}
+			}
+		}
+	}
+
+	/**
+	 * Whether the value is the answer "Other" of a question that allows it
+	 *
+	 * @param array $question the question
+	 * @param mixed $answer a value of the answer
+	 */
+	public static function isOtherAnswer(array $question, mixed $answer): bool {
+		return !empty($question['extraSettings']['allowOtherAnswer'])
+			&& is_string($answer)
+			&& str_starts_with($answer, Constants::QUESTION_EXTRASETTINGS_OTHER_PREFIX);
+	}
+
+	/**
+	 * Whether the answer is a list of values: texts or numbers, uploaded files for file questions, or an object with the values by row for grid questions
+	 *
+	 * @param string $questionType the question type
+	 * @param mixed $answer the answer
+	 */
+	private static function isListOfValues(string $questionType, mixed $answer): bool {
+		if ($questionType === Constants::ANSWER_TYPE_GRID) {
+			return is_array($answer);
+		}
+		if (!is_array($answer) || !array_is_list($answer)) {
+			return false;
+		}
+		foreach ($answer as $value) {
+			if ($questionType === Constants::ANSWER_TYPE_FILE ? !is_array($value) : !is_scalar($value)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private function normalizeNumericOptionId(mixed $value): ?int {
+		if (is_int($value)) {
+			return $value;
+		}
+
+		if (is_string($value) && ctype_digit($value) && (string)(int)$value === $value) {
+			return (int)$value;
+		}
+
+		return null;
+	}
+
+	/**
+	 * @param array<int, array{id?: mixed, optionType?: string}> $options
+	 * @return list<int>
+	 */
+	private function normalizeOptionIds(array $options, ?string $optionType = null): array {
+		$normalizedIds = [];
+
+		foreach ($options as $option) {
+			if ($optionType !== null && (($option['optionType'] ?? null) !== $optionType)) {
+				continue;
+			}
+
+			$normalizedId = $this->normalizeNumericOptionId($option['id'] ?? null);
+			if ($normalizedId !== null) {
+				$normalizedIds[] = $normalizedId;
+			}
+		}
+
+		return $normalizedIds;
+	}
+
+	private function setCellValue(Worksheet $activeWorksheet, int $column, int $row, mixed $value, string $fileFormat): void {
+		if (!is_string($value)) {
+			$activeWorksheet->setCellValue([$column, $row], $value);
+			return;
+		}
+
+		// CSV is escaped (not typed) to neutralise formula-triggering values when opened in a spreadsheet app.
+		if ($fileFormat === 'csv') {
+			$activeWorksheet->getCell([$column, $row])
+				->setValueExplicit($this->escapeCSV($value), DataType::TYPE_STRING);
+			return;
+		}
+
+		// Store numeric-looking answers (e.g. Radio labels "1"–"5") as numbers so they can be aggregated.
+		// The round-trip check keeps values whose canonical numeric form would differ (leading-zero phone
+		// numbers, "1e5", oversized ids, ...) as text, and the leading-character check preserves the
+		// anti-formula protection for values starting with '=', '+', '-' or '@'.
+		if (is_numeric($value)
+			&& !in_array($value[0], ['=', '+', '-', '@'], true)
+			&& (string)(+$value) === $value) {
+			$activeWorksheet->setCellValue([$column, $row], +$value);
+			return;
+		}
+
+		// Explicitly type as string so values that start with '=' are not interpreted as formulas.
+		$activeWorksheet->getCell([$column, $row])
+			->setValueExplicit($value, DataType::TYPE_STRING);
+	}
+}

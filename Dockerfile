@@ -57,6 +57,17 @@ RUN grep -q "<version>${AVUZ_CONTACTS_OVERLAY_VERSION}</version>" /var/www/html/
     && cp -R /var/www/html/docker/overlays/contacts/js/. /var/www/html/apps/contacts/js/ \
     && cp -R /var/www/html/docker/overlays/contacts/css/. /var/www/html/apps/contacts/css/
 
+# Apply Avuz forms overlay (conditional questions, port of nextcloud/forms#3833,
+# Deck #448). Same rule as contacts: a rebuilt bundle plus full-file PHP
+# replacements of one exact forms version, so the build fails on any other
+# version. Rebuild recipe: docker/overlays/forms/README.md.
+ARG AVUZ_FORMS_OVERLAY_VERSION=5.3.5
+RUN grep -q "<version>${AVUZ_FORMS_OVERLAY_VERSION}</version>" /var/www/html/apps/forms/appinfo/info.xml \
+    || { echo "forms is not ${AVUZ_FORMS_OVERLAY_VERSION} — rebuild docker/overlays/forms (see its README)"; exit 1; } \
+    && cp -R /var/www/html/docker/overlays/forms/js/. /var/www/html/apps/forms/js/ \
+    && cp -R /var/www/html/docker/overlays/forms/css/. /var/www/html/apps/forms/css/ \
+    && cp -R /var/www/html/docker/overlays/forms/lib/. /var/www/html/apps/forms/lib/
+
 # Apply Avuz files_downloadlimit overlay (restores templates/admin.php that
 # upstream 2.0.0 tarball drops — GH issue nextcloud/files_downloadlimit#421).
 # Without it the Sharing admin page returns 500 with TemplateNotFoundException.

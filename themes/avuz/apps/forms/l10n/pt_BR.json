@@ -1,0 +1,42 @@
+{
+    "translations": {
+        "Go to": "Ir para",
+        "Go to based on answer": "Ir para outra pergunta conforme a resposta",
+        "Go to after this question": "Ir para outra pergunta depois desta",
+        "After \"{answer}\" go to": "Depois de \"{answer}\", ir para",
+        "After question {number}": "Depois da pergunta {number}",
+        "Next question": "Próxima pergunta",
+        "Next question (the chosen question was deleted or moved up)": "Próxima pergunta (a pergunta escolhida foi excluída ou movida para cima)",
+        "End of the form": "Fim do formulário",
+        "Question {number}: {title}": "Pergunta {number}: {title}",
+        "Remove jumps": "Remover saltos",
+        "Keep jumps": "Manter saltos",
+        "Move back": "Voltar à posição anterior",
+        "Jumps cannot go back": "Saltos não podem voltar",
+        "Remove all jumps of question {number}? Respondents then go to the next question.": "Remover todos os saltos da pergunta {number}? Os respondentes passam a ir para a próxima pergunta.",
+        "After this move, question {questions} would jump to an earlier question. Move the question back, or remove the jumps that would go back?": "Com esta mudança, a pergunta {questions} saltaria para uma pergunta anterior. Voltar a pergunta à posição anterior ou remover os saltos que voltariam?",
+        "After this move, questions {questions} would jump to earlier questions. Move the question back, or remove the jumps that would go back?": "Com esta mudança, as perguntas {questions} saltariam para perguntas anteriores. Voltar a pergunta à posição anterior ou remover os saltos que voltariam?",
+        "A jump of this question goes to a question that was deleted or now comes before it. Respondents go to the next question instead.": "Um salto desta pergunta vai para uma pergunta que foi excluída ou que agora vem antes dela. Os respondentes vão para a próxima pergunta.",
+        "No respondent reaches this question, because the jumps of the questions before it always skip it.": "Nenhum respondente chega a esta pergunta, porque os saltos das perguntas anteriores sempre a pulam.",
+        "Respondents see the questions after this one only once they answer it. If they leave it empty, they can submit the form without the questions after it, even required ones. Make it required to prevent this.": "Os respondentes só veem as perguntas seguintes depois de responder a esta. Se a deixarem em branco, podem enviar o formulário sem as perguntas seguintes, mesmo as obrigatórias. Torne-a obrigatória para evitar isso.",
+        "Question {questions} jumped to the deleted question, so respondents now go to the next question instead.": "A pergunta {questions} saltava para a pergunta excluída; agora os respondentes vão para a próxima pergunta.",
+        "Questions {questions} jumped to the deleted question, so respondents now go to the next question instead.": "As perguntas {questions} saltavam para a pergunta excluída; agora os respondentes vão para a próxima pergunta.",
+        "Question {questions} can no longer be reached by respondents.": "Os respondentes não chegam mais à pergunta {questions}.",
+        "Questions {questions} can no longer be reached by respondents.": "Os respondentes não chegam mais às perguntas {questions}.",
+        "Question {questions} can now be skipped through a jump.": "A pergunta {questions} agora pode ser pulada por um salto.",
+        "Questions {questions} can now be skipped through jumps.": "As perguntas {questions} agora podem ser puladas por saltos.",
+        "Please review the jumps.": "Revise os saltos.",
+        "Your earlier answer is no longer available. Choose again.": "Sua resposta anterior não está mais disponível. Escolha novamente.",
+        "_%n question added_::_%n questions added_": [
+            "%n pergunta adicionada",
+            "%n de perguntas adicionadas",
+            "%n perguntas adicionadas"
+        ],
+        "_%n question skipped_::_%n questions skipped_": [
+            "%n pergunta pulada",
+            "%n de perguntas puladas",
+            "%n perguntas puladas"
+        ]
+    },
+    "pluralForm": "nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;"
+}
