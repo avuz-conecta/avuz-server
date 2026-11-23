@@ -1,7 +1,7 @@
 From 3d9b139039ad7d74ecd97914cf2eb6a388354193 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 14:17:14 -0300
-Subject: [PATCH 1/5] chore: ignore PHPUnit cache
+Subject: [PATCH 1/7] chore: ignore PHPUnit cache
 
 ---
  .gitignore | 2 ++
@@ -24,7 +24,7 @@ index 5cdce03..7904f79 100644
 From d165a2a7712995b7d2db6d13e9992b40681d0d45 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 14:33:32 -0300
-Subject: [PATCH 2/5] feat: conditional questions server side (port of
+Subject: [PATCH 2/7] feat: conditional questions server side (port of
  nextcloud/forms#3833)
 
 Port of the server side of nextcloud/forms#3833 at head
@@ -2577,7 +2577,7 @@ index 0000000..a624dd2
 From 5fde9498b2ab924c031d96b71630882c4462d403 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 14:49:45 -0300
-Subject: [PATCH 3/5] feat: conditional questions submit view
+Subject: [PATCH 3/7] feat: conditional questions submit view
 
 Port of the respondent side of nextcloud/forms#3833 at head
 9999a7f4478d4f3d88bd3c209a0c8a9cc0172b57 onto Forms v5.3.5 (Options API,
@@ -3789,7 +3789,7 @@ index 0000000..e7e4ac9
 From d43ef1ff185855b28ab90b82a0ecbf2f005dd6c8 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 15:13:48 -0300
-Subject: [PATCH 4/5] feat: conditional questions editor
+Subject: [PATCH 4/7] feat: conditional questions editor
 
 Port of the editor part of nextcloud/forms#3833 (head 9999a7f4) to the
 5.3.5 options API:
@@ -5699,7 +5699,7 @@ index 6a6a2e1..f1a2f37 100644
 From 320dd6413f67cc69108a3ab3caacbf0a7d82199b Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 15:20:55 -0300
-Subject: [PATCH 5/5] chore: AVUZ-FORMS-CONDITIONAL-V1 sentinel for the image
+Subject: [PATCH 5/7] chore: AVUZ-FORMS-CONDITIONAL-V1 sentinel for the image
  boot check
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -5720,6 +5720,100 @@ index 36bb1bd..7407df9 100644
  	/**
  	 * The questions on the path of the respondent: from the first question, each question leads to the target of its
  	 * answer in `goTo`, else to its `next` target, else to the following question, until the end of the form.
+-- 
+2.50.1 (Apple Git-155)
+
+
+From 9f1c9adf2db76f308ca51b3f00e52d2ef33cd157 Mon Sep 17 00:00:00 2001
+From: Patrick Rezende <tricio777@gmail.com>
+Date: Mon, 23 Nov 2026 09:58:19 -0300
+Subject: [PATCH 6/7] fix: align the jump select with its answer field
+
+The "Go to" label sits above the select, so centering the row put the
+select box lower than the answer field. Align the row by the bottom edge.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/components/Questions/AnswerInput.vue | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/components/Questions/AnswerInput.vue b/src/components/Questions/AnswerInput.vue
+index d727d39..7d63710 100644
+--- a/src/components/Questions/AnswerInput.vue
++++ b/src/components/Questions/AnswerInput.vue
+@@ -598,7 +598,8 @@ export default {
+ 	&--with-target {
+ 		container-type: inline-size;
+ 		flex-wrap: wrap;
+-		align-items: center;
++		// The jump select has its "Go to" label above the box: align the boxes by their bottom edge.
++		align-items: flex-end;
+ 		gap: var(--default-grid-baseline);
+ 		padding-inline-end: calc(var(--clickable-area-large) - 2px);
+ 
+-- 
+2.50.1 (Apple Git-155)
+
+
+From f949fb3ab50577618355f23b1203abdd3c526b3c Mon Sep 17 00:00:00 2001
+From: Patrick Rezende <tricio777@gmail.com>
+Date: Mon, 23 Nov 2026 10:44:30 -0300
+Subject: [PATCH 7/7] fix: jump select as tall as the answer field
+
+The select box was 2px taller than the answer input (inner row plus
+padding and border) and had a 4px bottom margin against the input's 3px,
+so the tops never lined up. Its height now follows --default-clickable-area
+like the input, with the same bottom margin. The select rules used a
+nc-select class the root does not carry, so they never applied; they
+target the root's real classes now, keeping the 260px width it showed.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/components/Questions/JumpTargetSelect.vue | 21 ++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/components/Questions/JumpTargetSelect.vue b/src/components/Questions/JumpTargetSelect.vue
+index d845971..b2c3e2e 100644
+--- a/src/components/Questions/JumpTargetSelect.vue
++++ b/src/components/Questions/JumpTargetSelect.vue
+@@ -99,11 +99,26 @@ export default defineComponent({
+ 
+ <style lang="scss" scoped>
+ .jump-target-select {
+-	flex: 0 0 220px;
++	// 260px = the width NcSelect enforced before its min-width was lifted, so long question titles stay readable.
++	flex: 0 0 260px;
+ }
+ 
+-.jump-target-select.nc-select.v-select {
++.jump-target-select.v-select.select {
+ 	min-width: 0;
++	// The answer field (a core input) has a 3px block margin; match it so the bottoms line up.
++	margin-block-end: 3px;
++}
++
++// Same height as the answer field next to it (an input of --default-clickable-area),
++// so both boxes line up at the top and the bottom.
++.jump-target-select :deep(.vs__dropdown-toggle) {
++	box-sizing: border-box;
++	height: var(--default-clickable-area);
++	min-height: 0;
++}
++
++.jump-target-select :deep(.vs__selected-options) {
++	min-height: 0;
+ }
+ 
+ .jump-target-select__label {
+@@ -124,7 +139,7 @@ export default defineComponent({
+ 		flex: 1 1 50%;
+ 	}
+ 
+-	.jump-target-select.nc-select.v-select {
++	.jump-target-select.v-select.select {
+ 		margin-inline-start: -12px;
+ 	}
+ }
 -- 
 2.50.1 (Apple Git-155)
 
