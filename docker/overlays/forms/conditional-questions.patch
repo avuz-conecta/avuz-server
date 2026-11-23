@@ -1,7 +1,7 @@
 From 3d9b139039ad7d74ecd97914cf2eb6a388354193 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 14:17:14 -0300
-Subject: [PATCH 1/7] chore: ignore PHPUnit cache
+Subject: [PATCH 1/8] chore: ignore PHPUnit cache
 
 ---
  .gitignore | 2 ++
@@ -24,7 +24,7 @@ index 5cdce03..7904f79 100644
 From d165a2a7712995b7d2db6d13e9992b40681d0d45 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 14:33:32 -0300
-Subject: [PATCH 2/7] feat: conditional questions server side (port of
+Subject: [PATCH 2/8] feat: conditional questions server side (port of
  nextcloud/forms#3833)
 
 Port of the server side of nextcloud/forms#3833 at head
@@ -2577,7 +2577,7 @@ index 0000000..a624dd2
 From 5fde9498b2ab924c031d96b71630882c4462d403 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 14:49:45 -0300
-Subject: [PATCH 3/7] feat: conditional questions submit view
+Subject: [PATCH 3/8] feat: conditional questions submit view
 
 Port of the respondent side of nextcloud/forms#3833 at head
 9999a7f4478d4f3d88bd3c209a0c8a9cc0172b57 onto Forms v5.3.5 (Options API,
@@ -3789,7 +3789,7 @@ index 0000000..e7e4ac9
 From d43ef1ff185855b28ab90b82a0ecbf2f005dd6c8 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 15:13:48 -0300
-Subject: [PATCH 4/7] feat: conditional questions editor
+Subject: [PATCH 4/8] feat: conditional questions editor
 
 Port of the editor part of nextcloud/forms#3833 (head 9999a7f4) to the
 5.3.5 options API:
@@ -5699,7 +5699,7 @@ index 6a6a2e1..f1a2f37 100644
 From 320dd6413f67cc69108a3ab3caacbf0a7d82199b Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Fri, 20 Nov 2026 15:20:55 -0300
-Subject: [PATCH 5/7] chore: AVUZ-FORMS-CONDITIONAL-V1 sentinel for the image
+Subject: [PATCH 5/8] chore: AVUZ-FORMS-CONDITIONAL-V1 sentinel for the image
  boot check
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -5727,7 +5727,7 @@ index 36bb1bd..7407df9 100644
 From 9f1c9adf2db76f308ca51b3f00e52d2ef33cd157 Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Mon, 23 Nov 2026 09:58:19 -0300
-Subject: [PATCH 6/7] fix: align the jump select with its answer field
+Subject: [PATCH 6/8] fix: align the jump select with its answer field
 
 The "Go to" label sits above the select, so centering the row put the
 select box lower than the answer field. Align the row by the bottom edge.
@@ -5758,7 +5758,7 @@ index d727d39..7d63710 100644
 From f949fb3ab50577618355f23b1203abdd3c526b3c Mon Sep 17 00:00:00 2001
 From: Patrick Rezende <tricio777@gmail.com>
 Date: Mon, 23 Nov 2026 10:44:30 -0300
-Subject: [PATCH 7/7] fix: jump select as tall as the answer field
+Subject: [PATCH 7/8] fix: jump select as tall as the answer field
 
 The select box was 2px taller than the answer input (inner row plus
 padding and border) and had a 4px bottom margin against the input's 3px,
@@ -5814,6 +5814,1165 @@ index d845971..b2c3e2e 100644
  		margin-inline-start: -12px;
  	}
  }
+-- 
+2.50.1 (Apple Git-155)
+
+
+From eff148da893d1530848eac9b9ecd991c6476ef99 Mon Sep 17 00:00:00 2001
+From: Patrick Rezende <tricio777@gmail.com>
+Date: Mon, 23 Nov 2026 17:15:58 -0300
+Subject: [PATCH 8/8] feat: address block with CEP auto-fill (Deck #449)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The add and insert question menus get "Address block": one click adds 7
+configured questions in order (CEP with a regex, Logradouro, Nº,
+Complemento, Bairro, Estado with the 27 states, Município), with their
+technical names and required flags, through the existing question API.
+Only upstream features are stored, so the forms keep working without
+this patch.
+
+On the answer page, a CEP question with 8 digits is looked up on ViaCEP
+(5 s timeout, no credentials) and fills Logradouro, Bairro, Município
+and Estado of its block, the questions up to the next CEP question.
+Typed answers stay; answers filled for an earlier CEP are replaced. An
+unknown CEP shows a note tied to the CEP input; both outcomes go to a
+polite live region. Network errors are silent. Skipped questions are
+never filled or sent.
+
+Tests: npm run test:address.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ package.json                               |   1 +
+ src/components/AddQuestionMenu.vue         |  20 +-
+ src/components/Questions/QuestionShort.vue |  21 +-
+ src/mixins/QuestionMixin.js                |   8 +
+ src/utils/AddressBlock.ts                  | 279 ++++++++++++++++
+ src/views/Create.vue                       | 106 +++++-
+ src/views/Submit.vue                       | 117 +++++++
+ tests/javascript/address-block.test.mjs    | 372 +++++++++++++++++++++
+ 8 files changed, 918 insertions(+), 6 deletions(-)
+ create mode 100644 src/utils/AddressBlock.ts
+ create mode 100644 tests/javascript/address-block.test.mjs
+
+diff --git a/package.json b/package.json
+index 4eb971b..38a37dc 100644
+--- a/package.json
++++ b/package.json
+@@ -24,6 +24,7 @@
+     "start:nextcloud": "node playwright/start-nextcloud-server.mjs",
+     "stylelint": "stylelint css/*.css css/*.scss src/**/*.vue",
+     "stylelint:fix": "stylelint css/*.css css/*.scss src/**/*.vue --fix",
++    "test:address": "node --experimental-transform-types --test tests/javascript/address-block.test.mjs",
+     "test:jumps": "node --experimental-transform-types --test tests/javascript/jumps.test.mjs"
+   },
+   "browserslist": [
+diff --git a/src/components/AddQuestionMenu.vue b/src/components/AddQuestionMenu.vue
+index bd2eabb..937fa85 100644
+--- a/src/components/AddQuestionMenu.vue
++++ b/src/components/AddQuestionMenu.vue
+@@ -30,6 +30,17 @@
+ 				</template>
+ 				{{ answer.label }}
+ 			</NcActionButton>
++			<NcActionSeparator />
++			<NcActionButton
++				closeAfterClick
++				:disabled="isLoadingQuestions"
++				class="question-menu__question"
++				@click="onAddressBlockClick(position)">
++				<template #icon>
++					<NcIconSvgWrapper :svg="IconLocationOn" />
++				</template>
++				{{ t('forms', 'Address block') }}
++			</NcActionButton>
+ 		</template>
+ 
+ 		<template v-else>
+@@ -64,6 +75,7 @@
+ <script>
+ import IconPlus from '@material-symbols/svg-400/outlined/add.svg?raw'
+ import IconChevronLeft from '@material-symbols/svg-400/outlined/chevron_left.svg?raw'
++import IconLocationOn from '@material-symbols/svg-400/outlined/location_on.svg?raw'
+ import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+ import NcActions from '@nextcloud/vue/components/NcActions'
+ import NcActionSeparator from '@nextcloud/vue/components/NcActionSeparator'
+@@ -94,11 +106,12 @@ export default {
+ 		hasSubtypes: { type: Function, required: true },
+ 	},
+ 
+-	emits: ['update:open', 'addQuestion'],
++	emits: ['update:open', 'addQuestion', 'addAddressBlock'],
+ 
+ 	setup() {
+ 		return {
+ 			IconChevronLeft,
++			IconLocationOn,
+ 			IconPlus,
+ 		}
+ 	},
+@@ -131,6 +144,11 @@ export default {
+ 			this.openLocal = false
+ 		},
+ 
++		onAddressBlockClick(position) {
++			this.$emit('addAddressBlock', position)
++			this.openLocal = false
++		},
++
+ 		onSubtypeClick(type, subtype, position) {
+ 			this.$emit('addQuestion', type, subtype, position)
+ 			this.openLocal = false
+diff --git a/src/components/Questions/QuestionShort.vue b/src/components/Questions/QuestionShort.vue
+index f63b82c..0d4baf4 100644
+--- a/src/components/Questions/QuestionShort.vue
++++ b/src/components/Questions/QuestionShort.vue
+@@ -9,12 +9,13 @@
+ 		:titlePlaceholder="answerType.titlePlaceholder"
+ 		:warningInvalid="answerType.warningInvalid"
+ 		:errorMessage="errorMessage"
++		:infoMessage="infoMessage"
+ 		v-on="commonListeners">
+ 		<div class="question__content">
+ 			<input
+ 				ref="input"
+ 				:aria-labelledby="titleId"
+-				:aria-describedby="description ? descriptionId : undefined"
++				:aria-describedby="describedBy"
+ 				:aria-errormessage="hasError ? errorId : undefined"
+ 				:aria-invalid="hasError ? 'true' : undefined"
+ 				:placeholder="submissionInputPlaceholder"
+@@ -159,6 +160,24 @@ export default {
+ 		validationRegex() {
+ 			return this.extraSettings?.validationRegex || ''
+ 		},
++
++		infoMessage() {
++			return this.answerInfo
++		},
++
++		/**
++		 * Ids of the description and the information that describe the input
++		 */
++		describedBy() {
++			return (
++				[
++					this.description ? this.descriptionId : null,
++					this.hasInfo ? this.infoId : null,
++				]
++					.filter(Boolean)
++					.join(' ') || undefined
++			)
++		},
+ 	},
+ 
+ 	created() {
+diff --git a/src/mixins/QuestionMixin.js b/src/mixins/QuestionMixin.js
+index db3d663..80850ba 100644
+--- a/src/mixins/QuestionMixin.js
++++ b/src/mixins/QuestionMixin.js
+@@ -191,6 +191,14 @@ export default {
+ 			type: String,
+ 			default: null,
+ 		},
++
++		/**
++		 * Information shown under the answer, `null` for none
++		 */
++		answerInfo: {
++			type: String,
++			default: null,
++		},
+ 	},
+ 
+ 	components: {
+diff --git a/src/utils/AddressBlock.ts b/src/utils/AddressBlock.ts
+new file mode 100644
+index 0000000..8b9091a
+--- /dev/null
++++ b/src/utils/AddressBlock.ts
+@@ -0,0 +1,279 @@
++/**
++ * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
++ * SPDX-License-Identifier: AGPL-3.0-or-later
++ */
++
++import type {
++	FormsQuestion,
++	FormsQuestionExtraSettings,
++} from '../models/Entities.d.ts'
++
++export const CEP_QUESTION_NAME = 'cep'
++
++export const VIACEP_TIMEOUT_MS = 5000
++
++const CEP_DIGIT_COUNT = 8
++
++const CEP_VALIDATION_REGEX = '/^\\d{5}-?\\d{3}$/'
++
++const BRAZILIAN_STATES = [
++	'Acre (AC)',
++	'Alagoas (AL)',
++	'Amapá (AP)',
++	'Amazonas (AM)',
++	'Bahia (BA)',
++	'Ceará (CE)',
++	'Distrito Federal (DF)',
++	'Espírito Santo (ES)',
++	'Goiás (GO)',
++	'Maranhão (MA)',
++	'Mato Grosso (MT)',
++	'Mato Grosso do Sul (MS)',
++	'Minas Gerais (MG)',
++	'Pará (PA)',
++	'Paraíba (PB)',
++	'Paraná (PR)',
++	'Pernambuco (PE)',
++	'Piauí (PI)',
++	'Rio de Janeiro (RJ)',
++	'Rio Grande do Norte (RN)',
++	'Rio Grande do Sul (RS)',
++	'Rondônia (RO)',
++	'Roraima (RR)',
++	'Santa Catarina (SC)',
++	'São Paulo (SP)',
++	'Sergipe (SE)',
++	'Tocantins (TO)',
++]
++
++/** A question of the address block as the editor creates it */
++export interface AddressQuestion {
++	name: string
++	type: 'short' | 'dropdown'
++	text: string
++	isRequired: boolean
++	extraSettings?: FormsQuestionExtraSettings
++	options?: string[]
++}
++
++/** The fields of a ViaCEP reply the block uses */
++export interface ViaCepAddress {
++	logradouro?: string
++	bairro?: string
++	localidade?: string
++	uf?: string
++}
++
++type Translate = (app: string, text: string) => string
++
++type Answers = Record<number, unknown>
++
++/** The ViaCEP field each short question of the block takes its answer from */
++const VIACEP_FIELD_BY_NAME: Record<string, keyof ViaCepAddress> = {
++	logradouro: 'logradouro',
++	bairro: 'bairro',
++	municipio: 'localidade',
++}
++
++const ESTADO_QUESTION_NAME = 'estado'
++
++/**
++ * The questions of the address block, in order
++ *
++ * @param t translates a text of the forms app
++ */
++export function getAddressQuestions(t: Translate): AddressQuestion[] {
++	return [
++		{
++			name: CEP_QUESTION_NAME,
++			type: 'short',
++			text: t('forms', 'Postal code (CEP)'),
++			isRequired: true,
++			extraSettings: {
++				validationType: 'regex',
++				validationRegex: CEP_VALIDATION_REGEX,
++			},
++		},
++		{
++			name: 'logradouro',
++			type: 'short',
++			text: t('forms', 'Street'),
++			isRequired: true,
++		},
++		{
++			name: 'numero',
++			type: 'short',
++			text: t('forms', 'House number'),
++			isRequired: true,
++		},
++		{
++			name: 'complemento',
++			type: 'short',
++			text: t('forms', 'Address complement'),
++			isRequired: false,
++		},
++		{
++			name: 'bairro',
++			type: 'short',
++			text: t('forms', 'Neighborhood'),
++			isRequired: true,
++		},
++		{
++			name: ESTADO_QUESTION_NAME,
++			type: 'dropdown',
++			text: t('forms', 'State'),
++			isRequired: true,
++			options: BRAZILIAN_STATES,
++		},
++		{
++			name: 'municipio',
++			type: 'short',
++			text: t('forms', 'City'),
++			isRequired: true,
++		},
++	]
++}
++
++/**
++ * The 8 digits of a complete CEP, `null` while the answer has fewer or more digits
++ *
++ * @param answer the answer to the CEP question
++ */
++export function getCepDigits(answer: unknown): string | null {
++	if (typeof answer !== 'string') {
++		return null
++	}
++	const digits = answer.replace(/\D/g, '')
++	return digits.length === CEP_DIGIT_COUNT ? digits : null
++}
++
++/**
++ * The questions of the block of a CEP question: the questions after it, up to the next CEP question
++ *
++ * @param questions the questions of the form, in order
++ * @param cepQuestionId the id of the CEP question
++ */
++export function getAddressBlock<Question extends FormsQuestion>(
++	questions: Question[],
++	cepQuestionId: number,
++): Question[] {
++	const start = questions.findIndex(({ id }) => id === cepQuestionId)
++	if (start === -1) {
++		return []
++	}
++	const following = questions.slice(start + 1)
++	const end = following.findIndex(({ name }) => name === CEP_QUESTION_NAME)
++	return end === -1 ? following : following.slice(0, end)
++}
++
++/**
++ * Whether an answer has no text and no chosen option
++ *
++ * @param answer the values of the answer
++ */
++function isEmptyAnswer(answer: unknown): boolean {
++	return (
++		!Array.isArray(answer)
++		|| answer.every((value) => String(value ?? '').trim() === '')
++	)
++}
++
++/**
++ * Whether two answers have the same values
++ *
++ * @param answer the values of an answer
++ * @param other the values of the other answer
++ */
++function isSameAnswer(answer: unknown, other: unknown): boolean {
++	return (
++		Array.isArray(answer)
++		&& Array.isArray(other)
++		&& answer.length === other.length
++		&& answer.every((value, index) => String(value) === String(other[index]))
++	)
++}
++
++/**
++ * The answer to a question of the block for the address, `null` to leave the question alone
++ *
++ * @param address the address ViaCEP returned
++ * @param question the question of the block
++ */
++function getAddressAnswer(
++	address: ViaCepAddress,
++	question: FormsQuestion,
++): string[] | null {
++	if (question.name === ESTADO_QUESTION_NAME) {
++		const uf = address.uf?.trim() ?? ''
++		if (uf === '') {
++			return []
++		}
++		const option = question.options?.find(({ text }) => text.endsWith(`(${uf})`))
++		return option ? [String(option.id)] : null
++	}
++	const field = VIACEP_FIELD_BY_NAME[question.name ?? '']
++	if (!field) {
++		return null
++	}
++	const value = address[field]?.trim() ?? ''
++	return value === '' ? [] : [value]
++}
++
++/**
++ * The new answers to the questions of an address block for the address of a CEP, by question id.
++ * Only answers that are empty or still hold the value filled in before change.
++ *
++ * @param address the address ViaCEP returned
++ * @param block the questions of the block, see getAddressBlock()
++ * @param answers the current answers, by question id
++ * @param autoFilled the answers filled in before, by question id
++ */
++export function addressAnswers(
++	address: ViaCepAddress,
++	block: FormsQuestion[],
++	answers: Answers,
++	autoFilled: Answers,
++): Record<number, string[]> {
++	return Object.fromEntries(
++		block.flatMap((question) => {
++			const current = answers[question.id]
++			const isReplaceable =
++				isEmptyAnswer(current)
++				|| isSameAnswer(current, autoFilled[question.id])
++			const answer = getAddressAnswer(address, question)
++			if (
++				!isReplaceable
++				|| answer === null
++				|| isSameAnswer(answer, current)
++				|| (answer.length === 0 && isEmptyAnswer(current))
++			) {
++				return []
++			}
++			return [[question.id, answer]]
++		}),
++	)
++}
++
++/**
++ * Look up the address of a CEP on ViaCEP, `null` for a CEP ViaCEP does not know
++ *
++ * @param cep the 8 digits of the CEP
++ * @param fetchAddress the fetch function
++ */
++export async function fetchViaCepAddress(
++	cep: string,
++	fetchAddress: typeof fetch = fetch,
++): Promise<ViaCepAddress | null> {
++	const response = await fetchAddress(`https://viacep.com.br/ws/${cep}/json/`, {
++		credentials: 'omit',
++		signal: AbortSignal.timeout(VIACEP_TIMEOUT_MS),
++	})
++	if (!response.ok) {
++		throw new Error(`ViaCEP replied ${response.status}`)
++	}
++	const reply: ViaCepAddress & { erro?: boolean | string } = await response.json()
++	if (reply.erro === true || reply.erro === 'true') {
++		return null
++	}
++	return reply
++}
+diff --git a/src/views/Create.vue b/src/views/Create.vue
+index f1a2f37..6bab329 100644
+--- a/src/views/Create.vue
++++ b/src/views/Create.vue
+@@ -195,7 +195,8 @@
+ 													? index
+ 													: null)
+ 										"
+-										@addQuestion="addQuestion" />
++										@addQuestion="addQuestion"
++										@addAddressBlock="addAddressBlock" />
+ 								</div>
+ 							</template>
+ 						</component>
+@@ -212,7 +213,8 @@
+ 						:answerTypesFilter="answerTypesFilter"
+ 						:hasSubtypes="hasSubtypes"
+ 						primary
+-						@addQuestion="addQuestion" />
++						@addQuestion="addQuestion"
++						@addAddressBlock="addAddressBlock" />
+ 				</div>
+ 			</section>
+ 		</template>
+@@ -225,7 +227,7 @@ import axios from '@nextcloud/axios'
+ import { showConfirmation, showError, showWarning } from '@nextcloud/dialogs'
+ import { emit } from '@nextcloud/event-bus'
+ import { loadState } from '@nextcloud/initial-state'
+-import { getLanguage } from '@nextcloud/l10n'
++import { getLanguage, translate } from '@nextcloud/l10n'
+ import moment from '@nextcloud/moment'
+ import { generateOcsUrl } from '@nextcloud/router'
+ import { useIsMobile } from '@nextcloud/vue'
+@@ -246,7 +248,8 @@ import TopBar from '../components/TopBar.vue'
+ import { FORM_JUMP_ISSUES_KEY, FORM_QUESTIONS_KEY } from '../mixins/JumpsMixin.ts'
+ import ViewsMixin from '../mixins/ViewsMixin.js'
+ import answerTypes from '../models/AnswerTypes.js'
+-import { FormState, INPUT_DEBOUNCE_MS } from '../models/Constants.ts'
++import { FormState, INPUT_DEBOUNCE_MS, OptionType } from '../models/Constants.ts'
++import { getAddressQuestions } from '../utils/AddressBlock.ts'
+ import {
+ 	formatList,
+ 	getJumpIssues,
+@@ -754,6 +757,101 @@ export default {
+ 			}
+ 		},
+ 
++		/**
++		 * Add the questions of the address block, configured, to the current form
++		 *
++		 * @param {number|null} position where the block should be added
++		 */
++		async addAddressBlock(position = null) {
++			const formId = this.form.id
++			this.isLoadingQuestions = true
++			this.startChangingQuestions(formId)
++
++			try {
++				let cepQuestion = null
++				for (const [offset, addressQuestion] of getAddressQuestions(
++					translate,
++				).entries()) {
++					const question = await this.createAddressQuestion(
++						addressQuestion,
++						position === null ? null : position + offset,
++					)
++					if (this.form.id !== formId) {
++						return
++					}
++					cepQuestion ??= question
++					this.insertQuestion(question, { answers: [] })
++				}
++				this.$nextTick(() => {
++					this.questionRefsMap[cepQuestion.id]?.focus()
++				})
++			} catch (error) {
++				logger.error('Error while adding the address block', { error })
++				showError(
++					t('forms', 'There was an error while adding the address block'),
++				)
++			} finally {
++				this.isLoadingQuestions = false
++				this.endChangingQuestions(formId)
++			}
++		},
++
++		/**
++		 * Create a question of the address block with its settings and options
++		 *
++		 * @param {object} addressQuestion the question, see getAddressQuestions()
++		 * @param {number|null} position the position of the question before it
++		 * @return {Promise<object>} the created question
++		 */
++		async createAddressQuestion(addressQuestion, position) {
++			const { name, type, text, isRequired, extraSettings, options } =
++				addressQuestion
++			const body = { type, text, subtype: null }
++			if (position !== null) {
++				// position: question before it + 2 (0-based index: +1, next position: +1)
++				body.position = position + 2
++			}
++			const question = OcsResponse2Data(
++				await queueQuestionRequest(
++					this.form.questions.map(({ id }) => id),
++					() =>
++						axios.post(
++							generateOcsUrl(
++								'apps/forms/api/v3/forms/{id}/questions',
++								{
++									id: this.form.id,
++								},
++							),
++							body,
++						),
++				),
++			)
++			const questionUrl = generateOcsUrl(
++				'apps/forms/api/v3/forms/{id}/questions/{questionId}',
++				{ id: question.formId, questionId: question.id },
++			)
++			const settings = {
++				isRequired,
++				name,
++				extraSettings: { ...question.extraSettings, ...extraSettings },
++			}
++			await queueQuestionRequest([question.id], () =>
++				axios.patch(questionUrl, { keyValuePairs: settings }),
++			)
++			if (!options) {
++				return { ...question, ...settings }
++			}
++			const createdOptions = OcsResponse2Data(
++				await queueQuestionRequest([question.id], () =>
++					axios.post(`${questionUrl}/options`, {
++						optionTexts: options,
++						optionType: OptionType.Choice,
++					}),
++				),
++			)
++			return { ...question, ...settings, options: createdOptions }
++		},
++
+ 		/**
+ 		 * Delete a question
+ 		 *
+diff --git a/src/views/Submit.vue b/src/views/Submit.vue
+index abe7e15..79ca259 100644
+--- a/src/views/Submit.vue
++++ b/src/views/Submit.vue
+@@ -56,6 +56,9 @@
+ 			<div class="hidden-visually" aria-live="polite">
+ 				{{ jumpAnnouncement }}
+ 			</div>
++			<div class="hidden-visually" aria-live="polite">
++				{{ addressAnnouncement }}
++			</div>
+ 
+ 			<NcEmptyContent
+ 				v-if="loading"
+@@ -142,6 +145,7 @@
+ 								|| answersToChooseAgain.has(question.id)
+ 							"
+ 							:answerError="getAnswerError(question)"
++							:answerInfo="cepMessages[question.id] ?? null"
+ 							readOnly
+ 							:answerType="answerTypes[question.type]"
+ 							:index="shownQuestions.indexOf(question) + 1"
+@@ -258,6 +262,13 @@ import {
+ 	FormState,
+ 	QUESTION_EXTRASETTINGS_OTHER_PREFIX,
+ } from '../models/Constants.ts'
++import {
++	addressAnswers,
++	CEP_QUESTION_NAME,
++	fetchViaCepAddress,
++	getAddressBlock,
++	getCepDigits,
++} from '../utils/AddressBlock.ts'
+ import { formatList, getJumps, getVisibleQuestions } from '../utils/Jumps.ts'
+ import logger from '../utils/Logger.js'
+ import OcsResponse2Data from '../utils/OcsResponse2Data.js'
+@@ -276,6 +287,9 @@ function hasValues(value) {
+ 	)
+ }
+ 
++/** The address of a CEP ViaCEP does not know: empties the answers filled in for an earlier CEP */
++const UNKNOWN_ADDRESS = {}
++
+ /**
+  * Whether a question has jumps per answer
+  *
+@@ -408,6 +422,9 @@ export default {
+ 			/** Ids of the questions with jumps per answer whose earlier answer the form no longer offers */
+ 			answersToChooseAgain: new Set(),
+ 			jumpAnnouncement: '',
++			addressAnnouncement: '',
++			/** The message under a CEP question whose CEP ViaCEP does not know, by question id */
++			cepMessages: {},
+ 		}
+ 	},
+ 
+@@ -666,6 +683,10 @@ export default {
+ 		window.addEventListener('beforeunload', this.beforeWindowUnload)
+ 		/** The questions shown before the answers of a pending path announcement, `null` for none */
+ 		this.shownBeforeAnnouncement = null
++		/** The answers filled in from a CEP, by question id */
++		this.autoFilledAnswers = {}
++		/** The CEP digits last looked up, by CEP question id */
++		this.cepLookups = {}
+ 		this.announcePathStatus = debounce(() => {
+ 			this.jumpAnnouncement = getPathChangeStatus(
+ 				this.shownBeforeAnnouncement ?? [],
+@@ -920,6 +941,98 @@ export default {
+ 			this.answers = { ...this.answers, [question.id]: values }
+ 			this.announcePathChange(shownBefore)
+ 			this.addFormFieldToLocalStorage(question)
++			if (question.name === CEP_QUESTION_NAME) {
++				this.fillAddressFromCep(question, values)
++			}
++		},
++
++		/**
++		 * Fill the address block of a CEP question from ViaCEP once the CEP has 8 digits.
++		 * Network errors leave the block as it is.
++		 *
++		 * @param {object} question the CEP question
++		 * @param {string[]} values the answer to the CEP question
++		 */
++		async fillAddressFromCep(question, values) {
++			const cep = getCepDigits(values?.[0])
++			if (cep === (this.cepLookups[question.id] ?? null)) {
++				return
++			}
++			this.cepLookups[question.id] = cep
++			this.setCepMessage(question.id, null)
++			if (cep === null) {
++				return
++			}
++
++			let address
++			try {
++				address = await fetchViaCepAddress(cep)
++			} catch (error) {
++				logger.debug('Could not look up the CEP', { error })
++				return
++			}
++			if (
++				this.cepLookups[question.id] !== cep
++				|| !this.visibleQuestionIds.has(question.id)
++			) {
++				return
++			}
++
++			const block = getAddressBlock(this.validQuestions, question.id).filter(
++				({ id }) => this.visibleQuestionIds.has(id),
++			)
++			const filledAnswers = addressAnswers(
++				address ?? UNKNOWN_ADDRESS,
++				block,
++				this.answers,
++				this.autoFilledAnswers,
++			)
++			block
++				.filter(({ id }) => id in filledAnswers)
++				.forEach((blockQuestion) => {
++					this.autoFilledAnswers[blockQuestion.id] =
++						filledAnswers[blockQuestion.id]
++					this.onUpdate(blockQuestion, filledAnswers[blockQuestion.id])
++				})
++
++			if (address === null) {
++				const message = t('forms', 'CEP not found. Fill in the address.')
++				this.setCepMessage(question.id, message)
++				this.announceAddress(message)
++				return
++			}
++			if (Object.keys(filledAnswers).length > 0) {
++				this.announceAddress(t('forms', 'Address filled in from the CEP.'))
++			}
++		},
++
++		/**
++		 * Show a message under a CEP question
++		 *
++		 * @param {number} questionId the id of the CEP question
++		 * @param {string|null} message the message, `null` for none
++		 */
++		setCepMessage(questionId, message) {
++			if ((this.cepMessages[questionId] ?? null) === message) {
++				return
++			}
++			const cepMessages = { ...this.cepMessages }
++			delete cepMessages[questionId]
++			if (message !== null) {
++				cepMessages[questionId] = message
++			}
++			this.cepMessages = cepMessages
++		},
++
++		/**
++		 * Announce a message about the address in the polite live region, also when it repeats the last one
++		 *
++		 * @param {string} message the message
++		 */
++		async announceAddress(message) {
++			this.addressAnnouncement = ''
++			await this.$nextTick()
++			this.addressAnnouncement = message
+ 		},
+ 
+ 		/**
+@@ -1165,6 +1278,10 @@ export default {
+ 			this.showClearFormDialog = false
+ 			this.showClearFormDueToChangeDialog = false
+ 			this.answersToChooseAgain = new Set()
++			this.autoFilledAnswers = {}
++			this.cepLookups = {}
++			this.cepMessages = {}
++			this.addressAnnouncement = ''
+ 			this.success = false
+ 			this.submitForm = false
+ 		},
+diff --git a/tests/javascript/address-block.test.mjs b/tests/javascript/address-block.test.mjs
+new file mode 100644
+index 0000000..fd8f258
+--- /dev/null
++++ b/tests/javascript/address-block.test.mjs
+@@ -0,0 +1,372 @@
++/**
++ * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
++ * SPDX-License-Identifier: AGPL-3.0-or-later
++ */
++
++// Run: npm run test:address (node 24; --experimental-transform-types for the enums of Constants.ts)
++
++import assert from 'node:assert/strict'
++import { describe, it } from 'node:test'
++import {
++	addressAnswers,
++	fetchViaCepAddress,
++	getAddressBlock,
++	getAddressQuestions,
++	getCepDigits,
++} from '../../src/utils/AddressBlock.ts'
++import { splitRegex, validateExpression } from '../../src/utils/RegularExpression.js'
++
++const translate = (_app, text) => `[${text}]`
++
++const PAULISTA = {
++	cep: '01310-100',
++	logradouro: 'Avenida Paulista',
++	bairro: 'Bela Vista',
++	localidade: 'São Paulo',
++	uf: 'SP',
++}
++
++const ESTADO_OPTIONS = [
++	{ id: 71, text: 'Rio de Janeiro (RJ)' },
++	{ id: 72, text: 'São Paulo (SP)' },
++	{ id: 73, text: 'Tocantins (TO)' },
++]
++
++/**
++ * An address block as the editor creates it, with ids starting at `firstId`
++ *
++ * @param {number} firstId the id of the CEP question
++ */
++function addressBlock(firstId) {
++	return [
++		{ id: firstId, type: 'short', name: 'cep' },
++		{ id: firstId + 1, type: 'short', name: 'logradouro' },
++		{ id: firstId + 2, type: 'short', name: 'numero' },
++		{ id: firstId + 3, type: 'short', name: 'complemento' },
++		{ id: firstId + 4, type: 'short', name: 'bairro' },
++		{
++			id: firstId + 5,
++			type: 'dropdown',
++			name: 'estado',
++			options: ESTADO_OPTIONS.map((option) => ({
++				...option,
++				id: option.id + firstId,
++			})),
++		},
++		{ id: firstId + 6, type: 'short', name: 'municipio' },
++	]
++}
++
++describe('getAddressQuestions', () => {
++	const questions = getAddressQuestions(translate)
++
++	it('defines the 7 questions in order with their technical names', () => {
++		assert.deepEqual(
++			questions.map(({ name, type }) => [name, type]),
++			[
++				['cep', 'short'],
++				['logradouro', 'short'],
++				['numero', 'short'],
++				['complemento', 'short'],
++				['bairro', 'short'],
++				['estado', 'dropdown'],
++				['municipio', 'short'],
++			],
++		)
++	})
++
++	it('makes every question required except Complemento', () => {
++		assert.deepEqual(
++			questions.map(({ name, isRequired }) => [name, isRequired]),
++			[
++				['cep', true],
++				['logradouro', true],
++				['numero', true],
++				['complemento', false],
++				['bairro', true],
++				['estado', true],
++				['municipio', true],
++			],
++		)
++	})
++
++	it('translates the question texts', () => {
++		assert.ok(questions.every(({ text }) => /^\[.+\]$/.test(text)))
++	})
++
++	describe('CEP validation', () => {
++		const cep = questions[0]
++		const { pattern, modifiers } = splitRegex(cep.extraSettings.validationRegex)
++		const cepRegex = new RegExp(pattern, modifiers)
++
++		it('uses a regex the editor accepts', () => {
++			assert.equal(cep.extraSettings.validationType, 'regex')
++			assert.equal(validateExpression(cep.extraSettings.validationRegex), true)
++		})
++
++		it('accepts a CEP with or without the dash', () => {
++			assert.equal(cepRegex.test('01310-100'), true)
++			assert.equal(cepRegex.test('01310100'), true)
++		})
++
++		it('rejects other formats', () => {
++			assert.equal(cepRegex.test('0131-0100'), false)
++			assert.equal(cepRegex.test('1310100'), false)
++			assert.equal(cepRegex.test('01310-1000'), false)
++		})
++	})
++
++	describe('Estado options', () => {
++		const estado = questions.find(({ name }) => name === 'estado')
++
++		it('offers the 27 states as "Name (UF)"', () => {
++			assert.equal(estado.options.length, 27)
++			assert.ok(
++				estado.options.every((option) =>
++					/^\p{L}[\p{L} ]+ \([A-Z]{2}\)$/u.test(option),
++				),
++			)
++			assert.ok(estado.options.includes('Acre (AC)'))
++			assert.ok(estado.options.includes('Distrito Federal (DF)'))
++			assert.ok(estado.options.includes('Tocantins (TO)'))
++		})
++
++		it('orders them alphabetically by name', () => {
++			assert.deepEqual(
++				estado.options,
++				[...estado.options].sort((a, b) => a.localeCompare(b, 'pt-BR')),
++			)
++		})
++
++		it('has one option per UF', () => {
++			const ufs = estado.options.map((option) => option.slice(-3, -1))
++			assert.equal(new Set(ufs).size, 27)
++		})
++	})
++})
++
++describe('getCepDigits', () => {
++	it('reads a CEP with the dash', () => {
++		assert.equal(getCepDigits('01310-100'), '01310100')
++	})
++
++	it('reads a CEP without the dash', () => {
++		assert.equal(getCepDigits('01310100'), '01310100')
++	})
++
++	it('reads a CEP with spaces', () => {
++		assert.equal(getCepDigits(' 01310 100 '), '01310100')
++	})
++
++	it('returns null before the 8th digit', () => {
++		assert.equal(getCepDigits('01310-10'), null)
++	})
++
++	it('returns null for more than 8 digits', () => {
++		assert.equal(getCepDigits('01310-1000'), null)
++	})
++
++	it('returns null for no answer', () => {
++		assert.equal(getCepDigits(undefined), null)
++	})
++})
++
++describe('getAddressBlock', () => {
++	const form = [
++		{ id: 1, type: 'short', name: 'nome' },
++		...addressBlock(10),
++		...addressBlock(20),
++	]
++
++	it('takes the questions after the CEP up to the next CEP', () => {
++		assert.deepEqual(
++			getAddressBlock(form, 10).map(({ id }) => id),
++			[11, 12, 13, 14, 15, 16],
++		)
++	})
++
++	it('takes the second block for the second CEP', () => {
++		assert.deepEqual(
++			getAddressBlock(form, 20).map(({ id }) => id),
++			[21, 22, 23, 24, 25, 26],
++		)
++	})
++
++	it('returns nothing for a question not in the form', () => {
++		assert.deepEqual(getAddressBlock(form, 99), [])
++	})
++})
++
++describe('addressAnswers', () => {
++	const block = getAddressBlock(addressBlock(10), 10)
++
++	it('fills Logradouro, Bairro, Município and Estado of an empty block', () => {
++		assert.deepEqual(addressAnswers(PAULISTA, block, {}, {}), {
++			11: ['Avenida Paulista'],
++			14: ['Bela Vista'],
++			15: ['82'],
++			16: ['São Paulo'],
++		})
++	})
++
++	it('fills answers left empty', () => {
++		assert.deepEqual(
++			addressAnswers(PAULISTA, block, { 11: [''], 14: [], 15: [] }, {}),
++			{
++				11: ['Avenida Paulista'],
++				14: ['Bela Vista'],
++				15: ['82'],
++				16: ['São Paulo'],
++			},
++		)
++	})
++
++	it('keeps text the respondent typed', () => {
++		assert.deepEqual(
++			addressAnswers(PAULISTA, block, { 11: ['Rua Augusta'] }, {}),
++			{
++				14: ['Bela Vista'],
++				15: ['82'],
++				16: ['São Paulo'],
++			},
++		)
++	})
++
++	it('keeps a state the respondent chose', () => {
++		assert.deepEqual(addressAnswers(PAULISTA, block, { 15: ['81'] }, {}), {
++			11: ['Avenida Paulista'],
++			14: ['Bela Vista'],
++			16: ['São Paulo'],
++		})
++	})
++
++	it('replaces the answers it filled before', () => {
++		const autoFilled = {
++			11: ['Rua da Assembleia'],
++			14: ['Centro'],
++			15: ['81'],
++			16: ['Rio de Janeiro'],
++		}
++		assert.deepEqual(
++			addressAnswers(PAULISTA, block, { ...autoFilled }, autoFilled),
++			{
++				11: ['Avenida Paulista'],
++				14: ['Bela Vista'],
++				15: ['82'],
++				16: ['São Paulo'],
++			},
++		)
++	})
++
++	it('keeps an answer the respondent changed after it was filled', () => {
++		assert.deepEqual(
++			addressAnswers(
++				PAULISTA,
++				block,
++				{ 11: ['Rua da Assembleia, fundos'] },
++				{ 11: ['Rua da Assembleia'] },
++			),
++			{
++				14: ['Bela Vista'],
++				15: ['82'],
++				16: ['São Paulo'],
++			},
++		)
++	})
++
++	it('empties an answer it filled before when the new CEP has no value for it', () => {
++		assert.deepEqual(
++			addressAnswers(
++				{ ...PAULISTA, logradouro: '', bairro: '' },
++				block,
++				{ 11: ['Avenida Paulista'], 14: ['Bela Vista'] },
++				{ 11: ['Avenida Paulista'], 14: ['Bela Vista'] },
++			),
++			{
++				11: [],
++				14: [],
++				15: ['82'],
++				16: ['São Paulo'],
++			},
++		)
++	})
++
++	it('empties every answer it filled before for an unknown address, keeps typed text', () => {
++		const autoFilled = { 14: ['Bela Vista'], 15: ['82'], 16: ['São Paulo'] }
++		assert.deepEqual(
++			addressAnswers(
++				{},
++				block,
++				{ 11: ['Rua Digitada'], ...autoFilled },
++				autoFilled,
++			),
++			{ 14: [], 15: [], 16: [] },
++		)
++	})
++
++	it('leaves Estado alone when no option matches the UF', () => {
++		assert.deepEqual(addressAnswers({ ...PAULISTA, uf: 'MG' }, block, {}, {}), {
++			11: ['Avenida Paulista'],
++			14: ['Bela Vista'],
++			16: ['São Paulo'],
++		})
++	})
++
++	it('leaves the second block untouched', () => {
++		const form = [...addressBlock(10), ...addressBlock(20)]
++		const filled = addressAnswers(PAULISTA, getAddressBlock(form, 10), {}, {})
++		assert.deepEqual(Object.keys(filled).map(Number), [11, 14, 15, 16])
++	})
++
++	it('fills only questions named like the address fields', () => {
++		const renamed = block.map((question) =>
++			question.name === 'bairro'
++				? { ...question, name: 'distrito' }
++				: question,
++		)
++		assert.deepEqual(addressAnswers(PAULISTA, renamed, {}, {}), {
++			11: ['Avenida Paulista'],
++			15: ['82'],
++			16: ['São Paulo'],
++		})
++	})
++})
++
++describe('fetchViaCepAddress', () => {
++	it('asks ViaCEP for the CEP with a 5 s timeout', async () => {
++		const calls = []
++		const fetchStub = async (url, init) => {
++			calls.push({ url, init })
++			return { ok: true, json: async () => PAULISTA }
++		}
++		assert.deepEqual(await fetchViaCepAddress('01310100', fetchStub), PAULISTA)
++		assert.equal(calls[0].url, 'https://viacep.com.br/ws/01310100/json/')
++		assert.ok(calls[0].init.signal instanceof AbortSignal)
++		assert.equal(calls[0].init.credentials, 'omit')
++	})
++
++	it('returns null for a CEP ViaCEP does not know', async () => {
++		const fetchStub = async () => ({
++			ok: true,
++			json: async () => ({ erro: true }),
++		})
++		assert.equal(await fetchViaCepAddress('00000000', fetchStub), null)
++	})
++
++	it('returns null for the string "true" ViaCEP also sends as error', async () => {
++		const fetchStub = async () => ({
++			ok: true,
++			json: async () => ({ erro: 'true' }),
++		})
++		assert.equal(await fetchViaCepAddress('00000000', fetchStub), null)
++	})
++
++	it('throws on an HTTP error', async () => {
++		const fetchStub = async () => ({
++			ok: false,
++			status: 502,
++			json: async () => ({}),
++		})
++		await assert.rejects(fetchViaCepAddress('01310100', fetchStub))
++	})
++})
 -- 
 2.50.1 (Apple Git-155)
 

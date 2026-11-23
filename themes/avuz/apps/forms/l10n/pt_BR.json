@@ -36,7 +36,18 @@
             "%n pergunta pulada",
             "%n de perguntas puladas",
             "%n perguntas puladas"
-        ]
+        ],
+        "Address block": "Bloco de endereço",
+        "Postal code (CEP)": "CEP",
+        "Street": "Logradouro",
+        "House number": "Nº",
+        "Address complement": "Complemento",
+        "Neighborhood": "Bairro",
+        "State": "Estado",
+        "City": "Município",
+        "There was an error while adding the address block": "Houve um erro ao adicionar o bloco de endereço",
+        "Address filled in from the CEP.": "Endereço preenchido a partir do CEP.",
+        "CEP not found. Fill in the address.": "CEP não encontrado. Preencha o endereço."
     },
     "pluralForm": "nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;"
 }
