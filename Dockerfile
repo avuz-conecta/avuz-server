@@ -73,6 +73,18 @@ RUN grep -q "<version>${AVUZ_FORMS_OVERLAY_VERSION}</version>" /var/www/html/app
 # Without it the Sharing admin page returns 500 with TemplateNotFoundException.
 RUN cp -R /var/www/html/docker/overlays/files_downloadlimit/. /var/www/html/apps/files_downloadlimit/
 
+# Apply Avuz 3rdparty overlay: sabre/vobject 4.5.6 iTip Broker crashed on a new
+# recurring event with EXDATE where the user is an attendee (in_array on null,
+# PHP 8), so Google Calendar imports lost their meetings. Upstream sabre-io/vobject
+# fixed it on master only. The checksum guard fails the build when 3rdparty ships
+# a different Broker.php, so the overlay never replaces a newer upstream file;
+# the regression test then runs against the patched copy. See docker/overlays/3rdparty/README.md.
+ARG AVUZ_VOBJECT_BROKER_SHA256=ce897e710740dd7d94a2c96a526a04c2307a2eb6ed5c5cea840e00e4153957d8
+RUN echo "${AVUZ_VOBJECT_BROKER_SHA256}  /var/www/html/3rdparty/sabre/vobject/lib/ITip/Broker.php" | sha256sum -c - \
+    || { echo "3rdparty sabre/vobject Broker.php changed — check whether upstream fixed the EXDATE crash, then drop or rebase docker/overlays/3rdparty (see its README)"; exit 1; } \
+    && cp -R /var/www/html/docker/overlays/3rdparty/sabre/. /var/www/html/3rdparty/sabre/ \
+    && php /var/www/html/docker/overlays/3rdparty/tests/broker-exdate.test.php /var/www/html/3rdparty/autoload.php
+
 # Deck is shipped as the avuz-conecta/deck submodule at apps/deck (branch avuz,
 # pinned). It carries the board-copy fix (AVUZ-DECK-CLONE-ORDER-V1) and the
 # board-tags feature (AVUZ-BOARD-TAGS-V1) as real commits, plus its committed

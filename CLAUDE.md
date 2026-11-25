@@ -84,6 +84,9 @@ Nextcloud deployment with custom branding ("Avuz Conecta") running in Docker. Mu
 - `apps/dav/lib/CalDAV/CreatedBy/CreatedByPlugin.php` stamps `X-AVUZ-CREATED-BY;CN=<name>:<uid>` when someone other than the calendar owner creates an event (share/delegation) over CalDAV. Set on create, carried over on update (clients can't drop or forge it); owner-created events untouched.
 - The calendar overlay (`docker/overlays/calendar/event-created-by.patch`, sentinel `AVUZ-CREATED-BY-V1`) shows "Criado por <nome>" in the popover and full editor. Older events have no stamp.
 
+### Calendar import of recurring meetings (sabre/vobject overlay)
+- `docker/overlays/3rdparty/` replaces `3rdparty/sabre/vobject/lib/ITip/Broker.php` (4.5.6, sentinel `AVUZ-ITIP-EXDATE-V1`): upstream master's `?? []` on the EXDATE check, or Google Calendar imports of recurring meetings 500 (`in_array` on null, PHP 8). The Dockerfile checks the file's SHA-256 and runs `tests/broker-exdate.test.php`; when `3rdparty` moves, follow the overlay README.
+
 ### Contacts WhatsApp button (card 266)
 - Contacts 8.4.1 overlay (`docker/overlays/contacts/`, sentinel `AVUZ-WHATSAPP-PHONE-V1`): in view mode a WhatsApp button next to each phone number opens `wa.me/<digits>` (bare 10/11 digits get `55`; none for <8 digits, Fax/Pager/Car, or edit mode). Ships `js/` and `css/`; the Dockerfile fails on any other contacts version. pt_BR label in `themes/avuz/apps/contacts/l10n/pt_BR.json`.
 - Rebuild needs the build clock pinned to the release date (`shift-build-date.cjs`), or the bundle won't match upstream. See `docker/overlays/contacts/README.md`.

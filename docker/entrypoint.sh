@@ -147,6 +147,7 @@ verify_avuz_patches() {
     local checks=(
         "AVUZ-CHUNKED-UPLOAD-V2|spreed|lib/Controller/RecordingController.php|spreed overlay missing — redeploy from latest image or rerun reapply_avuz_spreed_overlay"
         "Upload in progress — do not close this tab|-|/var/www/html/dist/files-main.js|files-main.js was not rebuilt with the upload-leave-warning patch — run 'npm run build' before baking the image"
+        "AVUZ-ITIP-EXDATE-V1|-|/var/www/html/3rdparty/sabre/vobject/lib/ITip/Broker.php|3rdparty overlay missing — Google Calendar imports of recurring meetings would crash again; rebuild the image (see docker/overlays/3rdparty/README.md)"
         "admin-download-limit|files_downloadlimit|templates/admin.php|files_downloadlimit overlay missing — upstream 2.0.0 tarball drops this template (GH nextcloud/files_downloadlimit#421); redeploy or rerun reapply_avuz_files_downloadlimit_overlay"
         "AVUZ-AUDIO-EXTRACT-V1|integration_openai|lib/Service/OpenAiAPIService.php|integration_openai fork missing/clobbered — submodule not shipped, or app:update replaced it (check the appinfo version pin >= store)"
         "AVUZ-POPOVER-COLOR-V1|calendar|js/calendar-main.js|calendar overlay missing — event color picker in the new-event popover lost; redeploy or rerun reapply_avuz_calendar_overlay"
